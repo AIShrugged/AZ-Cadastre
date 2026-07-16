@@ -1,0 +1,20 @@
+{
+  "name": "core",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nest start --watch",
+    "build": "nest build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@nestjs/cli": "12.0.0-alpha.6",
+    "@nestjs/common": "12.0.0-alpha.5",
+    "@nestjs/core": "12.0.0-alpha.5",
+    "@nestjs/platform-express": "12.0.0-alpha.5"
+  }
+}

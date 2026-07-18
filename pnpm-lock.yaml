@@ -223,6 +223,9 @@ importers:
 
   apps/core:
     dependencies:
+      '@cadastre/contracts':
+        specifier: workspace:*
+        version: link:../../libs/contracts
       '@nestjs/cli':
         specifier: 12.0.0-alpha.6
         version: 12.0.0-alpha.6(@types/node@26.1.1)(prettier@3.9.5)
@@ -235,6 +238,14 @@ importers:
       '@nestjs/platform-express':
         specifier: 12.0.0-alpha.5
         version: 12.0.0-alpha.5(@nestjs/common@12.0.0-alpha.5(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.0.0-alpha.5)
+
+  apps/web:
+    dependencies:
+      '@cadastre/contracts':
+        specifier: workspace:*
+        version: link:../../libs/contracts
+
+  libs/contracts: {}
 
 packages:
 

@@ -1,4 +1,4 @@
-# ADR 001: Multi-Stage Orchestrated Document Verification Architecture
+# PRD: Multi-Stage Orchestrated Document Verification Architecture
 
 ## Context
 

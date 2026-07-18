@@ -1,5 +1,5 @@
 {
-  "name": "core",
+  "name": "@cadastre/core",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -12,6 +12,7 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@cadastre/contracts": "workspace:*",
     "@nestjs/cli": "12.0.0-alpha.6",
     "@nestjs/common": "12.0.0-alpha.5",
     "@nestjs/core": "12.0.0-alpha.5",

@@ -10,13 +10,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "devEngines": {
-    "packageManager": {
-      "name": "pnpm",
-      "version": "^11.10.0",
-      "onFail": "download"
-    }
-  },
+
   "dependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.7.0",

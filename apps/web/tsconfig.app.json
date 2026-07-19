@@ -22,10 +22,9 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
 
-    "compilerOptions": {
-      "paths": {
-        "@/*": ["./src/*"]
-      }
+    /* Path alias */
+    "paths": {
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src"]

@@ -39,7 +39,7 @@ Validation
 Verification Report
 ```
 
-Human review workflows, notifications and advanced orchestration are intentionally left outside the MVP.
+Human review workflows and notifications are intentionally left outside the MVP. Orchestration of the pipeline is handled by Temporal (see section 7).
 
 ## 3. Supported Input
 
@@ -272,3 +272,132 @@ Each issue links to:
 - page
 - field
 - confidence
+
+## 7. Architecture — Temporal Workflow Orchestration
+
+### Context
+
+The verification pipeline is long-running and involves unstable external dependencies (third-party OCR provider, classification model). Traditional request-response architectures struggle with:
+
+- Long-running verification processes (OCR, multiple validation stages)
+- Transient failures of external services requiring retries
+- Complex state management across verification stages
+- Need to track intermediate results and resume workflows
+
+### Decision
+
+We adopt **Temporal** to orchestrate the verification workflow:
+
+- Manages the long-running document verification workflow as a single durable execution
+- Provides built-in retry logic, timeouts, and resumable workflows
+- Maintains complete workflow history for audit trails
+
+### Verification Pipeline
+
+The workflow executes in stages (atomic activities), allowing:
+
+- Efficient parallel processing where possible
+- Clear audit trail of what happened and when
+
+| Stage               | Purpose                                                           | Output                     |
+| ------------------- | ----------------------------------------------------------------- | -------------------------- |
+| 1. Classify         | ML model categorizes documents by type                            | Document categories stored |
+| 2. OCR & Extract    | Extract structured fields from identified documents               | JSON fields in DB          |
+| 3. Completeness     | Verify required documents present                                 | List of missing docs       |
+| 4. Cross-Validation | Check consistency across documents (names, addresses, parcel IDs) | Validation issues list     |
+| 5. Legal Rules      | Apply business rules (measurement accuracy, date validity)        | Rule violations list       |
+| 6. Generate Report  | Compile findings with confidence scores                           | PDF/JSON report            |
+
+### Components
+
+- **NestJS Backend (REST API)**: Document upload, metadata queries, workflow start, status polling
+- **PostgreSQL**: Structured application data (users, document metadata, validation results)
+- **Object Storage (S3/MinIO)**: Raw documents, OCR images, generated reports — decouples compute-heavy OCR/ML from the transactional database
+
+The inspector checks verification status via the REST API (polling); real-time push updates and notification channels are out of MVP scope.
+
+### Architecture Diagram
+
+```mermaid
+flowchart TD
+User[Inspector]
+
+    subgraph Frontend
+        UI[React Dashboard]
+    end
+
+    subgraph Backend[NestJS Backend]
+        API[REST API]
+    end
+
+    subgraph Workflow[Temporal]
+        TS[Temporal Server]
+
+        WF[Document Verification Workflow]
+
+        A1[Classify Documents]
+        A2[OCR & Extract Fields]
+        A3[Completeness Check]
+        A4[Cross Document Validation]
+        A5[Legal Rules Validation]
+        A6[Generate Report]
+    end
+
+    subgraph Storage
+        DB[(PostgreSQL)]
+        OBJ[(Object Storage\nS3 / MinIO)]
+    end
+
+    User --> UI
+
+    UI -->|Upload package| API
+    UI -->|Poll status| API
+
+    API --> OBJ
+    API -->|Start Workflow| TS
+
+    TS --> WF
+
+    WF --> A1
+    A1 --> A2
+    A2 --> A3
+    A3 --> A4
+    A4 --> A5
+    A5 --> A6
+
+    A1 --> DB
+    A2 --> DB
+    A3 --> DB
+    A4 --> DB
+    A5 --> DB
+    A6 --> DB
+```
+
+### Rationale
+
+**Why Temporal?**
+
+- Temporal handles the complexity of long-running, multi-step workflows
+- Built-in compensation (retry, timeout, dead-letter queues) for unstable external calls (OCR provider, ML model)
+- Complete audit trail: what happened, when, in what order
+- Workflows survive worker restarts and resume from the last completed activity
+
+### Alternatives Considered
+
+| Approach                            | Pros                | Cons                                               | Why Not?                                    |
+| ----------------------------------- | ------------------- | -------------------------------------------------- | ------------------------------------------- |
+| **Synchronous API** (current model) | Simple, familiar    | Timeouts on long-running OCR, fragile retries      | Can't handle long-running workflows         |
+| **Job Queue (Bull, RabbitMQ)**      | Lightweight, proven | Manual retry logic, harder to track workflow state | Less suitable for multi-stage workflows     |
+| **Custom Workflow**                 | Full control        | Massive engineering effort, maintenance burden     | Reinventing the wheel                       |
+
+### Implementation Notes
+
+1. **Workflow Activities** map to verification stages (S1–S6)
+2. **Failure Handling**: Activities auto-retry on transient errors (OCR service down); surface permanent failures to the inspector via package status
+3. **Audit Trail**: Query Temporal's workflow history for "what happened to this document package?"
+
+### Related Decisions
+
+- ADR 002: Document Classification Model Selection
+- ADR 003: OCR Engine & Language Support
+- ADR 004: Data Retention & Compliance Policies

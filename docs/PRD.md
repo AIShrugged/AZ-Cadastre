@@ -1,170 +1,274 @@
-# PRD: Multi-Stage Orchestrated Document Verification Architecture
+# MVP — AI Document Verification System
 
-## Context
+## 1. Goal
 
-The Real Estate Registration Authority needs an AI-assisted document verification system that:
+Build an MVP of an AI-assisted document verification system for government real estate registration.
 
-- Processes multi-page, multi-format document packages (PDF, JPG, PNG)
-- Handles multiple languages (Azerbaijani Latin/Cyrillic scripts)
-- Requires complex validation workflows with human intervention loops
-- Needs real-time progress updates to inspectors
-- Must maintain audit trail and structured data for registry integration
+**The system does not make legal decisions.**
 
-Traditional request-response architectures struggle with:
+Its purpose is to help an inspector quickly verify submitted document packages by:
 
-- Long-running verification processes (OCR, multiple validation stages)
-- Human review loops that can take hours or days
-- Complex state management across verification stages
-- Need to track intermediate results and resume workflows
+- collecting uploaded documents
+- recognizing document types
+- extracting structured data
+- validating completeness
+- checking consistency between documents
+- producing a verification report
 
-## Decision
+The final approval is always performed by a human inspector.
 
-We adopt a **multi-stage orchestrated workflow architecture** with the following components:
+## 2. Scope
 
-### 1. **Temporal for Workflow Orchestration**
+The MVP focuses on a single verification flow:
 
-- Manages long-running document verification workflows
-- Provides built-in retry logic, timeouts, and resumable workflows
-- Enables human review task ("activities") that can pause/wait for inspector input
-- Maintains complete workflow history for audit trails
-
-### 2. **NestJS + WebSocket Backend**
-
-- **REST API**: Document upload, metadata queries, webhook endpoints
-- **WebSocket Gateway**: Real-time progress updates as verification stages complete
-- **Notification Service**: Async notifications (email, Telegram, in-app)
-
-### 3. **Layered Verification Pipeline**
-
-The workflow executes in stages (atomic activities), allowing:
-
-- Efficient parallel processing where possible
-- Clear audit trail of what happened and when
-- Human intervention at validation gates (Stage 7)
-
-| Stage               | Purpose                                                           | Output                     |
-| ------------------- | ----------------------------------------------------------------- | -------------------------- |
-| 1. Classify         | ML model categorizes documents by type                            | Document categories stored |
-| 2. OCR & Extract    | Extract structured fields from identified documents               | JSON fields in DB          |
-| 3. Completeness     | Verify required documents present                                 | List of missing docs       |
-| 4. Cross-Validation | Check consistency across documents (names, addresses, parcel IDs) | Validation issues list     |
-| 5. Legal Rules      | Apply business rules (measurement accuracy, date validity)        | Rule violations list       |
-| 6. Generate Report  | Compile findings with confidence scores                           | PDF/JSON report            |
-| 7. Human Review     | Inspector reviews and approves/requests corrections               | Human signal to workflow   |
-
-### 4. **Separate Concerns**
-
-- **PostgreSQL**: Structured application data (users, document metadata, validation results)
-- **Object Storage (S3/MinIO)**: Raw documents, OCR images, generated reports
-- Decouples compute-heavy OCR/ML from transactional database
-
-### 5. **Event-Driven Updates**
-
-- Workflow completion → Notification Service → WebSocket → Inspector UI (real-time)
-- Alternative channels: Telegram Bot for critical alerts
-- Inspector can check status anytime via REST API
-
-## Architecture Diagram
-
-```mermaid
-flowchart TD
-User[Inspector]
-
-    subgraph Frontend
-        UI[React Dashboard]
-    end
-
-    subgraph Backend[NestJS Backend]
-        API[REST API]
-        WS[WebSocket Gateway]
-        Notify[Notification Service]
-    end
-
-    subgraph Workflow[Temporal]
-        TS[Temporal Server]
-
-        WF[Document Verification Workflow]
-
-        A1[Classify Documents]
-        A2[OCR & Extract Fields]
-        A3[Completeness Check]
-        A4[Cross Document Validation]
-        A5[Legal Rules Validation]
-        A6[Generate Report]
-        A7[Human Review Task]
-    end
-
-    subgraph Storage
-        DB[(PostgreSQL)]
-        OBJ[(Object Storage\nS3 / MinIO)]
-    end
-
-    Telegram[Telegram Bot]
-
-    User --> UI
-
-    UI -->|Upload package| API
-    UI <-->|Realtime updates| WS
-
-    API --> OBJ
-    API -->|Start Workflow| TS
-
-    TS --> WF
-
-    WF --> A1
-    A1 --> A2
-    A2 --> A3
-    A3 --> A4
-    A4 --> A5
-
-    A5 -->|Need inspector| A7
-    A7 -->|Signal| WF
-
-    WF --> A6
-
-    A1 --> DB
-    A2 --> DB
-    A3 --> DB
-    A4 --> DB
-    A5 --> DB
-    A6 --> DB
-
-    WF --> Notify
-
-    Notify --> WS
-    Notify --> Telegram
-
-    WS --> UI
+```
+Upload Package
+      ↓
+Store files
+      ↓
+Split PDFs into pages
+      ↓
+OCR
+      ↓
+Document Classification
+      ↓
+Field Extraction
+      ↓
+Validation
+      ↓
+Verification Report
 ```
 
-## Rationale
+Human review workflows, notifications and advanced orchestration are intentionally left outside the MVP.
 
-**Why Temporal?**
+## 3. Supported Input
 
-- Temporal handles the complexity of long-running, multi-step workflows
-- Built-in compensation (retry, timeout, dead-letter queues)
-- Human review loops (activities waiting for signals) are native use cases
-- Complete audit trail: what happened, when, in what order
-- Can pause/resume workflows when inspector needs time to decide
+### File formats
 
-## Alternatives Considered
+- PDF
+- JPG
+- JPEG
+- PNG
 
-| Approach                            | Pros                | Cons                                                | Why Not?                                                 |
-| ----------------------------------- | ------------------- | --------------------------------------------------- | -------------------------------------------------------- |
-| **Synchronous API** (current model) | Simple, familiar    | Timeouts on long-running OCR, no human loop support | Can't handle hour-long workflows                         |
-| **Job Queue (Bull, RabbitMQ)**      | Lightweight, proven | Manual retry logic, harder to track workflow state  | Less suitable for multi-stage workflows with human gates |
-| **Custom Workflow**                 | Full control        | Massive engineering effort, maintenance burden      | Reinventing the wheel                                    |
+### Upload
 
-## Implementation Notes
+A verification package may contain multiple files.
 
-1. **Workflow Activities** map to verification stages (S1–S7)
-2. **Human Review Signal**: S7 activity waits for `signal_human_decision` with `approve` or `revise` payload
-3. **Failure Handling**: Activities auto-retry on transient errors (OCR service down); surface permanent failures to inspector
-4. **Progress Notifications**: Temporal sends event on activity completion → Notification Service → WebSocket
-5. **Audit Trail**: Query Temporal's workflow history for "what happened to this document package?"
+Example:
 
-## Related Decisions
+```
+package/
+├── passport.pdf
+├── driver_license.jpg
+└── application.pdf
+```
 
-- ADR 002: Document Classification Model Selection
-- ADR 003: OCR Engine & Language Support
-- ADR 004: Data Retention & Compliance Policies
+## 4. Functional Requirements
+
+### 4.1 Upload Package
+
+User uploads one or more files.
+
+Backend should:
+
+- create Verification Package
+- upload originals to S3
+- store metadata in PostgreSQL
+- create Temporal workflow
+
+### 4.2 PDF Processing
+
+Every PDF is automatically split into pages. Each page becomes an individual image for OCR.
+
+Example:
+
+```
+passport.pdf
+      ↓
+page_1.png
+page_2.png
+```
+
+### 4.3 OCR
+
+Each page is sent to a third-party OCR provider.
+
+The OCR provider returns:
+
+- recognized text
+- bounding boxes (optional)
+- confidence score
+
+The backend stores OCR results.
+
+### 4.4 Document Classification
+
+Each processed document is classified.
+
+Supported document types:
+
+- Passport
+- Driver License
+- Rental Application
+- Unknown
+
+Example:
+
+```
+page → Passport
+```
+
+### 4.5 Field Extraction
+
+Depending on the detected document type, the system extracts structured fields.
+
+**Passport** — example fields:
+
+- First Name
+- Last Name
+- Date of Birth
+- Passport Number
+- Expiration Date
+
+**Driver License** — example fields:
+
+- First Name
+- Last Name
+- License Number
+- Expiration Date
+
+**Rental Application** — example fields:
+
+- Applicant Name
+- Passport Number
+- Driver License Number
+
+Each extracted field stores:
+
+- value
+- confidence
+- page number
+
+### 4.6 Validation
+
+The backend performs simple hardcoded validation rules.
+
+#### Required documents
+
+Rental application requires:
+
+- Passport
+- Driver License
+
+Missing documents should be reported.
+
+#### Cross-document validation
+
+Examples:
+
+| Document       | Field           |            | Document           | Field                 |
+| -------------- | --------------- | ---------- | ------------------ | --------------------- |
+| Passport       | First Name      | must equal | Driver License     | First Name            |
+| Passport       | Last Name       | must equal | Driver License     | Last Name             |
+| Passport       | Passport Number | must equal | Rental Application | Passport Number       |
+| Driver License | License Number  | must equal | Rental Application | Driver License Number |
+
+#### Expiration validation
+
+Check:
+
+- passport expiration
+- driver license expiration
+
+#### OCR confidence
+
+Fields below a configured confidence threshold should be flagged.
+
+Example:
+
+```
+confidence < 0.80 → Needs review
+```
+
+## 5. Verification Report
+
+The final output is a structured report.
+
+Overall status:
+
+- OK
+- Issues Found
+- Incomplete Package
+
+Report contains:
+
+- detected documents
+- extracted fields
+- validation errors
+- missing documents
+- mismatched values
+- OCR confidence
+- page references
+
+Example:
+
+```
+Status
+  Issues Found
+---
+Missing Documents
+  None
+---
+Validation
+  Passport Name != Driver License Name
+  Page 1
+  Confidence 0.92
+---
+Expired Documents
+  Driver License
+---
+Low Confidence
+  Passport Number
+  Confidence 0.61
+```
+
+## 6. User Interface
+
+### Dashboard
+
+Displays verification packages.
+
+Columns:
+
+- Package ID
+- Created At
+- Status
+- Progress
+
+### Upload Page
+
+User can:
+
+- upload files
+- create package
+- start verification
+
+### Verification Details
+
+Shows:
+
+```
+Uploaded documents
+      ↓
+OCR result
+      ↓
+Extracted fields
+      ↓
+Validation report
+```
+
+Each issue links to:
+
+- page
+- field
+- confidence

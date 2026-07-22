@@ -142,6 +142,74 @@
     --sidebar-ring: oklch(0.455 0.135 256);
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+   The Register, after hours. The same governed page read under a desk lamp
+   instead of daylight: a deep neutral-blue charcoal ground (never OLED black —
+   this is institutional, not consumer), warm paper-white ink, hairline rules
+   as faint light lines, one brightened federal-blue signal, and disposition
+   inks lifted to hold AA contrast on the dark ground. Flat, square, tabular —
+   every world rule survives the theme; only the light source changes.
+   ───────────────────────────────────────────────────────────────────────── */
+.dark {
+    /* Charcoal ground & paper-white ink */
+    --background: oklch(0.196 0.006 262);        /* the register room, lamp-lit */
+    --foreground: oklch(0.928 0.004 258);        /* warm off-white ink */
+    --card: oklch(0.196 0.006 262);
+    --card-foreground: oklch(0.928 0.004 258);
+    --popover: oklch(0.246 0.008 262);           /* overlays lift a shade lighter */
+    --popover-foreground: oklch(0.928 0.004 258);
+
+    /* Federal registry blue — brightened to stay the single signal on dark */
+    --primary: oklch(0.70 0.13 254);
+    --primary-foreground: oklch(0.17 0.02 262);
+
+    --secondary: oklch(0.268 0.008 262);
+    --secondary-foreground: oklch(0.90 0.004 258);
+    --muted: oklch(0.252 0.007 262);
+    --muted-foreground: oklch(0.712 0.011 262);  /* ≥4.5:1 on the ground */
+    --accent: oklch(0.298 0.016 256);            /* selection tint (blue-cast) */
+    --accent-foreground: oklch(0.90 0.02 256);
+
+    --destructive: oklch(0.62 0.17 26);
+
+    /* Hairline rules — the grid made visible, now light on dark */
+    --rule: oklch(0.322 0.006 262);              /* row dividers */
+    --rule-strong: oklch(0.428 0.008 262);       /* structural / header rules */
+    --border: oklch(0.322 0.006 262);
+    --input: oklch(0.408 0.008 262);
+    --ring: oklch(0.70 0.13 254);
+
+    /* Disposition ink — official, stamp-toned, lifted for a dark register */
+    --ok: oklch(0.72 0.13 158);
+    --ok-ink: oklch(0.80 0.11 158);
+    --issues: oklch(0.78 0.13 74);
+    --issues-ink: oklch(0.84 0.115 74);
+    --incomplete: oklch(0.70 0.155 32);
+    --incomplete-ink: oklch(0.78 0.14 32);
+    --progress: oklch(0.70 0.13 254);
+    --failed: oklch(0.66 0.19 26);
+    --failed-ink: oklch(0.75 0.165 26);
+
+    --chart-1: oklch(0.70 0.13 254);
+    --chart-2: oklch(0.72 0.13 158);
+    --chart-3: oklch(0.78 0.13 74);
+    --chart-4: oklch(0.70 0.155 32);
+    --chart-5: oklch(0.712 0.011 262);
+
+    /* The one lift, now grounded in true black for a dark surface */
+    --shadow-overlay: 0 1px 2px oklch(0 0 0 / 0.45),
+                      0 12px 28px -8px oklch(0 0 0 / 0.6);
+
+    --sidebar: oklch(0.172 0.006 262);           /* register cover — deeper than the page */
+    --sidebar-foreground: oklch(0.885 0.005 258);
+    --sidebar-primary: oklch(0.70 0.13 254);
+    --sidebar-primary-foreground: oklch(0.17 0.02 262);
+    --sidebar-accent: oklch(0.288 0.014 256);
+    --sidebar-accent-foreground: oklch(0.90 0.02 256);
+    --sidebar-border: oklch(0.312 0.006 262);
+    --sidebar-ring: oklch(0.70 0.13 254);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -175,11 +243,12 @@
     text-transform: uppercase;
     color: var(--muted-foreground);
   }
-  /* Hatched paper texture for empty regions — engraver's fill, not a gradient. */
+  /* Hatched paper texture for empty regions — engraver's fill, not a gradient.
+     Drawn from the rule token so it holds in both daylight and lamp-lit themes. */
   .register-hatch {
     background-image: repeating-linear-gradient(
       -45deg,
-      oklch(0.905 0.004 262 / 0.5) 0 1px,
+      color-mix(in oklch, var(--rule) 55%, transparent) 0 1px,
       transparent 1px 7px
     );
   }

@@ -5,6 +5,20 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Cadastre · Verification Register</title>
+    <script>
+      // Apply the stored (or system) theme before first paint so the register
+      // never flashes the wrong light source. Mirrors next-themes' storageKey.
+      (function () {
+        try {
+          var stored = localStorage.getItem("theme")
+          var dark =
+            stored === "dark" ||
+            ((!stored || stored === "system") &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches)
+          if (dark) document.documentElement.classList.add("dark")
+        } catch (e) {}
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

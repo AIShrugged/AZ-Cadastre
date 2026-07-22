@@ -1,0 +1,3 @@
+# In-process pipeline first, Temporal-shaped
+
+The PRD targets Temporal for orchestrating the verification pipeline, and that remains the target architecture. The MVP, however, implements the pipeline as a plain async chain inside the NestJS backend — no Temporal server, worker, or SDK yet. To keep the migration cheap, each stage is written as an atomic, stateless step ("activity shape"): it takes IDs, reads/writes persisted state, and can be retried. When Temporal is introduced, these steps become activities without redesign. Chosen to avoid standing up Temporal infrastructure before the pipeline itself proves out.

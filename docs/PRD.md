@@ -2,7 +2,7 @@
 
 ## 1. Goal
 
-Build an MVP of an AI-assisted document verification system for government real estate registration.
+Build an MVP of an AI-assisted document verification system for government registration workflows. The target domain is real estate / cadastre registration, but the verification mechanism itself is domain-agnostic (see Verification Profiles, section 4.6).
 
 **The system does not make legal decisions.**
 
@@ -54,6 +54,8 @@ Human review workflows and notifications are intentionally left outside the MVP.
 
 A verification package may contain multiple files.
 
+**Each uploaded file is treated as exactly one document.** Files containing multiple logical documents (e.g. a passport and a license scanned into one PDF) are out of MVP scope.
+
 Example:
 
 ```
@@ -72,9 +74,9 @@ User uploads one or more files.
 Backend should:
 
 - create Verification Package
-- upload originals to S3
+- upload originals to object storage
 - store metadata in PostgreSQL
-- create Temporal workflow
+- start the verification pipeline
 
 ### 4.2 PDF Processing
 
@@ -91,7 +93,7 @@ page_2.png
 
 ### 4.3 OCR
 
-Each page is sent to a third-party OCR provider.
+Each page is sent to an OCR provider (behind the `OcrProvider` port, see ADR-0003).
 
 The OCR provider returns:
 
@@ -103,26 +105,26 @@ The backend stores OCR results.
 
 ### 4.4 Document Classification
 
-Each processed document is classified.
+Each document is classified based on the OCR text of its pages (one type per document — see section 3). The set of recognizable document types is defined by the active Verification Profile.
 
-Supported document types:
+The demo profile ships with:
 
 - Passport
 - Driver License
-- Rental Application
+- Application
 - Unknown
 
 Example:
 
 ```
-page → Passport
+passport.pdf → Passport
 ```
 
 ### 4.5 Field Extraction
 
-Depending on the detected document type, the system extracts structured fields.
+Depending on the detected document type, the system extracts structured fields. Field schemas are defined per document type in the Verification Profile.
 
-**Passport** — example fields:
+Demo profile — **Passport**:
 
 - First Name
 - Last Name
@@ -130,14 +132,14 @@ Depending on the detected document type, the system extracts structured fields.
 - Passport Number
 - Expiration Date
 
-**Driver License** — example fields:
+Demo profile — **Driver License**:
 
 - First Name
 - Last Name
 - License Number
 - Expiration Date
 
-**Rental Application** — example fields:
+Demo profile — **Application**:
 
 - Applicant Name
 - Passport Number
@@ -149,13 +151,15 @@ Each extracted field stores:
 - confidence
 - page number
 
-### 4.6 Validation
+### 4.6 Validation — Verification Profiles
 
-The backend performs simple hardcoded validation rules.
+Validation is driven by a **Verification Profile** — a declarative definition of what a valid package looks like: document types, field schemas, required documents, and cross-document rules (see ADR-0002). The engine interprets profiles; adding a new domain (e.g. cadastre document sets) means adding a profile, not changing the engine.
+
+The MVP ships one demo profile exercising every rule kind:
 
 #### Required documents
 
-Rental application requires:
+The demo profile requires:
 
 - Passport
 - Driver License
@@ -164,21 +168,18 @@ Missing documents should be reported.
 
 #### Cross-document validation
 
-Examples:
+Examples from the demo profile:
 
-| Document       | Field           |            | Document           | Field                 |
-| -------------- | --------------- | ---------- | ------------------ | --------------------- |
-| Passport       | First Name      | must equal | Driver License     | First Name            |
-| Passport       | Last Name       | must equal | Driver License     | Last Name             |
-| Passport       | Passport Number | must equal | Rental Application | Passport Number       |
-| Driver License | License Number  | must equal | Rental Application | Driver License Number |
+| Document       | Field           |            | Document       | Field                 |
+| -------------- | --------------- | ---------- | -------------- | --------------------- |
+| Passport       | First Name      | must equal | Driver License | First Name            |
+| Passport       | Last Name       | must equal | Driver License | Last Name             |
+| Passport       | Passport Number | must equal | Application    | Passport Number       |
+| Driver License | License Number  | must equal | Application    | Driver License Number |
 
 #### Expiration validation
 
-Check:
-
-- passport expiration
-- driver license expiration
+Check expiration dates on documents whose profile schema declares an expiration field (demo: passport, driver license).
 
 #### OCR confidence
 
@@ -204,7 +205,7 @@ Report contains:
 
 - detected documents
 - extracted fields
-- validation errors
+- validation issues
 - missing documents
 - mismatched values
 - OCR confidence
@@ -299,20 +300,20 @@ The workflow executes in stages (atomic activities), allowing:
 - Efficient parallel processing where possible
 - Clear audit trail of what happened and when
 
-| Stage               | Purpose                                                           | Output                     |
-| ------------------- | ----------------------------------------------------------------- | -------------------------- |
-| 1. Classify         | ML model categorizes documents by type                            | Document categories stored |
-| 2. OCR & Extract    | Extract structured fields from identified documents               | JSON fields in DB          |
-| 3. Completeness     | Verify required documents present                                 | List of missing docs       |
-| 4. Cross-Validation | Check consistency across documents (names, addresses, parcel IDs) | Validation issues list     |
-| 5. Legal Rules      | Apply business rules (measurement accuracy, date validity)        | Rule violations list       |
-| 6. Generate Report  | Compile findings with confidence scores                           | PDF/JSON report            |
+| Stage               | Purpose                                                       | Output                     |
+| ------------------- | ------------------------------------------------------------- | -------------------------- |
+| 1. OCR              | Recognize text on every page                                  | OCR results stored         |
+| 2. Classify         | Determine each document's type from its OCR text              | Document types stored      |
+| 3. Extract Fields   | Extract structured fields per the profile's field schemas     | JSON fields in DB          |
+| 4. Completeness     | Verify required documents present                             | List of missing docs       |
+| 5. Rules            | Cross-document consistency, expiration, confidence thresholds | Validation issues list     |
+| 6. Generate Report  | Compile findings with confidence scores                       | JSON report                |
 
 ### Components
 
 - **NestJS Backend (REST API)**: Document upload, metadata queries, workflow start, status polling
 - **PostgreSQL**: Structured application data (users, document metadata, validation results)
-- **Object Storage (S3/MinIO)**: Raw documents, OCR images, generated reports — decouples compute-heavy OCR/ML from the transactional database
+- **Object Storage (S3-compatible)**: Raw documents, OCR images, generated reports — decouples compute-heavy OCR/ML from the transactional database
 
 The inspector checks verification status via the REST API (polling); real-time push updates and notification channels are out of MVP scope.
 
@@ -335,17 +336,17 @@ User[Inspector]
 
         WF[Document Verification Workflow]
 
-        A1[Classify Documents]
-        A2[OCR & Extract Fields]
-        A3[Completeness Check]
-        A4[Cross Document Validation]
-        A5[Legal Rules Validation]
+        A1[OCR]
+        A2[Classify Documents]
+        A3[Extract Fields]
+        A4[Completeness Check]
+        A5[Rules Validation]
         A6[Generate Report]
     end
 
     subgraph Storage
         DB[(PostgreSQL)]
-        OBJ[(Object Storage\nS3 / MinIO)]
+        OBJ[(Object Storage\nS3-compatible)]
     end
 
     User --> UI
@@ -395,9 +396,10 @@ User[Inspector]
 1. **Workflow Activities** map to verification stages (S1–S6)
 2. **Failure Handling**: Activities auto-retry on transient errors (OCR service down); surface permanent failures to the inspector via package status
 3. **Audit Trail**: Query Temporal's workflow history for "what happened to this document package?"
+4. **MVP staging**: the first implementation runs these stages as an in-process pipeline inside the NestJS backend, keeping the activity shape so they can be lifted into Temporal later (ADR-0001)
 
 ### Related Decisions
 
-- ADR 002: Document Classification Model Selection
-- ADR 003: OCR Engine & Language Support
-- ADR 004: Data Retention & Compliance Policies
+- [ADR-0001](./adr/0001-in-process-pipeline-before-temporal.md): In-process pipeline first, Temporal-shaped
+- [ADR-0002](./adr/0002-profile-driven-validation.md): Verification Profiles instead of hardcoded rules
+- [ADR-0003](./adr/0003-external-capabilities-behind-ports.md): External capabilities behind abstract-class ports

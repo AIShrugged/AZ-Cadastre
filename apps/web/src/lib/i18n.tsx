@@ -85,6 +85,13 @@ const en: Dict = {
   "profile.cadastre": "Cadastre · land parcel",
   "toast.opened": "Opening package {id}",
   "toast.new": "New verification — upload flow is outside this view",
+  "lang.label": "Language",
+  "theme.label": "Appearance",
+  "theme.light": "Light",
+  "theme.dark": "Dark",
+  "theme.to_light": "Switch to light",
+  "theme.to_dark": "Switch to dark",
+  "sidebar.toggle": "Toggle sidebar",
 }
 
 const ru: Dict = {
@@ -148,6 +155,13 @@ const ru: Dict = {
   "profile.cadastre": "Кадастр · зем. участок",
   "toast.opened": "Открытие пакета {id}",
   "toast.new": "Новая проверка — загрузка вне этого экрана",
+  "lang.label": "Язык",
+  "theme.label": "Оформление",
+  "theme.light": "Светлая",
+  "theme.dark": "Тёмная",
+  "theme.to_light": "Светлая тема",
+  "theme.to_dark": "Тёмная тема",
+  "sidebar.toggle": "Показать/скрыть панель",
 }
 
 const az: Dict = {
@@ -211,6 +225,13 @@ const az: Dict = {
   "profile.cadastre": "Kadastr · torpaq sahəsi",
   "toast.opened": "{id} paketi açılır",
   "toast.new": "Yeni yoxlama — yükləmə bu ekrandan kənardadır",
+  "lang.label": "Dil",
+  "theme.label": "Görünüş",
+  "theme.light": "İşıqlı",
+  "theme.dark": "Qaranlıq",
+  "theme.to_light": "İşıqlı rejim",
+  "theme.to_dark": "Qaranlıq rejim",
+  "sidebar.toggle": "Paneli aç/bağla",
 }
 
 const DICTS: Record<Locale, Dict> = { en, ru, az }

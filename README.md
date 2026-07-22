@@ -13,10 +13,6 @@ AZ-Cadastre processes multi-page, multi-format document packages (PDF, JPG, PNG)
 - **Long-Running Workflows**: Temporal-based orchestration for resumable, auditable processes
 - **Structured Data Integration**: PostgreSQL for application data, S3/MinIO for document storage
 
-## Architecture
-
-For detailed architectural decisions and system design, see [ADR-001: Multi-Stage Orchestrated Document Verification Architecture](./docs/ADR/ADR-001.md).
-
 ## Project Structure
 
 ```
@@ -32,4 +28,3 @@ docs/
 ## Getting Started
 
 This is a monorepo project using pnpm workspaces. Run `pnpm install` to set up dependencies.
-

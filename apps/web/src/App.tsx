@@ -18,6 +18,8 @@
  * FORM: Grounded direction #5 of 7 (Swiss administrative system); assigned by
  *   concept-seed key bb6f553a, corroborated by the dealt Swiss-grid challenger.
  * ────────────────────────────────────────────────────────────────────────── */
+import { ThemeProvider } from "next-themes"
+
 import { AppShell } from "@/components/app-shell"
 import { Dashboard } from "@/components/register/dashboard"
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -26,14 +28,16 @@ import { I18nProvider } from "@/lib/i18n"
 
 function App() {
   return (
-    <I18nProvider>
-      <TooltipProvider>
-        <AppShell>
-          <Dashboard />
-        </AppShell>
-        <Toaster position="bottom-right" />
-      </TooltipProvider>
-    </I18nProvider>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      <I18nProvider>
+        <TooltipProvider>
+          <AppShell>
+            <Dashboard />
+          </AppShell>
+          <Toaster position="bottom-right" />
+        </TooltipProvider>
+      </I18nProvider>
+    </ThemeProvider>
   )
 }
 

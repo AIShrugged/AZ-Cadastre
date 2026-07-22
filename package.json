@@ -10,16 +10,15 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-
   "dependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.7.0",
-    "typescript-eslint": "^8.64.0",
+    "typescript-eslint": "^8.65.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",
-    "prettier": "^3.9.5",
+    "prettier": "^3.9.6",
     "typescript": "^6.0.3"
   }
 }

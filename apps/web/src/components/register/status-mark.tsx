@@ -1,8 +1,8 @@
 /**
- * Disposition mark — the register's stamp. A filled square marker + the status
- * word, always together (The Status-Never-Alone Rule). No pill, no rounded
- * badge, no color-only meaning. The disposition is evidence of what the system
- * found; it is never phrased as an approval or a verdict.
+ * Disposition mark — the register's stamp, now a status dot. A filled marker +
+ * the status word, always together (The Status-Never-Alone Rule). No color-only
+ * meaning. The disposition is evidence of what the system found; it is never
+ * phrased as an approval or a verdict.
  */
 import type { Disposition } from "@/lib/registry"
 import { useI18n } from "@/lib/i18n"
@@ -45,7 +45,7 @@ export function DispositionMark({
       <span
         aria-hidden
         className={cn(
-          "size-[7px] shrink-0",
+          "size-2 shrink-0 rounded-full",
           MARKER[disposition],
           disposition === "in_progress" && "animate-pulse",
         )}

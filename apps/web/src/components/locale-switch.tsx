@@ -25,7 +25,7 @@ export function LocaleSwitch({ className }: { className?: string }) {
       <SelectTrigger
         aria-label={t("lang.label")}
         className={cn(
-          "h-8 gap-2 rounded-none border-input bg-background px-2.5 text-foreground hover:bg-accent hover:text-foreground",
+          "h-8 gap-2 border-input bg-background px-2.5 text-foreground hover:bg-accent hover:text-foreground",
           className,
         )}
       >

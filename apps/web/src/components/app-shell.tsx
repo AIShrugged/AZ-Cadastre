@@ -37,7 +37,7 @@ function Wordmark() {
   const { t } = useI18n()
   return (
     <div className="flex items-center gap-2.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-      <div className="grid size-8 shrink-0 place-items-center bg-primary text-primary-foreground">
+      <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-primary to-accent-2 text-primary-foreground shadow-[var(--shadow-primary)]">
         {/* Cadastral register mark — a ruled parcel with a verification tick. */}
         <svg viewBox="0 0 24 24" className="size-5" aria-hidden fill="none">
           <path d="M4 4h16v16H4z" stroke="currentColor" strokeWidth="1.4" />
@@ -78,7 +78,7 @@ function InspectorCard() {
       )}
     >
       <div
-        className="grid size-8 shrink-0 place-items-center bg-foreground text-[0.75rem] font-semibold text-background"
+        className="grid size-8 shrink-0 place-items-center rounded-lg bg-foreground text-[0.75rem] font-semibold text-background"
         aria-hidden
       >
         AR
@@ -103,7 +103,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <Sidebar collapsible="icon" className="border-r border-sidebar-border">
         {/* Logo band — fixed to the masthead height so its baseline and bottom
             rule align with the app header across the top of the page. */}
-        <SidebarHeader className="h-14 shrink-0 justify-center gap-0 border-b border-sidebar-border px-2 group-data-[collapsible=icon]:px-0">
+        <SidebarHeader className="h-16 shrink-0 justify-center gap-0 border-b border-sidebar-border px-2 group-data-[collapsible=icon]:px-0">
           <Wordmark />
         </SidebarHeader>
 
@@ -125,8 +125,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                           : toast(t(item.key), { description: t("toast.new") })
                       }
                       className={cn(
-                        "relative h-9 gap-2.5 rounded-none px-3 text-[0.875rem] text-sidebar-foreground/80",
-                        "before:absolute before:top-1.5 before:bottom-1.5 before:left-0 before:w-[2px] before:bg-transparent",
+                        "relative h-9 gap-2.5 rounded-md px-3 text-[0.875rem] text-sidebar-foreground/80",
+                        "before:absolute before:top-2 before:bottom-2 before:left-0 before:w-[3px] before:rounded-full before:bg-transparent",
                         "hover:bg-sidebar-accent data-active:bg-sidebar-accent data-active:font-medium data-active:text-sidebar-foreground data-active:before:bg-primary",
                         // Collapsed: the icon centers in the rail; drop the leading
                         // rule so the active marker never sits lopsided beside it.
@@ -143,9 +143,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           </SidebarGroup>
         </SidebarContent>
 
-        {/* Footer band — mirrors the h-14 masthead so its top rule aligns with
+        {/* Footer band — mirrors the h-16 masthead so its top rule aligns with
             the main column's pagination rule, bookending the shell top ⇄ bottom. */}
-        <SidebarFooter className="h-14 shrink-0 justify-center gap-0 border-t border-sidebar-border px-2 py-0 group-data-[collapsible=icon]:px-0">
+        <SidebarFooter className="h-16 shrink-0 justify-center gap-0 border-t border-sidebar-border px-2 py-0 group-data-[collapsible=icon]:px-0">
           <InspectorCard />
         </SidebarFooter>
 

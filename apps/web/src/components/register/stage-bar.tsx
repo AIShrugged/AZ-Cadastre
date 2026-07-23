@@ -1,9 +1,9 @@
 /**
  * Stage bar — a segmented read of the six-stage pipeline (OCR → Classification
  * → Field extraction → Completeness → Cross-checks → Report). One square cell
- * per stage: completed cells in ink, the running cell in registry blue, pending
- * cells as hairline. It shows real pipeline state, not a decorative meter, and
- * it is square by the world's Square Rule — never a ring.
+ * per stage: completed cells in ink, the running cell in registry indigo,
+ * pending cells as hairline. It shows real pipeline state, not a decorative
+ * meter — segmented pill cells, never a single ring.
  */
 import { STAGES } from "@/lib/registry"
 import { useI18n } from "@/lib/i18n"
@@ -27,7 +27,7 @@ export function StageBar({ stage }: { stage: number }) {
           <span
             key={c}
             className={cn(
-              "h-[6px] w-[15px] transition-colors",
+              "h-[6px] w-[15px] rounded-full transition-colors",
               c < stage && "bg-foreground",
               c === stage && "animate-pulse bg-progress",
               c > stage && "bg-rule",

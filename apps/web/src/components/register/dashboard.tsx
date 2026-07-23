@@ -1,6 +1,6 @@
 /**
  * Verification register — the inspector's queue-first work surface. Governed by
- * The Register world: a ruled table, tabular mono data, one blue signal, and
+ * The Register world: a ruled table, tabular mono data, one indigo signal, and
  * disposition marks that report (never decide). Doubles as the archive via
  * search + segment filters. Adaptive density; scales via pagination.
  */
@@ -342,7 +342,7 @@ function EmptyRegister({ filtered, onClear }: { filtered: boolean; onClear: () =
     <Empty className="register-hatch flex-1 rounded-none border-0 border-t border-rule-strong px-6 py-24">
       <EmptyMedia
         variant="icon"
-        className="mb-0 size-12 rounded-none border border-rule-strong bg-background text-muted-foreground"
+        className="mb-0 size-12 rounded-xl border border-rule-strong bg-card text-muted-foreground shadow-[var(--shadow-sm)]"
       >
         {filtered ? <FilterXIcon className="size-5" /> : <InboxIcon className="size-5" />}
       </EmptyMedia>
@@ -411,11 +411,11 @@ export function Dashboard() {
     <div className="flex min-h-svh flex-col">
       {/* ── Masthead ── fixed to a single band so its baseline and bottom rule
           align with the sidebar logo across the top of the page. */}
-      <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-rule-strong px-4 md:px-6">
+      <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-rule-strong px-4 md:px-6">
         <div className="flex min-w-0 items-center gap-2.5 md:gap-3">
           <SidebarTrigger
             aria-label={t("sidebar.toggle")}
-            className="size-8 shrink-0 rounded-none border border-input text-muted-foreground hover:bg-accent hover:text-foreground"
+            className="size-8 shrink-0 rounded-md border border-input text-muted-foreground hover:bg-accent hover:text-foreground"
           />
           <h1 className="truncate text-[1.375rem] font-semibold leading-none tracking-[-0.02em] text-foreground">
             {t("page.register.title")}
@@ -496,7 +496,7 @@ export function Dashboard() {
                 resetPage()
               }}
               placeholder={t("search.placeholder")}
-              className="h-8 rounded-none border-input bg-background pl-8 text-[0.8125rem]"
+              className="h-8 border-input bg-background pl-8 text-[0.8125rem]"
             />
           </div>
           <ToggleGroup
@@ -506,7 +506,7 @@ export function Dashboard() {
             }}
             spacing={0}
             aria-label={t("density.label")}
-            className="rounded-none border border-input"
+            className="overflow-hidden rounded-md border border-input"
           >
             <ToggleGroupItem
               value="comfortable"
@@ -557,10 +557,10 @@ export function Dashboard() {
       )}
 
       {/* ── Pagination footer ── always rendered so the register's closing rule
-          and the h-14 bookend hold across loading, empty, and populated states.
+          and the h-16 bookend hold across loading, empty, and populated states.
           While loading, counts are unknown, so the row placeholders a skeleton
           in place of the tally rather than showing a misleading 0. */}
-      <footer className="mt-auto flex h-14 shrink-0 items-center justify-between gap-4 border-t border-rule-strong px-4 md:px-6">
+      <footer className="mt-auto flex h-16 shrink-0 items-center justify-between gap-4 border-t border-rule-strong px-4 md:px-6">
         {loading ? (
           <Skeleton className="h-3 w-40" />
         ) : (
@@ -611,11 +611,11 @@ function DemoBadge({ className }: { className?: string }) {
           <Badge
             variant="outline"
             className={cn(
-              "gap-1.5 rounded-none border-rule-strong bg-background px-2 py-0.5 text-[0.6875rem] font-medium text-muted-foreground",
+              "gap-1.5 border-rule-strong bg-background px-2 py-0.5 text-[0.6875rem] font-medium text-muted-foreground",
               className,
             )}
           >
-            <span aria-hidden className="size-1.5 bg-issues" />
+            <span aria-hidden className="size-1.5 rounded-full bg-issues" />
             {t("demo.badge")}
           </Badge>
         }

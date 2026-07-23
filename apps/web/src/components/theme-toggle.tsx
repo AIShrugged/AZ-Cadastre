@@ -1,9 +1,9 @@
 /**
- * Appearance toggle — daylight ⇄ lamplight for The Register. A single square,
+ * Appearance toggle — daylight ⇄ lamplight for The Register. A single
  * hairline-bordered control that swaps the page's light source without leaving
- * the world: no pill, no rounded switch. The glyph names the destination (a sun
- * to return to daylight, a moon to dim to lamplight), and the accessible label
- * states the action in the inspector's language.
+ * the world. The glyph names the destination (a sun to return to daylight, a
+ * moon to dim to lamplight), and the accessible label states the action in the
+ * inspector's language.
  */
 import { MoonIcon, SunIcon } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -38,8 +38,8 @@ export function ThemeToggle({ className }: { className?: string }) {
       onClick={() => setTheme(isDark ? "light" : "dark")}
       className={cn(
         // Match the sibling header controls (sidebar trigger, locale switch):
-        // square hairline field, register-blue focus ring, tactile press.
-        "rounded-none border-input bg-background text-muted-foreground hover:bg-accent hover:text-foreground",
+        // rounded hairline field, registry-indigo focus ring, tactile press.
+        "border-input bg-background text-muted-foreground hover:bg-accent hover:text-foreground",
         className,
       )}
     >

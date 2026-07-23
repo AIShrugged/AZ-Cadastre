@@ -1,6 +1,6 @@
 import axios from "axios"
 
-import { http } from "@/shared/api/http"
+import { http } from "@/shared/api"
 
 /** What the core service returns when we ask to presign an upload. */
 type PresignResponse = {

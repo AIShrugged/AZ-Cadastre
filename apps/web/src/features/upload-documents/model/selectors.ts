@@ -1,8 +1,15 @@
 import { createSelector } from "@reduxjs/toolkit"
 
-import type { RootState } from "@/store/store"
+import type { Attachment } from "./types"
 
-export const selectDocuments = (state: RootState) => state.uploadDocuments.files
+/**
+ * The slice of app state this feature mounts under. Typed structurally so the
+ * selectors compose with the full RootState (defined in app/store) without an
+ * upward import into the app layer.
+ */
+type MountedState = { uploadDocuments: { files: Attachment[] } }
+
+export const selectDocuments = (state: MountedState) => state.uploadDocuments.files
 
 /** Files that count toward the package (anything not rejected outright). */
 export const selectValidCount = createSelector(

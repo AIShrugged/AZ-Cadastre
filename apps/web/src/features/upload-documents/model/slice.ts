@@ -5,7 +5,7 @@ import {
 } from "@reduxjs/toolkit"
 import axios from "axios"
 
-import type { AppDispatch } from "@/store/store"
+import type { AppDispatch } from "@/shared/lib/store-hooks"
 import { uploadDocument } from "../api/upload-api"
 import { fileKind, MAX_BYTES } from "../lib/file"
 import type { Attachment } from "./types"

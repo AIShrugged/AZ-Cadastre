@@ -1,8 +1,10 @@
 import { combineReducers, configureStore } from '@reduxjs/toolkit'
+import { uploadDocumentsReducer } from '@/features/upload-documents'
 import appReducer from './app-slice'
 
 const rootReducer = combineReducers({
   app: appReducer,
+  uploadDocuments: uploadDocumentsReducer,
   // Add slice and RTK Query api reducers here.
 })
 

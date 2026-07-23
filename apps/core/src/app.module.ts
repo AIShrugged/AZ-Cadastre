@@ -7,11 +7,14 @@ import { EnvironmentSchema } from "./infrastructure/config/env.shema.js";
 import {
   FieldExtractorAdapter,
   DocumentClassifierAdapter,
+  ObjectStorageAdapter,
 } from "./infrastructure/adapters/index.js";
 import {
   FieldExtractor,
   DocumentClassifier,
+  ObjectStorage,
 } from "./application/ports/index.js";
+import { DocumentsController } from "./infrastructure/http/documents.controller.js";
 
 @Module({
   imports: [
@@ -23,6 +26,8 @@ import {
     CqrsModule.forRoot(),
   ],
 
+  controllers: [DocumentsController],
+
   providers: [
     {
       provide: DocumentClassifier,
@@ -31,6 +36,10 @@ import {
     {
       provide: FieldExtractor,
       useClass: FieldExtractorAdapter,
+    },
+    {
+      provide: ObjectStorage,
+      useClass: ObjectStorageAdapter,
     },
   ],
 })

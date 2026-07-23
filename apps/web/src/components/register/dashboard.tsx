@@ -15,7 +15,6 @@ import {
   SearchIcon,
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
-import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -411,7 +410,7 @@ export function Dashboard() {
 
   const onSelect = (p: VerificationPackage) => {
     setSelected(p.id)
-    toast(t("toast.opened", { id: p.id }))
+    navigate(paths.package(p.id))
   }
 
   const isFiltered = segment !== "all" || query.trim().length > 0

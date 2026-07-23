@@ -20,6 +20,8 @@ type PackagesValue = {
   packages: VerificationPackage[]
   /** Prepend a newly created package so the register shows it first. */
   addPackage: (p: VerificationPackage) => void
+  /** Patch a package in place — used to control the pipeline (cancel / retry). */
+  updatePackage: (id: string, patch: Partial<VerificationPackage>) => void
 }
 
 const PackagesContext = createContext<PackagesValue | null>(null)
@@ -32,7 +34,16 @@ export function PackagesProvider({ children }: { children: ReactNode }) {
     [],
   )
 
-  const value = useMemo(() => ({ packages, addPackage }), [packages, addPackage])
+  const updatePackage = useCallback(
+    (id: string, patch: Partial<VerificationPackage>) =>
+      setPackages((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p))),
+    [],
+  )
+
+  const value = useMemo(
+    () => ({ packages, addPackage, updatePackage }),
+    [packages, addPackage, updatePackage],
+  )
 
   return <PackagesContext.Provider value={value}>{children}</PackagesContext.Provider>
 }

@@ -10,6 +10,7 @@ import { type RouteObject } from "react-router-dom"
 import { AppShell } from "@/components/app-shell"
 import { Dashboard } from "@/components/register/dashboard"
 import { NewVerification } from "@/components/register/new-verification"
+import { VerificationDetails } from "@/components/register/verification-details"
 import { paths } from "@/lib/paths"
 
 export const routeObjects: RouteObject[] = [
@@ -19,6 +20,7 @@ export const routeObjects: RouteObject[] = [
     children: [
       { index: true, element: <Dashboard /> },
       { path: "new", element: <NewVerification /> },
+      { path: "package/:id", element: <VerificationDetails /> },
     ],
   },
 ]

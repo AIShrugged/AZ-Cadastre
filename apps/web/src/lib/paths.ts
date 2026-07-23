@@ -6,4 +6,6 @@
 export const paths = {
   register: "/",
   new: "/new",
-} as const
+  /** Verification details for a package. */
+  package: (id: string) => `/package/${encodeURIComponent(id)}`,
+}

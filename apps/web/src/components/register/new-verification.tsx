@@ -12,7 +12,6 @@
  */
 import { useEffect, useRef, useState } from "react"
 import {
-  ArrowLeftIcon,
   FileTextIcon,
   ImageIcon,
   PaperclipIcon,
@@ -32,12 +31,10 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select"
-import { LocaleSwitch } from "@/components/locale-switch"
-import { ThemeToggle } from "@/components/theme-toggle"
 import {
   SurfaceBody,
   SurfaceFooter,
-  SurfaceMasthead,
+  SurfaceHeading,
   SurfacePage,
 } from "@/components/register/surface"
 import { useI18n } from "@/lib/i18n"
@@ -450,43 +447,9 @@ export function NewVerification() {
         }}
       />
 
-      {/* ── Masthead ── */}
-      <SurfaceMasthead>
-        <div className="flex min-w-0 items-center gap-2.5 md:gap-3">
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label={t("new.back")}
-            onClick={() => navigate(paths.register)}
-            className="rounded-md border-input text-muted-foreground hover:bg-accent hover:text-foreground"
-          >
-            <ArrowLeftIcon />
-          </Button>
-          <div className="min-w-0">
-            <nav className="flex items-center gap-1.5 text-[0.75rem] text-muted-foreground">
-              <button
-                onClick={() => navigate(paths.register)}
-                className="rounded-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-              >
-                {t("page.register.title")}
-              </button>
-              <span aria-hidden>/</span>
-            </nav>
-            <h1 className="truncate text-[1.375rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">
-              {t("page.new.title")}
-            </h1>
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-1.5">
-          <LocaleSwitch />
-          <ThemeToggle />
-        </div>
-      </SurfaceMasthead>
-
-      {/* ── Standfirst ── */}
-      <p className="shrink-0 border-b border-rule px-4 py-2.5 text-[0.875rem] leading-relaxed text-muted-foreground md:px-6">
-        {t("page.new.subtitle")}
-      </p>
+      {/* ── Page heading ── the surface names itself; back is the footer's
+          Cancel and the sidebar's Register item, never a header breadcrumb. */}
+      <SurfaceHeading title={t("page.new.title")} subtitle={t("page.new.subtitle")} />
 
       {/* ── Body ── a governed form on a constrained measure ── */}
       <SurfaceBody>

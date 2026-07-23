@@ -29,7 +29,6 @@ import {
 } from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import { SidebarTrigger } from "@/components/ui/sidebar"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
   Tooltip,
@@ -46,14 +45,13 @@ import {
 } from "@/components/ui/table"
 import { DispositionMark } from "@/components/register/status-mark"
 import { StageBar } from "@/components/register/stage-bar"
+import { HeaderActions } from "@/components/register/header-slot"
 import {
   SurfaceBody,
   SurfaceFooter,
-  SurfaceMasthead,
+  SurfaceHeading,
   SurfacePage,
 } from "@/components/register/surface"
-import { LocaleSwitch } from "@/components/locale-switch"
-import { ThemeToggle } from "@/components/theme-toggle"
 import {
   formatDate,
   relativeShort,
@@ -420,38 +418,20 @@ export function Dashboard() {
 
   return (
     <SurfacePage>
-      {/* ── Masthead ── fixed band; its bottom rule aligns with the sidebar
-          logo band across the top of the page. */}
-      <SurfaceMasthead>
-        <div className="flex min-w-0 items-center gap-2.5 md:gap-3">
-          <SidebarTrigger
-            aria-label={t("sidebar.toggle")}
-            className="size-8 shrink-0 rounded-md border border-input text-muted-foreground hover:bg-accent hover:text-foreground"
-          />
-          <h1 className="truncate text-[1.375rem] font-semibold leading-none tracking-[-0.02em] text-foreground">
-            {t("page.register.title")}
-          </h1>
-          <DemoBadge className="hidden shrink-0 sm:inline-flex" />
-        </div>
+      {/* The register's one page action rides in the global app bar. */}
+      <HeaderActions>
+        <span aria-hidden className="mx-0.5 h-6 w-px bg-rule-strong" />
+        <Button onClick={() => navigate(paths.new)}>
+          <PlusIcon /> <span className="hidden sm:inline">{t("action.new")}</span>
+        </Button>
+      </HeaderActions>
 
-        {/* Global chrome (locale + appearance), then the one page action. */}
-        <div className="flex shrink-0 items-center gap-2">
-          <div className="flex items-center gap-1.5">
-            <LocaleSwitch />
-            <ThemeToggle />
-          </div>
-          <span aria-hidden className="h-6 w-px bg-rule-strong" />
-          <Button onClick={() => navigate(paths.new)}>
-            <PlusIcon /> <span className="hidden sm:inline">{t("action.new")}</span>
-          </Button>
-        </div>
-      </SurfaceMasthead>
-
-      {/* ── Standfirst ── the register's descriptive dek, sitting under the
-          masthead where a document states its purpose before its contents. */}
-      <p className="shrink-0 border-b border-rule px-4 py-2.5 text-[0.875rem] leading-relaxed text-muted-foreground md:px-6">
-        {t("page.register.subtitle")}
-      </p>
+      {/* ── Page heading ── the register names itself and states its purpose. */}
+      <SurfaceHeading
+        title={t("page.register.title")}
+        badge={<DemoBadge className="hidden shrink-0 sm:inline-flex" />}
+        subtitle={t("page.register.subtitle")}
+      />
 
       {/* ── Filter / control strip ── */}
       <div className="flex shrink-0 flex-col gap-3 border-b border-rule px-4 py-2.5 md:flex-row md:items-center md:justify-between md:px-6">

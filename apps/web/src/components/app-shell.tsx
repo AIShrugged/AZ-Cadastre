@@ -1,11 +1,13 @@
 /**
  * The register cover + workspace frame. A fixed left sidebar carries the
  * AZ-Cadastre mark, the workspace navigation, and the inspector's identity; it
- * collapses to a hairline icon rail (the toggle lives in the app header, on the
- * border rail, and on ⌘/Ctrl-B). The inset holds the active surface. Every
- * future surface (Upload, Verification Details) inherits this frame; global
- * chrome — locale and appearance — rides in the surface header, top-right.
+ * collapses to a hairline icon rail (the toggle lives in the app bar, on the
+ * border rail, and on ⌘/Ctrl-B). Below a single global app bar — identical on
+ * every route: sidebar trigger left, locale + appearance right, plus a slot a
+ * route can drop one action into — the inset holds the active surface. Every
+ * future surface (Verification Details, Profiles…) inherits this frame.
  */
+import { useState } from "react"
 import {
   FileStackIcon,
   FolderCogIcon,
@@ -29,7 +31,12 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarRail,
+  SidebarTrigger,
 } from "@/components/ui/sidebar"
+import { LocaleSwitch } from "@/components/locale-switch"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { HeaderSlotContext } from "@/components/register/header-slot"
+import { SurfaceMasthead } from "@/components/register/surface"
 import { useI18n } from "@/lib/i18n"
 import { paths } from "@/lib/paths"
 import { cn } from "@/lib/utils"
@@ -96,10 +103,34 @@ function InspectorCard() {
   )
 }
 
+/**
+ * Global app bar — identical on every route. Sidebar trigger on the left;
+ * locale, appearance, and a route-owned action slot on the right. No title, no
+ * breadcrumb, no back: the page names itself in its own heading below.
+ */
+function AppBar({ slotRef }: { slotRef: (el: HTMLElement | null) => void }) {
+  const { t } = useI18n()
+  return (
+    <SurfaceMasthead>
+      <SidebarTrigger
+        aria-label={t("sidebar.toggle")}
+        className="size-8 shrink-0 rounded-md border border-input text-muted-foreground hover:bg-accent hover:text-foreground"
+      />
+      <div className="flex items-center gap-1.5">
+        <LocaleSwitch />
+        <ThemeToggle />
+        {/* Route action slot — filled via <HeaderActions>; collapses when empty. */}
+        <div ref={slotRef} className="flex items-center gap-1.5 empty:hidden" />
+      </div>
+    </SurfaceMasthead>
+  )
+}
+
 export function AppShell() {
   const { t } = useI18n()
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null)
 
   return (
     <SidebarProvider>
@@ -155,8 +186,13 @@ export function AppShell() {
         <SidebarRail />
       </Sidebar>
 
-      <SidebarInset className="min-w-0 bg-background">
-        <Outlet />
+      <SidebarInset className="h-svh min-w-0 overflow-hidden bg-background">
+        <AppBar slotRef={setHeaderSlot} />
+        <HeaderSlotContext.Provider value={headerSlot}>
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <Outlet />
+          </div>
+        </HeaderSlotContext.Provider>
       </SidebarInset>
       {/* Scroll to top on navigation; restore on back/forward. */}
       <ScrollRestoration />

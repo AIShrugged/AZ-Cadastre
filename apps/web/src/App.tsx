@@ -19,23 +19,26 @@
  *   concept-seed key bb6f553a, corroborated by the dealt Swiss-grid challenger.
  * ────────────────────────────────────────────────────────────────────────── */
 import { ThemeProvider } from "next-themes"
+import { createBrowserRouter, RouterProvider } from "react-router-dom"
 
-import { AppShell } from "@/components/app-shell"
-import { Dashboard } from "@/components/register/dashboard"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { Toaster } from "@/components/ui/sonner"
 import { I18nProvider } from "@/lib/i18n"
+import { PackagesProvider } from "@/lib/packages-store"
+import { routeObjects } from "@/routes"
+
+const router = createBrowserRouter(routeObjects)
 
 function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <I18nProvider>
-        <TooltipProvider>
-          <AppShell>
-            <Dashboard />
-          </AppShell>
-          <Toaster position="bottom-right" />
-        </TooltipProvider>
+        <PackagesProvider>
+          <TooltipProvider>
+            <RouterProvider router={router} />
+            <Toaster position="bottom-right" />
+          </TooltipProvider>
+        </PackagesProvider>
       </I18nProvider>
     </ThemeProvider>
   )

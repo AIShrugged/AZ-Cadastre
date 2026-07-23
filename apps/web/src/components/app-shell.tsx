@@ -6,13 +6,13 @@
  * future surface (Upload, Verification Details) inherits this frame; global
  * chrome — locale and appearance — rides in the surface header, top-right.
  */
-import { type ReactNode } from "react"
 import {
   FileStackIcon,
   FolderCogIcon,
   HistoryIcon,
   PlusIcon,
 } from "lucide-react"
+import { Outlet, ScrollRestoration, useLocation, useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 
 import {
@@ -31,6 +31,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 import { useI18n } from "@/lib/i18n"
+import { paths } from "@/lib/paths"
 import { cn } from "@/lib/utils"
 
 function Wordmark() {
@@ -57,11 +58,11 @@ function Wordmark() {
   )
 }
 
-type NavItem = { key: string; icon: typeof FileStackIcon; active?: boolean }
+type NavItem = { key: string; icon: typeof FileStackIcon; to?: string }
 
 const NAV: NavItem[] = [
-  { key: "nav.register", icon: FileStackIcon, active: true },
-  { key: "nav.new", icon: PlusIcon },
+  { key: "nav.register", icon: FileStackIcon, to: paths.register },
+  { key: "nav.new", icon: PlusIcon, to: paths.new },
   { key: "nav.profiles", icon: FolderCogIcon },
   { key: "nav.audit", icon: HistoryIcon },
 ]
@@ -95,8 +96,10 @@ function InspectorCard() {
   )
 }
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell() {
   const { t } = useI18n()
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
 
   return (
     <SidebarProvider>
@@ -117,11 +120,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {NAV.map((item) => (
                   <SidebarMenuItem key={item.key}>
                     <SidebarMenuButton
-                      isActive={item.active}
+                      isActive={item.to ? item.to === pathname : false}
                       tooltip={t(item.key)}
                       onClick={() =>
-                        item.active
-                          ? undefined
+                        item.to
+                          ? navigate(item.to)
                           : toast(t(item.key), { description: t("toast.new") })
                       }
                       className={cn(
@@ -152,7 +155,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         <SidebarRail />
       </Sidebar>
 
-      <SidebarInset className="min-w-0 bg-background">{children}</SidebarInset>
+      <SidebarInset className="min-w-0 bg-background">
+        <Outlet />
+      </SidebarInset>
+      {/* Scroll to top on navigation; restore on back/forward. */}
+      <ScrollRestoration />
     </SidebarProvider>
   )
 }

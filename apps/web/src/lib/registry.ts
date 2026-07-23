@@ -17,6 +17,37 @@ export type Disposition =
 /** The six pipeline stages, in order (PRD §7). */
 export const STAGES = 6
 
+// ─── Verification Profiles (policy) ──────────────────────────────────────────
+// A profile is policy the engine interprets: which document types it expects.
+// The engine classifies uploaded documents automatically — these required sets
+// drive the completeness view at upload and the "detected / required" tally.
+// Demo material; a real cadastre profile is domain data to be confirmed.
+
+export type ProfileKey = "demo" | "cadastre"
+
+export type DocTypeKey =
+  | "passport"
+  | "driver_license"
+  | "application"
+  | "title_deed"
+  | "cadastral_extract"
+
+export type ProfileDef = {
+  key: ProfileKey
+  /** Document types the profile requires, in the order they should be shown. */
+  requiredDocs: DocTypeKey[]
+}
+
+export const PROFILES: Record<ProfileKey, ProfileDef> = {
+  demo: { key: "demo", requiredDocs: ["passport", "application"] },
+  cadastre: {
+    key: "cadastre",
+    requiredDocs: ["passport", "application", "title_deed", "cadastral_extract"],
+  },
+}
+
+export const PROFILE_ORDER: ProfileKey[] = ["cadastre", "demo"]
+
 export type VerificationPackage = {
   /** Register number — the identity an inspector cites. */
   id: string
@@ -40,6 +71,8 @@ export type VerificationPackage = {
   minConfidence?: number
   /** For in_progress packages: current stage 1..6. */
   stage?: number
+  /** Optional internal reference the inspector set at creation. */
+  reference?: string
 }
 
 // Timestamps are fixed strings so the demo is deterministic; "time ago" is
@@ -280,4 +313,48 @@ export function matchesQuery(p: VerificationPackage, q: string): boolean {
     p.id.toLocaleLowerCase().includes(n) ||
     p.applicant.toLocaleLowerCase().includes(n)
   )
+}
+
+// ─── Creating a package (upload surface) ─────────────────────────────────────
+
+/** Next register number, continuing the VP-YY-NNNNNN sequence from the max. */
+export function nextPackageId(pkgs: VerificationPackage[]): string {
+  let max = 0
+  let prefix = "VP-26-"
+  for (const p of pkgs) {
+    const m = p.id.match(/^(.*-)(\d+)$/)
+    if (!m) continue
+    prefix = m[1]
+    const n = Number(m[2])
+    if (n > max) max = n
+  }
+  return `${prefix}${String(max + 1).padStart(6, "0")}`
+}
+
+/**
+ * Build a freshly-created package, entering the pipeline at stage 1 (OCR).
+ * Applicant and all field data are extracted downstream, so applicant is empty
+ * (the register renders it as pending) until extraction runs.
+ */
+export function createPackage(input: {
+  id: string
+  profile: ProfileKey
+  filesAttached: number
+  reference?: string
+  now: string
+}): VerificationPackage {
+  return {
+    id: input.id,
+    applicant: "",
+    profile: input.profile,
+    disposition: "in_progress",
+    submittedAt: input.now,
+    updatedAt: input.now,
+    docsDetected: input.filesAttached,
+    docsRequired: PROFILES[input.profile].requiredDocs.length,
+    issues: 0,
+    lowConfidence: 0,
+    stage: 1,
+    reference: input.reference?.trim() || undefined,
+  }
 }

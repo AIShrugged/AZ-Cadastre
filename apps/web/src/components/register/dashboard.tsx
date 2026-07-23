@@ -14,6 +14,7 @@ import {
   Rows4Icon,
   SearchIcon,
 } from "lucide-react"
+import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
@@ -56,11 +57,12 @@ import {
 import {
   inSegment,
   matchesQuery,
-  PACKAGES,
   segmentCounts,
   type Segment,
   type VerificationPackage,
 } from "@/lib/registry"
+import { usePackages } from "@/lib/packages-store"
+import { paths } from "@/lib/paths"
 import { cn } from "@/lib/utils"
 
 type Density = "comfortable" | "compact"
@@ -230,7 +232,7 @@ function RegisterTable({
                     {p.id}
                   </span>
                   <span className="max-w-[22ch] truncate text-[0.8125rem] text-muted-foreground">
-                    {p.applicant}
+                    {p.applicant || "—"}
                   </span>
                 </div>
               </TableCell>
@@ -287,7 +289,7 @@ function RegisterEntries({
                   {p.id}
                 </span>
                 <span className="truncate text-[0.8125rem] text-muted-foreground">
-                  {p.applicant}
+                  {p.applicant || "—"}
                 </span>
               </div>
               {p.disposition !== "in_progress" && <DispositionMark disposition={p.disposition} />}
@@ -338,6 +340,7 @@ function RegisterSkeleton({ density }: { density: Density }) {
 // ─── Empty states ───────────────────────────────────────────────────────────
 function EmptyRegister({ filtered, onClear }: { filtered: boolean; onClear: () => void }) {
   const { t } = useI18n()
+  const navigate = useNavigate()
   return (
     <Empty className="register-hatch flex-1 rounded-none border-0 border-t border-rule-strong px-6 py-24">
       <EmptyMedia
@@ -360,7 +363,7 @@ function EmptyRegister({ filtered, onClear }: { filtered: boolean; onClear: () =
             <FilterXIcon /> {t("empty.clear")}
           </Button>
         ) : (
-          <Button onClick={() => toast(t("nav.new"), { description: t("toast.new") })}>
+          <Button onClick={() => navigate(paths.new)}>
             <PlusIcon /> {t("action.new")}
           </Button>
         )}
@@ -372,6 +375,8 @@ function EmptyRegister({ filtered, onClear }: { filtered: boolean; onClear: () =
 // ─── Page ───────────────────────────────────────────────────────────────────
 export function Dashboard() {
   const { t, locale } = useI18n()
+  const navigate = useNavigate()
+  const { packages } = usePackages()
   const [now] = useState(() => new Date("2026-07-23T09:00:00").getTime())
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState("")
@@ -385,11 +390,11 @@ export function Dashboard() {
     return () => clearTimeout(id)
   }, [])
 
-  const counts = useMemo(() => segmentCounts(PACKAGES), [])
+  const counts = useMemo(() => segmentCounts(packages), [packages])
 
   const filtered = useMemo(
-    () => PACKAGES.filter((p) => inSegment(p, segment) && matchesQuery(p, query)),
-    [segment, query],
+    () => packages.filter((p) => inSegment(p, segment) && matchesQuery(p, query)),
+    [packages, segment, query],
   )
 
   const pageSize = density === "compact" ? 12 : 8
@@ -430,9 +435,7 @@ export function Dashboard() {
             <ThemeToggle />
           </div>
           <span aria-hidden className="h-6 w-px bg-rule-strong" />
-          <Button
-            onClick={() => toast(t("nav.new"), { description: t("toast.new") })}
-          >
+          <Button onClick={() => navigate(paths.new)}>
             <PlusIcon /> <span className="hidden sm:inline">{t("action.new")}</span>
           </Button>
         </div>

@@ -46,6 +46,12 @@ import {
 } from "@/components/ui/table"
 import { DispositionMark } from "@/components/register/status-mark"
 import { StageBar } from "@/components/register/stage-bar"
+import {
+  SurfaceBody,
+  SurfaceFooter,
+  SurfaceMasthead,
+  SurfacePage,
+} from "@/components/register/surface"
 import { LocaleSwitch } from "@/components/locale-switch"
 import { ThemeToggle } from "@/components/theme-toggle"
 import {
@@ -413,10 +419,10 @@ export function Dashboard() {
   const isFiltered = segment !== "all" || query.trim().length > 0
 
   return (
-    <div className="flex min-h-svh flex-col">
-      {/* ── Masthead ── fixed to a single band so its baseline and bottom rule
-          align with the sidebar logo across the top of the page. */}
-      <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-rule-strong px-4 md:px-6">
+    <SurfacePage>
+      {/* ── Masthead ── fixed band; its bottom rule aligns with the sidebar
+          logo band across the top of the page. */}
+      <SurfaceMasthead>
         <div className="flex min-w-0 items-center gap-2.5 md:gap-3">
           <SidebarTrigger
             aria-label={t("sidebar.toggle")}
@@ -439,16 +445,16 @@ export function Dashboard() {
             <PlusIcon /> <span className="hidden sm:inline">{t("action.new")}</span>
           </Button>
         </div>
-      </header>
+      </SurfaceMasthead>
 
       {/* ── Standfirst ── the register's descriptive dek, sitting under the
           masthead where a document states its purpose before its contents. */}
-      <p className="border-b border-rule px-4 py-2.5 text-[0.875rem] leading-relaxed text-muted-foreground md:px-6">
+      <p className="shrink-0 border-b border-rule px-4 py-2.5 text-[0.875rem] leading-relaxed text-muted-foreground md:px-6">
         {t("page.register.subtitle")}
       </p>
 
       {/* ── Filter / control strip ── */}
-      <div className="flex flex-col gap-3 border-b border-rule px-4 py-2.5 md:flex-row md:items-center md:justify-between md:px-6">
+      <div className="flex shrink-0 flex-col gap-3 border-b border-rule px-4 py-2.5 md:flex-row md:items-center md:justify-between md:px-6">
         {/* Segments — horizontal scroll on overflow. The active underline is
             drawn at after:bottom-0, i.e. inside the button box rather than a
             negative offset that escapes the scroller, so overflow-x can't spawn
@@ -529,41 +535,43 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* ── Register body ── */}
-      {loading ? (
-        <RegisterSkeleton density={density} />
-      ) : rows.length === 0 ? (
-        <EmptyRegister
-          filtered={isFiltered}
-          onClear={() => {
-            setSegment("all")
-            setQuery("")
-            resetPage()
-          }}
-        />
-      ) : (
-        <>
-          <div className="hidden flex-1 md:block md:pt-3">
-            <RegisterTable
-              rows={rows}
-              density={density}
-              selected={selected}
-              onSelect={onSelect}
-              locale={locale}
-              now={now}
-            />
-          </div>
-          <div className="flex-1 md:hidden">
-            <RegisterEntries rows={rows} onSelect={onSelect} locale={locale} />
-          </div>
-        </>
-      )}
+      {/* ── Register body ── the one scrolling region between the bands */}
+      <SurfaceBody>
+        {loading ? (
+          <RegisterSkeleton density={density} />
+        ) : rows.length === 0 ? (
+          <EmptyRegister
+            filtered={isFiltered}
+            onClear={() => {
+              setSegment("all")
+              setQuery("")
+              resetPage()
+            }}
+          />
+        ) : (
+          <>
+            <div className="hidden flex-1 md:block md:pt-3">
+              <RegisterTable
+                rows={rows}
+                density={density}
+                selected={selected}
+                onSelect={onSelect}
+                locale={locale}
+                now={now}
+              />
+            </div>
+            <div className="flex-1 md:hidden">
+              <RegisterEntries rows={rows} onSelect={onSelect} locale={locale} />
+            </div>
+          </>
+        )}
+      </SurfaceBody>
 
       {/* ── Pagination footer ── always rendered so the register's closing rule
           and the h-16 bookend hold across loading, empty, and populated states.
           While loading, counts are unknown, so the row placeholders a skeleton
           in place of the tally rather than showing a misleading 0. */}
-      <footer className="mt-auto flex h-16 shrink-0 items-center justify-between gap-4 border-t border-rule-strong px-4 md:px-6">
+      <SurfaceFooter>
         {loading ? (
           <Skeleton className="h-3 w-40" />
         ) : (
@@ -600,8 +608,8 @@ export function Dashboard() {
             </div>
           </>
         )}
-      </footer>
-    </div>
+      </SurfaceFooter>
+    </SurfacePage>
   )
 }
 

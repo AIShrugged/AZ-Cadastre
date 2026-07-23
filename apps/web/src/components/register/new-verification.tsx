@@ -17,6 +17,7 @@ import {
   FlaskConicalIcon,
   ImageIcon,
   LandPlotIcon,
+  LightbulbIcon,
   TriangleAlertIcon,
   UploadCloudIcon,
   XIcon,
@@ -26,7 +27,6 @@ import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import {
   SurfaceBody,
   SurfaceFooter,
@@ -41,7 +41,6 @@ import {
   nextPackageId,
   PROFILES,
   PROFILE_ORDER,
-  type DocTypeKey,
   type ProfileKey,
 } from "@/lib/registry"
 import { cn } from "@/lib/utils"
@@ -167,7 +166,7 @@ function FileRow({
 }
 
 // ─── The single dropzone ──────────────────────────────────────────────────────
-function Dropzone({ onBrowse }: { onBrowse: () => void }) {
+function Dropzone({ onBrowse, className }: { onBrowse: () => void; className?: string }) {
   const { t } = useI18n()
   return (
     <div
@@ -175,6 +174,7 @@ function Dropzone({ onBrowse }: { onBrowse: () => void }) {
       className={cn(
         "group flex cursor-pointer flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-rule-strong bg-muted/30 px-6 py-14 text-center transition-colors",
         "hover:border-primary/55 hover:bg-accent/40",
+        className,
       )}
     >
       <span className="grid size-14 place-items-center rounded-2xl border border-rule-strong bg-card text-muted-foreground shadow-[var(--shadow-sm)] transition-transform group-hover:-translate-y-0.5">
@@ -280,6 +280,23 @@ function ProfilePicker({
   )
 }
 
+// ─── System tip ───────────────────────────────────────────────────────────────
+// A small, warm reminder of what the system does for the inspector — a splash of
+// the teal accent, one useful line.
+function SystemTip() {
+  const { t } = useI18n()
+  return (
+    <div className="flex items-start gap-3 rounded-xl border border-rule bg-muted/30 px-4 py-3">
+      <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-accent-2-tint text-accent-2-ink">
+        <LightbulbIcon className="size-4" />
+      </span>
+      <p className="text-[0.8125rem] leading-relaxed text-muted-foreground">
+        <span className="font-medium text-foreground">{t("new.tip")}</span> {t("new.tip.text")}
+      </p>
+    </div>
+  )
+}
+
 // ─── Page ──────────────────────────────────────────────────────────────────────
 export function NewVerification() {
   const { t } = useI18n()
@@ -287,7 +304,6 @@ export function NewVerification() {
   const { packages, addPackage } = usePackages()
 
   const [profile, setProfile] = useState<ProfileKey>("cadastre")
-  const [reference, setReference] = useState("")
   const [files, setFiles] = useState<Attachment[]>([])
   const [dragging, setDragging] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -296,8 +312,6 @@ export function NewVerification() {
   const inputRef = useRef<HTMLInputElement>(null)
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>[]>>({})
   const dragDepth = useRef(0)
-
-  const requiredDocs = PROFILES[profile].requiredDocs
 
   useEffect(() => {
     const all = timers.current
@@ -372,8 +386,6 @@ export function NewVerification() {
   const readyCount = files.filter((f) => f.status === "ready").length
   const canStart = readyCount > 0 && !submitting
 
-  const docName = (d: DocTypeKey) => t(`doctype.${d}`)
-
   function onStart() {
     if (!canStart) return
     setSubmitting(true)
@@ -384,7 +396,6 @@ export function NewVerification() {
           id,
           profile,
           filesAttached: readyCount,
-          reference,
           now: new Date().toISOString(),
         }),
       )
@@ -437,42 +448,27 @@ export function NewVerification() {
           Cancel and the sidebar's Register item, never a header breadcrumb. */}
       <SurfaceHeading title={t("page.new.title")} subtitle={t("page.new.subtitle")} />
 
-      {/* ── Body ── one clean centered column: profile, the dropzone, the list */}
+      {/* ── Body ── one clean centered column that fills the surface height:
+          profile picker, a space-filling dropzone, the uploaded list, and a
+          quiet preview of what the pipeline does once the inspector starts. */}
       <SurfaceBody>
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-8 md:py-10">
-          {/* Profile — a tactile card picker, then one quiet line of what it looks for */}
+        <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-6 px-4 py-8 md:py-10">
+          {/* Profile — a tactile card picker */}
           <div className="flex flex-col gap-2.5">
             <span className="text-[0.8125rem] font-medium text-foreground">
               {t("new.field.profile")}
             </span>
             <ProfilePicker value={profile} onChange={setProfile} />
-            <p className="mt-0.5 text-[0.75rem] leading-relaxed text-muted-foreground">
-              {t("new.expects", { list: requiredDocs.map(docName).join(", ") })}
-            </p>
           </div>
 
-          {/* Reference */}
-          <div className="flex flex-col gap-1.5">
-            <label
-              className="flex items-center gap-1.5 text-[0.8125rem] font-medium text-foreground"
-              htmlFor="reference"
-            >
-              {t("new.field.reference")}
-              <span className="text-[0.6875rem] font-normal text-muted-foreground">
-                ({t("new.field.optional")})
-              </span>
-            </label>
-            <Input
-              id="reference"
-              value={reference}
-              onChange={(e) => setReference(e.target.value)}
-              placeholder={t("new.reference.placeholder")}
-              className="h-9 max-w-sm border-input bg-card"
-            />
-          </div>
+          {/* A small, useful reminder of what the system does */}
+          <SystemTip />
 
-          {/* The dropzone */}
-          <Dropzone onBrowse={openPicker} />
+          {/* The dropzone — grows to fill the empty state so there is no void */}
+          <Dropzone
+            onBrowse={openPicker}
+            className={files.length === 0 ? "flex-1 min-h-[13rem]" : undefined}
+          />
 
           {/* Uploaded files */}
           {files.length > 0 && (

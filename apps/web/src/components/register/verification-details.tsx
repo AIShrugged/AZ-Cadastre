@@ -36,7 +36,12 @@ import {
 import { formatDate, relativeShort, useI18n } from "@/lib/i18n"
 import { usePackages } from "@/lib/packages-store"
 import { paths } from "@/lib/paths"
-import { type DocTypeKey } from "@/lib/registry"
+import {
+  STAGES,
+  type Disposition,
+  type DocTypeKey,
+  type VerificationPackage,
+} from "@/lib/registry"
 import {
   buildDetail,
   type DetectedDocument,
@@ -48,12 +53,15 @@ import { cn } from "@/lib/utils"
 const NOW = new Date("2026-07-23T09:00:00").getTime()
 
 // ─── Pipeline stepper ─────────────────────────────────────────────────────────
+// Completed stages fill green; the running stage keeps the indigo signal with a
+// smooth conic spinner ring; pending stages stay hairline. Transitions between
+// stages are a quiet colour fill, not a travelling effect.
 function StageNode({ status, n }: { status: StageStatus; n: number }) {
   return (
     <span
       className={cn(
-        "relative grid size-7 shrink-0 place-items-center rounded-full border-2 text-[0.6875rem] font-semibold tabular-nums transition-colors",
-        status === "done" && "border-foreground bg-foreground text-background",
+        "grid size-7 shrink-0 place-items-center rounded-full border-2 text-[0.6875rem] font-semibold tabular-nums transition-colors duration-300",
+        status === "done" && "border-ok-ink bg-ok-ink text-background",
         status === "current" && "border-primary text-primary",
         status === "pending" && "border-rule-strong text-muted-foreground",
         status === "error" && "border-destructive bg-destructive text-white",
@@ -66,44 +74,49 @@ function StageNode({ status, n }: { status: StageStatus; n: number }) {
       ) : (
         n
       )}
-      {status === "current" && (
-        <span className="absolute inset-0 animate-pulse rounded-full ring-2 ring-primary/40" />
-      )}
     </span>
+  )
+}
+
+type ConnectorState = "done" | "pending" | "hidden"
+
+function Connector({ state }: { state: ConnectorState }) {
+  if (state === "hidden") return <span className="h-0.5 flex-1" />
+  return (
+    <span
+      className={cn(
+        "h-0.5 flex-1 rounded transition-colors duration-500",
+        state === "done" ? "bg-ok-ink" : "bg-rule",
+      )}
+    />
   )
 }
 
 function Stepper({ stages }: { stages: StageStatus[] }) {
   const { t } = useI18n()
+  const stateOf = (i: number, side: "left" | "right"): ConnectorState => {
+    if (side === "left" && i === 0) return "hidden"
+    if (side === "right" && i === stages.length - 1) return "hidden"
+    const s = side === "left" ? stages[i - 1] : stages[i]
+    return s === "done" ? "done" : "pending"
+  }
   return (
     <ol className="flex min-w-max items-start md:min-w-0">
       {stages.map((st, i) => {
-        const leftDone = i > 0 && stages[i - 1] === "done"
-        const rightDone = st === "done"
         return (
           <li key={i} className="flex flex-1 flex-col items-center gap-2 px-1">
             <div className="flex w-full items-center">
-              <span
-                className={cn(
-                  "h-0.5 flex-1 rounded",
-                  i === 0 ? "opacity-0" : leftDone ? "bg-foreground" : "bg-rule",
-                )}
-              />
+              <Connector state={stateOf(i, "left")} />
               <StageNode status={st} n={i + 1} />
-              <span
-                className={cn(
-                  "h-0.5 flex-1 rounded",
-                  i === stages.length - 1 ? "opacity-0" : rightDone ? "bg-foreground" : "bg-rule",
-                )}
-              />
+              <Connector state={stateOf(i, "right")} />
             </div>
             <span
               className={cn(
-                "min-w-[4rem] max-w-[6rem] text-center text-[0.6875rem] leading-tight",
+                "min-w-[4rem] max-w-[6rem] text-center text-[0.6875rem] leading-tight transition-colors duration-300",
                 st === "current"
                   ? "font-medium text-primary"
                   : st === "done"
-                    ? "text-foreground/70"
+                    ? "text-ok-ink"
                     : st === "error"
                       ? "font-medium text-destructive"
                       : "text-muted-foreground",
@@ -256,7 +269,7 @@ function StatePanel({
           tone === "failed" && "bg-failed/12 text-failed-ink",
         )}
       >
-        <Icon className={cn("size-4", tone === "muted" && "animate-pulse")} />
+        <Icon className={cn("size-4", tone === "muted" && "motion-safe:animate-pulse")} />
       </span>
       <p className="text-[0.875rem] leading-relaxed text-foreground/90">{children}</p>
     </div>
@@ -264,6 +277,15 @@ function StatePanel({
 }
 
 // ─── Page ──────────────────────────────────────────────────────────────────────
+/** Where a run lands once the pipeline reaches the Report stage. */
+function resolveFinal(p: VerificationPackage): Disposition {
+  if (p.docsDetected < p.docsRequired) return "incomplete"
+  if (p.issues > 0 || p.lowConfidence > 0) return "issues"
+  return "ok"
+}
+
+const ADVANCE_MS = 2600
+
 export function VerificationDetails() {
   const { t, locale } = useI18n()
   const navigate = useNavigate()
@@ -275,6 +297,44 @@ export function VerificationDetails() {
   const [confirmCancel, setConfirmCancel] = useState(false)
   const confirmTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   useEffect(() => () => clearTimeout(confirmTimer.current), [])
+
+  // ── Live process ── while a package is in progress and on screen, the pipeline
+  // visibly advances (stage by stage, then resolves) and a timer ticks, so the
+  // inspector can see the background work is really happening — never frozen.
+  const running = pkg?.disposition === "in_progress"
+  const pkgId = pkg?.id
+  const finalDisp: Disposition = pkg ? resolveFinal(pkg) : "ok"
+  const [elapsed, setElapsed] = useState("0:00")
+  const stageRef = useRef(pkg?.stage)
+  useEffect(() => {
+    stageRef.current = pkg?.stage
+  }, [pkg?.stage])
+
+  useEffect(() => {
+    if (!running || !pkgId) return
+    const start = Date.now()
+    const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`
+    const update = () => setElapsed(fmt(Math.floor((Date.now() - start) / 1000)))
+    const reset = setTimeout(update, 0) // show 0:00 as soon as the run begins
+    const ticker = setInterval(update, 1000)
+    const advancer = setInterval(() => {
+      const cur = stageRef.current ?? 1
+      if (cur < STAGES) {
+        updatePackage(pkgId, { stage: cur + 1, updatedAt: new Date().toISOString() })
+      } else {
+        updatePackage(pkgId, {
+          disposition: finalDisp,
+          stage: STAGES,
+          updatedAt: new Date().toISOString(),
+        })
+      }
+    }, ADVANCE_MS)
+    return () => {
+      clearTimeout(reset)
+      clearInterval(ticker)
+      clearInterval(advancer)
+    }
+  }, [running, pkgId, finalDisp, updatePackage])
 
   if (!pkg) {
     return (
@@ -389,10 +449,14 @@ export function VerificationDetails() {
           <section>
             <div className="mb-4 flex items-center justify-between gap-4">
               <h2 className="register-label">{t("detail.process")}</h2>
-              {pkg.disposition === "in_progress" && (
-                <span className="flex items-center gap-1.5 text-[0.75rem] text-primary">
-                  <span aria-hidden className="size-1.5 animate-pulse rounded-full bg-primary" />
+              {running && (
+                <span className="flex items-center gap-1.5 text-[0.75rem] font-medium text-primary">
+                  <span aria-hidden className="size-1.5 rounded-full bg-primary motion-safe:animate-pulse" />
                   {t(`stage.${detail.currentStage}`)} {t("detail.stage_running")}
+                  <span aria-hidden className="text-primary/40">·</span>
+                  <span data-mono className="tabular-nums" aria-label="elapsed">
+                    {elapsed}
+                  </span>
                 </span>
               )}
             </div>

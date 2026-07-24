@@ -1,0 +1,41 @@
+// A single finding in a report (PRD §4.6 / §5). The four kinds are fixed by the
+// validation *engine* (ADR-0002), not by profiles, so they're a DB enum. The
+// nullable descriptor columns cover every kind without per-kind tables.
+
+enum IssueKind {
+  MissingDocument // a required document type is absent
+  FieldMismatch // two documents disagree on a field that must match
+  Expired // a document past its expiration date
+  LowConfidence // a field below the confidence threshold
+}
+
+model ValidationIssue {
+  id       String @id @default(uuid()) @db.Uuid
+  reportId String @db.Uuid
+  report   Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  kind    IssueKind
+  message String // human-readable description shown in the report
+
+  // The document this issue concerns, when there is one (mismatch, expired,
+  // low-confidence). Null for MissingDocument. SetNull so removing a single
+  // document doesn't delete its report's findings.
+  documentId String?   @db.Uuid
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  /// Profile document-type key (ADR-0002) the issue is about — for
+  /// MissingDocument, the type that's missing.
+  documentType String?
+
+  /// Profile field key involved (mismatch, low-confidence, expired).
+  fieldName String?
+
+  pageNumber Int? // page reference, when applicable
+  confidence Float? // relevant confidence (e.g. the flagged low value)
+
+  createdAt DateTime @default(now())
+
+  @@index([reportId])
+  @@index([documentId])
+  @@map("validation_issues")
+}

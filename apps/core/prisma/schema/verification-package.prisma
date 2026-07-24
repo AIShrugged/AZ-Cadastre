@@ -11,12 +11,19 @@ enum PackageStatus {
 }
 
 model VerificationPackage {
-  id        String        @id @default(uuid()) @db.Uuid
-  status    PackageStatus @default(Pending)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  id     String        @id @default(uuid()) @db.Uuid
+  status PackageStatus @default(Pending)
+
+  /// Which Verification Profile governs this package — a profile string key
+  /// (ADR-0002), e.g. "demo" | "cadastre". The profile definition itself lives
+  /// in code, not here; this only records which one was chosen at upload.
+  profileKey String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   documents Document[]
+  report    Report?
 
   @@map("verification_packages")
 }

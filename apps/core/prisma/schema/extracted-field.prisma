@@ -1,0 +1,27 @@
+// Output of the Field Extraction stage (PRD §4.5): one structured field pulled
+// from a document, per the field schema its detected type declares in the
+// active profile. Each field records where it came from and how sure we are.
+
+model ExtractedField {
+  id         String   @id @default(uuid()) @db.Uuid
+  documentId String   @db.Uuid
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  /// Profile-defined field key (ADR-0002), e.g. "first_name" | "passport_number"
+  /// | "expiration_date". Kept as a string so a new profile needs no migration.
+  name String
+
+  value      String // extracted value, as text; validation parses it (dates, etc.)
+  confidence Float // extraction/OCR confidence for this field (0..1)
+
+  // Page the value was found on. Navigable to the Page row via the
+  // (documentId, pageNumber) unique key — no separate FK needed.
+  pageNumber Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // One value per field per document → extraction is an idempotent upsert.
+  @@unique([documentId, name])
+  @@map("extracted_fields")
+}

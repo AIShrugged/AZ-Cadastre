@@ -1,19 +1,17 @@
 import axios from "axios"
+import type {
+  DocumentContentType,
+  PresignResponse,
+} from "@cadastre/contracts"
 
 import { http } from "@/shared/api"
-
-/** What the core service returns when we ask to presign an upload. */
-type PresignResponse = {
-  key: string
-  url: string
-  contentType: string
-  expiresIn: number
-}
 
 /** What the transport resolves with once a document is stored. */
 export type UploadResult = {
   /** Object key the file now lives under in the bucket. */
   key: string
+  /** MIME type the file was stored as (pinned into the presign signature). */
+  contentType: DocumentContentType
 }
 
 export type UploadHandlers = {
@@ -62,5 +60,5 @@ export async function uploadDocument(
     },
   })
 
-  return { key: data.key }
+  return { key: data.key, contentType: data.contentType }
 }

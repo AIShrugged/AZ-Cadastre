@@ -1,3 +1,5 @@
+import type { DocumentContentType } from "@cadastre/contracts"
+
 export type FileKind = "pdf" | "image"
 export type UploadStatus = "uploading" | "ready" | "error"
 export type UploadErrorKind = "format" | "size" | "failed"
@@ -16,6 +18,8 @@ export type Attachment = {
   progress: number
   /** Object key in the bucket once the transfer completes. */
   key?: string
+  /** MIME type the file was stored as — sent when creating the package. */
+  contentType?: DocumentContentType
   /** Resolved later by the pipeline once a PDF is read. */
   pages?: number
   error?: UploadErrorKind

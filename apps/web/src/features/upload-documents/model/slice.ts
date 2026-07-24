@@ -47,13 +47,18 @@ const uploadDocumentsSlice = createSlice({
     },
     uploadSucceeded(
       state,
-      action: PayloadAction<{ id: string; key: string }>,
+      action: PayloadAction<{
+        id: string
+        key: string
+        contentType: Attachment["contentType"]
+      }>,
     ) {
       const f = state.files.find((f) => f.id === action.payload.id)
       if (f) {
         f.status = "ready"
         f.progress = 100
         f.key = action.payload.key
+        f.contentType = action.payload.contentType
       }
     },
     uploadFailed(state, action: PayloadAction<{ id: string }>) {
@@ -136,11 +141,11 @@ function startUpload(id: string, file: File) {
     const controller = new AbortController()
     aborters.set(id, controller)
     try {
-      const { key } = await uploadDocument(file, {
+      const { key, contentType } = await uploadDocument(file, {
         signal: controller.signal,
         onProgress: (progress) => dispatch(uploadProgress({ id, progress })),
       })
-      dispatch(uploadSucceeded({ id, key }))
+      dispatch(uploadSucceeded({ id, key, contentType }))
     } catch (err) {
       // A removed/cleared row aborts its own transfer — that's not a failure.
       if (axios.isCancel(err)) return

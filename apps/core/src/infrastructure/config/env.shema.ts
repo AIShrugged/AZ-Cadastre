@@ -6,12 +6,10 @@ export const EnvironmentSchema = z
     SERVICE_PORT: z.coerce.number().int().positive().default(3000),
     SERVICE_HOST: z.string().default("0.0.0.0"),
 
-    // database
-    DB_HOST: z.string().nonempty().default("localhost"),
-    DB_PORT: z.coerce.number().int().positive().default(5432),
-    DB_USERNAME: z.string().nonempty().default("postgres"),
-    DB_PASSWORD: z.string().nonempty().default("postgres"),
-    DB_NAME: z.string().nonempty().default("cadastre-db"),
+    // database — canonical connection string, shared with Prisma
+    DATABASE_URL: z.url().default(
+      "postgresql://postgres:postgres@localhost:5432/cadastre-db?schema=public",
+    ),
 
     // web origin allowed to call this API / receive presigned uploads (CORS)
     WEB_ORIGIN: z.string().nonempty().default("http://localhost:5173"),
@@ -41,11 +39,7 @@ export const EnvironmentSchema = z
       origin: env.WEB_ORIGIN,
     },
     database: {
-      host: env.DB_HOST,
-      port: env.DB_PORT,
-      username: env.DB_USERNAME,
-      password: env.DB_PASSWORD,
-      name: env.DB_NAME,
+      url: env.DATABASE_URL,
     },
     storage: {
       endpoint: env.S3_ENDPOINT,

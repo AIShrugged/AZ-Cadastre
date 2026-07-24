@@ -1,6 +1,9 @@
 node_modules
 build
 
+# Prisma-generated client (regenerated from schema.prisma via `prisma generate`)
+generated
+
 .env
 .env.local
 

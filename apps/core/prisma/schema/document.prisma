@@ -1,0 +1,26 @@
+// A single uploaded file within a package. Pages / OCR / extracted fields hang
+// off this and are modelled in later aggregates.
+
+model Document {
+  id        String              @id @default(uuid()) @db.Uuid
+  packageId String              @db.Uuid
+  package   VerificationPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  // Original uploaded file. The bytes live in object storage; we keep only the
+  // key that locates them, plus the metadata needed to process and display it.
+  originalFilename String
+  contentType      String // application/pdf | image/jpeg | image/png
+  storageKey       String @unique // object-store key handed back by the presign step
+
+  /// Detected document type — a profile-defined string key (ADR-0002), e.g.
+  /// "passport" | "driver_license" | "application" | "unknown". Null until the
+  /// Classify stage runs. Kept as a string so a new profile/domain never
+  /// requires a migration.
+  type String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([packageId])
+  @@map("documents")
+}

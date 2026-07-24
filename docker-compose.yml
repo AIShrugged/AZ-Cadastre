@@ -1,5 +1,23 @@
 ---
 services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: cadastre-postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=cadastre-db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cadastre-db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   rustfs:
     image: rustfs/rustfs:latest
     container_name: rustfs
@@ -18,5 +36,7 @@ services:
     restart: unless-stopped
 
 volumes:
+  postgres-data:
+    name: cadastre-postgres-data
   rustfs-data:
     name: rustfs-data

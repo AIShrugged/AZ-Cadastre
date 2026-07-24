@@ -5,7 +5,12 @@
   "main": "index.js",
   "scripts": {
     "dev": "nest start --watch",
-    "build": "nest build"
+    "build": "nest build",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio",
+    "postinstall": "prisma generate"
   },
   "keywords": [],
   "author": "",
@@ -18,6 +23,13 @@
     "@nestjs/config": "12.0.0-next.0",
     "@nestjs/core": "12.0.0-alpha.5",
     "@nestjs/cqrs": "^11.0.3",
-    "@nestjs/platform-express": "12.0.0-alpha.5"
+    "@nestjs/platform-express": "12.0.0-alpha.5",
+    "@prisma/adapter-pg": "^7.9.0",
+    "@prisma/client": "^7.9.0",
+    "pg": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.20.0",
+    "prisma": "^7.9.0"
   }
 }

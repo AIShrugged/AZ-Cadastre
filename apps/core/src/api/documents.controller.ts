@@ -6,7 +6,7 @@ import {
 } from "@nestjs/common";
 import { z } from "zod";
 
-import { ObjectStorage } from "../../application/ports/object-storage.port.js";
+import { ObjectStorage } from "../application/ports/object-storage.port.js";
 
 const PresignBody = z.object({
   filename: z.string().trim().min(1).max(255),

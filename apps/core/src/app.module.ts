@@ -14,7 +14,8 @@ import {
   DocumentClassifier,
   ObjectStorage,
 } from "./application/ports/index.js";
-import { DocumentsController } from "./infrastructure/http/documents.controller.js";
+import { DocumentsController } from "./api/documents.controller.js";
+import { PrismaService } from "./infrastructure/database/prisma.service.js";
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { DocumentsController } from "./infrastructure/http/documents.controller.
   controllers: [DocumentsController],
 
   providers: [
+    PrismaService,
     {
       provide: DocumentClassifier,
       useClass: DocumentClassifierAdapter,

@@ -1,0 +1,19 @@
+// Prisma schema for @cadastre/core (multi-file — one model per file).
+//
+// Lives in the infrastructure layer (ADR-0004): the domain model is pure and
+// framework-free, and these tables are the persistence view of it — mapped
+// explicitly by repositories, never imported by the domain.
+//
+// Verification Profiles are NOT modelled here: they live in code, not the
+// database (ADR-0002).
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../../src/infrastructure/database/generated"
+  runtime      = "nodejs"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}

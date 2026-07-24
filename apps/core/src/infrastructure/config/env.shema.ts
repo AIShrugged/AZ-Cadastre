@@ -16,15 +16,15 @@ export const EnvironmentSchema = z
     // web origin allowed to call this API / receive presigned uploads (CORS)
     WEB_ORIGIN: z.string().nonempty().default("http://localhost:5173"),
 
-    // object storage (Garage / S3). The endpoint must be reachable from BOTH
-    // this service and the browser, because the presigned URL we hand back
-    // points at it directly.
-    S3_ENDPOINT: z.string().nonempty().default("http://localhost:3900"),
-    S3_REGION: z.string().nonempty().default("garage"),
+    // object storage (RustFS with S3 API). The endpoint must be reachable
+    // from BOTH this service and the browser, because the presigned URL we
+    // hand back points at it directly.
+    S3_ENDPOINT: z.string().nonempty().default("http://localhost:9000"),
+    S3_REGION: z.string().nonempty().default("rustfs"),
     S3_BUCKET: z.string().nonempty().default("documents"),
     S3_ACCESS_KEY: z.string().nonempty(),
     S3_SECRET_KEY: z.string().nonempty(),
-    // Garage speaks path-style (vhost-style is opt-in); keep true.
+    // S3 speaks path-style (vhost-style is opt-in); keep true.
     S3_FORCE_PATH_STYLE: z
       .enum(["true", "false"])
       .default("true")

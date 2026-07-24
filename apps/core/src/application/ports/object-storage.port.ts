@@ -17,9 +17,9 @@ export type PresignedUpload = {
 };
 
 /**
- * Port over the object store (Garage/S3). The application asks for a presigned
- * upload; the browser transfers bytes straight to storage, so document data
- * never passes through this service.
+ * Port over the object store (RustFS with S3-compatible API). The application
+ * asks for a presigned upload; the browser transfers bytes straight to storage,
+ * so document data never passes through this service.
  */
 export abstract class ObjectStorage {
   abstract presignUpload(input: PresignUploadInput): Promise<PresignedUpload>;

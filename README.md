@@ -11,7 +11,7 @@ AZ-Cadastre processes multi-page, multi-format document packages (PDF, JPG, PNG)
 - **Multi-Stage Verification Pipeline**: 7-stage orchestrated workflow (classification, OCR, completeness check, cross-validation, legal rules, report generation, human review)
 - **Real-Time Updates**: WebSocket-based progress notifications
 - **Long-Running Workflows**: Temporal-based orchestration for resumable, auditable processes
-- **Structured Data Integration**: PostgreSQL for application data, S3/MinIO for document storage
+- **Structured Data Integration**: PostgreSQL for application data, RustFS (S3-compatible) for document storage
 
 ## Project Structure
 

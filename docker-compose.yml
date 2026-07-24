@@ -1,43 +1,22 @@
 ---
 services:
-  garage:
-    image: dxflrs/garage:v2.3.0
-    container_name: garage
-    volumes:
-      - ./configs/garage/garage.toml:/etc/garage.toml
-      - ./configs/garage/meta:/var/lib/garage/meta
-      - ./configs/garage/data:/var/lib/garage/data
-    restart: unless-stopped
+  rustfs:
+    image: rustfs/rustfs:latest
+    container_name: rustfs
     ports:
-      - "3900:3900"
-      - "3901:3901"
-      - "3902:3902"
-      - "3903:3903"
-
-  garage-ui:
-    image: noooste/garage-ui:latest
-    container_name: garage-ui
-    restart: unless-stopped
+      - "9000:9000"
+      - "9001:9001"
     volumes:
-      - ./configs/garage/config.yaml:/app/config.yaml
-    ports:
-      - "127.0.0.1:8080:8080"
-    depends_on:
-      - garage
+      - rustfs-data:/data
     environment:
-      # Garage S3 Configuration
-      GARAGE_UI_GARAGE_ENDPOINT: "garage:3900"
-      GARAGE_UI_GARAGE_ADMIN_ENDPOINT: "http://garage:3903"
+      - RUSTFS_ROOT_USER=rustfsadmin
+      - RUSTFS_ROOT_PASSWORD=rustfsadmin
+      - RUSTFS_ADDRESS=:9000
+      - RUSTFS_CONSOLE_ADDRESS=:9001
+      - RUSTFS_CONSOLE_ENABLE=true
+      - RUSTFS_LOG=warn
+    restart: unless-stopped
 
-      # Server Configuration
-      GARAGE_UI_SERVER_HOST: "0.0.0.0"
-      GARAGE_UI_SERVER_PORT: "8080"
-      GARAGE_UI_SERVER_ENVIRONMENT: "production"
-
-      # JWT Configuration
-      # IMPORTANT: Replace this with your own Ed25519 private key in production!
-      # Generate with: openssl genpkey -algorithm ED25519
-      GARAGE_UI_AUTH_JWT_PRIVATE_KEY: |
-        -----BEGIN PRIVATE KEY-----
-        MC4CAQAwBQYDK2VwBCIEIH0ZHqIV7MEyVsxNYc5TA/a0qaBxgq3ntlFS3w1F03MS
-        -----END PRIVATE KEY-----
+volumes:
+  rustfs-data:
+    name: rustfs-data

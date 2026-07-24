@@ -236,36 +236,43 @@ function OcrStatus({ doc, failed }: { doc: DocumentDto; failed: boolean }) {
   const avg =
     recognised.reduce((sum, p) => sum + (p.ocr?.confidence ?? 0), 0) /
     recognised.length
+
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <StatusLine
+        tone="ok"
+        icon={<CheckIcon className="size-3" strokeWidth={3} />}
+        label={t("detail.ocr_done")}
+      />
+      <Confidence value={avg} />
+    </div>
+  )
+}
+
+// ─── Recognized text ─────────────────────────────────────────────────────────
+// The full transcription, kept one disclosure away and pushed to the foot of the
+// document so it never crowds the status line or the fields — traceable on
+// demand, out of the way otherwise.
+function RecognizedText({ doc }: { doc: DocumentDto }) {
+  const { t } = useI18n()
   const text = doc.pages
     .map((p) => p.ocr?.text ?? "")
     .join("\n\n")
     .trim()
-
+  if (!text) return null
   return (
-    <div>
-      <div className="flex items-center justify-between gap-3">
-        <StatusLine
-          tone="ok"
-          icon={<CheckIcon className="size-3" strokeWidth={3} />}
-          label={t("detail.ocr_done")}
-        />
-        <Confidence value={avg} />
-      </div>
-      {/* Full transcription, one disclosure away — clean by default, traceable
-          on demand. */}
-      <details className="group mt-2">
-        <summary className="flex cursor-pointer list-none select-none items-center gap-1 text-[0.6875rem] text-muted-foreground transition-colors hover:text-foreground">
-          <ChevronRightIcon className="size-3 transition-transform duration-200 group-open:rotate-90" />
-          {t("detail.view_text")}
-        </summary>
-        <pre
-          data-mono
-          className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap rounded-lg border border-rule bg-muted/30 p-3 text-[0.75rem] leading-relaxed text-foreground/80"
-        >
-          {text}
-        </pre>
-      </details>
-    </div>
+    <details className="group">
+      <summary className="flex cursor-pointer list-none select-none items-center gap-1 text-[0.6875rem] text-muted-foreground transition-colors hover:text-foreground">
+        <ChevronRightIcon className="size-3 transition-transform duration-200 group-open:rotate-90" />
+        {t("detail.view_text")}
+      </summary>
+      <pre
+        data-mono
+        className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap rounded-lg border border-rule bg-muted/30 p-3 text-[0.75rem] leading-relaxed text-foreground/80"
+      >
+        {text}
+      </pre>
+    </details>
   )
 }
 
@@ -308,11 +315,9 @@ function Fields({ fields }: { fields: FieldDto[] }) {
 function DocumentBlock({
   doc,
   failed,
-  processing,
 }: {
   doc: DocumentDto
   failed: boolean
-  processing: boolean
 }) {
   const { t } = useI18n()
   const Icon = doc.contentType.startsWith("image/") ? ImageIcon : FileTextIcon
@@ -373,24 +378,27 @@ function DocumentBlock({
         </div>
       </div>
 
-      {/* Body */}
+      {/* Body — status, then fields, with the raw transcription at the foot */}
       {unclassified ? (
-        <div className="mt-3.5 flex flex-col gap-2.5 border-t border-rule pt-3.5">
-          <OcrStatus doc={doc} failed={failed} />
-          <p className="text-[0.8125rem] leading-relaxed text-muted-foreground">
-            {t("detail.unclassified")}
-            {snippet && (
-              <span className="mt-1.5 block truncate text-[0.75rem] italic text-foreground/55">
-                “{snippet}…”
-              </span>
-            )}
-          </p>
+        <div className="mt-4 flex flex-col gap-5 border-t border-rule pt-4">
+          <div className="flex flex-col gap-2.5">
+            <OcrStatus doc={doc} failed={failed} />
+            <p className="text-[0.8125rem] leading-relaxed text-muted-foreground">
+              {t("detail.unclassified")}
+              {snippet && (
+                <span className="mt-1.5 block truncate text-[0.75rem] italic text-foreground/55">
+                  “{snippet}…”
+                </span>
+              )}
+            </p>
+          </div>
+          <RecognizedText doc={doc} />
         </div>
       ) : (
-        <div className="mt-3.5 flex flex-col gap-4 border-t border-rule pt-3.5">
+        <div className="mt-4 flex flex-col gap-5 border-t border-rule pt-4">
           <OcrStatus doc={doc} failed={failed} />
 
-          {doc.fields.length > 0 ? (
+          {doc.fields.length > 0 && (
             <div>
               <div className="mb-2 flex items-center gap-1.5">
                 <ScanTextIcon className="size-3.5 text-muted-foreground" />
@@ -398,21 +406,9 @@ function DocumentBlock({
               </div>
               <Fields fields={doc.fields} />
             </div>
-          ) : doc.type ? (
-            <p className="flex items-center gap-2 text-[0.8125rem] text-muted-foreground">
-              {processing ? (
-                <>
-                  <span
-                    aria-hidden
-                    className="size-1.5 rounded-full bg-primary motion-safe:animate-pulse"
-                  />
-                  {t("detail.pending")}
-                </>
-              ) : (
-                t("detail.no_fields")
-              )}
-            </p>
-          ) : null}
+          )}
+
+          <RecognizedText doc={doc} />
         </div>
       )}
     </div>
@@ -530,7 +526,6 @@ export function VerificationDetails() {
                   <DocumentBlock
                     doc={doc}
                     failed={view.disposition === "failed"}
-                    processing={view.disposition === "in_progress"}
                   />
                 </div>
               ))}

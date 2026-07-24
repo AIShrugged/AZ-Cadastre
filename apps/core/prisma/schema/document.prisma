@@ -18,6 +18,8 @@ model Document {
   /// requires a migration.
   type String?
 
+  pages Page[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

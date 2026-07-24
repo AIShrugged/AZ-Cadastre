@@ -1,0 +1,21 @@
+// A single page of a Document. A PDF is split into one page per sheet (PRD
+// §4.2); a JPG/PNG document has exactly one page. The page image is what the
+// OCR stage consumes.
+
+model Page {
+  id         String   @id @default(uuid()) @db.Uuid
+  documentId String   @db.Uuid
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  pageNumber      Int // 1-based; a non-PDF document has a single page (1)
+  imageStorageKey String // object-store key of the page image (PDF page → rendered PNG)
+
+  // Set once the OCR stage runs; absent means "not yet OCR'd".
+  ocr OcrResult?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([documentId, pageNumber])
+  @@map("pages")
+}

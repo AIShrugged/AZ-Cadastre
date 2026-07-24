@@ -1,0 +1,20 @@
+// Output of the OCR stage for one page (PRD §4.3): recognized text, an overall
+// confidence, and optional bounding boxes. One result per page (1:1).
+
+model OcrResult {
+  id     String @id @default(uuid()) @db.Uuid
+  pageId String @unique @db.Uuid // 1:1 — a page is OCR'd once per run
+  page   Page   @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  text       String // recognized text for the whole page
+  confidence Float // page-level OCR confidence (0..1)
+
+  /// Optional bounding boxes as returned by the OcrProvider port, stored as-is:
+  /// [{ text, x, y, w, h, confidence }]. Display-only for the MVP, so kept as
+  /// JSON rather than its own table (no cross-box queries needed).
+  boxes Json?
+
+  createdAt DateTime @default(now())
+
+  @@map("ocr_results")
+}

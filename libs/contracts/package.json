@@ -1,13 +1,27 @@
 {
   "name": "@cadastre/contracts",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Shared Zod schemas and inferred types for the HTTP DTOs between web and core.",
+  "type": "module",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/index.d.ts",
+      "import": "./build/index.js"
+    }
+  },
+  "files": [
+    "build"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "module"
+  "dependencies": {
+    "zod": "^4.4.3"
+  }
 }

@@ -15,7 +15,10 @@ import {
   ObjectStorage,
 } from "./application/ports/index.js";
 import { DocumentsController } from "./api/documents.controller.js";
+import { PackagesController } from "./api/packages.controller.js";
 import { PrismaService } from "./infrastructure/database/prisma.service.js";
+import { PackagesRepository } from "./application/ports/packages.repository.js";
+import { PrismaPackagesRepository } from "./infrastructure/database/repositories/packages.repository.js";
 
 @Module({
   imports: [
@@ -27,10 +30,14 @@ import { PrismaService } from "./infrastructure/database/prisma.service.js";
     CqrsModule.forRoot(),
   ],
 
-  controllers: [DocumentsController],
+  controllers: [DocumentsController, PackagesController],
 
   providers: [
     PrismaService,
+    {
+      provide: PackagesRepository,
+      useClass: PrismaPackagesRepository,
+    },
     {
       provide: DocumentClassifier,
       useClass: DocumentClassifierAdapter,

@@ -5,13 +5,12 @@ import {
   Post,
 } from "@nestjs/common";
 import { z } from "zod";
+import {
+  PresignRequestSchema,
+  type PresignResponse,
+} from "@cadastre/contracts";
 
 import { ObjectStorage } from "../application/ports/object-storage.port.js";
-
-const PresignBody = z.object({
-  filename: z.string().trim().min(1).max(255),
-  contentType: z.enum(["application/pdf", "image/jpeg", "image/png"]),
-});
 
 @Controller("documents")
 export class DocumentsController {
@@ -19,11 +18,14 @@ export class DocumentsController {
 
   /** Issue a presigned URL the browser uses to PUT one document into storage. */
   @Post("presign")
-  async presign(@Body() body: unknown) {
-    const parsed = PresignBody.safeParse(body);
+  async presign(@Body() body: unknown): Promise<PresignResponse> {
+    const parsed = PresignRequestSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException(z.flattenError(parsed.error));
     }
-    return this.storage.presignUpload(parsed.data);
+    const presigned = await this.storage.presignUpload(parsed.data);
+    // The port types contentType loosely as string; it echoes the request, so
+    // pin it back to the validated union the contract promises.
+    return { ...presigned, contentType: parsed.data.contentType };
   }
 }

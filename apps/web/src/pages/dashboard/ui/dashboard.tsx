@@ -4,7 +4,7 @@
  * disposition marks that report (never decide). Doubles as the archive via
  * search + segment filters. Adaptive density; scales via pagination.
  */
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import {
   ChevronRightIcon,
   FilterXIcon,
@@ -64,7 +64,7 @@ import {
   type Segment,
   type VerificationPackage,
 } from "@/entities/verification-package"
-import { usePackages } from "@/entities/verification-package"
+import { useGetPackagesQuery } from "@/entities/verification-package"
 import { paths } from "@/shared/config"
 import { cn } from "@/shared/lib/cn"
 
@@ -379,19 +379,13 @@ function EmptyRegister({ filtered, onClear }: { filtered: boolean; onClear: () =
 export function Dashboard() {
   const { t, locale } = useI18n()
   const navigate = useNavigate()
-  const { packages } = usePackages()
-  const [now] = useState(() => new Date("2026-07-23T09:00:00").getTime())
-  const [loading, setLoading] = useState(true)
+  const { data: packages = [], isLoading: loading } = useGetPackagesQuery()
+  const [now] = useState(() => Date.now())
   const [query, setQuery] = useState("")
   const [segment, setSegment] = useState<Segment>("all")
   const [density, setDensity] = useState<Density>("comfortable")
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<string | null>(null)
-
-  useEffect(() => {
-    const id = setTimeout(() => setLoading(false), 700)
-    return () => clearTimeout(id)
-  }, [])
 
   const counts = useMemo(() => segmentCounts(packages), [packages])
 

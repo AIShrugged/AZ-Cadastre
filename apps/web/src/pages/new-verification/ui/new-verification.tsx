@@ -44,11 +44,9 @@ import {
   selectValidCount,
 } from "@/features/upload-documents"
 import { useI18n } from "@/shared/i18n"
-import { usePackages } from "@/entities/verification-package"
 import { paths } from "@/shared/config"
 import {
-  createPackage,
-  nextPackageId,
+  useCreatePackageMutation,
   PROFILES,
   PROFILE_ORDER,
   type ProfileKey,
@@ -162,7 +160,7 @@ export function NewVerification() {
   const { t } = useI18n()
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
-  const { packages, addPackage } = usePackages()
+  const [createPackage, { isLoading: submitting }] = useCreatePackageMutation()
 
   const files = useAppSelector(selectDocuments)
   const total = useAppSelector(selectValidCount)
@@ -170,7 +168,6 @@ export function NewVerification() {
 
   const [profile, setProfile] = useState<ProfileKey>("cadastre")
   const [dragging, setDragging] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
 
   const inputRef = useRef<HTMLInputElement>(null)
   const dragDepth = useRef(0)
@@ -189,22 +186,25 @@ export function NewVerification() {
 
   const canStart = readyCount > 0 && !submitting
 
-  function onStart() {
+  async function onStart() {
     if (!canStart) return
-    setSubmitting(true)
-    const id = nextPackageId(packages)
-    window.setTimeout(() => {
-      addPackage(
-        createPackage({
-          id,
-          profile,
-          filesAttached: readyCount,
-          now: new Date().toISOString(),
-        }),
-      )
-      toast(t("toast.started", { id }))
+    // Only fully-transferred documents carry a storage key to attach.
+    const documents = files
+      .filter((f) => f.status === "ready" && f.key && f.contentType)
+      .map((f) => ({
+        originalFilename: f.name,
+        contentType: f.contentType!,
+        storageKey: f.key!,
+      }))
+    if (documents.length === 0) return
+
+    try {
+      const pkg = await createPackage({ profileKey: profile, documents }).unwrap()
+      toast(t("toast.started", { id: pkg.id }))
       navigate(paths.register)
-    }, 480)
+    } catch {
+      toast.error(t("toast.create_failed"))
+    }
   }
 
   const hasFiles = (e: React.DragEvent) => Array.from(e.dataTransfer.types).includes("Files")

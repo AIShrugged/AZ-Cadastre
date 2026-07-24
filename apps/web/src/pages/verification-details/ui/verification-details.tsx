@@ -6,7 +6,7 @@
  * fields. Evidence carries its provenance — each field shows confidence and
  * page. It reports; it never states an approval or a verdict.
  */
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import {
   ArrowLeftIcon,
   CalendarClockIcon,
@@ -34,7 +34,7 @@ import {
   SurfacePage,
 } from "@/shared/ui/surface"
 import { formatDate, relativeShort, useI18n } from "@/shared/i18n"
-import { usePackages } from "@/entities/verification-package"
+import { useGetPackagesQuery } from "@/entities/verification-package"
 import { paths } from "@/shared/config"
 import {
   STAGES,
@@ -290,8 +290,28 @@ export function VerificationDetails() {
   const { t, locale } = useI18n()
   const navigate = useNavigate()
   const { id } = useParams()
-  const { packages, updatePackage } = usePackages()
-  const pkg = packages.find((p) => p.id === id)
+  // Package summaries come live from the register (`GET /api/packages`). The
+  // per-package pipeline/evidence detail is not served yet, so this surface
+  // holds the package in local state and drives a client-side preview of the
+  // pipeline over it — replace with real per-package detail once its endpoint
+  // and the pipeline exist.
+  const { data: packages = [] } = useGetPackagesQuery()
+  const serverPkg = packages.find((p) => p.id === id)
+  const [pkg, setPkg] = useState<VerificationPackage | undefined>(serverPkg)
+  // Re-seed local state when the underlying server package changes — done during
+  // render (React's "adjust state on prop change" pattern), not in an effect, so
+  // it doesn't trigger cascading renders. `serverPkg` is a stable reference from
+  // the RTK Query cache until the data actually changes.
+  const [syncedFrom, setSyncedFrom] = useState(serverPkg)
+  if (serverPkg !== syncedFrom) {
+    setSyncedFrom(serverPkg)
+    setPkg(serverPkg)
+  }
+  const patchPkg = useCallback(
+    (patch: Partial<VerificationPackage>) =>
+      setPkg((p) => (p ? { ...p, ...patch } : p)),
+    [],
+  )
 
   // Two-click confirm for the destructive Cancel; auto-resets after a beat.
   const [confirmCancel, setConfirmCancel] = useState(false)
@@ -320,9 +340,9 @@ export function VerificationDetails() {
     const advancer = setInterval(() => {
       const cur = stageRef.current ?? 1
       if (cur < STAGES) {
-        updatePackage(pkgId, { stage: cur + 1, updatedAt: new Date().toISOString() })
+        patchPkg({ stage: cur + 1, updatedAt: new Date().toISOString() })
       } else {
-        updatePackage(pkgId, {
+        patchPkg({
           disposition: finalDisp,
           stage: STAGES,
           updatedAt: new Date().toISOString(),
@@ -334,7 +354,7 @@ export function VerificationDetails() {
       clearInterval(ticker)
       clearInterval(advancer)
     }
-  }, [running, pkgId, finalDisp, updatePackage])
+  }, [running, pkgId, finalDisp, patchPkg])
 
   if (!pkg) {
     return (
@@ -361,7 +381,7 @@ export function VerificationDetails() {
   const isFailed = pkg.disposition === "failed"
   const nowIso = () => new Date().toISOString()
   function restart() {
-    updatePackage(pkg!.id, { disposition: "in_progress", stage: 1, updatedAt: nowIso() })
+    patchPkg({ disposition: "in_progress", stage: 1, updatedAt: nowIso() })
     toast(t("toast.restarted", { id: pkg!.id }))
   }
   function armCancel() {
@@ -372,7 +392,7 @@ export function VerificationDetails() {
   function cancelRun() {
     clearTimeout(confirmTimer.current)
     setConfirmCancel(false)
-    updatePackage(pkg!.id, {
+    patchPkg({
       disposition: "failed",
       stage: detail.currentStage,
       updatedAt: nowIso(),

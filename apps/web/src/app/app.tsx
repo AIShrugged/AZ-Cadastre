@@ -24,7 +24,6 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom"
 import { TooltipProvider } from "@/shared/ui/tooltip"
 import { Toaster } from "@/shared/ui/sonner"
 import { I18nProvider } from "@/shared/i18n"
-import { PackagesProvider } from "@/entities/verification-package"
 import { routeObjects } from "@/app/routes"
 
 const router = createBrowserRouter(routeObjects)
@@ -33,12 +32,10 @@ export function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <I18nProvider>
-        <PackagesProvider>
-          <TooltipProvider>
-            <RouterProvider router={router} />
-            <Toaster position="bottom-right" />
-          </TooltipProvider>
-        </PackagesProvider>
+        <TooltipProvider>
+          <RouterProvider router={router} />
+          <Toaster position="bottom-right" />
+        </TooltipProvider>
       </I18nProvider>
     </ThemeProvider>
   )

@@ -1,18 +1,18 @@
 import { combineReducers, configureStore } from '@reduxjs/toolkit'
+import { api } from '@/shared/api'
 import { uploadDocumentsReducer } from '@/features/upload-documents'
 import appReducer from './app-slice'
 
 const rootReducer = combineReducers({
   app: appReducer,
   uploadDocuments: uploadDocumentsReducer,
-  // Add slice and RTK Query api reducers here.
+  [api.reducerPath]: api.reducer,
 })
 
 export const store = configureStore({
   reducer: rootReducer,
   middleware: (getDefaultMiddleware) =>
-    // Concat RTK Query api middleware here, e.g. `.concat(api.middleware)`.
-    getDefaultMiddleware(),
+    getDefaultMiddleware().concat(api.middleware),
 })
 
 export type RootState = ReturnType<typeof rootReducer>

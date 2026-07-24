@@ -46,6 +46,7 @@ function toDetailDto(p: PackageDetail): PackageDetailDto {
         pageNumber: page.pageNumber,
         ocr: page.ocr,
       })),
+      fields: doc.fields,
     })),
   };
 }

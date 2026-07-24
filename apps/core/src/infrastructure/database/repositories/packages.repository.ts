@@ -57,6 +57,15 @@ export class PrismaPackagesRepository extends PackagesRepository {
                 ocr: { select: { text: true, confidence: true } },
               },
             },
+            extractedFields: {
+              orderBy: { createdAt: "asc" },
+              select: {
+                name: true,
+                value: true,
+                confidence: true,
+                pageNumber: true,
+              },
+            },
           },
         },
       },
@@ -80,6 +89,12 @@ export class PrismaPackagesRepository extends PackagesRepository {
           ocr: page.ocr
             ? { text: page.ocr.text, confidence: page.ocr.confidence }
             : null,
+        })),
+        fields: doc.extractedFields.map((f) => ({
+          name: f.name,
+          value: f.value,
+          confidence: f.confidence,
+          pageNumber: f.pageNumber,
         })),
       })),
     };

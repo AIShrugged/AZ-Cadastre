@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Injectable, Logger, type OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
+  GetObjectCommand,
   PutObjectCommand,
   PutBucketCorsCommand,
   S3Client,
@@ -12,6 +13,7 @@ import {
   ObjectStorage,
   type PresignUploadInput,
   type PresignedUpload,
+  type StoredObject,
 } from "../../application/ports/object-storage.port.js";
 import type { Environment } from "../config/env.shema.js";
 
@@ -80,6 +82,18 @@ export class ObjectStorageAdapter
       contentType: input.contentType,
       expiresIn: this.storage.presignTtl,
     };
+  }
+
+  async getObject(key: string): Promise<StoredObject> {
+    const res = await this.client.send(
+      new GetObjectCommand({ Bucket: this.storage.bucket, Key: key }),
+    );
+    if (!res.Body) {
+      throw new Error(`Object "${key}" has no body`);
+    }
+    // Node stream helper from the v3 SDK — collects the whole object into memory.
+    const body = await res.Body.transformToByteArray();
+    return { body, contentType: res.ContentType };
   }
 
   /** `<uuid>/<safe-filename>` — unique, yet traceable to its original name. */

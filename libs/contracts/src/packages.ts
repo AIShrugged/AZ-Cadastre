@@ -64,13 +64,24 @@ export const PageDtoSchema = z.object({
 });
 export type PageDto = z.infer<typeof PageDtoSchema>;
 
-/** A document with its pages and detected type (null until classified). */
+/** One structured field extracted from a document (PRD §4.5). */
+export const FieldDtoSchema = z.object({
+  /** Field key (see the type's field schema) — used for the i18n label. */
+  name: z.string(),
+  value: z.string(),
+  confidence: z.number(),
+  pageNumber: z.number().int().positive(),
+});
+export type FieldDto = z.infer<typeof FieldDtoSchema>;
+
+/** A document with its pages, detected type, and extracted fields. */
 export const DocumentDtoSchema = z.object({
   id: z.string(),
   originalFilename: z.string(),
   contentType: DocumentContentTypeSchema,
   type: z.string().nullable(),
   pages: z.array(PageDtoSchema),
+  fields: z.array(FieldDtoSchema),
 });
 export type DocumentDto = z.infer<typeof DocumentDtoSchema>;
 

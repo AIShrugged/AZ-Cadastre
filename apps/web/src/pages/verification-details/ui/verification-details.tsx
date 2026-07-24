@@ -5,17 +5,23 @@
  * validation / report appear here as those pipeline stages are built. It reports
  * evidence; it never states an approval or a verdict.
  */
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import {
   ArrowLeftIcon,
   CheckIcon,
+  ChevronRightIcon,
   FileTextIcon,
   ImageIcon,
+  ScanTextIcon,
   TriangleAlertIcon,
 } from "lucide-react"
 import { useNavigate, useParams } from "react-router-dom"
 import { skipToken } from "@reduxjs/toolkit/query"
-import type { DocumentDto, PackageDetailDto } from "@cadastre/contracts"
+import type {
+  DocumentDto,
+  FieldDto,
+  PackageDetailDto,
+} from "@cadastre/contracts"
 
 import { Button } from "@/shared/ui/button"
 import {
@@ -137,12 +143,194 @@ function stageStatuses(
   return stages
 }
 
-// ─── One document + its OCR ────────────────────────────────────────────────────
-function DocumentBlock({ doc }: { doc: DocumentDto }) {
+// ─── Confidence ────────────────────────────────────────────────────────────────
+// A machine-read value: tabular mono, and below the 80% threshold it flags for
+// review in the clay "incomplete" ink (PRD §4.6).
+const CONFIDENCE_FLOOR = 0.8
+
+function Confidence({ value }: { value: number }) {
   const { t } = useI18n()
-  const Icon = doc.contentType.startsWith("image/") ? ImageIcon : FileTextIcon
+  const low = value < CONFIDENCE_FLOOR
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1.5">
+      {low && (
+        <span className="rounded-full bg-incomplete/12 px-1.5 py-0.5 text-[0.625rem] font-medium text-incomplete-ink">
+          {t("detail.needs_review")}
+        </span>
+      )}
+      <span
+        data-mono
+        className={cn(
+          "text-[0.75rem] tabular-nums",
+          low ? "font-medium text-incomplete-ink" : "text-muted-foreground",
+        )}
+      >
+        {Math.round(value * 100)}%
+      </span>
+    </span>
+  )
+}
+
+// A single labelled status marker: tinted dot-chip + word, never colour alone.
+function StatusLine({
+  tone,
+  icon,
+  label,
+}: {
+  tone: "ok" | "fail" | "pending"
+  icon: ReactNode
+  label: string
+}) {
+  return (
+    <span className="flex items-center gap-2 text-[0.8125rem]">
+      <span
+        className={cn(
+          "grid size-5 shrink-0 place-items-center rounded-full",
+          tone === "ok" && "bg-ok/12 text-ok-ink",
+          tone === "fail" && "bg-failed/12 text-failed-ink",
+          tone === "pending" && "text-primary",
+        )}
+      >
+        {icon}
+      </span>
+      <span
+        className={cn(
+          tone === "fail"
+            ? "font-medium text-failed-ink"
+            : "text-foreground/80",
+        )}
+      >
+        {label}
+      </span>
+    </span>
+  )
+}
+
+// ─── OCR status ────────────────────────────────────────────────────────────────
+// Replaces the raw transcription with one legible line — recognised / failed /
+// pending, plus the reading confidence — and keeps the text one disclosure away
+// so the provenance is never lost (Product Principle 2).
+function OcrStatus({ doc, failed }: { doc: DocumentDto; failed: boolean }) {
+  const { t } = useI18n()
+  const recognised = doc.pages.filter((p) => p.ocr)
+  const done = doc.pages.length > 0 && recognised.length === doc.pages.length
+
+  if (!done) {
+    return failed ? (
+      <StatusLine
+        tone="fail"
+        icon={<TriangleAlertIcon className="size-3" />}
+        label={t("detail.ocr_failed")}
+      />
+    ) : (
+      <StatusLine
+        tone="pending"
+        icon={
+          <span className="size-1.5 rounded-full bg-primary motion-safe:animate-pulse" />
+        }
+        label={t("detail.ocr_pending")}
+      />
+    )
+  }
+
+  const avg =
+    recognised.reduce((sum, p) => sum + (p.ocr?.confidence ?? 0), 0) /
+    recognised.length
+  const text = doc.pages
+    .map((p) => p.ocr?.text ?? "")
+    .join("\n\n")
+    .trim()
+
   return (
     <div>
+      <div className="flex items-center justify-between gap-3">
+        <StatusLine
+          tone="ok"
+          icon={<CheckIcon className="size-3" strokeWidth={3} />}
+          label={t("detail.ocr_done")}
+        />
+        <Confidence value={avg} />
+      </div>
+      {/* Full transcription, one disclosure away — clean by default, traceable
+          on demand. */}
+      <details className="group mt-2">
+        <summary className="flex cursor-pointer list-none select-none items-center gap-1 text-[0.6875rem] text-muted-foreground transition-colors hover:text-foreground">
+          <ChevronRightIcon className="size-3 transition-transform duration-200 group-open:rotate-90" />
+          {t("detail.view_text")}
+        </summary>
+        <pre
+          data-mono
+          className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap rounded-lg border border-rule bg-muted/30 p-3 text-[0.75rem] leading-relaxed text-foreground/80"
+        >
+          {text}
+        </pre>
+      </details>
+    </div>
+  )
+}
+
+// ─── Extracted fields ────────────────────────────────────────────────────────
+// The type's schema, filled in: label over the machine-read value, each carrying
+// its own confidence so provenance travels with every field.
+function Fields({ fields }: { fields: FieldDto[] }) {
+  const { t } = useI18n()
+  return (
+    <dl className="grid grid-cols-1 border-t border-rule sm:grid-cols-2 sm:gap-x-10">
+      {fields.map((f) => (
+        <div
+          key={f.name}
+          className="flex items-baseline justify-between gap-3 border-b border-rule py-2.5"
+        >
+          <div className="min-w-0">
+            <dt className="text-[0.6875rem] text-muted-foreground">
+              {t(`field.${f.name}`)}
+            </dt>
+            <dd
+              data-mono
+              className={cn(
+                "mt-0.5 truncate text-[0.875rem]",
+                f.confidence < CONFIDENCE_FLOOR
+                  ? "text-incomplete-ink"
+                  : "text-foreground",
+              )}
+            >
+              {f.value || "—"}
+            </dd>
+          </div>
+          <Confidence value={f.confidence} />
+        </div>
+      ))}
+    </dl>
+  )
+}
+
+// ─── One document ────────────────────────────────────────────────────────────
+function DocumentBlock({
+  doc,
+  failed,
+  processing,
+}: {
+  doc: DocumentDto
+  failed: boolean
+  processing: boolean
+}) {
+  const { t } = useI18n()
+  const Icon = doc.contentType.startsWith("image/") ? ImageIcon : FileTextIcon
+  const unclassified = doc.type === "unknown"
+  // Unclassified: skip the transcription, show a one-line preview so the
+  // inspector can still tell roughly what the document is.
+  const snippet = unclassified
+    ? doc.pages
+        .map((p) => p.ocr?.text ?? "")
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 120)
+    : ""
+
+  return (
+    <div>
+      {/* Header — filename + detected type */}
       <div className="flex items-center gap-3">
         <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-rule-strong bg-card text-muted-foreground">
           <Icon className="size-4.5" />
@@ -153,7 +341,14 @@ function DocumentBlock({ doc }: { doc: DocumentDto }) {
               {doc.originalFilename}
             </h3>
             {doc.type ? (
-              <span className="shrink-0 rounded-full border border-rule-strong bg-muted/40 px-2 py-0.5 text-[0.6875rem] font-medium text-foreground/80">
+              <span
+                className={cn(
+                  "shrink-0 rounded-full px-2 py-0.5 text-[0.6875rem] font-medium",
+                  unclassified
+                    ? "border border-rule-strong bg-muted/40 text-muted-foreground"
+                    : "border border-primary/20 bg-primary/8 text-primary",
+                )}
+              >
                 {t(`doctype.${doc.type}`)}
               </span>
             ) : (
@@ -178,41 +373,48 @@ function DocumentBlock({ doc }: { doc: DocumentDto }) {
         </div>
       </div>
 
-      <div className="mt-3 flex flex-col gap-3 border-t border-rule pt-3.5">
-        {doc.pages.map((page) => (
-          <div key={page.pageNumber}>
-            <div className="mb-1.5 flex items-center justify-between gap-3">
-              <span className="register-label">
-                {t("detail.page", { n: page.pageNumber })}
+      {/* Body */}
+      {unclassified ? (
+        <div className="mt-3.5 flex flex-col gap-2.5 border-t border-rule pt-3.5">
+          <OcrStatus doc={doc} failed={failed} />
+          <p className="text-[0.8125rem] leading-relaxed text-muted-foreground">
+            {t("detail.unclassified")}
+            {snippet && (
+              <span className="mt-1.5 block truncate text-[0.75rem] italic text-foreground/55">
+                “{snippet}…”
               </span>
-              {page.ocr && (
-                <span
-                  data-mono
-                  className="shrink-0 text-[0.6875rem] tabular-nums text-muted-foreground"
-                >
-                  {t("detail.ocr")} {Math.round(page.ocr.confidence * 100)}%
-                </span>
-              )}
-            </div>
-            {page.ocr ? (
-              <pre
-                data-mono
-                className="overflow-x-auto whitespace-pre-wrap rounded-lg border border-rule bg-muted/30 p-3 text-[0.75rem] leading-relaxed text-foreground/90"
-              >
-                {page.ocr.text}
-              </pre>
-            ) : (
-              <p className="flex items-center gap-2 text-[0.8125rem] text-muted-foreground">
-                <span
-                  aria-hidden
-                  className="size-1.5 rounded-full bg-primary motion-safe:animate-pulse"
-                />
-                {t("detail.ocr_pending")}
-              </p>
             )}
-          </div>
-        ))}
-      </div>
+          </p>
+        </div>
+      ) : (
+        <div className="mt-3.5 flex flex-col gap-4 border-t border-rule pt-3.5">
+          <OcrStatus doc={doc} failed={failed} />
+
+          {doc.fields.length > 0 ? (
+            <div>
+              <div className="mb-2 flex items-center gap-1.5">
+                <ScanTextIcon className="size-3.5 text-muted-foreground" />
+                <span className="register-label">{t("detail.fields")}</span>
+              </div>
+              <Fields fields={doc.fields} />
+            </div>
+          ) : doc.type ? (
+            <p className="flex items-center gap-2 text-[0.8125rem] text-muted-foreground">
+              {processing ? (
+                <>
+                  <span
+                    aria-hidden
+                    className="size-1.5 rounded-full bg-primary motion-safe:animate-pulse"
+                  />
+                  {t("detail.pending")}
+                </>
+              ) : (
+                t("detail.no_fields")
+              )}
+            </p>
+          ) : null}
+        </div>
+      )}
     </div>
   )
 }
@@ -325,7 +527,11 @@ export function VerificationDetails() {
             <div className="mt-4 flex flex-col divide-y divide-rule-strong">
               {pkg.documents.map((doc) => (
                 <div key={doc.id} className="py-5 first:pt-0 last:pb-0">
-                  <DocumentBlock doc={doc} />
+                  <DocumentBlock
+                    doc={doc}
+                    failed={view.disposition === "failed"}
+                    processing={view.disposition === "in_progress"}
+                  />
                 </div>
               ))}
             </div>

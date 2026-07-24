@@ -31,13 +31,22 @@ export type PackagePageDetail = {
   ocr: { text: string; confidence: number } | null;
 };
 
-/** A document with its pages and detected type, for the detail view. */
+/** One extracted field in the detail view. */
+export type PackageFieldDetail = {
+  name: string;
+  value: string;
+  confidence: number;
+  pageNumber: number;
+};
+
+/** A document with its pages, detected type, and extracted fields. */
 export type PackageDocumentDetail = {
   id: string;
   originalFilename: string;
   contentType: string;
   type: string | null;
   pages: PackagePageDetail[];
+  fields: PackageFieldDetail[];
 };
 
 /** A package plus its documents — the verification detail. */

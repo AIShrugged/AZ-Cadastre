@@ -7,6 +7,7 @@ export {
   ObjectStorage,
   type PresignUploadInput,
   type PresignedUpload,
+  type StoredObject,
 } from "./object-storage.port.js";
 export {
   OCRProvider,
@@ -14,7 +15,11 @@ export {
   type OcrPageResult,
   type OcrBox,
 } from "./ocr-provider.port.js";
-export { FieldExtractor } from "./field-extractor.port.js";
+export {
+  FieldExtractor,
+  type ExtractInput,
+  type ExtractedFieldValue,
+} from "./field-extractor.port.js";
 export {
   PipelineStore,
   type PipelinePackage,

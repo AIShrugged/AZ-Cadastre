@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 
 import {
   PipelineStore,
+  type ExtractedFieldInput,
   type NewPage,
   type OcrResultInput,
   type PipelinePackage,
@@ -31,6 +32,7 @@ export class PrismaPipelineStore extends PipelineStore {
             originalFilename: true,
             contentType: true,
             storageKey: true,
+            _count: { select: { extractedFields: true } },
             pages: {
               orderBy: { pageNumber: "asc" },
               select: {
@@ -53,6 +55,7 @@ export class PrismaPipelineStore extends PipelineStore {
         originalFilename: doc.originalFilename,
         contentType: doc.contentType,
         storageKey: doc.storageKey,
+        hasFields: doc._count.extractedFields > 0,
         pages: doc.pages.map((page) => ({
           id: page.id,
           pageNumber: page.pageNumber,
@@ -116,5 +119,32 @@ export class PrismaPipelineStore extends PipelineStore {
       where: { id: documentId },
       data: { type },
     });
+  }
+
+  async saveExtractedFields(
+    documentId: string,
+    fields: ExtractedFieldInput[],
+  ): Promise<void> {
+    // Upsert each field on its (documentId, name) unique key so re-runs replace
+    // rather than duplicate.
+    await this.prisma.$transaction(
+      fields.map((f) =>
+        this.prisma.extractedField.upsert({
+          where: { documentId_name: { documentId, name: f.name } },
+          create: {
+            documentId,
+            name: f.name,
+            value: f.value,
+            confidence: f.confidence,
+            pageNumber: f.pageNumber,
+          },
+          update: {
+            value: f.value,
+            confidence: f.confidence,
+            pageNumber: f.pageNumber,
+          },
+        }),
+      ),
+    );
   }
 }

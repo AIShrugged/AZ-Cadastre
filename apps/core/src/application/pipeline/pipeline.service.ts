@@ -1,15 +1,18 @@
 import { Injectable, Logger } from "@nestjs/common";
 
-import { profileDocTypes } from "../../domain/profiles.js";
+import { fieldSchema } from "../../domain/field-schemas.js";
+import { profileDocTypes, UNKNOWN_TYPE } from "../../domain/profiles.js";
 import { DocumentClassifier } from "../ports/document-classifier.port.js";
+import { FieldExtractor } from "../ports/field-extractor.port.js";
 import { OCRProvider } from "../ports/ocr-provider.port.js";
 import { PipelineStore } from "../ports/pipeline-store.port.js";
 
 /**
- * Verification pipeline — first stages (PRD §7): OCR every page, then classify
- * each document from its recognised text. Written as activity-shaped steps
- * (ADR-0001): take a package id, read/write persisted state, safe to retry.
- * Runs in-process for the MVP; lifts into Temporal activities later untouched.
+ * Verification pipeline — first stages (PRD §7): OCR every page, classify each
+ * document from its text, then extract its schema fields. Written as
+ * activity-shaped steps (ADR-0001): take a package id, read/write persisted
+ * state, safe to retry. Runs in-process for the MVP; lifts into Temporal
+ * activities later untouched.
  */
 @Injectable()
 export class PipelineService {
@@ -19,6 +22,7 @@ export class PipelineService {
     private readonly store: PipelineStore,
     private readonly ocr: OCRProvider,
     private readonly classifier: DocumentClassifier,
+    private readonly extractor: FieldExtractor,
   ) {}
 
   /**
@@ -71,18 +75,35 @@ export class PipelineService {
           pageTexts.push(result.text);
         }
 
+        const text = pageTexts.join("\n");
+
         // 3. Classify the document from its combined OCR text.
         const { type, confidence } = await this.classifier.classify({
-          text: pageTexts.join("\n"),
+          text,
           candidateTypes,
         });
         await this.store.setDocumentType(doc.id, type);
         this.logger.log(
           `Package ${packageId}: "${doc.originalFilename}" → ${type} (${confidence.toFixed(2)})`,
         );
+
+        // 4. Extract the type's schema fields (skip unknown / already-extracted).
+        if (type !== UNKNOWN_TYPE && !doc.hasFields) {
+          const fields = fieldSchema(type);
+          if (fields.length > 0) {
+            const extracted = await this.extractor.extract({
+              text,
+              documentType: type,
+              fields,
+            });
+            if (extracted.length > 0) {
+              await this.store.saveExtractedFields(doc.id, extracted);
+            }
+          }
+        }
       }
       this.logger.log(
-        `Package ${packageId}: OCR + classification complete (${pkg.documents.length} document(s))`,
+        `Package ${packageId}: OCR + classification + extraction complete (${pkg.documents.length} document(s))`,
       );
     } catch (err) {
       await this.store.setPackageStatus(packageId, "Failed");

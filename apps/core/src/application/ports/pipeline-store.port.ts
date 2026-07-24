@@ -14,6 +14,8 @@ export type PipelineDocument = {
   contentType: string;
   storageKey: string;
   pages: PipelinePage[];
+  /** Whether fields have already been extracted (skip re-extraction). */
+  hasFields: boolean;
 };
 
 export type PipelinePackage = {
@@ -33,6 +35,14 @@ export type OcrResultInput = {
   text: string;
   confidence: number;
   boxes?: unknown;
+};
+
+/** One extracted field to persist for a document. */
+export type ExtractedFieldInput = {
+  name: string;
+  value: string;
+  confidence: number;
+  pageNumber: number;
 };
 
 /**
@@ -56,4 +66,9 @@ export abstract class PipelineStore {
   abstract saveOcrResult(pageId: string, result: OcrResultInput): Promise<void>;
   /** Set a document's detected type (idempotent). */
   abstract setDocumentType(documentId: string, type: string): Promise<void>;
+  /** Upsert extracted fields for a document (idempotent on documentId+name). */
+  abstract saveExtractedFields(
+    documentId: string,
+    fields: ExtractedFieldInput[],
+  ): Promise<void>;
 }

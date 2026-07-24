@@ -29,6 +29,29 @@ export const EnvironmentSchema = z
       .transform((v) => v === "true"),
     // How long a presigned upload URL stays valid, in seconds.
     S3_PRESIGN_TTL: z.coerce.number().int().positive().default(600),
+
+    // OpenRouter (OpenAI-compatible) shared credentials for the real AI
+    // adapters. The key is only required when a provider below is set to
+    // "openrouter" (enforced when that adapter starts).
+    OPENROUTER_API_KEY: z.string().optional(),
+    OPENROUTER_BASE_URL: z.string().default("https://openrouter.ai/api/v1"),
+    // Attribution title OpenRouter surfaces on your dashboard.
+    OPENROUTER_APP_TITLE: z.string().default("AZ-Cadastre"),
+
+    // OCR: "mock" derives text from the filename; "openrouter" reads the actual
+    // image bytes via a vision model (you pick the model id).
+    OCR_PROVIDER: z.enum(["mock", "openrouter"]).default("mock"),
+    OCR_MODEL: z.string().default("google/gemini-2.5-flash"),
+
+    // Classification: "mock" matches English keywords; "openrouter" asks an LLM
+    // to pick the type from the OCR text (language-agnostic).
+    CLASSIFIER_PROVIDER: z.enum(["mock", "openrouter"]).default("mock"),
+    CLASSIFIER_MODEL: z.string().default("google/gemini-2.5-flash"),
+
+    // Field extraction: "mock" returns fixed demo values; "openrouter" pulls the
+    // schema fields out of the OCR text with an LLM.
+    EXTRACTOR_PROVIDER: z.enum(["mock", "openrouter"]).default("mock"),
+    EXTRACTOR_MODEL: z.string().default("google/gemini-2.5-flash"),
   })
   .transform((env) => ({
     service: {
@@ -49,6 +72,23 @@ export const EnvironmentSchema = z
       secretKey: env.S3_SECRET_KEY,
       forcePathStyle: env.S3_FORCE_PATH_STYLE,
       presignTtl: env.S3_PRESIGN_TTL,
+    },
+    openrouter: {
+      apiKey: env.OPENROUTER_API_KEY,
+      baseUrl: env.OPENROUTER_BASE_URL,
+      appTitle: env.OPENROUTER_APP_TITLE,
+    },
+    ocr: {
+      provider: env.OCR_PROVIDER,
+      model: env.OCR_MODEL,
+    },
+    classifier: {
+      provider: env.CLASSIFIER_PROVIDER,
+      model: env.CLASSIFIER_MODEL,
+    },
+    extractor: {
+      provider: env.EXTRACTOR_PROVIDER,
+      model: env.EXTRACTOR_MODEL,
     },
   }));
 

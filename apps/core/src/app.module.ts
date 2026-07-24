@@ -1,14 +1,17 @@
 import { Module } from "@nestjs/common";
-import { ConfigModule } from "@nestjs/config";
+import { ConfigModule, ConfigService } from "@nestjs/config";
 import { CqrsModule } from "@nestjs/cqrs";
 
-import { EnvironmentSchema } from "./infrastructure/config/env.shema.js";
+import { EnvironmentSchema, type Environment } from "./infrastructure/config/env.shema.js";
 
 import {
   FieldExtractorAdapter,
   DocumentClassifierAdapter,
   ObjectStorageAdapter,
   OcrProviderAdapter,
+  OpenRouterOcrAdapter,
+  OpenRouterClassifierAdapter,
+  OpenRouterFieldExtractorAdapter,
 } from "./infrastructure/adapters/index.js";
 import {
   FieldExtractor,
@@ -51,16 +54,39 @@ import { PipelineService } from "./application/pipeline/pipeline.service.js";
       useClass: PrismaPipelineStore,
     },
     {
+      // Pick the OCR implementation from config: the deterministic mock, or the
+      // real OpenRouter vision adapter (which needs storage to fetch bytes).
       provide: OCRProvider,
-      useClass: OcrProviderAdapter,
+      useFactory: (
+        config: ConfigService<Environment, true>,
+        storage: ObjectStorage,
+      ): OCRProvider =>
+        config.get("ocr", { infer: true }).provider === "openrouter"
+          ? new OpenRouterOcrAdapter(config, storage)
+          : new OcrProviderAdapter(),
+      inject: [ConfigService, ObjectStorage],
     },
     {
+      // Mock keyword classifier, or the real OpenRouter LLM classifier.
       provide: DocumentClassifier,
-      useClass: DocumentClassifierAdapter,
+      useFactory: (
+        config: ConfigService<Environment, true>,
+      ): DocumentClassifier =>
+        config.get("classifier", { infer: true }).provider === "openrouter"
+          ? new OpenRouterClassifierAdapter(config)
+          : new DocumentClassifierAdapter(),
+      inject: [ConfigService],
     },
     {
+      // Mock demo values, or the real OpenRouter LLM extractor.
       provide: FieldExtractor,
-      useClass: FieldExtractorAdapter,
+      useFactory: (
+        config: ConfigService<Environment, true>,
+      ): FieldExtractor =>
+        config.get("extractor", { infer: true }).provider === "openrouter"
+          ? new OpenRouterFieldExtractorAdapter(config)
+          : new FieldExtractorAdapter(),
+      inject: [ConfigService],
     },
     {
       provide: ObjectStorage,

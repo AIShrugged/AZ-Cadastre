@@ -2,11 +2,13 @@
  * Verification Package — the register's core aggregate: the identity an
  * inspector cites, its disposition, and the tallies the pipeline reports.
  *
- * All data below is SYNTHETIC — packages, applicant names, IDs, and timestamps
- * are illustrative demo material from the demo Verification Profile (PRD §4).
- * It must be replaced with live data before any real deployment. Ubiquitous
- * language follows docs/CONTEXT.md: Verification Package, Document, Disposition.
+ * Package summaries are now served live by the core API (`GET /api/packages`);
+ * the wire DTO and the mapping into this view model live here. Fields the
+ * pipeline has not produced yet (applicant, issues, confidence) are absent until
+ * their stages run. Ubiquitous language follows docs/CONTEXT.md.
  */
+import type { PackageDto, PackageStatus } from "@cadastre/contracts"
+
 import { PROFILES, type ProfileKey } from "./profile"
 
 export type Disposition =
@@ -19,7 +21,7 @@ export type Disposition =
 export type VerificationPackage = {
   /** Register number — the identity an inspector cites. */
   id: string
-  /** Applicant on the package (synthetic). */
+  /** Applicant on the package (extracted downstream; empty until then). */
   applicant: string
   /** Which Verification Profile governs this package. */
   profile: ProfileKey
@@ -42,217 +44,6 @@ export type VerificationPackage = {
   /** Optional internal reference the inspector set at creation. */
   reference?: string
 }
-
-// Timestamps are fixed strings so the demo is deterministic; "time ago" is
-// computed against a reference captured once at load (see useRegisterNow).
-export const PACKAGES: VerificationPackage[] = [
-  {
-    id: "VP-26-004821",
-    applicant: "Elçin Məmmədov",
-    profile: "demo",
-    disposition: "in_progress",
-    submittedAt: "2026-07-23T08:52:00",
-    updatedAt: "2026-07-23T08:58:00",
-    docsDetected: 2,
-    docsRequired: 2,
-    issues: 0,
-    lowConfidence: 0,
-    stage: 5,
-  },
-  {
-    id: "VP-26-004820",
-    applicant: "Nərgiz Əliyeva",
-    profile: "demo",
-    disposition: "issues",
-    submittedAt: "2026-07-23T08:31:00",
-    updatedAt: "2026-07-23T08:44:00",
-    docsDetected: 3,
-    docsRequired: 2,
-    issues: 2,
-    lowConfidence: 1,
-    minConfidence: 61,
-  },
-  {
-    id: "VP-26-004817",
-    applicant: "Орхан Гулиев",
-    profile: "cadastre",
-    disposition: "incomplete",
-    submittedAt: "2026-07-23T07:59:00",
-    updatedAt: "2026-07-23T08:10:00",
-    docsDetected: 1,
-    docsRequired: 2,
-    issues: 1,
-    lowConfidence: 0,
-    minConfidence: 88,
-  },
-  {
-    id: "VP-26-004814",
-    applicant: "Səbinə Hüseynova",
-    profile: "demo",
-    disposition: "ok",
-    submittedAt: "2026-07-23T07:40:00",
-    updatedAt: "2026-07-23T07:52:00",
-    docsDetected: 2,
-    docsRequired: 2,
-    issues: 0,
-    lowConfidence: 0,
-    minConfidence: 94,
-  },
-  {
-    id: "VP-26-004809",
-    applicant: "Rəşad Quliyev",
-    profile: "demo",
-    disposition: "in_progress",
-    submittedAt: "2026-07-23T07:22:00",
-    updatedAt: "2026-07-23T07:33:00",
-    docsDetected: 2,
-    docsRequired: 2,
-    issues: 0,
-    lowConfidence: 0,
-    stage: 2,
-  },
-  {
-    id: "VP-26-004801",
-    applicant: "Айнур Мамедова",
-    profile: "cadastre",
-    disposition: "failed",
-    submittedAt: "2026-07-23T06:58:00",
-    updatedAt: "2026-07-23T07:05:00",
-    docsDetected: 0,
-    docsRequired: 2,
-    issues: 0,
-    lowConfidence: 0,
-  },
-  {
-    id: "VP-26-004796",
-    applicant: "Kamran Bayramov",
-    profile: "demo",
-    disposition: "ok",
-    submittedAt: "2026-07-22T16:41:00",
-    updatedAt: "2026-07-22T16:55:00",
-    docsDetected: 2,
-    docsRequired: 2,
-    issues: 0,
-    lowConfidence: 0,
-    minConfidence: 97,
-  },
-  {
-    id: "VP-26-004790",
-    applicant: "Gülnar İsmayılova",
-    profile: "demo",
-    disposition: "issues",
-    submittedAt: "2026-07-22T15:10:00",
-    updatedAt: "2026-07-22T15:26:00",
-    docsDetected: 3,
-    docsRequired: 2,
-    issues: 1,
-    lowConfidence: 2,
-    minConfidence: 58,
-  },
-  {
-    id: "VP-26-004783",
-    applicant: "Тогрул Ахмедов",
-    profile: "cadastre",
-    disposition: "ok",
-    submittedAt: "2026-07-22T13:03:00",
-    updatedAt: "2026-07-22T13:19:00",
-    docsDetected: 4,
-    docsRequired: 4,
-    issues: 0,
-    lowConfidence: 0,
-    minConfidence: 91,
-  },
-  {
-    id: "VP-26-004778",
-    applicant: "Aysel Rəhimova",
-    profile: "demo",
-    disposition: "incomplete",
-    submittedAt: "2026-07-22T11:47:00",
-    updatedAt: "2026-07-22T11:58:00",
-    docsDetected: 1,
-    docsRequired: 2,
-    issues: 1,
-    lowConfidence: 1,
-    minConfidence: 72,
-  },
-  {
-    id: "VP-26-004771",
-    applicant: "Fərid Nəbiyev",
-    profile: "demo",
-    disposition: "ok",
-    submittedAt: "2026-07-22T10:22:00",
-    updatedAt: "2026-07-22T10:35:00",
-    docsDetected: 2,
-    docsRequired: 2,
-    issues: 0,
-    lowConfidence: 0,
-    minConfidence: 96,
-  },
-  {
-    id: "VP-26-004765",
-    applicant: "Лейла Гасанова",
-    profile: "cadastre",
-    disposition: "issues",
-    submittedAt: "2026-07-22T09:14:00",
-    updatedAt: "2026-07-22T09:31:00",
-    docsDetected: 4,
-    docsRequired: 4,
-    issues: 3,
-    lowConfidence: 0,
-    minConfidence: 83,
-  },
-  {
-    id: "VP-26-004758",
-    applicant: "Vüsal Cəfərov",
-    profile: "demo",
-    disposition: "ok",
-    submittedAt: "2026-07-21T17:05:00",
-    updatedAt: "2026-07-21T17:18:00",
-    docsDetected: 2,
-    docsRequired: 2,
-    issues: 0,
-    lowConfidence: 0,
-    minConfidence: 93,
-  },
-  {
-    id: "VP-26-004749",
-    applicant: "Zeynəb Vəliyeva",
-    profile: "demo",
-    disposition: "failed",
-    submittedAt: "2026-07-21T14:52:00",
-    updatedAt: "2026-07-21T14:57:00",
-    docsDetected: 1,
-    docsRequired: 2,
-    issues: 0,
-    lowConfidence: 0,
-  },
-  {
-    id: "VP-26-004741",
-    applicant: "Ниджат Алиев",
-    profile: "cadastre",
-    disposition: "ok",
-    submittedAt: "2026-07-21T11:38:00",
-    updatedAt: "2026-07-21T11:54:00",
-    docsDetected: 4,
-    docsRequired: 4,
-    issues: 0,
-    lowConfidence: 0,
-    minConfidence: 95,
-  },
-  {
-    id: "VP-26-004736",
-    applicant: "Türkan Abbasova",
-    profile: "demo",
-    disposition: "issues",
-    submittedAt: "2026-07-21T09:20:00",
-    updatedAt: "2026-07-21T09:37:00",
-    docsDetected: 3,
-    docsRequired: 2,
-    issues: 1,
-    lowConfidence: 1,
-    minConfidence: 64,
-  },
-]
 
 export type Segment = "all" | "in_progress" | "issues" | "incomplete" | "ok" | "failed"
 
@@ -283,46 +74,43 @@ export function matchesQuery(p: VerificationPackage, q: string): boolean {
   )
 }
 
-// ─── Creating a package (upload surface) ─────────────────────────────────────
+// ─── Wire DTO ⇄ view model ────────────────────────────────────────────────────
+// PackageDto / PackageStatus are the shared contracts (@cadastre/contracts);
+// this maps them into the register's richer view model.
 
-/** Next register number, continuing the VP-YY-NNNNNN sequence from the max. */
-export function nextPackageId(pkgs: VerificationPackage[]): string {
-  let max = 0
-  let prefix = "VP-26-"
-  for (const p of pkgs) {
-    const m = p.id.match(/^(.*-)(\d+)$/)
-    if (!m) continue
-    prefix = m[1]
-    const n = Number(m[2])
-    if (n > max) max = n
+function dispositionOf(status: PackageStatus): Disposition {
+  switch (status) {
+    case "Pending":
+    case "Processing":
+      return "in_progress"
+    case "Completed":
+      // Outcome (OK / Issues / Incomplete) comes from the report; until that
+      // stage is wired, a completed package reads as OK.
+      return "ok"
+    case "Failed":
+      return "failed"
   }
-  return `${prefix}${String(max + 1).padStart(6, "0")}`
 }
 
 /**
- * Build a freshly-created package, entering the pipeline at stage 1 (OCR).
- * Applicant and all field data are extracted downstream, so applicant is empty
- * (the register renders it as pending) until extraction runs.
+ * Map a live package summary into the register's view model. Profile-derived and
+ * pipeline-derived fields are filled from the profile (in code, ADR-0002) and
+ * defaulted until their stages produce real values.
  */
-export function createPackage(input: {
-  id: string
-  profile: ProfileKey
-  filesAttached: number
-  reference?: string
-  now: string
-}): VerificationPackage {
+export function toViewPackage(dto: PackageDto): VerificationPackage {
+  const profile = dto.profileKey as ProfileKey
+  const disposition = dispositionOf(dto.status)
   return {
-    id: input.id,
+    id: dto.id,
     applicant: "",
-    profile: input.profile,
-    disposition: "in_progress",
-    submittedAt: input.now,
-    updatedAt: input.now,
-    docsDetected: input.filesAttached,
-    docsRequired: PROFILES[input.profile].requiredDocs.length,
+    profile,
+    disposition,
+    submittedAt: dto.createdAt,
+    updatedAt: dto.updatedAt,
+    docsDetected: dto.documentsCount,
+    docsRequired: PROFILES[profile]?.requiredDocs.length ?? 0,
     issues: 0,
     lowConfidence: 0,
-    stage: 1,
-    reference: input.reference?.trim() || undefined,
+    stage: disposition === "in_progress" ? 1 : undefined,
   }
 }

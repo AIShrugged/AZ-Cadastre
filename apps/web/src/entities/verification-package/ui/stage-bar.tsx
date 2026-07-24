@@ -9,7 +9,14 @@ import { STAGES } from "../model/pipeline"
 import { useI18n } from "@/shared/i18n"
 import { cn } from "@/shared/lib/cn"
 
-export function StageBar({ stage }: { stage: number }) {
+export function StageBar({
+  stage,
+  error = false,
+}: {
+  stage: number
+  /** The current stage failed — render it in the failed ink, no pulse. */
+  error?: boolean
+}) {
   const { t } = useI18n()
   const cells = Array.from({ length: STAGES }, (_, i) => i + 1)
 
@@ -29,14 +36,20 @@ export function StageBar({ stage }: { stage: number }) {
             className={cn(
               "h-[6px] w-[15px] rounded-full transition-colors",
               c < stage && "bg-foreground",
-              c === stage && "animate-pulse bg-progress",
+              c === stage && !error && "animate-pulse bg-progress",
+              c === stage && error && "bg-failed",
               c > stage && "bg-rule",
             )}
           />
         ))}
       </div>
-      <span className="text-[0.75rem] leading-none text-muted-foreground">
-        <span data-mono className="text-foreground/70">
+      <span
+        className={cn(
+          "text-[0.75rem] leading-none",
+          error ? "text-failed-ink" : "text-muted-foreground",
+        )}
+      >
+        <span data-mono className={error ? undefined : "text-foreground/70"}>
           {stage}/{STAGES}
         </span>{" "}
         · {t(`stage.${stage}`)}

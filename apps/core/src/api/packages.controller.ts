@@ -27,6 +27,8 @@ function toDto(p: PackageSummary): PackageDto {
     profileKey: p.profileKey,
     documentsCount: p.documentsCount,
     classifiedCount: p.classifiedCount,
+    unclassifiedCount: p.unclassifiedCount,
+    extractedCount: p.extractedCount,
     createdAt: p.createdAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
   };

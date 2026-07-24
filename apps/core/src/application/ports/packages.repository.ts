@@ -19,8 +19,12 @@ export type PackageSummary = {
   status: PackageStatus;
   profileKey: string;
   documentsCount: number;
-  /** Documents classified so far (type assigned) — pipeline progress. */
+  /** Documents the classifier processed (type assigned, incl. "unknown"). */
   classifiedCount: number;
+  /** Documents the classifier could not place (type "unknown"). */
+  unclassifiedCount: number;
+  /** Documents that have had fields extracted — pipeline progress. */
+  extractedCount: number;
   createdAt: Date;
   updatedAt: Date;
 };

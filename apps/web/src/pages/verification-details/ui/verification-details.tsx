@@ -131,6 +131,14 @@ function stageStatuses(
       (d) => d.pages.length > 0 && d.pages.every((p) => p.ocr !== null),
     )
   const classifyDone = total > 0 && pkg.classifiedCount === total
+  const hasUnknown = pkg.documents.some((d) => d.type === "unknown")
+  // Extraction is done once every classified document (that has a schema — i.e.
+  // not "unknown") has its fields; unknowns have nothing to extract.
+  const extractDone =
+    classifyDone &&
+    pkg.documents
+      .filter((d) => d.type && d.type !== "unknown")
+      .every((d) => d.fields.length > 0)
 
   const stages: StageStatus[] = Array.from({ length: STAGES }, () => "pending")
   if (disposition === "failed") {
@@ -139,7 +147,14 @@ function stageStatuses(
     return stages
   }
   stages[0] = ocrDone ? "done" : "current"
+  if (classifyDone && hasUnknown) {
+    // The classifier ran but couldn't place a document — the run halts at
+    // Classification (red) and never advances to extraction.
+    stages[1] = "error"
+    return stages
+  }
   stages[1] = classifyDone ? "done" : ocrDone ? "current" : "pending"
+  stages[2] = extractDone ? "done" : classifyDone ? "current" : "pending"
   return stages
 }
 
@@ -207,9 +222,10 @@ function StatusLine({
 }
 
 // ─── OCR status ────────────────────────────────────────────────────────────────
-// Replaces the raw transcription with one legible line — recognised / failed /
-// pending, plus the reading confidence — and keeps the text one disclosure away
-// so the provenance is never lost (Product Principle 2).
+// One line does the whole job: it reports the reading (recognised / failed /
+// pending) with its confidence, and — when recognised — it IS the disclosure for
+// the full transcription. No separate "view text" control; the status and the
+// text it produced are the same affordance (Product Principle 2).
 function OcrStatus({ doc, failed }: { doc: DocumentDto; failed: boolean }) {
   const { t } = useI18n()
   const recognised = doc.pages.filter((p) => p.ocr)
@@ -236,35 +252,24 @@ function OcrStatus({ doc, failed }: { doc: DocumentDto; failed: boolean }) {
   const avg =
     recognised.reduce((sum, p) => sum + (p.ocr?.confidence ?? 0), 0) /
     recognised.length
-
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <StatusLine
-        tone="ok"
-        icon={<CheckIcon className="size-3" strokeWidth={3} />}
-        label={t("detail.ocr_done")}
-      />
-      <Confidence value={avg} />
-    </div>
-  )
-}
-
-// ─── Recognized text ─────────────────────────────────────────────────────────
-// The full transcription, kept one disclosure away and pushed to the foot of the
-// document so it never crowds the status line or the fields — traceable on
-// demand, out of the way otherwise.
-function RecognizedText({ doc }: { doc: DocumentDto }) {
-  const { t } = useI18n()
   const text = doc.pages
     .map((p) => p.ocr?.text ?? "")
     .join("\n\n")
     .trim()
-  if (!text) return null
+
   return (
     <details className="group">
-      <summary className="flex cursor-pointer list-none select-none items-center gap-1 text-[0.6875rem] text-muted-foreground transition-colors hover:text-foreground">
-        <ChevronRightIcon className="size-3 transition-transform duration-200 group-open:rotate-90" />
-        {t("detail.view_text")}
+      <summary className="flex cursor-pointer list-none select-none items-center justify-between gap-3 py-0.5 text-[0.8125rem]">
+        <span className="flex items-center gap-2">
+          <span className="grid size-5 shrink-0 place-items-center rounded-full bg-ok/12 text-ok-ink">
+            <CheckIcon className="size-3" strokeWidth={3} />
+          </span>
+          <span className="text-foreground/80 transition-colors group-hover:text-foreground">
+            {t("detail.ocr_done")}
+          </span>
+          <ChevronRightIcon className="size-3 text-muted-foreground transition-transform duration-200 group-open:rotate-90" />
+        </span>
+        <Confidence value={avg} />
       </summary>
       <pre
         data-mono
@@ -278,33 +283,43 @@ function RecognizedText({ doc }: { doc: DocumentDto }) {
 
 // ─── Extracted fields ────────────────────────────────────────────────────────
 // The type's schema, filled in: label over the machine-read value, each carrying
-// its own confidence so provenance travels with every field.
+// its own confidence so provenance travels with every field. Fields are paired
+// into rows so every hairline spans the full width, even at an odd count.
 function Fields({ fields }: { fields: FieldDto[] }) {
   const { t } = useI18n()
+  const rows: FieldDto[][] = []
+  for (let i = 0; i < fields.length; i += 2) rows.push(fields.slice(i, i + 2))
   return (
-    <dl className="grid grid-cols-1 border-t border-rule sm:grid-cols-2 sm:gap-x-10">
-      {fields.map((f) => (
+    <dl className="border-t border-rule">
+      {rows.map((row, ri) => (
         <div
-          key={f.name}
-          className="flex items-baseline justify-between gap-3 border-b border-rule py-2.5"
+          key={ri}
+          className="grid grid-cols-1 divide-y divide-rule border-b border-rule sm:grid-cols-2 sm:gap-x-8 sm:divide-y-0"
         >
-          <div className="min-w-0">
-            <dt className="text-[0.6875rem] text-muted-foreground">
-              {t(`field.${f.name}`)}
-            </dt>
-            <dd
-              data-mono
-              className={cn(
-                "mt-0.5 truncate text-[0.875rem]",
-                f.confidence < CONFIDENCE_FLOOR
-                  ? "text-incomplete-ink"
-                  : "text-foreground",
-              )}
+          {row.map((f) => (
+            <div
+              key={f.name}
+              className="flex items-baseline justify-between gap-3 py-2.5"
             >
-              {f.value || "—"}
-            </dd>
-          </div>
-          <Confidence value={f.confidence} />
+              <div className="min-w-0">
+                <dt className="text-[0.6875rem] text-muted-foreground">
+                  {t(`field.${f.name}`)}
+                </dt>
+                <dd
+                  data-mono
+                  className={cn(
+                    "mt-0.5 truncate text-[0.875rem]",
+                    f.confidence < CONFIDENCE_FLOOR
+                      ? "text-incomplete-ink"
+                      : "text-foreground",
+                  )}
+                >
+                  {f.value || "—"}
+                </dd>
+              </div>
+              <Confidence value={f.confidence} />
+            </div>
+          ))}
         </div>
       ))}
     </dl>
@@ -378,21 +393,18 @@ function DocumentBlock({
         </div>
       </div>
 
-      {/* Body — status, then fields, with the raw transcription at the foot */}
+      {/* Body — the OCR status line (which discloses the raw text), then fields */}
       {unclassified ? (
-        <div className="mt-4 flex flex-col gap-5 border-t border-rule pt-4">
-          <div className="flex flex-col gap-2.5">
-            <OcrStatus doc={doc} failed={failed} />
-            <p className="text-[0.8125rem] leading-relaxed text-muted-foreground">
-              {t("detail.unclassified")}
-              {snippet && (
-                <span className="mt-1.5 block truncate text-[0.75rem] italic text-foreground/55">
-                  “{snippet}…”
-                </span>
-              )}
-            </p>
-          </div>
-          <RecognizedText doc={doc} />
+        <div className="mt-4 flex flex-col gap-3 border-t border-rule pt-4">
+          <OcrStatus doc={doc} failed={failed} />
+          <p className="text-[0.8125rem] leading-relaxed text-muted-foreground">
+            {t("detail.unclassified")}
+            {snippet && (
+              <span className="mt-1.5 block truncate text-[0.75rem] italic text-foreground/55">
+                “{snippet}…”
+              </span>
+            )}
+          </p>
         </div>
       ) : (
         <div className="mt-4 flex flex-col gap-5 border-t border-rule pt-4">
@@ -407,8 +419,6 @@ function DocumentBlock({
               <Fields fields={doc.fields} />
             </div>
           )}
-
-          <RecognizedText doc={doc} />
         </div>
       )}
     </div>

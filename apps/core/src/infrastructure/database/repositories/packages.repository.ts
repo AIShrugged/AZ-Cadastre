@@ -6,6 +6,7 @@ import {
   type PackageDetail,
   type PackageSummary,
 } from "../../../application/ports/packages.repository.js";
+import { UNKNOWN_TYPE } from "../../../domain/profiles.js";
 import { PrismaService } from "../prisma.service.js";
 
 /** Prisma-backed {@link PackagesRepository} (ADR-0004: infrastructure layer). */
@@ -77,6 +78,10 @@ export class PrismaPackagesRepository extends PackagesRepository {
       profileKey: pkg.profileKey,
       documentsCount: pkg.documents.length,
       classifiedCount: pkg.documents.filter((d) => d.type !== null).length,
+      unclassifiedCount: pkg.documents.filter((d) => d.type === UNKNOWN_TYPE)
+        .length,
+      extractedCount: pkg.documents.filter((d) => d.extractedFields.length > 0)
+        .length,
       createdAt: pkg.createdAt,
       updatedAt: pkg.updatedAt,
       documents: pkg.documents.map((doc) => ({
@@ -106,8 +111,13 @@ export class PrismaPackagesRepository extends PackagesRepository {
     profileKey: true,
     createdAt: true,
     updatedAt: true,
-    // Document types drive both the total and the classified (progress) count.
-    documents: { select: { type: true } },
+    // Document types + field counts drive the progress signals.
+    documents: {
+      select: {
+        type: true,
+        _count: { select: { extractedFields: true } },
+      },
+    },
   } as const;
 
   private toSummary(row: {
@@ -116,7 +126,7 @@ export class PrismaPackagesRepository extends PackagesRepository {
     profileKey: string;
     createdAt: Date;
     updatedAt: Date;
-    documents: { type: string | null }[];
+    documents: { type: string | null; _count: { extractedFields: number } }[];
   }): PackageSummary {
     return {
       id: row.id,
@@ -124,6 +134,11 @@ export class PrismaPackagesRepository extends PackagesRepository {
       profileKey: row.profileKey,
       documentsCount: row.documents.length,
       classifiedCount: row.documents.filter((d) => d.type !== null).length,
+      unclassifiedCount: row.documents.filter((d) => d.type === UNKNOWN_TYPE)
+        .length,
+      extractedCount: row.documents.filter(
+        (d) => d._count.extractedFields > 0,
+      ).length,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };

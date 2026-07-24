@@ -41,6 +41,8 @@ export type VerificationPackage = {
   minConfidence?: number
   /** For in_progress packages: current stage 1..6. */
   stage?: number
+  /** The current stage errored (e.g. a document couldn't be classified). */
+  stageError?: boolean
   /** Optional internal reference the inspector set at creation. */
   reference?: string
 }
@@ -114,16 +116,28 @@ export function toViewPackage(dto: PackageDto): VerificationPackage {
     issues: 0,
     lowConfidence: 0,
     stage: disposition === "in_progress" ? pipelineStage(dto) : undefined,
+    // The classifier ran on every document but couldn't place one → the pipeline
+    // halts at Classification, flagged red (it never proceeds to extraction).
+    stageError:
+      disposition === "in_progress" &&
+      dto.documentsCount > 0 &&
+      dto.classifiedCount === dto.documentsCount &&
+      dto.unclassifiedCount > 0,
   }
 }
 
 /**
  * Coarse pipeline stage for the register's stage bar, from real progress: OCR
- * while documents are still being classified, then Classification once every
- * uploaded document has a type. Later stages (extract → report) light up when
- * those pipeline steps exist.
+ * until any document is classified, Classification while types are still being
+ * assigned, then Field extraction once extraction has produced fields. An
+ * unclassifiable document halts the run at Classification. Later stages
+ * (completeness → report) light up when those pipeline steps exist.
  */
 function pipelineStage(dto: PackageDto): number {
   if (dto.documentsCount === 0) return 1
-  return dto.classifiedCount < dto.documentsCount ? 1 : 2
+  if (dto.classifiedCount === 0) return 1 // OCR running
+  if (dto.classifiedCount < dto.documentsCount) return 2 // classifying
+  if (dto.unclassifiedCount > 0) return 2 // a document couldn't be classified
+  if (dto.extractedCount > 0) return 3 // extraction reached
+  return 2
 }

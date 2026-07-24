@@ -38,8 +38,12 @@ export const PackageDtoSchema = z.object({
   status: PackageStatusSchema,
   profileKey: z.string(),
   documentsCount: z.number().int().nonnegative(),
-  /** Documents the pipeline has classified so far — the progress signal. */
+  /** Documents the classifier has processed (given a type, incl. "unknown"). */
   classifiedCount: z.number().int().nonnegative(),
+  /** Documents the classifier could NOT place (type "unknown"). */
+  unclassifiedCount: z.number().int().nonnegative(),
+  /** Documents that have had fields extracted — a progress signal. */
+  extractedCount: z.number().int().nonnegative(),
   /** ISO-8601 timestamps. */
   createdAt: z.string(),
   updatedAt: z.string(),

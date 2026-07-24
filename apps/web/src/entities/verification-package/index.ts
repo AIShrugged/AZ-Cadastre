@@ -26,6 +26,7 @@ export {
 
 export {
   useGetPackagesQuery,
+  useGetPackageQuery,
   useCreatePackageMutation,
 } from "./api/packages-api"
 

@@ -3,17 +3,21 @@ import {
   Body,
   Controller,
   Get,
+  NotFoundException,
+  Param,
   Post,
 } from "@nestjs/common";
 import { z } from "zod";
 import {
   CreatePackageRequestSchema,
+  type PackageDetailDto,
   type PackageDto,
 } from "@cadastre/contracts";
 
-import {
-  PackagesRepository,
-  type PackageSummary,
+import { PackagesService } from "../application/packages/packages.service.js";
+import type {
+  PackageDetail,
+  PackageSummary,
 } from "../application/ports/packages.repository.js";
 
 function toDto(p: PackageSummary): PackageDto {
@@ -22,14 +26,33 @@ function toDto(p: PackageSummary): PackageDto {
     status: p.status,
     profileKey: p.profileKey,
     documentsCount: p.documentsCount,
+    classifiedCount: p.classifiedCount,
     createdAt: p.createdAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
   };
 }
 
+function toDetailDto(p: PackageDetail): PackageDetailDto {
+  return {
+    ...toDto(p),
+    documents: p.documents.map((doc) => ({
+      id: doc.id,
+      originalFilename: doc.originalFilename,
+      // The DTO narrows contentType to the accepted upload types; documents are
+      // only ever created through the validated presign/create flow.
+      contentType: doc.contentType as PackageDetailDto["documents"][number]["contentType"],
+      type: doc.type,
+      pages: doc.pages.map((page) => ({
+        pageNumber: page.pageNumber,
+        ocr: page.ocr,
+      })),
+    })),
+  };
+}
+
 @Controller("packages")
 export class PackagesController {
-  constructor(private readonly packages: PackagesRepository) {}
+  constructor(private readonly packages: PackagesService) {}
 
   /** Create a Verification Package from already-uploaded documents (step 1). */
   @Post()
@@ -47,5 +70,15 @@ export class PackagesController {
   async list(): Promise<PackageDto[]> {
     const rows = await this.packages.list();
     return rows.map(toDto);
+  }
+
+  /** One package with its documents, pages, OCR results and detected types. */
+  @Get(":id")
+  async detail(@Param("id") id: string): Promise<PackageDetailDto> {
+    const detail = await this.packages.getById(id);
+    if (!detail) {
+      throw new NotFoundException(`Package ${id} not found`);
+    }
+    return toDetailDto(detail);
   }
 }

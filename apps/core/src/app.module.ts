@@ -8,17 +8,23 @@ import {
   FieldExtractorAdapter,
   DocumentClassifierAdapter,
   ObjectStorageAdapter,
+  OcrProviderAdapter,
 } from "./infrastructure/adapters/index.js";
 import {
   FieldExtractor,
   DocumentClassifier,
   ObjectStorage,
+  OCRProvider,
+  PipelineStore,
 } from "./application/ports/index.js";
 import { DocumentsController } from "./api/documents.controller.js";
 import { PackagesController } from "./api/packages.controller.js";
 import { PrismaService } from "./infrastructure/database/prisma.service.js";
 import { PackagesRepository } from "./application/ports/packages.repository.js";
 import { PrismaPackagesRepository } from "./infrastructure/database/repositories/packages.repository.js";
+import { PrismaPipelineStore } from "./infrastructure/database/repositories/pipeline-store.repository.js";
+import { PackagesService } from "./application/packages/packages.service.js";
+import { PipelineService } from "./application/pipeline/pipeline.service.js";
 
 @Module({
   imports: [
@@ -34,9 +40,19 @@ import { PrismaPackagesRepository } from "./infrastructure/database/repositories
 
   providers: [
     PrismaService,
+    PackagesService,
+    PipelineService,
     {
       provide: PackagesRepository,
       useClass: PrismaPackagesRepository,
+    },
+    {
+      provide: PipelineStore,
+      useClass: PrismaPipelineStore,
+    },
+    {
+      provide: OCRProvider,
+      useClass: OcrProviderAdapter,
     },
     {
       provide: DocumentClassifier,

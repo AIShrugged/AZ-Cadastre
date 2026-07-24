@@ -107,10 +107,23 @@ export function toViewPackage(dto: PackageDto): VerificationPackage {
     disposition,
     submittedAt: dto.createdAt,
     updatedAt: dto.updatedAt,
-    docsDetected: dto.documentsCount,
+    // "Detected" = documents the pipeline has classified so far; grows live as
+    // the register polls, from 0 up to the number uploaded.
+    docsDetected: dto.classifiedCount,
     docsRequired: PROFILES[profile]?.requiredDocs.length ?? 0,
     issues: 0,
     lowConfidence: 0,
-    stage: disposition === "in_progress" ? 1 : undefined,
+    stage: disposition === "in_progress" ? pipelineStage(dto) : undefined,
   }
+}
+
+/**
+ * Coarse pipeline stage for the register's stage bar, from real progress: OCR
+ * while documents are still being classified, then Classification once every
+ * uploaded document has a type. Later stages (extract → report) light up when
+ * those pipeline steps exist.
+ */
+function pipelineStage(dto: PackageDto): number {
+  if (dto.documentsCount === 0) return 1
+  return dto.classifiedCount < dto.documentsCount ? 1 : 2
 }

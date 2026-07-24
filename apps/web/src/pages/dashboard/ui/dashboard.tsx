@@ -379,7 +379,17 @@ function EmptyRegister({ filtered, onClear }: { filtered: boolean; onClear: () =
 export function Dashboard() {
   const { t, locale } = useI18n()
   const navigate = useNavigate()
-  const { data: packages = [], isLoading: loading } = useGetPackagesQuery()
+  // Poll while any package is still being processed, so pipeline progress lands
+  // without a manual refresh; stop once the register is quiet. `pollingInterval`
+  // is re-read each render, so we adjust it during render (no effect) from the
+  // data we just received.
+  const [polling, setPolling] = useState(true)
+  const { data: packages = [], isLoading: loading } = useGetPackagesQuery(
+    undefined,
+    { pollingInterval: polling ? 1500 : 0, skipPollingIfUnfocused: true },
+  )
+  const shouldPoll = packages.some((p) => p.disposition === "in_progress")
+  if (shouldPoll !== polling) setPolling(shouldPoll)
   const [now] = useState(() => Date.now())
   const [query, setQuery] = useState("")
   const [segment, setSegment] = useState<Segment>("all")

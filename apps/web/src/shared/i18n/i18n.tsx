@@ -121,6 +121,9 @@ const en: Dict = {
   "doctype.application": "Application",
   "doctype.title_deed": "Title deed",
   "doctype.cadastral_extract": "Cadastral extract",
+  "doctype.unknown": "Unknown type",
+  "detail.ocr_pending": "OCR pending…",
+  "detail.classifying": "Classifying…",
   // ── Verification details ────────────────────────────────────────────────────
   "detail.back": "Back to register",
   "detail.action.cancel": "Cancel verification",
@@ -276,6 +279,9 @@ const ru: Dict = {
   "doctype.application": "Заявление",
   "doctype.title_deed": "Свидетельство о праве",
   "doctype.cadastral_extract": "Кадастровая выписка",
+  "doctype.unknown": "Неизвестный тип",
+  "detail.ocr_pending": "OCR обрабатывается…",
+  "detail.classifying": "Классификация…",
   // ── Детали проверки ─────────────────────────────────────────────────────────
   "detail.back": "Назад к реестру",
   "detail.action.cancel": "Отменить проверку",
@@ -433,6 +439,9 @@ const az: Dict = {
   "doctype.application": "Ərizə",
   "doctype.title_deed": "Mülkiyyət şəhadətnaməsi",
   "doctype.cadastral_extract": "Kadastr çıxarışı",
+  "doctype.unknown": "Naməlum növ",
+  "detail.ocr_pending": "OCR gözlənilir…",
+  "detail.classifying": "Təsnifat…",
   // ── Yoxlama təfərrüatı ───────────────────────────────────────────────────────
   "detail.back": "Reyestrə qayıt",
   "detail.action.cancel": "Yoxlamanı ləğv et",

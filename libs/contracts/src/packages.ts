@@ -38,8 +38,45 @@ export const PackageDtoSchema = z.object({
   status: PackageStatusSchema,
   profileKey: z.string(),
   documentsCount: z.number().int().nonnegative(),
+  /** Documents the pipeline has classified so far — the progress signal. */
+  classifiedCount: z.number().int().nonnegative(),
   /** ISO-8601 timestamps. */
   createdAt: z.string(),
   updatedAt: z.string(),
 });
+
+// ─── Package detail (GET /api/packages/:id) ───────────────────────────────────
+// The pipeline's per-document output so far: each page's OCR result and the
+// document's detected type. Extracted fields / validation come in later stages.
+
+/** OCR output for one page. */
+export const OcrDtoSchema = z.object({
+  text: z.string(),
+  /** Page-level confidence, 0..1. */
+  confidence: z.number(),
+});
+export type OcrDto = z.infer<typeof OcrDtoSchema>;
+
+/** One page of a document, with its OCR result (null until OCR runs). */
+export const PageDtoSchema = z.object({
+  pageNumber: z.number().int().positive(),
+  ocr: OcrDtoSchema.nullable(),
+});
+export type PageDto = z.infer<typeof PageDtoSchema>;
+
+/** A document with its pages and detected type (null until classified). */
+export const DocumentDtoSchema = z.object({
+  id: z.string(),
+  originalFilename: z.string(),
+  contentType: DocumentContentTypeSchema,
+  type: z.string().nullable(),
+  pages: z.array(PageDtoSchema),
+});
+export type DocumentDto = z.infer<typeof DocumentDtoSchema>;
+
+/** Full package with documents — the verification detail view. */
+export const PackageDetailDtoSchema = PackageDtoSchema.extend({
+  documents: z.array(DocumentDtoSchema),
+});
+export type PackageDetailDto = z.infer<typeof PackageDetailDtoSchema>;
 export type PackageDto = z.infer<typeof PackageDtoSchema>;

@@ -3,6 +3,7 @@ import { Injectable } from "@nestjs/common";
 import {
   PackagesRepository,
   type CreatePackageInput,
+  type PackageDetail,
   type PackageSummary,
 } from "../../../application/ports/packages.repository.js";
 import { PrismaService } from "../prisma.service.js";
@@ -33,13 +34,65 @@ export class PrismaPackagesRepository extends PackagesRepository {
     return rows.map((row) => this.toSummary(row));
   }
 
+  async findDetail(id: string): Promise<PackageDetail | null> {
+    const pkg = await this.prisma.verificationPackage.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        status: true,
+        profileKey: true,
+        createdAt: true,
+        updatedAt: true,
+        documents: {
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            originalFilename: true,
+            contentType: true,
+            type: true,
+            pages: {
+              orderBy: { pageNumber: "asc" },
+              select: {
+                pageNumber: true,
+                ocr: { select: { text: true, confidence: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!pkg) return null;
+    return {
+      id: pkg.id,
+      status: pkg.status,
+      profileKey: pkg.profileKey,
+      documentsCount: pkg.documents.length,
+      classifiedCount: pkg.documents.filter((d) => d.type !== null).length,
+      createdAt: pkg.createdAt,
+      updatedAt: pkg.updatedAt,
+      documents: pkg.documents.map((doc) => ({
+        id: doc.id,
+        originalFilename: doc.originalFilename,
+        contentType: doc.contentType,
+        type: doc.type,
+        pages: doc.pages.map((page) => ({
+          pageNumber: page.pageNumber,
+          ocr: page.ocr
+            ? { text: page.ocr.text, confidence: page.ocr.confidence }
+            : null,
+        })),
+      })),
+    };
+  }
+
   private readonly summarySelect = {
     id: true,
     status: true,
     profileKey: true,
     createdAt: true,
     updatedAt: true,
-    _count: { select: { documents: true } },
+    // Document types drive both the total and the classified (progress) count.
+    documents: { select: { type: true } },
   } as const;
 
   private toSummary(row: {
@@ -48,13 +101,14 @@ export class PrismaPackagesRepository extends PackagesRepository {
     profileKey: string;
     createdAt: Date;
     updatedAt: Date;
-    _count: { documents: number };
+    documents: { type: string | null }[];
   }): PackageSummary {
     return {
       id: row.id,
       status: row.status,
       profileKey: row.profileKey,
-      documentsCount: row._count.documents,
+      documentsCount: row.documents.length,
+      classifiedCount: row.documents.filter((d) => d.type !== null).length,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };

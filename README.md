@@ -28,3 +28,20 @@ docs/
 ## Getting Started
 
 This is a monorepo project using pnpm workspaces. Run `pnpm install` to set up dependencies.
+
+## Docker
+
+Build and run the application in Docker:
+
+```bash
+# Build frontend from repository root
+docker build -f apps/web/Dockerfile -t frontend-app .
+
+# Build backend from repository root
+docker build -f apps/core/Dockerfile -t core-app .
+
+# Run with docker-compose (includes frontend, backend, and database)
+docker compose up --build
+```
+
+See [docs/DOCKER.md](docs/DOCKER.md) for detailed Docker setup and deployment instructions.

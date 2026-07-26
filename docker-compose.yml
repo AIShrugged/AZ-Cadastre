@@ -1,5 +1,57 @@
 ---
 services:
+  frontend:
+    image: ekalkutin/cadastre-web:latest
+    container_name: cadastre-frontend
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  backend:
+    image: ekalkutin/cadastre-core:latest
+    container_name: cadastre-backend
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    environment:
+      # Server
+      - NODE_ENV=production
+      - SERVICE_PORT=3000
+      - SERVICE_HOST=0.0.0.0
+
+      # Database
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/cadastre-db?schema=public
+
+      # Web CORS
+      - WEB_ORIGIN=http://localhost
+
+      # Object Storage (S3-compatible RustFS)
+      - S3_ENDPOINT=http://rustfs:9000
+      - S3_REGION=rustfs
+      - S3_BUCKET=documents
+      - S3_ACCESS_KEY=rustfsadmin
+      - S3_SECRET_KEY=rustfsadmin
+      - S3_FORCE_PATH_STYLE=true
+      - S3_PRESIGN_TTL=600
+
+      # AI Providers (using mock providers for now)
+      - OCR_PROVIDER=openrouter
+      - OCR_MODEL=openai/gpt-4o-mini
+      - CLASSIFIER_PROVIDER=openrouter
+      - CLASSIFIER_MODEL=openai/gpt-4o-mini
+      - EXTRACTOR_PROVIDER=openrouter
+      - EXTRACTOR_MODEL=openai/gpt-4o-mini
+
+      # OpenRouter (optional, only needed if switching from mock to openrouter)
+      - OPENROUTER_API_KEY=
+      - OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+      - OPENROUTER_APP_TITLE=AZ-Cadastre
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   postgres:
     image: postgres:17-alpine
     container_name: cadastre-postgres

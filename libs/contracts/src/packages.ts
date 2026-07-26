@@ -84,6 +84,8 @@ export const DocumentDtoSchema = z.object({
   originalFilename: z.string(),
   contentType: DocumentContentTypeSchema,
   type: z.string().nullable(),
+  /** Classifier confidence for `type`, 0..1 (null until classified). */
+  classificationConfidence: z.number().nullable(),
   pages: z.array(PageDtoSchema),
   fields: z.array(FieldDtoSchema),
 });

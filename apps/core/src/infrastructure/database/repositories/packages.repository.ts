@@ -51,6 +51,7 @@ export class PrismaPackagesRepository extends PackagesRepository {
             originalFilename: true,
             contentType: true,
             type: true,
+            classificationConfidence: true,
             pages: {
               orderBy: { pageNumber: "asc" },
               select: {
@@ -89,6 +90,7 @@ export class PrismaPackagesRepository extends PackagesRepository {
         originalFilename: doc.originalFilename,
         contentType: doc.contentType,
         type: doc.type,
+        classificationConfidence: doc.classificationConfidence,
         pages: doc.pages.map((page) => ({
           pageNumber: page.pageNumber,
           ocr: page.ocr

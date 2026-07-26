@@ -8,6 +8,7 @@ import {
   type ExtractedFieldValue,
 } from "../../application/ports/field-extractor.port.js";
 import type { Environment } from "../config/env.shema.js";
+import { confidenceFromLogprobs } from "./logprob-confidence.js";
 
 const MAX_TEXT = 8000;
 
@@ -49,6 +50,7 @@ export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
     const completion = await this.client.chat.completions.create({
       model: this.model,
       temperature: 0,
+      logprobs: true,
       response_format: { type: "json_object" },
       messages: [
         {
@@ -67,6 +69,13 @@ export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const parsed = this.parse(raw);
 
+    // Response-level confidence from token logprobs, applied to each field found
+    // in this extraction. (Per-field granularity would need token→value mapping;
+    // this is real and varies per response, unlike a fixed nominal.)
+    const confidence =
+      confidenceFromLogprobs(completion) ??
+      OpenRouterFieldExtractorAdapter.NOMINAL_CONFIDENCE;
+
     const results = input.fields.flatMap((spec): ExtractedFieldValue[] => {
       const value = parsed[spec.key];
       if (value === null || value === undefined || String(value).trim() === "") {
@@ -76,7 +85,7 @@ export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
         {
           name: spec.key,
           value: String(value).trim(),
-          confidence: OpenRouterFieldExtractorAdapter.NOMINAL_CONFIDENCE,
+          confidence,
           pageNumber: 1,
         },
       ];

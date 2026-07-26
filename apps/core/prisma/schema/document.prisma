@@ -18,6 +18,9 @@ model Document {
   /// requires a migration.
   type String?
 
+  /// Classifier confidence for `type`, 0..1. Null until the Classify stage runs.
+  classificationConfidence Float?
+
   pages            Page[]
   extractedFields  ExtractedField[]
   validationIssues ValidationIssue[]

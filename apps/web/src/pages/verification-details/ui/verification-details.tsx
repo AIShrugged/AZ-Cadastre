@@ -81,7 +81,13 @@ function Connector({ state }: { state: ConnectorState }) {
   )
 }
 
-function Stepper({ stages }: { stages: StageStatus[] }) {
+function Stepper({
+  stages,
+  scores,
+}: {
+  stages: StageStatus[]
+  scores: (number | null)[]
+}) {
   const { t } = useI18n()
   const stateOf = (i: number, side: "left" | "right"): ConnectorState => {
     if (side === "left" && i === 0) return "hidden"
@@ -98,24 +104,62 @@ function Stepper({ stages }: { stages: StageStatus[] }) {
             <StageNode status={st} n={i + 1} />
             <Connector state={stateOf(i, "right")} />
           </div>
-          <span
-            className={cn(
-              "min-w-[4rem] max-w-[6rem] text-center text-[0.6875rem] leading-tight transition-colors duration-300",
-              st === "current"
-                ? "font-medium text-primary"
-                : st === "done"
-                  ? "text-ok-ink"
-                  : st === "error"
-                    ? "font-medium text-destructive"
-                    : "text-muted-foreground",
+          <div className="flex flex-col items-center gap-0.5">
+            <span
+              className={cn(
+                "min-w-[4rem] max-w-[6rem] text-center text-[0.6875rem] leading-tight transition-colors duration-300",
+                st === "current"
+                  ? "font-medium text-primary"
+                  : st === "done"
+                    ? "text-ok-ink"
+                    : st === "error"
+                      ? "font-medium text-destructive"
+                      : "text-muted-foreground",
+              )}
+            >
+              {t(`stage.${i + 1}`)}
+            </span>
+            {/* Each implemented step reports its confidence score. */}
+            {scores[i] != null && (
+              <span
+                data-mono
+                className={cn(
+                  "text-[0.625rem] tabular-nums",
+                  st === "error" ? "text-failed-ink" : "text-muted-foreground",
+                )}
+              >
+                {scores[i]}%
+              </span>
             )}
-          >
-            {t(`stage.${i + 1}`)}
-          </span>
+          </div>
         </li>
       ))}
     </ol>
   )
+}
+
+/** Confidence score per implemented stage (0–100), or null if it hasn't run.
+ *  OCR = mean page confidence; Classification = mean per-document classifier
+ *  confidence; Field extraction = mean per-field confidence. */
+function stageScores(pkg: PackageDetailDto): (number | null)[] {
+  const mean = (xs: number[]) =>
+    Math.round((xs.reduce((s, x) => s + x, 0) / xs.length) * 100)
+  const scores: (number | null)[] = Array.from({ length: STAGES }, () => null)
+
+  const ocr = pkg.documents
+    .flatMap((d) => d.pages.map((p) => p.ocr?.confidence))
+    .filter((c): c is number => c != null)
+  if (ocr.length) scores[0] = mean(ocr)
+
+  const cls = pkg.documents
+    .map((d) => d.classificationConfidence)
+    .filter((c): c is number => c != null)
+  if (cls.length) scores[1] = mean(cls)
+
+  const fields = pkg.documents.flatMap((d) => d.fields.map((f) => f.confidence))
+  if (fields.length) scores[2] = mean(fields)
+
+  return scores
 }
 
 /** Real per-stage status from pipeline output. OCR + Classification are wired;
@@ -485,6 +529,7 @@ export function VerificationDetails() {
   )
   const subtitle = `${profileName} · ${formatDate(pkg.createdAt, locale)}`
   const stages = stageStatuses(pkg, view.disposition)
+  const scores = stageScores(pkg)
   const currentStage = stages.findIndex((s) => s === "current")
 
   return (
@@ -512,7 +557,7 @@ export function VerificationDetails() {
               )}
             </div>
             <div className="overflow-x-auto pb-1">
-              <Stepper stages={stages} />
+              <Stepper stages={stages} scores={scores} />
             </div>
           </section>
 

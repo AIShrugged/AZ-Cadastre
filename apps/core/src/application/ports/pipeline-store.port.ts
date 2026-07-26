@@ -64,8 +64,12 @@ export abstract class PipelineStore {
   ): Promise<PipelinePage[]>;
   /** Upsert the OCR result for a page (idempotent on pageId). */
   abstract saveOcrResult(pageId: string, result: OcrResultInput): Promise<void>;
-  /** Set a document's detected type (idempotent). */
-  abstract setDocumentType(documentId: string, type: string): Promise<void>;
+  /** Set a document's detected type + classifier confidence (idempotent). */
+  abstract setClassification(
+    documentId: string,
+    type: string,
+    confidence: number,
+  ): Promise<void>;
   /** Upsert extracted fields for a document (idempotent on documentId+name). */
   abstract saveExtractedFields(
     documentId: string,

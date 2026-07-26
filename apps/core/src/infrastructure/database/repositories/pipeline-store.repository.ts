@@ -114,10 +114,14 @@ export class PrismaPipelineStore extends PipelineStore {
     });
   }
 
-  async setDocumentType(documentId: string, type: string): Promise<void> {
+  async setClassification(
+    documentId: string,
+    type: string,
+    confidence: number,
+  ): Promise<void> {
     await this.prisma.document.update({
       where: { id: documentId },
-      data: { type },
+      data: { type, classificationConfidence: confidence },
     });
   }
 

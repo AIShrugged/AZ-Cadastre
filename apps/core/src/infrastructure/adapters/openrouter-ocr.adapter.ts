@@ -9,6 +9,7 @@ import {
 } from "../../application/ports/ocr-provider.port.js";
 import { ObjectStorage } from "../../application/ports/object-storage.port.js";
 import type { Environment } from "../config/env.shema.js";
+import { confidenceFromLogprobs } from "./logprob-confidence.js";
 
 const OCR_PROMPT =
   "You are an OCR engine. Transcribe ALL text visible in this document image " +
@@ -56,6 +57,7 @@ export class OpenRouterOcrAdapter extends OCRProvider {
     const completion = await this.client.chat.completions.create({
       model: this.model,
       temperature: 0,
+      logprobs: true,
       messages: [
         {
           role: "user",
@@ -68,9 +70,14 @@ export class OpenRouterOcrAdapter extends OCRProvider {
     });
 
     const text = completion.choices[0]?.message?.content?.trim() ?? "";
+    // Real confidence from the transcription's token logprobs; fall back to the
+    // nominal value if the model/route didn't return them.
+    const confidence =
+      confidenceFromLogprobs(completion) ??
+      OpenRouterOcrAdapter.NOMINAL_CONFIDENCE;
     this.logger.log(
-      `OCR ${input.imageStorageKey} via ${this.model}: ${text.length} chars`,
+      `OCR ${input.imageStorageKey} via ${this.model}: ${text.length} chars, confidence ${confidence.toFixed(3)}`,
     );
-    return { text, confidence: OpenRouterOcrAdapter.NOMINAL_CONFIDENCE };
+    return { text, confidence };
   }
 }

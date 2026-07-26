@@ -82,7 +82,7 @@ export class PipelineService {
           text,
           candidateTypes,
         });
-        await this.store.setDocumentType(doc.id, type);
+        await this.store.setClassification(doc.id, type, confidence);
         this.logger.log(
           `Package ${packageId}: "${doc.originalFilename}" → ${type} (${confidence.toFixed(2)})`,
         );

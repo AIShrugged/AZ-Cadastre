@@ -44,6 +44,7 @@ function toDetailDto(p: PackageDetail): PackageDetailDto {
       // only ever created through the validated presign/create flow.
       contentType: doc.contentType as PackageDetailDto["documents"][number]["contentType"],
       type: doc.type,
+      classificationConfidence: doc.classificationConfidence,
       pages: doc.pages.map((page) => ({
         pageNumber: page.pageNumber,
         ocr: page.ocr,

@@ -49,6 +49,7 @@ export type PackageDocumentDetail = {
   originalFilename: string;
   contentType: string;
   type: string | null;
+  classificationConfidence: number | null;
   pages: PackagePageDetail[];
   fields: PackageFieldDetail[];
 };

@@ -9,6 +9,7 @@ import {
 } from "../../application/ports/document-classifier.port.js";
 import { UNKNOWN_TYPE } from "../../domain/profiles.js";
 import type { Environment } from "../config/env.shema.js";
+import { confidenceFromLogprobs } from "./logprob-confidence.js";
 
 /** OCR text past this length is truncated before classification (token cap). */
 const MAX_TEXT = 6000;
@@ -48,6 +49,7 @@ export class OpenRouterClassifierAdapter extends DocumentClassifier {
     const completion = await this.client.chat.completions.create({
       model: this.model,
       temperature: 0,
+      logprobs: true,
       messages: [
         {
           role: "system",
@@ -63,11 +65,14 @@ export class OpenRouterClassifierAdapter extends DocumentClassifier {
 
     const raw = completion.choices[0]?.message?.content?.trim() ?? "";
     const type = this.match(raw, allowed);
-    this.logger.log(`Classified as "${type}" (model said "${raw}")`);
-    return {
-      type,
-      confidence: type === UNKNOWN_TYPE ? 0.3 : 0.9,
-    };
+    // Real confidence = the model's certainty in the type it answered; fall back
+    // to a nominal value if logprobs aren't available.
+    const confidence =
+      confidenceFromLogprobs(completion) ?? (type === UNKNOWN_TYPE ? 0.3 : 0.9);
+    this.logger.log(
+      `Classified as "${type}" (model said "${raw}", confidence ${confidence.toFixed(3)})`,
+    );
+    return { type, confidence };
   }
 
   /** Map the model's reply onto an allowed key (exact, then substring). */

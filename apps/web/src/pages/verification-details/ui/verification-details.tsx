@@ -27,6 +27,7 @@ import { Button } from "@/shared/ui/button"
 import {
   DispositionMark,
   STAGES,
+  profileName,
   toViewPackage,
   useGetPackageQuery,
   type Disposition,
@@ -524,10 +525,7 @@ export function VerificationDetails() {
   }
 
   const view = toViewPackage(pkg)
-  const profileName = t(
-    view.profile === "demo" ? "profile.demo" : "profile.cadastre",
-  )
-  const subtitle = `${profileName} · ${formatDate(pkg.createdAt, locale)}`
+  const subtitle = `${profileName(t, view.profile)} · ${formatDate(pkg.createdAt, locale)}`
   const stages = stageStatuses(pkg, view.disposition)
   const scores = stageScores(pkg)
   const currentStage = stages.findIndex((s) => s === "current")

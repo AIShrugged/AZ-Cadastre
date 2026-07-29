@@ -1,0 +1,22 @@
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
+
+import {
+  ContentType,
+  Filename,
+} from "../../../domain/value-objects/index.js";
+import { ObjectStorage, type PresignedUpload } from "../../ports/index.js";
+import { PresignUploadCommand } from "./presign-upload.command.js";
+
+@CommandHandler(PresignUploadCommand)
+export class PresignUploadHandler
+  implements ICommandHandler<PresignUploadCommand, PresignedUpload>
+{
+  constructor(private readonly storage: ObjectStorage) {}
+
+  execute(command: PresignUploadCommand): Promise<PresignedUpload> {
+    return this.storage.presignUpload({
+      filename: Filename.create(command.filename),
+      contentType: ContentType.of(command.contentType),
+    });
+  }
+}

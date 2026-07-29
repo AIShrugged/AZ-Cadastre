@@ -1,14 +1,11 @@
 /**
  * verification-package — the register's core domain: the package aggregate, its
- * disposition, the governing Profile policy, the pipeline stage count, the live
- * package API, and the entity's read-only UI marks.
+ * disposition, the governing Profile policy (read live from the engine, never
+ * copied), the pipeline stage count, the live package API, and the entity's
+ * read-only UI marks.
  */
-export type {
-  ProfileKey,
-  DocTypeKey,
-  ProfileDef,
-} from "./model/profile"
-export { PROFILES, PROFILE_ORDER } from "./model/profile"
+export type { ProfileDto } from "./model/profile"
+export { documentsExpected, profileName } from "./model/profile"
 
 export { STAGES } from "./model/pipeline"
 
@@ -29,6 +26,7 @@ export {
   useGetPackageQuery,
   useCreatePackageMutation,
 } from "./api/packages-api"
+export { useGetProfilesQuery } from "./api/profiles-api"
 
 export { DispositionMark } from "./ui/disposition-mark"
 export { StageBar } from "./ui/stage-bar"

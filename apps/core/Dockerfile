@@ -3,43 +3,45 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy root workspace config and TypeScript config
+# Root workspace config
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json ./
 
-# Copy packages needed for build
+# The composition root, the contexts it mounts, and the packages those build on
 COPY apps/core ./apps/core
-COPY libs/contracts ./libs/contracts
+COPY libs ./libs
 
-# Install pnpm and dependencies
 RUN npm install -g pnpm
 RUN pnpm install --frozen-lockfile
 
-# Build the backend
-WORKDIR /app/apps/core
-RUN pnpm build
+# Packages build in dependency order: kernel and contracts first, then the
+# shared application machinery, then the context, then the app that mounts it.
+RUN pnpm -r build
 
 # Runtime stage
 FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy root workspace config and TypeScript config
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json ./
-
-# Copy packages for runtime
 COPY apps/core ./apps/core
-COPY libs/contracts ./libs/contracts
+COPY libs ./libs
 
-# Install pnpm and production dependencies only
 RUN npm install -g pnpm
 RUN pnpm install --frozen-lockfile --prod
 
-# Copy built application from builder
+# Compiled output for every workspace package
 COPY --from=builder /app/apps/core/build ./apps/core/build
-COPY --from=builder /app/apps/core/node_modules ./apps/core/node_modules
+COPY --from=builder /app/libs/shared/kernel/build ./libs/shared/kernel/build
+COPY --from=builder /app/libs/shared/application/build ./libs/shared/application/build
+COPY --from=builder /app/libs/contracts/build ./libs/contracts/build
+COPY --from=builder /app/libs/contexts/verification/build ./libs/contexts/verification/build
 
-# Prisma
-COPY --from=builder /app/apps/core/prisma ./apps/core/prisma
+# The verification context owns its schema and migration history; `db:deploy`
+# is run against them from that package.
+COPY --from=builder /app/libs/contexts/verification/src/infrastructure/persistence/schema \
+     ./libs/contexts/verification/src/infrastructure/persistence/schema
+COPY --from=builder /app/libs/contexts/verification/src/infrastructure/persistence/migrations \
+     ./libs/contexts/verification/src/infrastructure/persistence/migrations
 
 WORKDIR /app/apps/core
 

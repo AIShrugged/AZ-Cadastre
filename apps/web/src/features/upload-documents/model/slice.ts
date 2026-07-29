@@ -5,6 +5,7 @@ import {
 } from "@reduxjs/toolkit"
 import axios from "axios"
 
+import { failureCode } from "@/shared/api"
 import type { AppDispatch } from "@/shared/lib/store-hooks"
 import { uploadDocument } from "../api/upload-api"
 import { fileKind, MAX_BYTES } from "../lib/file"
@@ -61,11 +62,15 @@ const uploadDocumentsSlice = createSlice({
         f.contentType = action.payload.contentType
       }
     },
-    uploadFailed(state, action: PayloadAction<{ id: string }>) {
+    uploadFailed(
+      state,
+      action: PayloadAction<{ id: string; code?: string }>,
+    ) {
       const f = state.files.find((f) => f.id === action.payload.id)
       if (f) {
         f.status = "error"
         f.error = "failed"
+        f.failureCode = action.payload.code
       }
     },
   },
@@ -149,7 +154,8 @@ function startUpload(id: string, file: File) {
     } catch (err) {
       // A removed/cleared row aborts its own transfer — that's not a failure.
       if (axios.isCancel(err)) return
-      dispatch(uploadFailed({ id }))
+      // A refusal names the rule it refused; a network drop names nothing.
+      dispatch(uploadFailed({ id, code: failureCode(err) ?? undefined }))
     } finally {
       aborters.delete(id)
     }

@@ -6,7 +6,7 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/shared/ui/button"
-import { useI18n } from "@/shared/i18n"
+import { translateOr, useI18n } from "@/shared/i18n"
 import { cn } from "@/shared/lib/cn"
 import { formatBytes, MAX_MB } from "../lib/file"
 import type { Attachment } from "../model/types"
@@ -67,7 +67,12 @@ export function FileRow({
             {att.error === "size"
               ? t("new.err.size", { max: MAX_MB })
               : att.error === "failed"
-                ? t("new.err.failed")
+                ? // The service said which rule it refused, when it got that far.
+                  translateOr(
+                    t,
+                    `error.${att.failureCode ?? ""}`,
+                    t("new.err.failed"),
+                  )
                 : t("new.err.format")}
           </span>
         ) : (

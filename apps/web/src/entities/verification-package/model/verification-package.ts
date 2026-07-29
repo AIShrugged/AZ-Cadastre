@@ -2,14 +2,18 @@
  * Verification Package — the register's core aggregate: the identity an
  * inspector cites, its disposition, and the tallies the pipeline reports.
  *
- * Package summaries are now served live by the core API (`GET /api/packages`);
- * the wire DTO and the mapping into this view model live here. Fields the
- * pipeline has not produced yet (applicant, issues, confidence) are absent until
- * their stages run. Ubiquitous language follows docs/CONTEXT.md.
+ * Package summaries are served live by the core API (`GET /api/packages`); the
+ * wire DTO and the mapping into this view model live here. Fields the pipeline
+ * has not produced yet (applicant, issues, confidence) are absent until their
+ * stages run. Ubiquitous language follows docs/CONTEXT.md.
+ *
+ * What a profile expects is deliberately *not* here. That is policy the engine
+ * owns and publishes (`GET /api/profiles`), and a mapper that reached for it
+ * would have to keep a copy — which is how "1 of 2" came to be drawn for a demo
+ * package the engine expected three documents for. A screen that wants the total
+ * asks `documentsExpected` with the profiles it fetched.
  */
 import type { PackageDto, PackageStatus } from "@cadastre/contracts"
-
-import { PROFILES, type ProfileKey } from "./profile"
 
 export type Disposition =
   | "in_progress"
@@ -23,16 +27,17 @@ export type VerificationPackage = {
   id: string
   /** Applicant on the package (extracted downstream; empty until then). */
   applicant: string
-  /** Which Verification Profile governs this package. */
-  profile: ProfileKey
+  /** Key of the Verification Profile governing this package, as the server named it. */
+  profile: string
   disposition: Disposition
   /** ISO timestamp the package was submitted. */
   submittedAt: string
   /** ISO timestamp of the last pipeline event (drives "updated Xm ago"). */
   updatedAt: string
-  /** Documents detected vs. required by the profile. */
+  /** Documents the classifier has placed so far. */
   docsDetected: number
-  docsRequired: number
+  /** Documents attached to the package — what the inspector actually uploaded. */
+  docsAttached: number
   /** Validation issues raised (mismatch / expired / missing). */
   issues: number
   /** Fields flagged below the confidence threshold. */
@@ -95,24 +100,22 @@ function dispositionOf(status: PackageStatus): Disposition {
 }
 
 /**
- * Map a live package summary into the register's view model. Profile-derived and
- * pipeline-derived fields are filled from the profile (in code, ADR-0002) and
- * defaulted until their stages produce real values.
+ * Map a live package summary into the register's view model. Pipeline-derived
+ * fields are defaulted until their stages produce real values.
  */
 export function toViewPackage(dto: PackageDto): VerificationPackage {
-  const profile = dto.profileKey as ProfileKey
   const disposition = dispositionOf(dto.status)
   return {
     id: dto.id,
     applicant: "",
-    profile,
+    profile: dto.profileKey,
     disposition,
     submittedAt: dto.createdAt,
     updatedAt: dto.updatedAt,
     // "Detected" = documents the pipeline has classified so far; grows live as
     // the register polls, from 0 up to the number uploaded.
     docsDetected: dto.classifiedCount,
-    docsRequired: PROFILES[profile]?.requiredDocs.length ?? 0,
+    docsAttached: dto.documentsCount,
     issues: 0,
     lowConfidence: 0,
     stage: disposition === "in_progress" ? pipelineStage(dto) : undefined,

@@ -1,0 +1,51 @@
+{
+  "name": "@cadastre/verification",
+  "version": "1.0.0",
+  "description": "The verification bounded context: packages, documents, the OCR/classify/extract pipeline and the profiles that govern them.",
+  "type": "module",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/index.d.ts",
+      "import": "./build/index.js"
+    }
+  },
+  "files": [
+    "build"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:reset": "prisma migrate reset --force",
+    "db:studio": "prisma studio",
+    "postinstall": "prisma generate"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "@cadastre/application": "workspace:*",
+    "@cadastre/contracts": "workspace:*",
+    "@cadastre/kernel": "workspace:*",
+    "@nestjs/common": "12.0.0-alpha.5",
+    "@nestjs/config": "12.0.0-next.0",
+    "@nestjs/core": "12.0.0-alpha.5",
+    "@nestjs/cqrs": "^11.0.3",
+    "@aws-sdk/client-s3": "^3.1093.0",
+    "@aws-sdk/s3-request-presigner": "^3.1093.0",
+    "@prisma/adapter-pg": "^7.9.0",
+    "@prisma/client": "^7.9.0",
+    "openai": "^6.49.0",
+    "pg": "^8.22.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/pg": "^8.20.0",
+    "prisma": "^7.9.0"
+  }
+}

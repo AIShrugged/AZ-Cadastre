@@ -23,4 +23,10 @@ export type Attachment = {
   /** Resolved later by the pipeline once a PDF is read. */
   pages?: number
   error?: UploadErrorKind
+  /**
+   * When the transfer was refused rather than merely broken: the stable `code`
+   * the service named the rule with, so the row can say which one instead of
+   * "Upload failed". Absent for a network drop, which named nothing.
+   */
+  failureCode?: string
 }

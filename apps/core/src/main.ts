@@ -1,20 +1,17 @@
 import { NestFactory } from "@nestjs/core";
-import { ConfigService } from "@nestjs/config";
 
 import { AppModule } from "./app.module.js";
-import type { Environment } from "./infrastructure/config/env.shema.js";
+import { EnvironmentSchema } from "./config/index.js";
 
-async function bootstrap() {
+async function bootstrap(): Promise<void> {
+  const environment = EnvironmentSchema.parse(process.env);
+
   const app = await NestFactory.create(AppModule);
 
-  const config = app.get(ConfigService<Environment, true>);
-  const service = config.get("service", { infer: true });
-  const web = config.get("web", { infer: true });
-
   app.setGlobalPrefix("api");
-  app.enableCors({ origin: web.origin });
+  app.enableCors({ origin: environment.WEB_ORIGIN });
 
-  await app.listen(service.port, service.host);
+  await app.listen(environment.SERVICE_PORT, environment.SERVICE_HOST);
 }
 
-bootstrap();
+void bootstrap();

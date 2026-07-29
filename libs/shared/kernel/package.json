@@ -1,0 +1,24 @@
+{
+  "name": "@cadastre/kernel",
+  "version": "1.0.0",
+  "description": "What a domain model extends: AggregateRoot, EntityId, DomainEvent and the three exception bases. No dependencies whatsoever.",
+  "type": "module",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/index.d.ts",
+      "import": "./build/index.js"
+    }
+  },
+  "files": [
+    "build"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "license": "ISC"
+}

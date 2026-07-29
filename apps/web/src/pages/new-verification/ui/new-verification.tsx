@@ -17,6 +17,7 @@
  */
 import { useEffect, useRef, useState } from "react"
 import {
+  FileStackIcon,
   FlaskConicalIcon,
   LandPlotIcon,
   LightbulbIcon,
@@ -43,35 +44,44 @@ import {
   selectReadyCount,
   selectValidCount,
 } from "@/features/upload-documents"
-import { useI18n } from "@/shared/i18n"
+import { translateOr, useI18n } from "@/shared/i18n"
+import { failureCode } from "@/shared/api"
 import { paths } from "@/shared/config"
 import {
+  profileName,
   useCreatePackageMutation,
-  PROFILES,
-  PROFILE_ORDER,
-  type ProfileKey,
+  useGetProfilesQuery,
+  type ProfileDto,
 } from "@/entities/verification-package"
 import { useAppDispatch, useAppSelector } from "@/shared/lib/store-hooks"
 import { cn } from "@/shared/lib/cn"
 
-const PROFILE_ICON: Record<ProfileKey, LucideIcon> = {
+/**
+ * A glyph per profile the UI has been given one for. A profile the engine has
+ * gained and this build has not been drawn for still appears in the picker — with
+ * the neutral fallback, rather than being silently absent from the inspector's
+ * choices.
+ */
+const PROFILE_ICON: Record<string, LucideIcon> = {
   cadastre: LandPlotIcon,
   demo: FlaskConicalIcon,
 }
+const PROFILE_ICON_FALLBACK: LucideIcon = FileStackIcon
 
 // ─── Profile picker ───────────────────────────────────────────────────────────
 // A segmented radio-card selector — a tactile choice, not a dropdown. Each card
 // carries the profile's identity glyph, its name, and how many documents it
 // expects; the selected card takes the indigo ring and a filled check.
 function ProfilePicker({
+  profiles,
   value,
   onChange,
 }: {
-  value: ProfileKey
-  onChange: (p: ProfileKey) => void
+  profiles: readonly ProfileDto[]
+  value: string | null
+  onChange: (key: string) => void
 }) {
   const { t } = useI18n()
-  const profileName = (p: ProfileKey) => t(p === "demo" ? "profile.demo" : "profile.cadastre")
 
   return (
     <div
@@ -79,17 +89,17 @@ function ProfilePicker({
       aria-label={t("new.field.profile")}
       className="grid gap-3 sm:grid-cols-2"
     >
-      {PROFILE_ORDER.map((p) => {
-        const selected = p === value
-        const Icon = PROFILE_ICON[p]
-        const count = PROFILES[p].requiredDocs.length
+      {profiles.map((profile) => {
+        const selected = profile.key === value
+        const Icon = PROFILE_ICON[profile.key] ?? PROFILE_ICON_FALLBACK
+        const count = profile.documentTypes.length
         return (
           <button
-            key={p}
+            key={profile.key}
             type="button"
             role="radio"
             aria-checked={selected}
-            onClick={() => onChange(p)}
+            onClick={() => onChange(profile.key)}
             className={cn(
               "group flex items-center gap-3 rounded-xl border p-3.5 text-left outline-none transition-all",
               "focus-visible:ring-2 focus-visible:ring-ring/50",
@@ -110,7 +120,7 @@ function ProfilePicker({
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[0.875rem] font-medium text-foreground">
-                {profileName(p)}
+                {profileName(t, profile.key)}
               </span>
               <span className="block text-[0.75rem] text-muted-foreground">
                 {t("new.profile.docs", { n: count })}
@@ -166,7 +176,12 @@ export function NewVerification() {
   const total = useAppSelector(selectValidCount)
   const readyCount = useAppSelector(selectReadyCount)
 
-  const [profile, setProfile] = useState<ProfileKey>("cadastre")
+  // Which profiles exist is the engine's to say, so the choice cannot be seeded
+  // with a key this file made up: it stays null until the inspector picks one, and
+  // reads as the first profile on offer meanwhile.
+  const { data: profiles = [] } = useGetProfilesQuery()
+  const [picked, setPicked] = useState<string | null>(null)
+  const profile = picked ?? profiles[0]?.key ?? null
   const [dragging, setDragging] = useState(false)
 
   const inputRef = useRef<HTMLInputElement>(null)
@@ -184,10 +199,13 @@ export function NewVerification() {
     inputRef.current?.click()
   }
 
-  const canStart = readyCount > 0 && !submitting
+  // Nothing to open a package under until the profiles have arrived — the engine
+  // refuses a key it does not know, and guessing one here is what that refusal is
+  // for.
+  const canStart = readyCount > 0 && !submitting && profile !== null
 
   async function onStart() {
-    if (!canStart) return
+    if (!canStart || profile === null) return
     // Only fully-transferred documents carry a storage key to attach.
     const documents = files
       .filter((f) => f.status === "ready" && f.key && f.contentType)
@@ -202,8 +220,13 @@ export function NewVerification() {
       const pkg = await createPackage({ profileKey: profile, documents }).unwrap()
       toast(t("toast.started", { id: pkg.id }))
       navigate(paths.register)
-    } catch {
-      toast.error(t("toast.create_failed"))
+    } catch (error) {
+      // The service names the rule it refused with a stable code; say which one
+      // rather than "please try again", which tells the inspector nothing they
+      // can act on. An unrecognised code — or no code at all — falls back.
+      const code = failureCode(error)
+      const generic = t("toast.create_failed")
+      toast.error(code ? translateOr(t, `error.${code}`, generic) : generic)
     }
   }
 
@@ -261,7 +284,11 @@ export function NewVerification() {
             <span className="text-[0.8125rem] font-medium text-foreground">
               {t("new.field.profile")}
             </span>
-            <ProfilePicker value={profile} onChange={setProfile} />
+            <ProfilePicker
+              profiles={profiles}
+              value={profile}
+              onChange={setPicked}
+            />
           </div>
 
           {/* A small, useful reminder of what the system does */}

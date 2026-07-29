@@ -17,17 +17,47 @@ AZ-Cadastre processes multi-page, multi-format document packages (PDF, JPG, PNG)
 
 ```
 apps/
-  web/               # Client-facing UI application
-  core/              # Core application logic (API, workflows, services)
+  web/                      # Client-facing UI application
+  core/                     # Composition root: mounts contexts, serves HTTP
 libs/
-  shared/            # Shared utilities, schemas, API contracts
+  contexts/
+    verification/           # The verification bounded context
+      src/domain/           #   aggregates, entities, value objects, events,
+                            #   exceptions, repository interfaces — no framework
+      src/application/      #   use cases (command + handler), ports, read models
+      src/infrastructure/   #   Prisma schema/migrations/client, adapters
+      src/api/http/         #   controllers, exception filter
+  shared/                   # backend-only
+    kernel/                 #   What a domain model extends. No dependencies at all
+    application/            #   Use-case machinery shared by every context
+  contracts/                # Zod schemas, one file per endpoint — the wire, not
+                            # the backend, which is why it sits outside shared/
 docs/
-  ADR/               # Architectural Decision Records
+  adr/                      # Architectural Decision Records
 ```
+
+A context owns its database: its schema, client and migration history all live
+under `src/infrastructure/persistence/`, never in a shared package. See
+[ADR-0005](docs/adr/0005-bounded-context-packages.md) for why the backend is
+shaped this way, and `.claude/skills/backend/` for the conventions in full.
 
 ## Getting Started
 
-This is a monorepo project using pnpm workspaces. Run `pnpm install` to set up dependencies.
+This is a monorepo project using pnpm workspaces.
+
+```bash
+pnpm install                                      # install and generate the Prisma client
+cp apps/core/.env.example apps/core/.env          # the running service's environment
+cp libs/contexts/verification/.env.example \
+   libs/contexts/verification/.env                # DATABASE_URL for migrations
+
+pnpm --filter @cadastre/verification db:migrate   # apply the context's migrations
+pnpm build                                        # build every package, in dependency order
+pnpm --filter @cadastre/core dev                  # run the API
+```
+
+Unit tests live beside the source they cover (`confidence.vo.ts` →
+`confidence.vo.spec.ts`) and run with `pnpm test`.
 
 ## Docker
 

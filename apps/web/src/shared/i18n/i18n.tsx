@@ -76,8 +76,6 @@ const en: Dict = {
   "page.showing": "{a}–{b} of {n}",
   "page.prev": "Previous",
   "page.next": "Next",
-  "demo.badge": "Demo data",
-  "demo.note": "Synthetic packages from the demo profile — replace with live data.",
   "min_conf": "min {c}%",
   "updated.ago": "updated {t} ago",
   "open": "Open",
@@ -186,6 +184,19 @@ const en: Dict = {
   "theme.to_light": "Switch to light",
   "theme.to_dark": "Switch to dark",
   "sidebar.toggle": "Toggle sidebar",
+  // ─── Refusals ───────────────────────────────────────────────────────────────
+  // Keyed on the stable `code` the service answers a refused rule with, never on
+  // its message (written for a log) or its status (which cannot tell two rules
+  // apart). A code with no entry here falls back to the caller's generic line.
+  "error.UNKNOWN_PROFILE": "That verification profile no longer exists — reload and pick again",
+  "error.PACKAGE_MUST_HAVE_A_DOCUMENT": "A package needs at least one document",
+  "error.UNSUPPORTED_CONTENT_TYPE": "Unsupported format — PDF, JPG or PNG only",
+  "error.INVALID_FILENAME": "That filename cannot be stored — rename the file and retry",
+  "error.INVALID_STORAGE_KEY": "The upload could not be located — remove the file and add it again",
+  "error.CONCURRENCY_CONFLICT": "The package changed while you were working — reload and retry",
+  "error.STORAGE_UNREACHABLE": "Document storage is unreachable — try again shortly",
+  "error.OBJECT_BODY_MISSING": "The uploaded file arrived empty — add it again",
+  "error.RATE_LIMITED": "Too many requests — try again shortly",
 }
 
 const ru: Dict = {
@@ -240,8 +251,6 @@ const ru: Dict = {
   "page.showing": "{a}–{b} из {n}",
   "page.prev": "Назад",
   "page.next": "Вперёд",
-  "demo.badge": "Демоданные",
-  "demo.note": "Синтетические пакеты демо-профиля — замените реальными данными.",
   "min_conf": "мин. {c}%",
   "updated.ago": "обновлено {t} назад",
   "open": "Открыть",
@@ -350,6 +359,16 @@ const ru: Dict = {
   "theme.to_light": "Светлая тема",
   "theme.to_dark": "Тёмная тема",
   "sidebar.toggle": "Показать/скрыть панель",
+  // ─── Refusals ───────────────────────────────────────────────────────────────
+  "error.UNKNOWN_PROFILE": "Такого профиля проверки больше нет — обновите страницу и выберите заново",
+  "error.PACKAGE_MUST_HAVE_A_DOCUMENT": "В пакете должен быть хотя бы один документ",
+  "error.UNSUPPORTED_CONTENT_TYPE": "Неподдерживаемый формат — только PDF, JPG или PNG",
+  "error.INVALID_FILENAME": "Такое имя файла не сохранить — переименуйте и повторите",
+  "error.INVALID_STORAGE_KEY": "Загруженный файл не найден — удалите его и добавьте снова",
+  "error.CONCURRENCY_CONFLICT": "Пакет изменился во время работы — обновите страницу и повторите",
+  "error.STORAGE_UNREACHABLE": "Хранилище документов недоступно — повторите позже",
+  "error.OBJECT_BODY_MISSING": "Загруженный файл оказался пустым — добавьте его снова",
+  "error.RATE_LIMITED": "Слишком много запросов — повторите позже",
 }
 
 const az: Dict = {
@@ -404,8 +423,6 @@ const az: Dict = {
   "page.showing": "{n} paketdən {a}–{b}",
   "page.prev": "Əvvəlki",
   "page.next": "Növbəti",
-  "demo.badge": "Demo məlumat",
-  "demo.note": "Demo profilindən sintetik paketlər — real məlumatla əvəz edin.",
   "min_conf": "min {c}%",
   "updated.ago": "{t} əvvəl yeniləndi",
   "open": "Aç",
@@ -516,6 +533,16 @@ const az: Dict = {
   "theme.to_light": "İşıqlı rejim",
   "theme.to_dark": "Qaranlıq rejim",
   "sidebar.toggle": "Paneli aç/bağla",
+  // ─── Refusals ───────────────────────────────────────────────────────────────
+  "error.UNKNOWN_PROFILE": "Bu yoxlama profili artıq yoxdur — səhifəni yeniləyib yenidən seçin",
+  "error.PACKAGE_MUST_HAVE_A_DOCUMENT": "Paketdə ən azı bir sənəd olmalıdır",
+  "error.UNSUPPORTED_CONTENT_TYPE": "Dəstəklənməyən format — yalnız PDF, JPG və ya PNG",
+  "error.INVALID_FILENAME": "Bu fayl adı saxlanıla bilmir — adını dəyişib yenidən cəhd edin",
+  "error.INVALID_STORAGE_KEY": "Yüklənmiş fayl tapılmadı — silib yenidən əlavə edin",
+  "error.CONCURRENCY_CONFLICT": "Paket iş zamanı dəyişdi — səhifəni yeniləyib təkrar cəhd edin",
+  "error.STORAGE_UNREACHABLE": "Sənəd anbarı əlçatan deyil — bir az sonra cəhd edin",
+  "error.OBJECT_BODY_MISSING": "Yüklənmiş fayl boş gəldi — yenidən əlavə edin",
+  "error.RATE_LIMITED": "Çox sayda sorğu — bir az sonra cəhd edin",
 }
 
 const DICTS: Record<Locale, Dict> = { en, ru, az }

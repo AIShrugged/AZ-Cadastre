@@ -1,0 +1,30 @@
+{
+  "name": "@cadastre/application",
+  "version": "1.0.0",
+  "description": "Use-case machinery shared by every bounded context: domain event dispatch and the exceptions the machinery itself raises.",
+  "type": "module",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/index.d.ts",
+      "import": "./build/index.js"
+    }
+  },
+  "files": [
+    "build"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "@cadastre/kernel": "workspace:*",
+    "@nestjs/common": "12.0.0-alpha.5",
+    "@nestjs/core": "12.0.0-alpha.5",
+    "@nestjs/cqrs": "^11.0.3"
+  }
+}

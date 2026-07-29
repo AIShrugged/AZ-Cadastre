@@ -16,7 +16,6 @@ import {
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 
-import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
 import {
   Empty,
@@ -29,11 +28,6 @@ import {
 import { Input } from "@/shared/ui/input"
 import { Skeleton } from "@/shared/ui/skeleton"
 import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/shared/ui/tooltip"
 import {
   Table,
   TableBody,
@@ -64,7 +58,13 @@ import {
   type Segment,
   type VerificationPackage,
 } from "@/entities/verification-package"
-import { useGetPackagesQuery } from "@/entities/verification-package"
+import {
+  documentsExpected,
+  profileName,
+  useGetPackagesQuery,
+  useGetProfilesQuery,
+  type ProfileDto,
+} from "@/entities/verification-package"
 import { paths } from "@/shared/config"
 import { cn } from "@/shared/lib/cn"
 
@@ -120,8 +120,19 @@ function Findings({ p }: { p: VerificationPackage }) {
 }
 
 // ─── Documents cell ─────────────────────────────────────────────────────────
-function Documents({ p }: { p: VerificationPackage }) {
-  const short = p.docsDetected < p.docsRequired
+// Detected against what the governing profile expects. `expected` is null when
+// the engine named no such profile — this build has never heard of the policy
+// this package was opened under — so the cell reports what it knows (documents
+// placed, out of documents attached) rather than inventing a total.
+function Documents({
+  p,
+  expected,
+}: {
+  p: VerificationPackage
+  expected: number | null
+}) {
+  const total = expected ?? p.docsAttached
+  const short = p.docsDetected < total
   return (
     <span
       data-mono
@@ -130,7 +141,7 @@ function Documents({ p }: { p: VerificationPackage }) {
         short ? "text-incomplete-ink" : "text-foreground/80",
       )}
     >
-      {p.docsDetected}/{p.docsRequired}
+      {p.docsDetected}/{total}
     </span>
   )
 }
@@ -168,6 +179,7 @@ function Status({ p }: { p: VerificationPackage }) {
 // ─── Desktop table ──────────────────────────────────────────────────────────
 function RegisterTable({
   rows,
+  profiles,
   density,
   selected,
   onSelect,
@@ -175,6 +187,7 @@ function RegisterTable({
   now,
 }: {
   rows: VerificationPackage[]
+  profiles: readonly ProfileDto[]
   density: Density
   selected: string | null
   onSelect: (p: VerificationPackage) => void
@@ -241,11 +254,11 @@ function RegisterTable({
               </TableCell>
               <TableCell className={cn("border-b border-rule px-4 align-middle", pad)}>
                 <span className="text-[0.8125rem] text-muted-foreground">
-                  {t(p.profile === "demo" ? "profile.demo" : "profile.cadastre")}
+                  {profileName(t, p.profile)}
                 </span>
               </TableCell>
               <TableCell className={cn("border-b border-rule px-4 align-middle tabular-nums", pad)}>
-                <Documents p={p} />
+                <Documents p={p} expected={documentsExpected(profiles, p.profile)} />
               </TableCell>
               <TableCell className={cn("border-b border-rule px-4 align-middle", pad)}>
                 <Findings p={p} />
@@ -270,10 +283,12 @@ function RegisterTable({
 // ─── Mobile entry list ──────────────────────────────────────────────────────
 function RegisterEntries({
   rows,
+  profiles,
   onSelect,
   locale,
 }: {
   rows: VerificationPackage[]
+  profiles: readonly ProfileDto[]
   onSelect: (p: VerificationPackage) => void
   locale: Locale
 }) {
@@ -304,7 +319,8 @@ function RegisterEntries({
                 <span>
                   {t("col.documents")}{" "}
                   <span data-mono className="text-foreground/70">
-                    {p.docsDetected}/{p.docsRequired}
+                    {p.docsDetected}/
+                    {documentsExpected(profiles, p.profile) ?? p.docsAttached}
                   </span>
                 </span>
                 <span data-mono>{formatDate(p.submittedAt, locale)}</span>
@@ -390,6 +406,9 @@ export function Dashboard() {
   )
   const shouldPoll = packages.some((p) => p.disposition === "in_progress")
   if (shouldPoll !== polling) setPolling(shouldPoll)
+  // Which documents each profile expects — policy, so it is asked for once and
+  // cached, never polled alongside the packages.
+  const { data: profiles = [] } = useGetProfilesQuery()
   const [now] = useState(() => Date.now())
   const [query, setQuery] = useState("")
   const [segment, setSegment] = useState<Segment>("all")
@@ -432,7 +451,6 @@ export function Dashboard() {
       {/* ── Page heading ── the register names itself and states its purpose. */}
       <SurfaceHeading
         title={t("page.register.title")}
-        badge={<DemoBadge className="hidden shrink-0 sm:inline-flex" />}
         subtitle={t("page.register.subtitle")}
       />
 
@@ -536,6 +554,7 @@ export function Dashboard() {
             <div className="hidden flex-1 md:block md:pt-3">
               <RegisterTable
                 rows={rows}
+                profiles={profiles}
                 density={density}
                 selected={selected}
                 onSelect={onSelect}
@@ -544,7 +563,12 @@ export function Dashboard() {
               />
             </div>
             <div className="flex-1 md:hidden">
-              <RegisterEntries rows={rows} onSelect={onSelect} locale={locale} />
+              <RegisterEntries
+                rows={rows}
+                profiles={profiles}
+                onSelect={onSelect}
+                locale={locale}
+              />
             </div>
           </>
         )}
@@ -593,28 +617,5 @@ export function Dashboard() {
         )}
       </SurfaceFooter>
     </SurfacePage>
-  )
-}
-
-function DemoBadge({ className }: { className?: string }) {
-  const { t } = useI18n()
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Badge
-            variant="outline"
-            className={cn(
-              "gap-1.5 border-rule-strong bg-background px-2 py-0.5 text-[0.6875rem] font-medium text-muted-foreground",
-              className,
-            )}
-          >
-            <span aria-hidden className="size-1.5 rounded-full bg-issues" />
-            {t("demo.badge")}
-          </Badge>
-        }
-      />
-      <TooltipContent>{t("demo.note")}</TooltipContent>
-    </Tooltip>
   )
 }

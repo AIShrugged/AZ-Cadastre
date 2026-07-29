@@ -20,17 +20,27 @@ export type UploadHandlers = {
   signal?: AbortSignal
 }
 
-const CONTENT_TYPE: Record<string, string> = {
+/** The extensions this feature accepts, mapped to the formats the engine does. */
+const CONTENT_TYPE: Record<string, DocumentContentType> = {
   pdf: "application/pdf",
   jpg: "image/jpeg",
   jpeg: "image/jpeg",
   png: "image/png",
 }
 
+/**
+ * The extension decides, and `file.type` is only a fallback — the other way
+ * round from what this used to do.
+ *
+ * Which formats the system accepts is a rule `ContentType` owns, and the set it
+ * accepts is the one keyed here. A browser is free to label a `.jpg` as
+ * `image/jpg` or a `.pdf` as `application/x-pdf`, and passing that along got the
+ * presign refused for a file this feature had already validated — the inspector
+ * saw "Upload failed" for a document that was perfectly fine.
+ */
 function contentTypeFor(file: File): string {
-  if (file.type) return file.type
   const ext = file.name.split(".").pop()?.toLowerCase() ?? ""
-  return CONTENT_TYPE[ext] ?? "application/octet-stream"
+  return CONTENT_TYPE[ext] ?? file.type
 }
 
 /**

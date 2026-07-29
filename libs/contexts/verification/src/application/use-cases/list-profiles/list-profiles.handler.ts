@@ -1,0 +1,19 @@
+import { type IQueryHandler, QueryHandler } from "@nestjs/cqrs";
+
+import { VerificationProfile } from "../../../domain/value-objects/index.js";
+import type { ProfileView } from "../../read-models/index.js";
+import { ListProfilesQuery } from "./list-profiles.query.js";
+
+@QueryHandler(ListProfilesQuery)
+export class ListProfilesHandler
+  implements IQueryHandler<ListProfilesQuery, readonly ProfileView[]>
+{
+  execute(): Promise<readonly ProfileView[]> {
+    return Promise.resolve(
+      VerificationProfile.all.map((profile) => ({
+        key: profile.key,
+        documentTypes: profile.documentTypes.map((type) => type.value),
+      })),
+    );
+  }
+}

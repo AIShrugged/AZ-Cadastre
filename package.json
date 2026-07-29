@@ -6,7 +6,9 @@
   "type": "module",
   "scripts": {
     "build": "pnpm -r build",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "typecheck": "pnpm -r typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "author": "",
@@ -18,17 +20,13 @@
       "onFail": "download"
     }
   },
-  "dependencies": {
-    "@aws-sdk/client-s3": "^3.1093.0",
-    "@aws-sdk/s3-request-presigner": "^3.1093.0",
-    "@eslint/js": "^10.0.1",
-    "eslint": "^10.7.0",
-    "typescript-eslint": "^8.65.0",
-    "zod": "^4.4.3"
-  },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^26.1.1",
+    "eslint": "^10.7.0",
     "prettier": "^3.9.6",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.65.0",
+    "vitest": "^3.2.4"
   }
 }

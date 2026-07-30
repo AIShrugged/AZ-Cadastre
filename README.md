@@ -74,4 +74,32 @@ docker build -f apps/core/Dockerfile -t core-app .
 docker compose up --build
 ```
 
+### Migrations in a container
+
+The verification context owns its database, so its migration history travels
+inside its own package — not in `apps/core`, where there is no Prisma at all
+(`npx prisma` from there answers `prisma: not found`). Run them from the package:
+
+```bash
+docker compose exec -w /app/libs/contexts/verification backend pnpm db:deploy
+```
+
+`db:deploy` is `prisma migrate deploy`: it applies what is pending, never
+prompts and never resets. `pnpm exec prisma migrate status` reports without
+applying anything.
+
+To stop doing it by hand, let the service migrate before it serves — give the
+`backend` service its own command in `docker-compose.yml`:
+
+```yaml
+    command: >
+      sh -c "cd /app/libs/contexts/verification && pnpm db:deploy &&
+             cd /app/apps/core && node build/main.js"
+```
+
+`migrate deploy` is idempotent, so a restart re-runs it harmlessly and a
+deployment that adds a column needs no separate step. It suits a single
+instance: several replicas booting together would each try to migrate at once,
+and that is when the migration belongs in a job of its own instead.
+
 See [docs/DOCKER.md](docs/DOCKER.md) for detailed Docker setup and deployment instructions.

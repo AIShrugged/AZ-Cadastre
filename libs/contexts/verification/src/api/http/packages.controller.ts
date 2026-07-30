@@ -1,18 +1,11 @@
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  Get,
-  Param,
-  Post,
-} from "@nestjs/common";
+import { Body, Controller, Get, Param, Post } from "@nestjs/common";
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
 import {
   CreatePackageRequestSchema,
+  type CreatePackageRequest,
   type PackageDetailDto,
   type PackageDto,
 } from "@cadastre/contracts";
-import { z } from "zod";
 
 import {
   CreatePackageCommand,
@@ -30,15 +23,11 @@ export class PackagesController {
   ) {}
 
   @Post()
-  async create(@Body() body: unknown): Promise<PackageDto> {
-    const parsed = CreatePackageRequestSchema.safeParse(body);
-
-    if (!parsed.success) {
-      throw new BadRequestException(z.flattenError(parsed.error));
-    }
-
+  async create(
+    @Body({ schema: CreatePackageRequestSchema }) body: CreatePackageRequest,
+  ): Promise<PackageDto> {
     const packageId = await this.commands.execute(
-      new CreatePackageCommand(parsed.data.profileKey, parsed.data.documents),
+      new CreatePackageCommand(body.profileKey, body.documents),
     );
 
     return toSummaryDto(

@@ -1,10 +1,10 @@
-import { BadRequestException, Body, Controller, Post } from "@nestjs/common";
+import { Body, Controller, Post } from "@nestjs/common";
 import { CommandBus } from "@nestjs/cqrs";
 import {
   PresignRequestSchema,
+  type PresignRequest,
   type PresignResponse,
 } from "@cadastre/contracts";
-import { z } from "zod";
 
 import { PresignUploadCommand } from "../../application/use-cases/index.js";
 
@@ -13,15 +13,11 @@ export class DocumentsController {
   constructor(private readonly commands: CommandBus) {}
 
   @Post("presign")
-  async presign(@Body() body: unknown): Promise<PresignResponse> {
-    const parsed = PresignRequestSchema.safeParse(body);
-
-    if (!parsed.success) {
-      throw new BadRequestException(z.flattenError(parsed.error));
-    }
-
+  async presign(
+    @Body({ schema: PresignRequestSchema }) body: PresignRequest,
+  ): Promise<PresignResponse> {
     const presigned = await this.commands.execute(
-      new PresignUploadCommand(parsed.data.filename, parsed.data.contentType),
+      new PresignUploadCommand(body.filename, body.contentType),
     );
 
     return {

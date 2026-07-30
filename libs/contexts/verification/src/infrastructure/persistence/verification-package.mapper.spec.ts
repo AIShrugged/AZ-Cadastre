@@ -38,6 +38,7 @@ function aPageRow(overrides: Partial<PageRow> = {}): PageRow {
     id: anId(),
     pageNumber: 1,
     imageStorageKey: `pages/${anId()}.png`,
+    imageContentType: "image/png",
     ocr: { text: "REPUBLIC OF AZERBAIJAN\nPASSPORT", confidence: 0.91 },
     ...overrides,
   };
@@ -144,6 +145,41 @@ describe("VerificationPackageMapper", () => {
       expect(page?.isRecognised).toBe(true);
       expect(page?.ocr?.text.value).toBe("PASSPORT");
       expect(page?.ocr?.confidence.value).toBe(0.88);
+    });
+
+    it("rebuilds a page's image as the object it is and the format it is in", () => {
+      const row = aPackageRow({
+        documents: [
+          aDocumentRow({
+            contentType: "application/pdf",
+            pages: [
+              aPageRow({
+                imageStorageKey: "uploads/passport.pdf/pages/page_001.png",
+                imageContentType: "image/png",
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const [page] = VerificationPackageMapper.toDomain(row).documents[0]!.pages;
+
+      expect(page?.image.storageKey.value).toBe(
+        "uploads/passport.pdf/pages/page_001.png",
+      );
+      expect(page?.image.contentType.equals(ContentType.PNG)).toBe(true);
+    });
+
+    it("refuses a row whose page image is in a format nothing here can read", () => {
+      const row = aPackageRow({
+        documents: [
+          aDocumentRow({ pages: [aPageRow({ imageContentType: "image/tiff" })] }),
+        ],
+      });
+
+      expect(() => VerificationPackageMapper.toDomain(row)).toThrow(
+        UnsupportedContentTypeException,
+      );
     });
 
     it("brings a document back unclassified when the row carries no type", () => {

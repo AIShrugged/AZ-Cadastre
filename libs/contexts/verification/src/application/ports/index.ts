@@ -11,7 +11,13 @@ export {
   ObjectStorage,
   type PresignUploadRequest,
   type PresignedUpload,
+  type PutObjectRequest,
   type StoredObject,
 } from "./object-storage.port.js";
-export { OcrProvider, type OcrPageRequest } from "./ocr-provider.port.js";
+export { OcrProvider } from "./ocr-provider.port.js";
 export { PackageQueries } from "./package-queries.port.js";
+export {
+  PdfSplitter,
+  type PdfSplitRequest,
+  type SplitPage,
+} from "./pdf-splitter.port.js";

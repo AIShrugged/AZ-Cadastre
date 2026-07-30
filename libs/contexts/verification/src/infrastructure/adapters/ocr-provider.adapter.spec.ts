@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ContentType,
   OcrResult,
+  PageImage,
   StorageKey,
 } from "../../domain/value-objects/index.js";
 import { OcrProviderAdapter } from "./ocr-provider.adapter.js";
@@ -16,12 +17,11 @@ function anId(): string {
 
 async function recognise(
   imageStorageKey: string,
-  contentType: ContentType = ContentType.PDF,
+  contentType: ContentType = ContentType.PNG,
 ): Promise<OcrResult> {
-  const reading = new OcrProviderAdapter().recognise({
-    imageStorageKey: StorageKey.create(imageStorageKey),
-    contentType,
-  });
+  const reading = new OcrProviderAdapter().recognise(
+    PageImage.of(StorageKey.create(imageStorageKey), contentType),
+  );
 
   await vi.advanceTimersByTimeAsync(1200);
 
@@ -52,6 +52,23 @@ describe("OcrProviderAdapter", () => {
 
     expect(result.text.value).toContain("PASSPORT");
     expect(result.text.value).toContain("Passport No: AZE1234567");
+  });
+
+  it("reads a sheet rendered off a PDF as the document it came out of, not as a numbered page", async () => {
+    const result = await recognise(
+      `${anId()}/passport.pdf/pages/page_002.png`,
+    );
+
+    expect(result.text.value).toContain("PASSPORT");
+  });
+
+  it("gives two sheets of one PDF their own confidences, so a document does not read as one page", async () => {
+    const document = `${anId()}/passport.pdf`;
+
+    const first = await recognise(`${document}/pages/page_001.png`);
+    const second = await recognise(`${document}/pages/page_002.png`);
+
+    expect(second.confidence.equals(first.confidence)).toBe(false);
   });
 
   it("reads a driver licence page as a driver licence, however the word was spelled", async () => {

@@ -41,6 +41,7 @@ import {
   PackageId,
   PackageStatus,
   PageId,
+  PageImage,
   PageNumber,
   RecognisedText,
   StorageKey,
@@ -68,7 +69,7 @@ function aPage(number: number): Page {
   return Page.create(
     PageId.of(anId()),
     PageNumber.of(number),
-    StorageKey.create(`pages/${anId()}.png`),
+    PageImage.of(StorageKey.create(`pages/${anId()}.png`), ContentType.PNG),
   );
 }
 

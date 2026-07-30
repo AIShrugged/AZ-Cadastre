@@ -6,3 +6,5 @@ export { OcrProviderAdapter } from "./ocr-provider.adapter.js";
 export { OpenRouterClassifierAdapter } from "./openrouter-classifier.adapter.js";
 export { OpenRouterFieldExtractorAdapter } from "./openrouter-field-extractor.adapter.js";
 export { OpenRouterOcrAdapter } from "./openrouter-ocr.adapter.js";
+export { renderPdfPages } from "./pdf-page-renderer.js";
+export { PdfSplitterAdapter } from "./pdf-splitter.adapter.js";

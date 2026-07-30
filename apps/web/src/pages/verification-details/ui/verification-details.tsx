@@ -326,6 +326,68 @@ function OcrStatus({ doc, failed }: { doc: DocumentDto; failed: boolean }) {
   )
 }
 
+// ─── Page tally ───────────────────────────────────────────────────────────────
+// The document's meta line doubles as the progress read-out for a long PDF: how
+// many sheets it was split into, and — while the pages are still being read —
+// how many have come back. It carries its own separator, because a document with
+// nothing to count yet must not leave a dangling one behind.
+function PageTally({ doc, failed }: { doc: DocumentDto; failed: boolean }) {
+  const { t } = useI18n()
+  const total = doc.pages.length
+  const read = doc.pages.filter((p) => p.ocr).length
+
+  // No sheets yet: a run under way is still being split, and one that failed
+  // never got that far — the OCR line below is what reports that.
+  if (total === 0) {
+    return failed ? null : (
+      <>
+        {" · "}
+        <span className="inline-flex items-center gap-1.5 text-primary">
+          <span
+            aria-hidden
+            className="size-1.5 rounded-full bg-primary motion-safe:animate-pulse"
+          />
+          {t("detail.splitting")}
+        </span>
+      </>
+    )
+  }
+
+  const pages = total === 1 ? t("new.page_one") : t("new.pages", { n: total })
+  // A running count earns its place only where there is a queue to watch: with a
+  // single sheet, or none left unread, the total already says everything.
+  if (total === 1 || read === total) return <>{` · ${pages}`}</>
+
+  return (
+    <>
+      {` · ${pages} `}
+      <span aria-live="polite" className="inline-flex items-center gap-1.5">
+        {/* A failed run is not still working, so it gets the count without the
+            heartbeat: 8 of 10 pages read is where it stopped. */}
+        {!failed && (
+          <span
+            aria-hidden
+            className="size-1.5 rounded-full bg-primary motion-safe:animate-pulse"
+          />
+        )}
+        {/* Keyed on the count, so every page that lands replays the animation. */}
+        <span
+          key={read}
+          aria-label={t("detail.pages_read", { n: read, total })}
+          className={cn(
+            "font-medium tabular-nums",
+            failed
+              ? "text-failed-ink"
+              : "text-primary duration-300 motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-75",
+          )}
+        >
+          ({read})
+        </span>
+      </span>
+    </>
+  )
+}
+
 // ─── Extracted fields ────────────────────────────────────────────────────────
 // The type's schema, filled in: label over the machine-read value, each carrying
 // its own confidence so provenance travels with every field. Fields are paired
@@ -430,10 +492,8 @@ function DocumentBlock({
             data-mono
             className="truncate text-[0.6875rem] text-muted-foreground"
           >
-            {doc.contentType} ·{" "}
-            {doc.pages.length === 1
-              ? t("new.page_one")
-              : t("new.pages", { n: doc.pages.length })}
+            {doc.contentType}
+            <PageTally doc={doc} failed={failed} />
           </div>
         </div>
       </div>

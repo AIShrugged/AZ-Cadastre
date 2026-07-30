@@ -2,12 +2,13 @@ import { Logger } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
 import type { VerificationPackage } from "../../../domain/aggregates/index.js";
-import { Page } from "../../../domain/entities/index.js";
+import { type Document, Page } from "../../../domain/entities/index.js";
 import { VerificationPackageRepository } from "../../../domain/repositories/index.js";
 import {
   type DocumentId,
   FailureReason,
   PackageId,
+  PageImage,
   PageNumber,
 } from "../../../domain/value-objects/index.js";
 import { PackageNotFoundException } from "../../exceptions/index.js";
@@ -16,6 +17,7 @@ import {
   FieldExtractor,
   IdGenerator,
   OcrProvider,
+  PdfSplitter,
 } from "../../ports/index.js";
 import { RunVerificationCommand } from "./run-verification.command.js";
 
@@ -28,6 +30,7 @@ export class RunVerificationHandler
   constructor(
     private readonly packages: VerificationPackageRepository,
     private readonly ids: IdGenerator,
+    private readonly pdf: PdfSplitter,
     private readonly ocr: OcrProvider,
     private readonly classifier: DocumentClassifier,
     private readonly extractor: FieldExtractor,
@@ -69,32 +72,72 @@ export class RunVerificationHandler
 
     if (document.isSplit) return;
 
-    verification.splitIntoPages(documentId, [
-      Page.create(this.ids.pageId(), PageNumber.first(), document.storageKey),
-    ]);
+    const pages = await this.pagesOf(document);
 
+    verification.splitIntoPages(documentId, pages);
     await this.packages.save(verification);
+
+    this.logger.log(
+      `Package ${packageId.value}: "${document.filename.value}" → ` +
+        `${pages.length} page(s)`,
+    );
+  }
+
+  private async pagesOf(document: Document): Promise<readonly Page[]> {
+    // A single-image document is already the one page it consists of; only a PDF
+    // has sheets to render out.
+    if (!document.contentType.splitsIntoPages) {
+      return [
+        Page.create(
+          this.ids.pageId(),
+          PageNumber.first(),
+          PageImage.of(document.storageKey, document.contentType),
+        ),
+      ];
+    }
+
+    const split = await this.pdf.split({ storageKey: document.storageKey });
+
+    return split.map((page) =>
+      Page.create(this.ids.pageId(), page.number, page.image),
+    );
   }
 
   private async recognise(
     packageId: PackageId,
     documentId: DocumentId,
   ): Promise<void> {
-    // Terminates because every pass records one more page as recognised.
+    // Terminates because every pass either records a page as recognised or
+    // raises what stopped it.
     for (;;) {
       const verification = await this.load(packageId);
       const document = verification.documentWith(documentId);
-      const page = document.unrecognisedPages[0];
+      const batch = document.unrecognisedPages.slice(0, this.ocr.pagesAtOnce);
 
-      if (!page) return;
+      if (batch.length === 0) return;
 
-      const result = await this.ocr.recognise({
-        imageStorageKey: page.imageStorageKey,
-        contentType: document.contentType,
-      });
+      const readings = await Promise.allSettled(
+        batch.map((page) => this.ocr.recognise(page.image)),
+      );
 
-      verification.recordRecognition(documentId, page.id, result);
-      await this.packages.save(verification);
+      let recognised = 0;
+      for (const [index, reading] of readings.entries()) {
+        const page = batch[index];
+        if (!page || reading.status !== "fulfilled") continue;
+
+        verification.recordRecognition(documentId, page.id, reading.value);
+        recognised += 1;
+      }
+
+      // Saved before the failure is raised: what the provider did read is paid
+      // for, so a re-run asks it only for the pages still unread.
+      if (recognised > 0) await this.packages.save(verification);
+
+      const refused = readings.find(
+        (reading): reading is PromiseRejectedResult =>
+          reading.status === "rejected",
+      );
+      if (refused) throw refused.reason;
     }
   }
 

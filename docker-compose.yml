@@ -36,9 +36,15 @@ services:
       - S3_FORCE_PATH_STYLE=true
       - S3_PRESIGN_TTL=600
 
+      # PDF splitting: every page is rendered at this resolution before OCR
+      - PDF_PAGE_DPI=150
+      - PDF_MAX_PAGES=30
+
       # AI Providers (using mock providers for now)
       - OCR_PROVIDER=openrouter
       - OCR_MODEL=openai/gpt-4o-mini
+      # Pages read at once; lower it if the provider answers with rate limits
+      - OCR_CONCURRENCY=4
       - CLASSIFIER_PROVIDER=openrouter
       - CLASSIFIER_MODEL=openai/gpt-4o-mini
       - EXTRACTOR_PROVIDER=openrouter

@@ -5,11 +5,11 @@ import OpenAI from "openai";
 import {
   ObjectStorage,
   OcrProvider,
-  type OcrPageRequest,
 } from "../../application/ports/index.js";
 import {
   Confidence,
   OcrResult,
+  type PageImage,
   RecognisedText,
 } from "../../domain/value-objects/index.js";
 import type { Environment } from "../config/index.js";
@@ -26,6 +26,7 @@ export class OpenRouterOcrAdapter extends OcrProvider {
   private readonly logger = new Logger(OpenRouterOcrAdapter.name);
   private readonly client: OpenAI;
   private readonly model: string;
+  override readonly pagesAtOnce: number;
   private static readonly NOMINAL_CONFIDENCE = 0.9;
 
   constructor(
@@ -37,7 +38,9 @@ export class OpenRouterOcrAdapter extends OcrProvider {
     if (!openrouter.apiKey) {
       throw new MissingOpenRouterApiKeyException("OCR_PROVIDER");
     }
-    this.model = config.get("ocr", { infer: true }).model;
+    const ocr = config.get("ocr", { infer: true });
+    this.model = ocr.model;
+    this.pagesAtOnce = ocr.concurrency;
     this.client = new OpenAI({
       apiKey: openrouter.apiKey,
       baseURL: openrouter.baseUrl,
@@ -45,9 +48,9 @@ export class OpenRouterOcrAdapter extends OcrProvider {
     });
   }
 
-  async recognise(request: OcrPageRequest): Promise<OcrResult> {
-    const object = await this.storage.getObject(request.imageStorageKey);
-    const mime = request.contentType.value;
+  async recognise(image: PageImage): Promise<OcrResult> {
+    const object = await this.storage.getObject(image.storageKey);
+    const mime = image.contentType.value;
     const dataUrl = `data:${mime};base64,${Buffer.from(object.body).toString("base64")}`;
 
     const completion = await this.client.chat.completions.create({
@@ -70,7 +73,7 @@ export class OpenRouterOcrAdapter extends OcrProvider {
       confidenceFromLogprobs(completion) ??
       OpenRouterOcrAdapter.NOMINAL_CONFIDENCE;
     this.logger.log(
-      `OCR ${request.imageStorageKey.value} via ${this.model}: ${text.length} chars, confidence ${confidence.toFixed(3)}`,
+      `OCR ${image.storageKey.value} via ${this.model}: ${text.length} chars, confidence ${confidence.toFixed(3)}`,
     );
 
     return text.length === 0

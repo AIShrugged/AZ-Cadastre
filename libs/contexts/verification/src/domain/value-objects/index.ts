@@ -9,6 +9,7 @@ export { Filename } from "./filename.vo.js";
 export { DocumentId, PackageId, PageId } from "./ids.vo.js";
 export { OcrResult } from "./ocr-result.vo.js";
 export { PackageStatus } from "./package-status.vo.js";
+export { PageImage } from "./page-image.vo.js";
 export { PageNumber } from "./page-number.vo.js";
 export { RecognisedText } from "./recognised-text.vo.js";
 export { StorageKey } from "./storage-key.vo.js";

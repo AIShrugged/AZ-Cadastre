@@ -10,6 +10,11 @@ model Page {
   pageNumber      Int // 1-based; a non-PDF document has a single page (1)
   imageStorageKey String // object-store key of the page image (PDF page → rendered PNG)
 
+  /// Format the page image is stored in — image/png for a sheet rendered off a
+  /// PDF, the uploaded type itself for a single-image document. What the OCR
+  /// provider must be told to read the bytes as.
+  imageContentType String
+
   // Set once the OCR stage runs; absent means "not yet OCR'd".
   ocr OcrResult?
 

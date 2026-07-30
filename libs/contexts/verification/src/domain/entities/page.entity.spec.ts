@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import { PageAlreadyRecognisedException } from "../exceptions/index.js";
 import {
   Confidence,
+  ContentType,
   OcrResult,
   PageId,
+  PageImage,
   PageNumber,
   RecognisedText,
   StorageKey,
@@ -18,12 +20,12 @@ function anId(): string {
   return `0190a1b2-c3d4-7e5f-8a9b-${sequence.toString(16).padStart(12, "0")}`;
 }
 
+function anImage(name = `pages/${anId()}.png`): PageImage {
+  return PageImage.of(StorageKey.create(name), ContentType.PNG);
+}
+
 function aPage(number = 1): Page {
-  return Page.create(
-    PageId.of(anId()),
-    PageNumber.of(number),
-    StorageKey.create(`pages/${anId()}.png`),
-  );
+  return Page.create(PageId.of(anId()), PageNumber.of(number), anImage());
 }
 
 function anOcrResult(text = "Republic of Azerbaijan"): OcrResult {
@@ -33,15 +35,25 @@ function anOcrResult(text = "Republic of Azerbaijan"): OcrResult {
 describe("Page", () => {
   it("is created as one sheet with its rendered image and nothing read off it yet", () => {
     const id = PageId.of(anId());
-    const imageStorageKey = StorageKey.create("pages/first.png");
+    const image = anImage("pages/first.png");
 
-    const page = Page.create(id, PageNumber.first(), imageStorageKey);
+    const page = Page.create(id, PageNumber.first(), image);
 
     expect(page.id.equals(id)).toBe(true);
     expect(page.number.equals(PageNumber.first())).toBe(true);
-    expect(page.imageStorageKey.equals(imageStorageKey)).toBe(true);
+    expect(page.image.equals(image)).toBe(true);
     expect(page.ocr).toBeNull();
     expect(page.isRecognised).toBe(false);
+  });
+
+  it("carries the format its image was stored in, which a rendered sheet and an uploaded photo do not share", () => {
+    const photographed = Page.create(
+      PageId.of(anId()),
+      PageNumber.first(),
+      PageImage.of(StorageKey.create("uploads/scan.jpg"), ContentType.JPEG),
+    );
+
+    expect(photographed.image.contentType.equals(ContentType.JPEG)).toBe(true);
   });
 
   it("is rebuilt from storage with whatever OCR had already read", () => {
@@ -50,7 +62,7 @@ describe("Page", () => {
     const page = Page.restore(
       PageId.of(anId()),
       PageNumber.of(3),
-      StorageKey.create("pages/third.png"),
+      anImage("pages/third.png"),
       ocr,
     );
 
@@ -62,7 +74,7 @@ describe("Page", () => {
     const page = Page.restore(
       PageId.of(anId()),
       PageNumber.first(),
-      StorageKey.create("pages/first.png"),
+      anImage("pages/first.png"),
       null,
     );
 
@@ -86,7 +98,7 @@ describe("Page", () => {
 
     expect(recognised.id.equals(page.id)).toBe(true);
     expect(recognised.number.equals(page.number)).toBe(true);
-    expect(recognised.imageStorageKey.equals(page.imageStorageKey)).toBe(true);
+    expect(recognised.image.equals(page.image)).toBe(true);
   });
 
   it("leaves the page it was read from alone, because a page never changes in place", () => {
@@ -135,7 +147,7 @@ describe("Page", () => {
     const page = Page.restore(
       PageId.of(anId()),
       PageNumber.first(),
-      StorageKey.create("pages/first.png"),
+      anImage("pages/first.png"),
       anOcrResult(),
     );
 

@@ -13,6 +13,7 @@ import {
   ObjectStorage,
   type PresignUploadRequest,
   type PresignedUpload,
+  type PutObjectRequest,
   type StoredObject,
 } from "../../application/ports/index.js";
 import { UnsupportedContentTypeException } from "../../domain/exceptions/index.js";
@@ -81,6 +82,17 @@ export class ObjectStorageAdapter
       contentType: request.contentType,
       expiresIn: this.storage.presignTtl,
     };
+  }
+
+  async putObject(request: PutObjectRequest): Promise<void> {
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.storage.bucket,
+        Key: request.key.value,
+        Body: request.body,
+        ContentType: request.contentType.value,
+      }),
+    );
   }
 
   async getObject(key: StorageKey): Promise<StoredObject> {

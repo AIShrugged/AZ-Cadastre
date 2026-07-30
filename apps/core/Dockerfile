@@ -1,5 +1,8 @@
 # Build stage
-FROM node:20-alpine AS builder
+#
+# Node 22 at the least: pdf.js renders PDF pages through APIs older runtimes do
+# not have, and on Node 20 it draws every page blank without failing.
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -18,7 +21,7 @@ RUN pnpm install --frozen-lockfile
 RUN pnpm -r build
 
 # Runtime stage
-FROM node:20-alpine
+FROM node:22-alpine
 
 WORKDIR /app
 

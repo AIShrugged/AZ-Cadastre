@@ -172,8 +172,12 @@ export class PrismaVerificationPackageRepository extends VerificationPackageRepo
         documentId,
         pageNumber: page.pageNumber,
         imageStorageKey: page.imageStorageKey,
+        imageContentType: page.imageContentType,
       },
-      update: { imageStorageKey: page.imageStorageKey },
+      update: {
+        imageStorageKey: page.imageStorageKey,
+        imageContentType: page.imageContentType,
+      },
     });
 
     if (!page.ocr) return;

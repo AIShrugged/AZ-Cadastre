@@ -22,6 +22,13 @@ export const EnvironmentSchema = z
     // Seconds.
     S3_PRESIGN_TTL: z.coerce.number().int().positive().default(600),
 
+    // Resolution every PDF page is rendered at before OCR reads it. Higher
+    // reads small print better and costs more bytes per page.
+    PDF_PAGE_DPI: z.coerce.number().int().positive().default(150),
+    // The pipeline runs in-process (ADR-0001), so one upload cannot be allowed
+    // to occupy it indefinitely.
+    PDF_MAX_PAGES: z.coerce.number().int().positive().default(30),
+
     // Required only when a provider below is set to "openrouter", which is where
     // its absence is refused.
     OPENROUTER_API_KEY: z.string().optional(),
@@ -30,6 +37,9 @@ export const EnvironmentSchema = z
 
     OCR_PROVIDER: z.enum(["mock", "openrouter"]).default("mock"),
     OCR_MODEL: z.string().default("google/gemini-2.5-flash"),
+    // Pages read at once. Raise it to get through a long PDF faster, lower it if
+    // the provider starts answering with rate limits.
+    OCR_CONCURRENCY: z.coerce.number().int().positive().default(4),
 
     CLASSIFIER_PROVIDER: z.enum(["mock", "openrouter"]).default("mock"),
     CLASSIFIER_MODEL: z.string().default("google/gemini-2.5-flash"),
@@ -53,6 +63,10 @@ export const EnvironmentSchema = z
       forcePathStyle: env.S3_FORCE_PATH_STYLE,
       presignTtl: env.S3_PRESIGN_TTL,
     },
+    pdf: {
+      pageDpi: env.PDF_PAGE_DPI,
+      maxPages: env.PDF_MAX_PAGES,
+    },
     openrouter: {
       apiKey: env.OPENROUTER_API_KEY,
       baseUrl: env.OPENROUTER_BASE_URL,
@@ -61,6 +75,7 @@ export const EnvironmentSchema = z
     ocr: {
       provider: env.OCR_PROVIDER,
       model: env.OCR_MODEL,
+      concurrency: env.OCR_CONCURRENCY,
     },
     classifier: {
       provider: env.CLASSIFIER_PROVIDER,

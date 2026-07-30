@@ -13,6 +13,7 @@ import {
   PackageId,
   PackageStatus,
   PageId,
+  PageImage,
   PageNumber,
   RecognisedText,
   StorageKey,
@@ -43,6 +44,7 @@ export type PageRow = {
   readonly id: string;
   readonly pageNumber: number;
   readonly imageStorageKey: string;
+  readonly imageContentType: string;
   readonly ocr: OcrRow | null;
 };
 
@@ -80,6 +82,7 @@ export type PageWrite = {
   readonly id: string;
   readonly pageNumber: number;
   readonly imageStorageKey: string;
+  readonly imageContentType: string;
   readonly ocr: OcrWrite | null;
 };
 
@@ -124,7 +127,8 @@ export class VerificationPackageMapper {
         pages: document.pages.map((page) => ({
           id: page.id.value,
           pageNumber: page.number.value,
-          imageStorageKey: page.imageStorageKey.value,
+          imageStorageKey: page.image.storageKey.value,
+          imageContentType: page.image.contentType.value,
           ocr: page.ocr
             ? {
                 text: page.ocr.text.value,
@@ -182,7 +186,10 @@ export class VerificationPackageMapper {
     return Page.restore(
       PageId.of(row.id),
       PageNumber.of(row.pageNumber),
-      StorageKey.create(row.imageStorageKey),
+      PageImage.of(
+        StorageKey.create(row.imageStorageKey),
+        ContentType.of(row.imageContentType),
+      ),
       row.ocr
         ? OcrResult.of(
             RecognisedText.of(row.ocr.text),

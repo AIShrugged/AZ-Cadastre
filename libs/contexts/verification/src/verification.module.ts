@@ -17,6 +17,7 @@ import {
   ObjectStorage,
   OcrProvider,
   PackageQueries,
+  PdfSplitter,
 } from "./application/ports/index.js";
 import {
   CreatePackageHandler,
@@ -36,6 +37,7 @@ import {
   OpenRouterClassifierAdapter,
   OpenRouterFieldExtractorAdapter,
   OpenRouterOcrAdapter,
+  PdfSplitterAdapter,
 } from "./infrastructure/adapters/index.js";
 import { EnvironmentSchema, type Environment } from "./infrastructure/config/index.js";
 import { UuidIdGenerator } from "./infrastructure/identity/index.js";
@@ -76,6 +78,7 @@ const handlers = [
     { provide: PackageQueries, useClass: PrismaPackageQueries },
     { provide: IdGenerator, useClass: UuidIdGenerator },
     { provide: ObjectStorage, useClass: ObjectStorageAdapter },
+    { provide: PdfSplitter, useClass: PdfSplitterAdapter },
 
     {
       provide: OcrProvider,

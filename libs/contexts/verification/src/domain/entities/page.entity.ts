@@ -2,33 +2,29 @@ import { PageAlreadyRecognisedException } from "../exceptions/index.js";
 import {
   type OcrResult,
   PageId,
+  type PageImage,
   type PageNumber,
-  type StorageKey,
 } from "../value-objects/index.js";
 
 export class Page {
   private constructor(
     public readonly id: PageId,
     public readonly number: PageNumber,
-    public readonly imageStorageKey: StorageKey,
+    public readonly image: PageImage,
     public readonly ocr: OcrResult | null,
   ) {}
 
-  static create(
-    id: PageId,
-    number: PageNumber,
-    imageStorageKey: StorageKey,
-  ): Page {
-    return new Page(id, number, imageStorageKey, null);
+  static create(id: PageId, number: PageNumber, image: PageImage): Page {
+    return new Page(id, number, image, null);
   }
 
   static restore(
     id: PageId,
     number: PageNumber,
-    imageStorageKey: StorageKey,
+    image: PageImage,
     ocr: OcrResult | null,
   ): Page {
-    return new Page(id, number, imageStorageKey, ocr);
+    return new Page(id, number, image, ocr);
   }
 
   get isRecognised(): boolean {
@@ -40,6 +36,6 @@ export class Page {
       throw new PageAlreadyRecognisedException(this.id.value);
     }
 
-    return new Page(this.id, this.number, this.imageStorageKey, ocr);
+    return new Page(this.id, this.number, this.image, ocr);
   }
 }

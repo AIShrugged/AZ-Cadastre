@@ -9,6 +9,14 @@ export class PackageId extends EntityId {
   }
 }
 
+export class SourceFileId extends EntityId {
+  declare private readonly __type: "SourceFileId";
+
+  static of(value: string): SourceFileId {
+    return new SourceFileId(value);
+  }
+}
+
 export class DocumentId extends EntityId {
   declare private readonly __type: "DocumentId";
 

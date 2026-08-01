@@ -45,6 +45,8 @@ services:
       - OCR_MODEL=openai/gpt-4o-mini
       # Pages read at once; lower it if the provider answers with rate limits
       - OCR_CONCURRENCY=4
+      - SEGMENTER_PROVIDER=openrouter
+      - SEGMENTER_MODEL=openai/gpt-4o-mini
       - CLASSIFIER_PROVIDER=openrouter
       - CLASSIFIER_MODEL=openai/gpt-4o-mini
       - EXTRACTOR_PROVIDER=openrouter

@@ -9,14 +9,16 @@ import {
   FailureReason,
   PackageId,
   PageId,
+  SourceFileId,
   VerificationProfile,
 } from "../value-objects/index.js";
 import {
   DocumentClassified,
-  DocumentSplitIntoPages,
   FieldsExtracted,
   PackageSubmitted,
   PageRecognised,
+  SourceFileSegmented,
+  SourceFileSplitIntoPages,
   VerificationCompleted,
   VerificationFailed,
   VerificationStarted,
@@ -32,13 +34,15 @@ function anId(): string {
 describe("the events a verification package applies", () => {
   it("names every one of them for this context and for what was decided", () => {
     const packageId = PackageId.of(anId());
+    const sourceFileId = SourceFileId.of(anId());
     const documentId = DocumentId.of(anId());
 
     const events = [
       new PackageSubmitted(packageId, VerificationProfile.CADASTRE, 2),
       new VerificationStarted(packageId),
-      new DocumentSplitIntoPages(packageId, documentId, 3),
-      new PageRecognised(packageId, documentId, PageId.of(anId())),
+      new SourceFileSplitIntoPages(packageId, sourceFileId, 3),
+      new PageRecognised(packageId, sourceFileId, PageId.of(anId())),
+      new SourceFileSegmented(packageId, sourceFileId, 2),
       new DocumentClassified(
         packageId,
         documentId,
@@ -52,8 +56,9 @@ describe("the events a verification package applies", () => {
     expect(events.map((event) => event.type)).toEqual([
       "verification.PackageSubmitted",
       "verification.VerificationStarted",
-      "verification.DocumentSplitIntoPages",
+      "verification.SourceFileSplitIntoPages",
       "verification.PageRecognised",
+      "verification.SourceFileSegmented",
       "verification.DocumentClassified",
       "verification.FieldsExtracted",
       "verification.VerificationCompleted",
@@ -85,34 +90,53 @@ describe("the events a verification package applies", () => {
 
       expect(event.packageId.equals(packageId)).toBe(true);
       expect(event.profile).toBe(VerificationProfile.CADASTRE);
-      expect(event.documentCount).toBe(3);
+      expect(event.fileCount).toBe(3);
     });
   });
 
-  describe("DocumentSplitIntoPages", () => {
-    it("says which document was rendered and into how many sheets", () => {
-      const documentId = DocumentId.of(anId());
+  describe("SourceFileSplitIntoPages", () => {
+    it("says which file was rendered and into how many sheets", () => {
+      const sourceFileId = SourceFileId.of(anId());
 
-      const event = new DocumentSplitIntoPages(
+      const event = new SourceFileSplitIntoPages(
         PackageId.of(anId()),
-        documentId,
+        sourceFileId,
         7,
       );
 
-      expect(event.documentId.equals(documentId)).toBe(true);
+      expect(event.sourceFileId.equals(sourceFileId)).toBe(true);
       expect(event.pageCount).toBe(7);
     });
   });
 
   describe("PageRecognised", () => {
-    it("says which page of which document was read", () => {
-      const documentId = DocumentId.of(anId());
+    it("says which page of which file was read", () => {
+      const sourceFileId = SourceFileId.of(anId());
       const pageId = PageId.of(anId());
 
-      const event = new PageRecognised(PackageId.of(anId()), documentId, pageId);
+      const event = new PageRecognised(
+        PackageId.of(anId()),
+        sourceFileId,
+        pageId,
+      );
 
-      expect(event.documentId.equals(documentId)).toBe(true);
+      expect(event.sourceFileId.equals(sourceFileId)).toBe(true);
       expect(event.pageId.equals(pageId)).toBe(true);
+    });
+  });
+
+  describe("SourceFileSegmented", () => {
+    it("says how many documents the file turned out to hold", () => {
+      const sourceFileId = SourceFileId.of(anId());
+
+      const event = new SourceFileSegmented(
+        PackageId.of(anId()),
+        sourceFileId,
+        3,
+      );
+
+      expect(event.sourceFileId.equals(sourceFileId)).toBe(true);
+      expect(event.documentCount).toBe(3);
     });
   });
 

@@ -1,20 +1,11 @@
 export {
   DocumentAlreadyClassifiedException,
-  DocumentAlreadySplitException,
-  DocumentMustHaveAPageException,
   DocumentNotClassifiedException,
-  DuplicatePageNumberException,
   InvalidConfidenceException,
   InvalidDocumentTypeException,
   InvalidFieldKeyException,
   InvalidFieldValueException,
-  InvalidFilenameException,
-  InvalidPageNumberException,
-  InvalidStorageKeyException,
-  PageAlreadyRecognisedException,
-  PageNotInDocumentException,
   UnclassifiableDocumentException,
-  UnsupportedContentTypeException,
 } from "./document.exceptions.js";
 export {
   DocumentTypeNotInProfileException,
@@ -22,11 +13,28 @@ export {
   UnknownProfileException,
 } from "./profile.exceptions.js";
 export {
+  DocumentsMustCoverEverySheetException,
+  DuplicatePageNumberException,
+  InvalidFilenameException,
+  InvalidPageNumberException,
+  InvalidPageRangeException,
+  InvalidStorageKeyException,
+  PageAlreadyRecognisedException,
+  PageNotInSourceFileException,
+  SourceFileAlreadySegmentedException,
+  SourceFileAlreadySplitException,
+  SourceFileMustHaveADocumentException,
+  SourceFileMustHaveAPageException,
+  SourceFileNotSplitException,
+  UnsupportedContentTypeException,
+} from "./source-file.exceptions.js";
+export {
   DocumentNotInPackageException,
   DuplicateStorageKeyException,
   InvalidPackageStatusException,
   PackageAlreadyFinishedException,
-  PackageMustHaveADocumentException,
+  PackageMustHaveAFileException,
   PackageNotStartableException,
   PackageNotUnderWayException,
+  SourceFileNotInPackageException,
 } from "./verification-package.exceptions.js";

@@ -3,6 +3,11 @@ export {
   type ClassificationRequest,
 } from "./document-classifier.port.js";
 export {
+  DocumentSegmenter,
+  type ReadPage,
+  type SegmentationRequest,
+} from "./document-segmenter.port.js";
+export {
   FieldExtractor,
   type ExtractionRequest,
 } from "./field-extractor.port.js";

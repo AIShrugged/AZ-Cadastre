@@ -1,10 +1,14 @@
 export { DocumentClassifierAdapter } from "./document-classifier.adapter.js";
+export { DocumentSegmenterAdapter } from "./document-segmenter.adapter.js";
 export { FieldExtractorAdapter } from "./field-extractor.adapter.js";
+export { looksLike } from "./hint-matching.js";
 export { confidenceFromLogprobs } from "./logprob-confidence.js";
 export { ObjectStorageAdapter } from "./object-storage.adapter.js";
 export { OcrProviderAdapter } from "./ocr-provider.adapter.js";
 export { OpenRouterClassifierAdapter } from "./openrouter-classifier.adapter.js";
 export { OpenRouterFieldExtractorAdapter } from "./openrouter-field-extractor.adapter.js";
 export { OpenRouterOcrAdapter } from "./openrouter-ocr.adapter.js";
+export { OpenRouterSegmenterAdapter } from "./openrouter-segmenter.adapter.js";
+export { tileIntoRanges } from "./page-range-tiling.js";
 export { renderPdfPages } from "./pdf-page-renderer.js";
 export { PdfSplitterAdapter } from "./pdf-splitter.adapter.js";

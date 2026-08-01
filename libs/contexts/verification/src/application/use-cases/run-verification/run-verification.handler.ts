@@ -2,7 +2,7 @@ import { Logger } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
 import type { VerificationPackage } from "../../../domain/aggregates/index.js";
-import { type Document, Page } from "../../../domain/entities/index.js";
+import { Document, Page, type SourceFile } from "../../../domain/entities/index.js";
 import { VerificationPackageRepository } from "../../../domain/repositories/index.js";
 import {
   type DocumentId,
@@ -10,10 +10,14 @@ import {
   PackageId,
   PageImage,
   PageNumber,
+  type PageRange,
+  type SourceFileId,
+  type VerificationProfile,
 } from "../../../domain/value-objects/index.js";
 import { PackageNotFoundException } from "../../exceptions/index.js";
 import {
   DocumentClassifier,
+  DocumentSegmenter,
   FieldExtractor,
   IdGenerator,
   OcrProvider,
@@ -32,6 +36,7 @@ export class RunVerificationHandler
     private readonly ids: IdGenerator,
     private readonly pdf: PdfSplitter,
     private readonly ocr: OcrProvider,
+    private readonly segmenter: DocumentSegmenter,
     private readonly classifier: DocumentClassifier,
     private readonly extractor: FieldExtractor,
   ) {}
@@ -42,20 +47,30 @@ export class RunVerificationHandler
     await this.change(packageId, (verification) => verification.start());
 
     try {
+      const fileIds = (await this.load(packageId)).files.map((file) => file.id);
+
+      // Every file is read to the end before any of it is classified: what one
+      // sheet says is how the sheet after it is told to be part of the same
+      // document or the start of the next.
+      for (const fileId of fileIds) {
+        await this.split(packageId, fileId);
+        await this.recognise(packageId, fileId);
+        await this.segment(packageId, fileId);
+      }
+
       const documentIds = (await this.load(packageId)).documents.map(
         (document) => document.id,
       );
 
       for (const documentId of documentIds) {
-        await this.split(packageId, documentId);
-        await this.recognise(packageId, documentId);
         await this.classify(packageId, documentId);
         await this.extract(packageId, documentId);
       }
 
       await this.change(packageId, (verification) => verification.complete());
       this.logger.log(
-        `Package ${packageId.value}: verified ${documentIds.length} document(s)`,
+        `Package ${packageId.value}: verified ${documentIds.length} document(s) ` +
+          `across ${fileIds.length} file(s)`,
       );
     } catch (error) {
       await this.recordFailure(packageId, error);
@@ -65,38 +80,38 @@ export class RunVerificationHandler
 
   private async split(
     packageId: PackageId,
-    documentId: DocumentId,
+    sourceFileId: SourceFileId,
   ): Promise<void> {
     const verification = await this.load(packageId);
-    const document = verification.documentWith(documentId);
+    const file = verification.fileWith(sourceFileId);
 
-    if (document.isSplit) return;
+    if (file.isSplit) return;
 
-    const pages = await this.pagesOf(document);
+    const pages = await this.pagesOf(file);
 
-    verification.splitIntoPages(documentId, pages);
+    verification.splitIntoPages(sourceFileId, pages);
     await this.packages.save(verification);
 
     this.logger.log(
-      `Package ${packageId.value}: "${document.filename.value}" → ` +
+      `Package ${packageId.value}: "${file.filename.value}" → ` +
         `${pages.length} page(s)`,
     );
   }
 
-  private async pagesOf(document: Document): Promise<readonly Page[]> {
-    // A single-image document is already the one page it consists of; only a PDF
-    // has sheets to render out.
-    if (!document.contentType.splitsIntoPages) {
+  private async pagesOf(file: SourceFile): Promise<readonly Page[]> {
+    // A single-image file is already the one page it consists of; only a PDF has
+    // sheets to render out.
+    if (!file.contentType.splitsIntoPages) {
       return [
         Page.create(
           this.ids.pageId(),
           PageNumber.first(),
-          PageImage.of(document.storageKey, document.contentType),
+          PageImage.of(file.storageKey, file.contentType),
         ),
       ];
     }
 
-    const split = await this.pdf.split({ storageKey: document.storageKey });
+    const split = await this.pdf.split({ storageKey: file.storageKey });
 
     return split.map((page) =>
       Page.create(this.ids.pageId(), page.number, page.image),
@@ -105,14 +120,14 @@ export class RunVerificationHandler
 
   private async recognise(
     packageId: PackageId,
-    documentId: DocumentId,
+    sourceFileId: SourceFileId,
   ): Promise<void> {
     // Terminates because every pass either records a page as recognised or
     // raises what stopped it.
     for (;;) {
       const verification = await this.load(packageId);
-      const document = verification.documentWith(documentId);
-      const batch = document.unrecognisedPages.slice(0, this.ocr.pagesAtOnce);
+      const file = verification.fileWith(sourceFileId);
+      const batch = file.unrecognisedPages.slice(0, this.ocr.pagesAtOnce);
 
       if (batch.length === 0) return;
 
@@ -125,7 +140,7 @@ export class RunVerificationHandler
         const page = batch[index];
         if (!page || reading.status !== "fulfilled") continue;
 
-        verification.recordRecognition(documentId, page.id, reading.value);
+        verification.recordRecognition(sourceFileId, page.id, reading.value);
         recognised += 1;
       }
 
@@ -141,6 +156,49 @@ export class RunVerificationHandler
     }
   }
 
+  private async segment(
+    packageId: PackageId,
+    sourceFileId: SourceFileId,
+  ): Promise<void> {
+    const verification = await this.load(packageId);
+    const file = verification.fileWith(sourceFileId);
+
+    if (verification.isSegmented(sourceFileId)) return;
+
+    const ranges = await this.rangesIn(file, verification.profile);
+    if (ranges.length === 0) return;
+
+    const documents = ranges.map((range) =>
+      Document.create(this.ids.documentId(), sourceFileId, range),
+    );
+
+    verification.segmentIntoDocuments(sourceFileId, documents);
+    await this.packages.save(verification);
+
+    this.logger.log(
+      `Package ${packageId.value}: "${file.filename.value}" holds ` +
+        `${documents.length} document(s) — ${ranges.map(describe).join(", ")}`,
+    );
+  }
+
+  private async rangesIn(
+    file: SourceFile,
+    profile: VerificationProfile,
+  ): Promise<readonly PageRange[]> {
+    const whole = file.wholeFile;
+
+    if (!whole) return [];
+
+    // One sheet is one document: there is no boundary to look for, and no
+    // reason to pay a provider to confirm it.
+    if (whole.isSingleSheet) return [whole];
+
+    return this.segmenter.segment({
+      pages: file.transcript(),
+      candidates: profile.specs,
+    });
+  }
+
   private async classify(
     packageId: PackageId,
     documentId: DocumentId,
@@ -151,16 +209,18 @@ export class RunVerificationHandler
     if (document.isClassified) return;
 
     const classification = await this.classifier.classify({
-      text: document.text,
-      candidateTypes: verification.profile.documentTypes,
+      text: verification.textOf(documentId),
+      candidates: verification.profile.specs,
     });
 
     verification.classify(documentId, classification);
     await this.packages.save(verification);
 
+    const file = verification.fileWith(document.sourceFileId);
     this.logger.log(
-      `Package ${packageId.value}: "${document.filename.value}" → ` +
-        `${classification.type.value} (${classification.confidence.value.toFixed(2)})`,
+      `Package ${packageId.value}: "${file.filename.value}" ` +
+        `${describe(document.pages)} → ${classification.type.value} ` +
+        `(${classification.confidence.value.toFixed(2)})`,
     );
   }
 
@@ -174,13 +234,12 @@ export class RunVerificationHandler
 
     if (!classification?.isPlaced || document.hasFields) return;
 
-    const schema = verification.profile.schemaFor(classification.type);
-    if (schema.isEmpty) return;
+    const spec = verification.profile.specFor(classification.type);
+    if (spec.schema.isEmpty) return;
 
     const fields = await this.extractor.extract({
-      text: document.text,
-      documentType: classification.type,
-      schema,
+      text: verification.textOf(documentId),
+      spec,
     });
 
     if (fields.length === 0) return;
@@ -220,4 +279,10 @@ export class RunVerificationHandler
       );
     }
   }
+}
+
+function describe(range: PageRange): string {
+  return range.isSingleSheet
+    ? `p.${range.first.value}`
+    : `pp.${range.first.value}–${range.last.value}`;
 }

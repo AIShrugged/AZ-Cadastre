@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   DocumentType,
+  type DocumentTypeSpec,
   FieldSchema,
   FieldSpec,
   RecognisedText,
@@ -9,61 +10,76 @@ import {
 } from "../../domain/value-objects/index.js";
 import { FieldExtractorAdapter } from "./field-extractor.adapter.js";
 
-const PASSPORT = DocumentType.create("passport");
+const IDENTITY_CARD = DocumentType.create("identity_card");
 
-const PASSPORT_TEXT = [
-  "REPUBLIC OF AZERBAIJAN",
-  "PASSPORT",
-  "Surname / Soyad: ALIYEV",
-  "Given names / Ad: ELCHIN",
-  "Passport No: AZE1234567",
+const IDENTITY_TEXT = [
+  "AZƏRBAYCAN RESPUBLİKASI",
+  "ŞƏXSİYYƏT VƏSİQƏSİ",
+  "Soyadı: ƏLİYEV",
+  "Adı: ELÇİN",
+  "Vəsiqə No: AZE1234567",
 ].join("\n");
+
+// The adapter reads its answers off the schema, so a test can hand it any
+// schema under a real type without the profile having to declare that pairing.
+function specOf(type: DocumentType, schema: FieldSchema): DocumentTypeSpec {
+  return { ...VerificationProfile.CADASTRE.specFor(type), schema };
+}
 
 function extract(
   schema: FieldSchema,
-  documentType: DocumentType = PASSPORT,
-  text: string = PASSPORT_TEXT,
+  type: DocumentType = IDENTITY_CARD,
+  text: string = IDENTITY_TEXT,
 ) {
   return new FieldExtractorAdapter().extract({
     text: RecognisedText.of(text),
-    documentType,
-    schema,
+    spec: specOf(type, schema),
   });
 }
 
 describe("FieldExtractorAdapter", () => {
   it("answers with a value for every field the type declares", async () => {
-    const schema = VerificationProfile.CADASTRE.schemaFor(PASSPORT);
+    const schema = VerificationProfile.CADASTRE.schemaFor(IDENTITY_CARD);
 
     const fields = await extract(schema);
 
     expect(fields.map((field) => field.key.value)).toEqual([
       "first_name",
       "last_name",
-      "dob",
-      "passport_no",
-      "expiry",
+      "document_no",
+      "issue_date",
+      "expiry_date",
     ]);
   });
 
   it("answers with the demo persona's own values, so a re-run reports the same numbers", async () => {
-    const fields = await extract(VerificationProfile.CADASTRE.schemaFor(PASSPORT));
+    const fields = await extract(
+      VerificationProfile.CADASTRE.schemaFor(IDENTITY_CARD),
+    );
 
     expect(
       Object.fromEntries(
         fields.map((field) => [field.key.value, field.value.value]),
       ),
     ).toEqual({
-      first_name: "ELCHIN",
-      last_name: "ALIYEV",
-      dob: "14.03.1988",
-      passport_no: "AZE1234567",
-      expiry: "21.09.2030",
+      first_name: "ELÇİN",
+      last_name: "ƏLİYEV",
+      document_no: "AZE1234567",
+      issue_date: "12.02.2021",
+      expiry_date: "21.09.2030",
     });
   });
 
+  it("answers for every required type of the cadastre profile, so a mocked run is never empty", async () => {
+    for (const spec of VerificationProfile.CADASTRE.specs) {
+      const fields = await extract(spec.schema, spec.type);
+
+      expect(fields.length).toBe(spec.schema.specs.length);
+    }
+  });
+
   it("gives the same answer twice, because the mock has nothing random in it", async () => {
-    const schema = VerificationProfile.CADASTRE.schemaFor(PASSPORT);
+    const schema = VerificationProfile.CADASTRE.schemaFor(IDENTITY_CARD);
 
     const first = await extract(schema);
     const second = await extract(schema);
@@ -102,15 +118,22 @@ describe("FieldExtractorAdapter", () => {
   });
 
   it("answers with nothing for a type no profile recognises, because it declares no fields", async () => {
-    const schema = VerificationProfile.DEMO.schemaFor(DocumentType.create("title_deed"));
+    const stray = DocumentType.create("invoice");
 
-    expect(await extract(schema, DocumentType.create("title_deed"))).toEqual([]);
+    expect(
+      await extract(VerificationProfile.CADASTRE.schemaFor(stray), stray),
+    ).toEqual([]);
   });
 
   it("never answers with a key the schema did not declare", async () => {
-    const schema = FieldSchema.of([FieldSpec.of("parcel_id", "Parcel ID")]);
+    const schema = FieldSchema.of([
+      FieldSpec.of("cadastral_number", "Cadastral number"),
+    ]);
 
-    const fields = await extract(schema, DocumentType.create("cadastral_extract"));
+    const fields = await extract(
+      schema,
+      DocumentType.create("registration_application"),
+    );
 
     for (const field of fields) {
       expect(schema.declares(field.key)).toBe(true);
@@ -119,22 +142,24 @@ describe("FieldExtractorAdapter", () => {
 
   it("keeps the fields in the order the schema declared them", async () => {
     const schema = FieldSchema.of([
-      FieldSpec.of("expiry", "Expiration date"),
+      FieldSpec.of("expiry_date", "Expiration date"),
       FieldSpec.of("first_name", "First name"),
-      FieldSpec.of("dob", "Date of birth"),
+      FieldSpec.of("document_no", "Document number"),
     ]);
 
     const fields = await extract(schema);
 
     expect(fields.map((field) => field.key.value)).toEqual([
-      "expiry",
+      "expiry_date",
       "first_name",
-      "dob",
+      "document_no",
     ]);
   });
 
   it("reports the same fixed confidence for every value, and reads them all off the first page", async () => {
-    const fields = await extract(VerificationProfile.CADASTRE.schemaFor(PASSPORT));
+    const fields = await extract(
+      VerificationProfile.CADASTRE.schemaFor(IDENTITY_CARD),
+    );
 
     expect(fields.map((field) => field.confidence.value)).toEqual([
       0.92, 0.92, 0.92, 0.92, 0.92,

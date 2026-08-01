@@ -7,7 +7,11 @@ import { toProfileDto } from "./profile.presenter.js";
 function aProfileView(overrides: Partial<ProfileView> = {}): ProfileView {
   return {
     key: "cadastre",
-    documentTypes: ["passport", "application", "title_deed"],
+    documentTypes: [
+      { key: "registration_application", required: true },
+      { key: "identity_card", required: true },
+      { key: "license", required: true },
+    ],
     ...overrides,
   };
 }
@@ -22,14 +26,34 @@ describe("toProfileDto", () => {
   it("renders the document types in the order the profile declared them", () => {
     const dto = toProfileDto(
       aProfileView({
-        documentTypes: ["passport", "driver_license", "application"],
+        documentTypes: [
+          { key: "license", required: true },
+          { key: "license_annex", required: true },
+          { key: "architectural_plan", required: false },
+        ],
+      }),
+    );
+
+    expect(dto.documentTypes.map((type) => type.key)).toEqual([
+      "license",
+      "license_annex",
+      "architectural_plan",
+    ]);
+  });
+
+  it("says of each type whether a package is incomplete without it", () => {
+    const dto = toProfileDto(
+      aProfileView({
+        documentTypes: [
+          { key: "identity_card", required: true },
+          { key: "architectural_plan", required: false },
+        ],
       }),
     );
 
     expect(dto.documentTypes).toEqual([
-      "passport",
-      "driver_license",
-      "application",
+      { key: "identity_card", required: true },
+      { key: "architectural_plan", required: false },
     ]);
   });
 
@@ -37,13 +61,9 @@ describe("toProfileDto", () => {
     const view = aProfileView();
 
     const dto = toProfileDto(view);
-    dto.documentTypes.push("forged");
+    dto.documentTypes.push({ key: "forged", required: true });
 
-    expect(view.documentTypes).toEqual([
-      "passport",
-      "application",
-      "title_deed",
-    ]);
+    expect(view.documentTypes).toHaveLength(3);
   });
 
   it("renders a profile that expects nothing as an empty list rather than leaving it out", () => {

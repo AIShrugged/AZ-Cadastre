@@ -1,157 +1,161 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  DocumentType,
+  type DocumentTypeSpec,
   RecognisedText,
   VerificationProfile,
 } from "../../domain/value-objects/index.js";
 import { DocumentClassifierAdapter } from "./document-classifier.adapter.js";
 
-const CADASTRE_TYPES = VerificationProfile.CADASTRE.documentTypes;
+const CADASTRE = VerificationProfile.CADASTRE.specs;
 
 function classify(
   text: string,
-  candidateTypes: readonly DocumentType[] = CADASTRE_TYPES,
+  candidates: readonly DocumentTypeSpec[] = CADASTRE,
 ) {
   return new DocumentClassifierAdapter().classify({
     text: RecognisedText.of(text),
-    candidateTypes,
+    candidates,
   });
 }
 
-const PASSPORT_TEXT = [
-  "REPUBLIC OF AZERBAIJAN",
-  "PASSPORT",
-  "Surname / Soyad: ALIYEV",
-  "Passport No: AZE1234567",
+const IDENTITY_TEXT = [
+  "AZƏRBAYCAN RESPUBLİKASI",
+  "ŞƏXSİYYƏT VƏSİQƏSİ",
+  "Soyadı: ƏLİYEV",
+  "Vəsiqə No: AZE1234567",
 ].join("\n");
 
-const APPLICATION_TEXT = [
-  "APPLICATION FORM",
-  "Applicant: ELCHIN ALIYEV",
-  "Passport No: AZE1234567",
-  "Driver License No: AZ87654321",
+const REGISTRATION_TEXT = [
+  "DAŞINMAZ ƏMLAK ÜZƏRİNDƏ HÜQUQLARIN DÖVLƏT QEYDİYYATI HAQQINDA ƏRİZƏ",
+  "Ərizəçi: ELÇİN ƏLİYEV",
+  "Şəxsiyyət vəsiqəsi No: AZE1234567",
 ].join("\n");
 
 describe("DocumentClassifierAdapter", () => {
-  it("picks the type whose keyword comes first, so an application form that cites a passport number is not read as a passport", async () => {
-    const classification = await classify(APPLICATION_TEXT);
+  it("reads an identity card as an identity card", async () => {
+    const classification = await classify(IDENTITY_TEXT);
 
-    expect(classification.type.value).toBe("application");
+    expect(classification.type.value).toBe("identity_card");
   });
 
-  it("reads a passport as a passport", async () => {
-    const classification = await classify(PASSPORT_TEXT);
+  it("picks the heading over a cross-reference, so a registration application that cites an identity card is not read as one", async () => {
+    const classification = await classify(REGISTRATION_TEXT);
 
-    expect(classification.type.value).toBe("passport");
+    expect(classification.type.value).toBe("registration_application");
   });
 
-  it("reads a title deed as a title deed, even though 'deed' also appears later", async () => {
-    const classification = await classify(
-      ["TITLE DEED", "Owner: ELCHIN ALIYEV", "Parcel ID: AZ-CAD-1024-311"].join("\n"),
-    );
-
-    expect(classification.type.value).toBe("title_deed");
-  });
-
-  it("reads a cadastral extract as a cadastral extract", async () => {
-    const classification = await classify(
-      ["CADASTRAL EXTRACT", "Parcel ID: AZ-CAD-1024-311", "Area: 642 m2"].join("\n"),
-    );
-
-    expect(classification.type.value).toBe("cadastral_extract");
-  });
-
-  it("ignores where the candidate sits in the list and looks only at where its keyword sits in the text", async () => {
-    const [first, second] = [
-      await classify(APPLICATION_TEXT, [
-        DocumentType.create("passport"),
-        DocumentType.create("application"),
-      ]),
-      await classify(APPLICATION_TEXT, [
-        DocumentType.create("application"),
-        DocumentType.create("passport"),
-      ]),
-    ];
-
-    expect(first.type.value).toBe("application");
-    expect(second.type.value).toBe("application");
-  });
-
-  it("reads the header rather than a cross-reference further down the page", async () => {
+  it("reads an application under the notification procedure as its own kind", async () => {
     const classification = await classify(
       [
-        "DRIVER LICENSE",
-        "Surname: ALIYEV",
-        "See attached application form and passport",
+        "BİLDİRİŞ İCRAATI QAYDASINDA ƏRİZƏ",
+        "Ərizəçi: ELÇİN ƏLİYEV",
+        "Kadastr nömrəsi: AZ-CAD-1024-311",
       ].join("\n"),
-      VerificationProfile.DEMO.documentTypes,
     );
 
-    expect(classification.type.value).toBe("driver_license");
+    expect(classification.type.value).toBe("notification_application");
+  });
+
+  it("reads an architectural plan as an architectural plan", async () => {
+    const classification = await classify(
+      [
+        "MEMARLIQ-PLANLAŞDIRMA HƏLLİ (ESKİZ LAYİHƏ)",
+        'Layihə təşkilatı: "AzMemarLayihə" MMC',
+      ].join("\n"),
+    );
+
+    expect(classification.type.value).toBe("architectural_plan");
+  });
+
+  it("reads a licence as a licence", async () => {
+    const classification = await classify(
+      ["LİSENZİYA", "Lisenziya No: AZ-LIC-2019-4471"].join("\n"),
+    );
+
+    expect(classification.type.value).toBe("license");
+  });
+
+  it("tells an annex from the licence it is an annex to", async () => {
+    const classification = await classify(
+      [
+        "LİSENZİYAYA ƏLAVƏ",
+        "Lisenziya No: AZ-LIC-2019-4471",
+        "Əlavə No: 1",
+      ].join("\n"),
+    );
+
+    expect(classification.type.value).toBe("license_annex");
+  });
+
+  it("tells a Russian annex from the licence too", async () => {
+    const classification = await classify(
+      ["ПРИЛОЖЕНИЕ К ЛИЦЕНЗИИ", "Лицензия No: AZ-LIC-2019-4471"].join("\n"),
+    );
+
+    expect(classification.type.value).toBe("license_annex");
+  });
+
+  it("reads a document written in Russian as readily as one in Azerbaijani", async () => {
+    const classification = await classify(
+      ["УДОСТОВЕРЕНИЕ ЛИЧНОСТИ", "Фамилия: АЛИЕВ"].join("\n"),
+    );
+
+    expect(classification.type.value).toBe("identity_card");
+  });
+
+  it("ignores where the candidate sits in the list and looks only at where its heading sits in the text", async () => {
+    const reversed = [...CADASTRE].reverse();
+
+    const classification = await classify(IDENTITY_TEXT, reversed);
+
+    expect(classification.type.value).toBe("identity_card");
   });
 
   it("does not care how the text was cased", async () => {
-    const classification = await classify("republic of azerbaijan\npassport");
+    const classification = await classify(IDENTITY_TEXT.toLowerCase());
 
-    expect(classification.type.value).toBe("passport");
+    expect(classification.type.value).toBe("identity_card");
   });
 
-  it("leaves the document unplaced when no candidate's keyword appears at all", async () => {
-    const classification = await classify("A page with nothing distinguishing on it");
+  it("leaves the document unplaced when no candidate's heading appears at all", async () => {
+    const classification = await classify("A LETTER ABOUT NOTHING IN PARTICULAR");
 
-    expect(classification.isPlaced).toBe(false);
-    expect(classification.type.equals(DocumentType.UNKNOWN)).toBe(true);
+    expect(classification.type.isKnown).toBe(false);
   });
 
   it("leaves a page OCR read nothing off unplaced", async () => {
     const classification = await classify("");
 
-    expect(classification.isPlaced).toBe(false);
+    expect(classification.type.isKnown).toBe(false);
   });
 
-  it("is sure of a keyword hit and unsure of a miss", async () => {
-    const placed = await classify(PASSPORT_TEXT);
-    const unplaced = await classify("nothing to go on here");
+  it("is sure of a heading hit and unsure of a miss", async () => {
+    const placed = await classify(IDENTITY_TEXT);
+    const unplaced = await classify("nothing recognisable here");
 
-    expect(placed.confidence.value).toBe(0.94);
-    expect(unplaced.confidence.value).toBe(0.3);
+    expect(placed.confidence.value).toBeGreaterThan(
+      unplaced.confidence.value,
+    );
   });
 
   it("only ever answers with a type it was offered, or with none", async () => {
-    const candidates = [
-      DocumentType.create("title_deed"),
-      DocumentType.create("cadastral_extract"),
-    ];
+    const offered = CADASTRE.map((spec) => spec.type.value);
 
-    const answers = await Promise.all(
-      [PASSPORT_TEXT, APPLICATION_TEXT, "DRIVER LICENSE", "TITLE DEED", "nothing here"].map(
-        (text) => classify(text, candidates),
-      ),
-    );
+    for (const text of [IDENTITY_TEXT, REGISTRATION_TEXT, "unrelated"]) {
+      const classification = await classify(text);
 
-    for (const answer of answers) {
-      expect(
-        candidates.some((candidate) => candidate.equals(answer.type)) ||
-          answer.type.equals(DocumentType.UNKNOWN),
-      ).toBe(true);
+      expect([...offered, "unknown"]).toContain(classification.type.value);
     }
   });
 
-  it("leaves a passport unplaced when the profile does not expect passports", async () => {
-    const classification = await classify(PASSPORT_TEXT, [
-      DocumentType.create("title_deed"),
-      DocumentType.create("cadastral_extract"),
-    ]);
+  it("leaves an identity card unplaced when the profile does not expect one", async () => {
+    const withoutIdentity = CADASTRE.filter(
+      (spec) => spec.type.value !== "identity_card",
+    );
 
-    expect(classification.isPlaced).toBe(false);
-  });
+    const classification = await classify(IDENTITY_TEXT, withoutIdentity);
 
-  it("falls back to the type's own key, read as words, for a type it has no keywords for", async () => {
-    const classification = await classify("BIRTH CERTIFICATE\nName: ELCHIN ALIYEV", [
-      DocumentType.create("birth_certificate"),
-    ]);
-
-    expect(classification.type.value).toBe("birth_certificate");
+    expect(classification.type.value).not.toBe("identity_card");
   });
 });

@@ -12,7 +12,10 @@ export class ListProfilesHandler
     return Promise.resolve(
       VerificationProfile.all.map((profile) => ({
         key: profile.key,
-        documentTypes: profile.documentTypes.map((type) => type.value),
+        documentTypes: profile.specs.map((spec) => ({
+          key: spec.type.value,
+          required: spec.isRequired,
+        })),
       })),
     );
   }

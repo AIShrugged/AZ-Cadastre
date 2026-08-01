@@ -6,12 +6,17 @@ import {
   DocumentId,
   PackageId,
   PageId,
+  SourceFileId,
 } from "../../domain/value-objects/index.js";
 
 @Injectable()
 export class UuidIdGenerator extends IdGenerator {
   override packageId(): PackageId {
     return PackageId.of(randomUUID());
+  }
+
+  override sourceFileId(): SourceFileId {
+    return SourceFileId.of(randomUUID());
   }
 
   override documentId(): DocumentId {

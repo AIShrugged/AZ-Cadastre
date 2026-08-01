@@ -35,9 +35,15 @@ export type VerificationPackage = {
   /** ISO timestamp of the last pipeline event (drives "updated Xm ago"). */
   updatedAt: string
   /** Documents the classifier has placed so far. */
-  docsDetected: number
-  /** Documents attached to the package — what the inspector actually uploaded. */
-  docsAttached: number
+  docsClassified: number
+  /**
+   * Documents the pipeline found inside the uploaded files. A file is a
+   * container — one PDF may hold several documents — so this is 0 until
+   * detection has run and can exceed `filesAttached`.
+   */
+  docsFound: number
+  /** Files the inspector uploaded. Known from the moment the package exists. */
+  filesAttached: number
   /** Validation issues raised (mismatch / expired / missing). */
   issues: number
   /** Fields flagged below the confidence threshold. */
@@ -112,15 +118,17 @@ export function toViewPackage(dto: PackageDto): VerificationPackage {
     disposition,
     submittedAt: dto.createdAt,
     updatedAt: dto.updatedAt,
-    // "Detected" = documents the pipeline has classified so far; grows live as
-    // the register polls, from 0 up to the number uploaded.
-    docsDetected: dto.classifiedCount,
-    docsAttached: dto.documentsCount,
+    // Grows live as the register polls: detection finds the documents, then
+    // classification places them one by one.
+    docsClassified: dto.classifiedCount,
+    docsFound: dto.documentsCount,
+    filesAttached: dto.filesCount,
     issues: 0,
     lowConfidence: 0,
     stage: disposition === "in_progress" ? pipelineStage(dto) : undefined,
-    // The classifier ran on every document but couldn't place one → the pipeline
-    // halts at Classification, flagged red (it never proceeds to extraction).
+    // The classifier ran on every document found but couldn't place one → the
+    // pipeline halts at Classification, flagged red (it never proceeds to
+    // extraction).
     stageError:
       disposition === "in_progress" &&
       dto.documentsCount > 0 &&
@@ -130,17 +138,20 @@ export function toViewPackage(dto: PackageDto): VerificationPackage {
 }
 
 /**
- * Coarse pipeline stage for the register's stage bar, from real progress: OCR
- * until any document is classified, Classification while types are still being
- * assigned, then Field extraction once extraction has produced fields. An
- * unclassifiable document halts the run at Classification. Later stages
- * (completeness → report) light up when those pipeline steps exist.
+ * Coarse pipeline stage for the register's stage bar, from real progress:
+ * reading while no document has been found yet, Classification while types are
+ * still being assigned, then Field extraction once extraction has produced
+ * fields. An unclassifiable document halts the run at Classification. Later
+ * stages (completeness → report) light up when those pipeline steps exist.
+ *
+ * A summary carries counts, not per-file progress, so it cannot separate OCR
+ * from Document detection — both read as stage 1 here. The detail screen has
+ * the files themselves and reports the two apart.
  */
 function pipelineStage(dto: PackageDto): number {
-  if (dto.documentsCount === 0) return 1
-  if (dto.classifiedCount === 0) return 1 // OCR running
-  if (dto.classifiedCount < dto.documentsCount) return 2 // classifying
-  if (dto.unclassifiedCount > 0) return 2 // a document couldn't be classified
-  if (dto.extractedCount > 0) return 3 // extraction reached
-  return 2
+  if (dto.documentsCount === 0) return 1 // reading the files
+  if (dto.classifiedCount < dto.documentsCount) return 3 // classifying
+  if (dto.unclassifiedCount > 0) return 3 // a document couldn't be classified
+  if (dto.extractedCount > 0) return 4 // extraction reached
+  return 3
 }

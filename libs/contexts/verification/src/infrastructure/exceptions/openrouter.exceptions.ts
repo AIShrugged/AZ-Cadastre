@@ -6,6 +6,7 @@ export class MissingOpenRouterApiKeyException extends InfrastructureException {
   constructor(
     public readonly providerSetting:
       | "OCR_PROVIDER"
+      | "SEGMENTER_PROVIDER"
       | "CLASSIFIER_PROVIDER"
       | "EXTRACTOR_PROVIDER",
   ) {

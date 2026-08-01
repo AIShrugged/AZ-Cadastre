@@ -1,16 +1,22 @@
-// A single uploaded file within a package. Pages / OCR / extracted fields hang
-// off this and are modelled in later aggregates.
+// One logical document found inside a source file: a run of that file's sheets
+// carrying exactly one Document Type. Written by the Segmentation stage, which
+// reads a container file into the documents it actually holds, then filled in
+// by Classification and Field extraction.
 
 model Document {
-  id        String              @id @default(uuid()) @db.Uuid
+  id           String     @id @default(uuid()) @db.Uuid
+  sourceFileId String     @db.Uuid
+  sourceFile   SourceFile @relation(fields: [sourceFileId], references: [id], onDelete: Cascade)
+
+  /// Denormalised from the owning file so a package's documents can be counted
+  /// and listed without walking every file it contains.
   packageId String              @db.Uuid
   package   VerificationPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
 
-  // Original uploaded file. The bytes live in object storage; we keep only the
-  // key that locates them, plus the metadata needed to process and display it.
-  originalFilename String
-  contentType      String // application/pdf | image/jpeg | image/png
-  storageKey       String @unique // object-store key handed back by the presign step
+  // The sheets of `sourceFile` this document occupies, 1-based and inclusive.
+  // A file's documents tile it: back to back, no gaps, no overlaps.
+  firstPage Int
+  lastPage  Int
 
   /// Detected document type — a profile-defined string key (ADR-0002), e.g.
   /// "passport" | "driver_license" | "application" | "unknown". Null until the
@@ -21,13 +27,15 @@ model Document {
   /// Classifier confidence for `type`, 0..1. Null until the Classify stage runs.
   classificationConfidence Float?
 
-  pages            Page[]
   extractedFields  ExtractedField[]
   validationIssues ValidationIssue[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Where a document starts is what a re-run of segmentation identifies it by,
+  // so the stage is an idempotent upsert rather than a duplicate.
+  @@unique([sourceFileId, firstPage])
   @@index([packageId])
   @@map("documents")
 }

@@ -1,9 +1,10 @@
 export {
   DocumentClassified,
-  DocumentSplitIntoPages,
   FieldsExtracted,
   PackageSubmitted,
   PageRecognised,
+  SourceFileSegmented,
+  SourceFileSplitIntoPages,
   VerificationCompleted,
   VerificationFailed,
   VerificationStarted,

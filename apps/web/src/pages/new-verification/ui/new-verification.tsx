@@ -206,18 +206,23 @@ export function NewVerification() {
 
   async function onStart() {
     if (!canStart || profile === null) return
-    // Only fully-transferred documents carry a storage key to attach.
-    const documents = files
+    // Only fully-transferred files carry a storage key to attach. Each is a
+    // container the engine reads into the documents it holds — how many that
+    // turns out to be is not known here.
+    const attached = files
       .filter((f) => f.status === "ready" && f.key && f.contentType)
       .map((f) => ({
         originalFilename: f.name,
         contentType: f.contentType!,
         storageKey: f.key!,
       }))
-    if (documents.length === 0) return
+    if (attached.length === 0) return
 
     try {
-      const pkg = await createPackage({ profileKey: profile, documents }).unwrap()
+      const pkg = await createPackage({
+        profileKey: profile,
+        files: attached,
+      }).unwrap()
       toast(t("toast.started", { id: pkg.id }))
       navigate(paths.register)
     } catch (error) {

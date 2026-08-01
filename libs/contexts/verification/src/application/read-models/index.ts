@@ -5,5 +5,9 @@ export type {
   PackageDetailView,
   PackageSummaryView,
   PageView,
+  SourceFileView,
 } from "./package.read-model.js";
-export type { ProfileView } from "./profile.read-model.js";
+export type {
+  ProfileDocumentTypeView,
+  ProfileView,
+} from "./profile.read-model.js";

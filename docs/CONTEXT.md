@@ -8,12 +8,16 @@ AI-assisted verification of document packages submitted for government registrat
 A set of files uploaded together for one verification. The unit the inspector works with.
 _Avoid_: submission, case, batch
 
+**Source File**:
+One file the inspector uploaded. A container, not a document: a single PDF may hold a passport on sheet 1 and a title deed on sheets 2–4. It carries the original name, the format and the object it was stored under.
+_Avoid_: document (when meaning the file), attachment, upload
+
 **Document**:
-One uploaded file, treated as exactly one logical document. Mixed-content files (e.g. a PDF containing a passport and a licence) are out of scope.
-_Avoid_: file, scan, attachment (when meaning the logical document)
+One logical document found inside a Source File: a contiguous run of that file's Pages carrying exactly one Document Type. Discovered by segmentation, never declared at upload — the inspector attaches files, and the engine reports the documents in them. A file's Documents tile it: back to back, no gaps, no overlaps.
+_Avoid_: file, scan, attachment, segment
 
 **Page**:
-A single image derived from a Document (one per PDF page; an image file is one Page). The unit sent to OCR.
+A single image derived from a Source File (one per PDF sheet; an image file is one Page). Numbered across the whole file, so a Document's page range points at the sheets an inspector would turn to. The unit sent to OCR.
 
 **Document Type**:
 The recognized category of a Document (e.g. Passport, Unknown). Assigned by classification, never by the file name.

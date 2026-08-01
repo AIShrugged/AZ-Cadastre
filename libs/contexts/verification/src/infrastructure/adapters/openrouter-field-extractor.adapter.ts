@@ -10,6 +10,7 @@ import {
 import { ExtractedField } from "../../domain/entities/index.js";
 import {
   Confidence,
+  type DocumentTypeSpec,
   FieldValue,
   PageNumber,
 } from "../../domain/value-objects/index.js";
@@ -43,10 +44,7 @@ export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
   async extract(
     request: ExtractionRequest,
   ): Promise<readonly ExtractedField[]> {
-    const specs = request.schema.specs;
-    const schema = specs
-      .map((spec) => `- ${spec.key.value}: ${spec.label}`)
-      .join("\n");
+    const specs = request.spec.schema.specs;
 
     const completion = await this.client.chat.completions.create({
       model: this.model,
@@ -54,15 +52,7 @@ export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
       logprobs: true,
       response_format: { type: "json_object" },
       messages: [
-        {
-          role: "system",
-          content:
-            `Extract the following fields from the OCR text of a ${request.documentType.value}. ` +
-            "Return a JSON object mapping each field key to its value as a string, " +
-            "or null if the value is not present. Transcribe values exactly (names " +
-            "may be in any script). Use ONLY these keys:\n" +
-            schema,
-        },
+        { role: "system", content: this.instructions(request.spec) },
         { role: "user", content: request.text.value.slice(0, MAX_TEXT) },
       ],
     });
@@ -106,9 +96,40 @@ export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
     }
 
     this.logger.log(
-      `Extracted ${fields.length}/${specs.length} fields from ${request.documentType.value}`,
+      `Extracted ${fields.length}/${specs.length} fields from ${request.spec.type.value}`,
     );
     return fields;
+  }
+
+  private instructions(spec: DocumentTypeSpec): string {
+    const schema = spec.schema.specs
+      .map((field) => `- ${field.key.value}: ${field.label}`)
+      .join("\n");
+
+    return [
+      "You read structured values off one scanned document submitted to the",
+      "Azerbaijani real estate registration authority.",
+      "",
+      `The document is a ${spec.type.value}. ${spec.description}`,
+      "",
+      "Its text is usually Azerbaijani (Latin script), sometimes Russian or",
+      "English, and OCR may have mangled letters and diacritics.",
+      "",
+      "Return a JSON object mapping each key below to its value as a string,",
+      "or to null when the document does not carry that value. Use ONLY these",
+      "keys:",
+      schema,
+      "",
+      "Rules:",
+      "- Transcribe values exactly as printed, in their own script. Do not",
+      "  translate, transliterate or expand names and addresses.",
+      "- Write every date as DD.MM.YYYY, whatever form it appears in.",
+      "- A surname printed in capitals stays in capitals.",
+      "- Give the value alone, without its printed label.",
+      "- Never infer, compute or invent a value that is not on the document.",
+      "  A null is worth more to the inspector than a plausible guess: they",
+      "  check the ones we return.",
+    ].join("\n");
   }
 
   private parse(raw: string): Record<string, unknown> {

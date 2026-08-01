@@ -19,6 +19,7 @@ const SUMMARY_COLUMNS = {
   profileKey: true,
   createdAt: true,
   updatedAt: true,
+  _count: { select: { sourceFiles: true } },
   documents: {
     select: {
       type: true,
@@ -33,6 +34,7 @@ type SummaryRow = {
   readonly profileKey: string;
   readonly createdAt: Date;
   readonly updatedAt: Date;
+  readonly _count: { readonly sourceFiles: number };
   readonly documents: readonly {
     readonly type: string | null;
     readonly _count: { readonly extractedFields: number };
@@ -71,19 +73,13 @@ export class PrismaPackageQueries extends PackageQueries {
     const row = await this.prisma.verificationPackage.findUnique({
       where: { id: id.value },
       select: {
-        id: true,
-        status: true,
-        profileKey: true,
-        createdAt: true,
-        updatedAt: true,
-        documents: {
+        ...SUMMARY_COLUMNS,
+        sourceFiles: {
           orderBy: { createdAt: "asc" },
           select: {
             id: true,
             originalFilename: true,
             contentType: true,
-            type: true,
-            classificationConfidence: true,
             pages: {
               orderBy: { pageNumber: "asc" },
               select: {
@@ -91,13 +87,23 @@ export class PrismaPackageQueries extends PackageQueries {
                 ocr: { select: { text: true, confidence: true } },
               },
             },
-            extractedFields: {
-              orderBy: { createdAt: "asc" },
+            documents: {
+              orderBy: { firstPage: "asc" },
               select: {
-                name: true,
-                value: true,
-                confidence: true,
-                pageNumber: true,
+                id: true,
+                firstPage: true,
+                lastPage: true,
+                type: true,
+                classificationConfidence: true,
+                extractedFields: {
+                  orderBy: { createdAt: "asc" },
+                  select: {
+                    name: true,
+                    value: true,
+                    confidence: true,
+                    pageNumber: true,
+                  },
+                },
               },
             },
           },
@@ -108,30 +114,29 @@ export class PrismaPackageQueries extends PackageQueries {
     if (!row) return null;
 
     return {
-      ...PrismaPackageQueries.toSummary({
-        ...row,
-        documents: row.documents.map((document) => ({
-          type: document.type,
-          _count: { extractedFields: document.extractedFields.length },
-        })),
-      }),
-      documents: row.documents.map((document) => ({
-        id: document.id,
-        originalFilename: document.originalFilename,
-        contentType: document.contentType,
-        type: document.type,
-        classificationConfidence: document.classificationConfidence,
-        pages: document.pages.map((page) => ({
+      ...PrismaPackageQueries.toSummary(row),
+      files: row.sourceFiles.map((file) => ({
+        id: file.id,
+        originalFilename: file.originalFilename,
+        contentType: file.contentType,
+        pages: file.pages.map((page) => ({
           pageNumber: page.pageNumber,
           ocr: page.ocr
             ? { text: page.ocr.text, confidence: page.ocr.confidence }
             : null,
         })),
-        fields: document.extractedFields.map((field) => ({
-          name: field.name,
-          value: field.value,
-          confidence: field.confidence,
-          pageNumber: field.pageNumber,
+        documents: file.documents.map((document) => ({
+          id: document.id,
+          firstPage: document.firstPage,
+          lastPage: document.lastPage,
+          type: document.type,
+          classificationConfidence: document.classificationConfidence,
+          fields: document.extractedFields.map((field) => ({
+            name: field.name,
+            value: field.value,
+            confidence: field.confidence,
+            pageNumber: field.pageNumber,
+          })),
         })),
       })),
     };
@@ -142,6 +147,10 @@ export class PrismaPackageQueries extends PackageQueries {
       id: row.id,
       status: row.status,
       profileKey: row.profileKey,
+      filesCount: row._count.sourceFiles,
+      // Zero until the Segmentation stage has read the files: how many
+      // documents a package holds is something the pipeline discovers, not
+      // something the upload declared.
       documentsCount: row.documents.length,
       classifiedCount: row.documents.filter(
         (document) => document.type !== null,

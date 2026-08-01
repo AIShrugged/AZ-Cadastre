@@ -1,0 +1,25 @@
+// One file the inspector uploaded. A file is a *container*, not a document: a
+// single PDF may hold a passport on sheet 1 and a title deed on sheets 2–4.
+// Its pages hang off it; the documents found inside it are Document rows
+// pointing back here (PRD §3).
+
+model SourceFile {
+  id        String              @id @default(uuid()) @db.Uuid
+  packageId String              @db.Uuid
+  package   VerificationPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  // The bytes live in object storage; we keep only the key that locates them,
+  // plus the metadata needed to process and display the file.
+  originalFilename String
+  contentType      String // application/pdf | image/jpeg | image/png
+  storageKey       String @unique // object-store key handed back by the presign step
+
+  pages     Page[]
+  documents Document[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([packageId])
+  @@map("source_files")
+}

@@ -14,6 +14,10 @@ export const PackageDtoSchema = z.object({
   id: z.string(),
   status: PackageStatusSchema,
   profileKey: z.string(),
+  // Files the inspector uploaded. Known at submission.
+  filesCount: z.number().int().nonnegative(),
+  // Documents found inside those files. A file is a container, so this is 0
+  // until the pipeline has read them, and may exceed filesCount.
   documentsCount: z.number().int().nonnegative(),
   classifiedCount: z.number().int().nonnegative(),
   unclassifiedCount: z.number().int().nonnegative(),
@@ -48,17 +52,28 @@ export type FieldDto = z.infer<typeof FieldDtoSchema>;
 
 export const DocumentDtoSchema = z.object({
   id: z.string(),
-  originalFilename: z.string(),
-  contentType: DocumentContentTypeSchema,
+  // The sheets of the containing file this document occupies, 1-based and
+  // inclusive.
+  firstPage: z.number().int().positive(),
+  lastPage: z.number().int().positive(),
   type: z.string().nullable(),
   // 0..1, null until the document is classified.
   classificationConfidence: z.number().nullable(),
-  pages: z.array(PageDtoSchema),
   fields: z.array(FieldDtoSchema),
 });
 export type DocumentDto = z.infer<typeof DocumentDtoSchema>;
 
-export const PackageDetailDtoSchema = PackageDtoSchema.extend({
+export const SourceFileDtoSchema = z.object({
+  id: z.string(),
+  originalFilename: z.string(),
+  contentType: DocumentContentTypeSchema,
+  pages: z.array(PageDtoSchema),
+  // Empty until the pipeline has read the file into the documents it holds.
   documents: z.array(DocumentDtoSchema),
+});
+export type SourceFileDto = z.infer<typeof SourceFileDtoSchema>;
+
+export const PackageDetailDtoSchema = PackageDtoSchema.extend({
+  files: z.array(SourceFileDtoSchema),
 });
 export type PackageDetailDto = z.infer<typeof PackageDetailDtoSchema>;

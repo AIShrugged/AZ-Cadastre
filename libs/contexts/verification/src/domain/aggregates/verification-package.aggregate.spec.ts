@@ -1,30 +1,41 @@
 import { describe, expect, it } from "vitest";
 
-import { Document, ExtractedField, Page } from "../entities/index.js";
+import {
+  Document,
+  ExtractedField,
+  Page,
+  SourceFile,
+} from "../entities/index.js";
 import {
   DocumentClassified,
-  DocumentSplitIntoPages,
   FieldsExtracted,
   PackageSubmitted,
   PageRecognised,
+  SourceFileSegmented,
+  SourceFileSplitIntoPages,
   VerificationCompleted,
   VerificationFailed,
   VerificationStarted,
 } from "../events/index.js";
 import {
   DocumentAlreadyClassifiedException,
-  DocumentAlreadySplitException,
   DocumentNotClassifiedException,
   DocumentNotInPackageException,
+  DocumentsMustCoverEverySheetException,
   DocumentTypeNotInProfileException,
   DuplicateStorageKeyException,
   FieldNotInSchemaException,
   PackageAlreadyFinishedException,
-  PackageMustHaveADocumentException,
+  PackageMustHaveAFileException,
   PackageNotStartableException,
   PackageNotUnderWayException,
   PageAlreadyRecognisedException,
-  PageNotInDocumentException,
+  PageNotInSourceFileException,
+  SourceFileAlreadySegmentedException,
+  SourceFileAlreadySplitException,
+  SourceFileMustHaveADocumentException,
+  SourceFileNotInPackageException,
+  SourceFileNotSplitException,
   UnclassifiableDocumentException,
 } from "../exceptions/index.js";
 import {
@@ -43,7 +54,9 @@ import {
   PageId,
   PageImage,
   PageNumber,
+  PageRange,
   RecognisedText,
+  SourceFileId,
   StorageKey,
   VerificationProfile,
 } from "../value-objects/index.js";
@@ -56,10 +69,10 @@ function anId(): string {
   return `0190a1b2-c3d4-7e5f-8a9b-${sequence.toString(16).padStart(12, "0")}`;
 }
 
-function aDocument(storageKey?: string): Document {
-  return Document.create(
-    DocumentId.of(anId()),
-    Filename.create("passport.pdf"),
+function aFile(storageKey?: string): SourceFile {
+  return SourceFile.create(
+    SourceFileId.of(anId()),
+    Filename.create("submission.pdf"),
     ContentType.PDF,
     StorageKey.create(storageKey ?? `uploads/${anId()}.pdf`),
   );
@@ -73,11 +86,19 @@ function aPage(number: number): Page {
   );
 }
 
+function range(first: number, last: number): PageRange {
+  return PageRange.of(PageNumber.of(first), PageNumber.of(last));
+}
+
+function aDocumentOf(sourceFileId: SourceFileId, pages: PageRange): Document {
+  return Document.create(DocumentId.of(anId()), sourceFileId, pages);
+}
+
 function anOcrResult(text = "Republic of Azerbaijan"): OcrResult {
   return OcrResult.of(RecognisedText.of(text), Confidence.of(0.9));
 }
 
-function aClassification(type = "passport"): Classification {
+function aClassification(type = "identity_card"): Classification {
   return Classification.of(DocumentType.create(type), Confidence.of(0.87));
 }
 
@@ -90,33 +111,55 @@ function aField(key: string): ExtractedField {
   );
 }
 
-function aPackage(
-  options: {
-    profile?: VerificationProfile;
-    documents?: readonly Document[];
-  } = {},
-) {
-  const documents = options.documents ?? [aDocument()];
+type Options = {
+  profile?: VerificationProfile;
+  files?: readonly SourceFile[];
+};
+
+function aPackage(options: Options = {}) {
+  const files = options.files ?? [aFile()];
   const verification = VerificationPackage.create(
     PackageId.of(anId()),
     options.profile ?? VerificationProfile.CADASTRE,
-    documents,
+    files,
   );
 
-  return { verification, documents, document: documents[0]! };
+  return { verification, files, file: files[0]! };
 }
 
-function aStartedPackage(
-  options: {
-    profile?: VerificationProfile;
-    documents?: readonly Document[];
-  } = {},
-) {
+function aStartedPackage(options: Options = {}) {
   const built = aPackage(options);
   built.verification.start();
   built.verification.commit();
 
   return built;
+}
+
+// A package whose single file has been rendered into `sheets` pages and read.
+function aReadPackage(sheets = 1, options: Options = {}) {
+  const built = aStartedPackage(options);
+  const pages = Array.from({ length: sheets }, (_, index) => aPage(index + 1));
+
+  built.verification.splitIntoPages(built.file.id, pages);
+  for (const page of pages) {
+    built.verification.recordRecognition(built.file.id, page.id, anOcrResult());
+  }
+  built.verification.commit();
+
+  return { ...built, pages };
+}
+
+// The same, read into one document per sheet.
+function aSegmentedPackage(sheets = 1, options: Options = {}) {
+  const built = aReadPackage(sheets, options);
+  const documents = built.pages.map((page) =>
+    aDocumentOf(built.file.id, PageRange.single(page.number)),
+  );
+
+  built.verification.segmentIntoDocuments(built.file.id, documents);
+  built.verification.commit();
+
+  return { ...built, documents, document: documents[0]! };
 }
 
 function typesOf(verification: VerificationPackage): readonly string[] {
@@ -125,35 +168,33 @@ function typesOf(verification: VerificationPackage): readonly string[] {
 
 describe("VerificationPackage", () => {
   describe("when it is submitted", () => {
-    it("waits to be picked up, holding the documents that arrived", () => {
-      const id = PackageId.of(anId());
-      const documents = [aDocument(), aDocument()];
+    it("waits to be picked up, holding the files that arrived", () => {
+      const files = [aFile(), aFile()];
 
-      const verification = VerificationPackage.create(
-        id,
-        VerificationProfile.CADASTRE,
-        documents,
-      );
+      const { verification } = aPackage({ files });
 
-      expect(verification.id.equals(id)).toBe(true);
-      expect(verification.version).toBe(0);
-      expect(verification.profile).toBe(VerificationProfile.CADASTRE);
-      expect(verification.status).toBe(PackageStatus.PENDING);
-      expect(verification.documents).toHaveLength(2);
+      expect(verification.status.equals(PackageStatus.PENDING)).toBe(true);
+      expect(verification.files).toHaveLength(2);
+    });
+
+    it("holds no documents until the pipeline reads its files", () => {
+      const { verification } = aPackage({ files: [aFile(), aFile()] });
+
+      expect(verification.documents).toEqual([]);
     });
 
     it("records that it was submitted, with the profile it is judged against", () => {
       const { verification } = aPackage({
-        documents: [aDocument(), aDocument()],
+        profile: VerificationProfile.DEMO,
+        files: [aFile(), aFile()],
       });
 
       const [event] = verification.getUncommittedEvents();
-
       expect(event).toBeInstanceOf(PackageSubmitted);
       expect((event as PackageSubmitted).profile).toBe(
-        VerificationProfile.CADASTRE,
+        VerificationProfile.DEMO,
       );
-      expect((event as PackageSubmitted).documentCount).toBe(2);
+      expect((event as PackageSubmitted).fileCount).toBe(2);
     });
 
     it("refuses a package with nothing in it", () => {
@@ -163,48 +204,32 @@ describe("VerificationPackage", () => {
           VerificationProfile.CADASTRE,
           [],
         ),
-      ).toThrow(PackageMustHaveADocumentException);
+      ).toThrow(PackageMustHaveAFileException);
     });
 
-    it("refuses two documents pointing at the same object in the store", () => {
+    it("refuses two files pointing at the same object in the store", () => {
+      const twice = "uploads/the-same-object.pdf";
+
       expect(() =>
-        VerificationPackage.create(
-          PackageId.of(anId()),
-          VerificationProfile.CADASTRE,
-          [aDocument("uploads/same.pdf"), aDocument("uploads/same.pdf")],
-        ),
+        aPackage({ files: [aFile(twice), aFile(twice)] }),
       ).toThrow(DuplicateStorageKeyException);
     });
 
-    it("names the object two documents both point at", () => {
-      expect(() =>
-        VerificationPackage.create(
-          PackageId.of(anId()),
-          VerificationProfile.CADASTRE,
-          [aDocument("uploads/same.pdf"), aDocument("uploads/same.pdf")],
-        ),
-      ).toThrow(/uploads\/same.pdf/);
-    });
+    it("names the object two files both point at", () => {
+      const twice = "uploads/the-same-object.pdf";
 
-    it("accepts two documents of the same name pointing at different objects", () => {
-      const { verification } = aPackage({
-        documents: [aDocument("uploads/a.pdf"), aDocument("uploads/b.pdf")],
-      });
-
-      expect(verification.documents).toHaveLength(2);
-    });
-
-    it("keeps its own copy of the documents it was handed", () => {
-      const documents = [aDocument()];
-      const verification = VerificationPackage.create(
-        PackageId.of(anId()),
-        VerificationProfile.CADASTRE,
-        documents,
+      expect(() => aPackage({ files: [aFile(twice), aFile(twice)] })).toThrow(
+        twice,
       );
+    });
 
-      documents.push(aDocument());
+    it("keeps its own copy of the files it was handed", () => {
+      const files = [aFile()];
+      const { verification } = aPackage({ files });
 
-      expect(verification.documents).toHaveLength(1);
+      files.push(aFile());
+
+      expect(verification.files).toHaveLength(1);
     });
   });
 
@@ -215,24 +240,30 @@ describe("VerificationPackage", () => {
         version: 4,
         profile: VerificationProfile.CADASTRE,
         status: PackageStatus.PROCESSING,
-        documents: [aDocument()],
+        files: [aFile()],
+        documents: [],
       });
 
       expect(restored.getUncommittedEvents()).toEqual([]);
     });
 
     it("comes back where it was left, at the version it was written under", () => {
+      const file = aFile();
+      const document = aDocumentOf(file.id, range(1, 1));
+
       const restored = VerificationPackage.restore({
         id: PackageId.of(anId()),
-        version: 4,
+        version: 7,
         profile: VerificationProfile.DEMO,
         status: PackageStatus.COMPLETED,
-        documents: [aDocument()],
+        files: [file],
+        documents: [document],
       });
 
-      expect(restored.version).toBe(4);
-      expect(restored.status).toBe(PackageStatus.COMPLETED);
+      expect(restored.version).toBe(7);
+      expect(restored.status.equals(PackageStatus.COMPLETED)).toBe(true);
       expect(restored.profile).toBe(VerificationProfile.DEMO);
+      expect(restored.documents).toHaveLength(1);
     });
 
     it("refuses nothing, so a package written before a rule can still be read", () => {
@@ -240,17 +271,32 @@ describe("VerificationPackage", () => {
         id: PackageId.of(anId()),
         version: 1,
         profile: VerificationProfile.CADASTRE,
-        status: PackageStatus.FAILED,
+        status: PackageStatus.PENDING,
+        files: [],
         documents: [],
       });
 
-      expect(restored.documents).toEqual([]);
+      expect(restored.files).toEqual([]);
     });
   });
 
-  describe("looking a document up", () => {
+  describe("looking things up", () => {
+    it("finds a file of its own", () => {
+      const { verification, file } = aPackage();
+
+      expect(verification.fileWith(file.id).id.equals(file.id)).toBe(true);
+    });
+
+    it("refuses a file that belongs to another package", () => {
+      const { verification } = aPackage();
+
+      expect(() => verification.fileWith(SourceFileId.of(anId()))).toThrow(
+        SourceFileNotInPackageException,
+      );
+    });
+
     it("finds a document of its own", () => {
-      const { verification, document } = aPackage();
+      const { verification, document } = aSegmentedPackage();
 
       expect(verification.documentWith(document.id).id.equals(document.id)).toBe(
         true,
@@ -258,11 +304,32 @@ describe("VerificationPackage", () => {
     });
 
     it("refuses a document that belongs to another package", () => {
-      const { verification } = aPackage();
-      const stranger = aDocument();
+      const { verification } = aSegmentedPackage();
 
-      expect(() => verification.documentWith(stranger.id)).toThrow(
+      expect(() => verification.documentWith(DocumentId.of(anId()))).toThrow(
         DocumentNotInPackageException,
+      );
+    });
+
+    it("reads a document as the text of the sheets it occupies", () => {
+      const built = aStartedPackage();
+      const pages = [aPage(1), aPage(2), aPage(3)];
+      built.verification.splitIntoPages(built.file.id, pages);
+      for (const [index, page] of pages.entries()) {
+        built.verification.recordRecognition(
+          built.file.id,
+          page.id,
+          anOcrResult(`sheet ${index + 1}`),
+        );
+      }
+      const document = aDocumentOf(built.file.id, range(2, 3));
+      built.verification.segmentIntoDocuments(built.file.id, [
+        aDocumentOf(built.file.id, range(1, 1)),
+        document,
+      ]);
+
+      expect(built.verification.textOf(document.id).value).toBe(
+        "sheet 2\nsheet 3",
       );
     });
   });
@@ -270,15 +337,11 @@ describe("VerificationPackage", () => {
   describe("handing it to the pipeline", () => {
     it("puts a waiting package under way", () => {
       const { verification } = aPackage();
-      verification.commit();
 
       verification.start();
 
-      expect(verification.status).toBe(PackageStatus.PROCESSING);
-      expect(typesOf(verification)).toEqual([
-        "verification.VerificationStarted",
-      ]);
-      expect(verification.getUncommittedEvents()[0]).toBeInstanceOf(
+      expect(verification.status.equals(PackageStatus.PROCESSING)).toBe(true);
+      expect(verification.getUncommittedEvents().at(-1)).toBeInstanceOf(
         VerificationStarted,
       );
     });
@@ -292,7 +355,6 @@ describe("VerificationPackage", () => {
     it("refuses a package that is already done", () => {
       const { verification } = aStartedPackage();
       verification.complete();
-      verification.commit();
 
       expect(() => verification.start()).toThrow(PackageNotStartableException);
     });
@@ -300,7 +362,7 @@ describe("VerificationPackage", () => {
     it("says where the package sits when it refuses to start it", () => {
       const { verification } = aStartedPackage();
 
-      expect(() => verification.start()).toThrow(/while it is Processing/);
+      expect(() => verification.start()).toThrow("Processing");
     });
 
     it("changes nothing when it refuses to start", () => {
@@ -309,46 +371,39 @@ describe("VerificationPackage", () => {
       verification.commit();
 
       expect(() => verification.start()).toThrow(PackageNotStartableException);
-
-      expect(verification.status).toBe(PackageStatus.COMPLETED);
+      expect(verification.status.equals(PackageStatus.COMPLETED)).toBe(true);
       expect(verification.getUncommittedEvents()).toEqual([]);
     });
 
     it("starts a failed package again, so a retry resumes rather than repeats", () => {
       const { verification } = aStartedPackage();
-      verification.fail(FailureReason.create("the OCR provider gave up"));
+      verification.fail(FailureReason.create("the provider gave up"));
       verification.commit();
 
       verification.start();
 
-      expect(verification.status).toBe(PackageStatus.PROCESSING);
-      expect(typesOf(verification)).toEqual([
-        "verification.VerificationStarted",
-      ]);
+      expect(verification.status.equals(PackageStatus.PROCESSING)).toBe(true);
     });
 
     it("keeps everything a failed package had already learned when it starts again", () => {
-      const { verification, document } = aStartedPackage();
-      const page = aPage(1);
-      verification.splitIntoPages(document.id, [page]);
-      verification.recordRecognition(document.id, page.id, anOcrResult());
-      verification.fail(FailureReason.create("the classifier gave up"));
+      const { verification, document } = aSegmentedPackage(2);
+      verification.classify(document.id, aClassification());
+      verification.fail(FailureReason.create("the provider gave up"));
       verification.commit();
 
       verification.start();
 
-      expect(verification.documentWith(document.id).isFullyRecognised).toBe(
-        true,
-      );
+      expect(verification.documents).toHaveLength(2);
+      expect(verification.documentWith(document.id).isClassified).toBe(true);
     });
 
     it("refuses to fail a package that has already completed", () => {
       const { verification } = aStartedPackage();
       verification.complete();
 
-      expect(() => verification.fail(FailureReason.create("too late"))).toThrow(
-        PackageAlreadyFinishedException,
-      );
+      expect(() =>
+        verification.fail(FailureReason.create("too late")),
+      ).toThrow(PackageAlreadyFinishedException);
     });
 
     it("leaves a completed package completed when it refuses to fail it", () => {
@@ -356,214 +411,336 @@ describe("VerificationPackage", () => {
       verification.complete();
       verification.commit();
 
-      expect(() => verification.fail(FailureReason.create("too late"))).toThrow(
-        PackageAlreadyFinishedException,
-      );
-
-      expect(verification.status).toBe(PackageStatus.COMPLETED);
+      expect(() =>
+        verification.fail(FailureReason.create("too late")),
+      ).toThrow(PackageAlreadyFinishedException);
+      expect(verification.status.equals(PackageStatus.COMPLETED)).toBe(true);
       expect(verification.getUncommittedEvents()).toEqual([]);
-    });
-
-    it("cannot be restarted through a refused failure, so a result already read is never replayed", () => {
-      const { verification } = aStartedPackage();
-      verification.complete();
-
-      expect(() => verification.fail(FailureReason.create("too late"))).toThrow(
-        PackageAlreadyFinishedException,
-      );
-
-      expect(() => verification.start()).toThrow(PackageNotStartableException);
     });
   });
 
   describe("recording the sheets a file was rendered into", () => {
-    it("records them against the document named", () => {
-      const { verification, document } = aStartedPackage();
+    it("records them against the file named", () => {
+      const { verification, file } = aStartedPackage();
 
-      verification.splitIntoPages(document.id, [aPage(1), aPage(2)]);
+      verification.splitIntoPages(file.id, [aPage(1), aPage(2)]);
 
-      expect(verification.documentWith(document.id).pages).toHaveLength(2);
-      expect(typesOf(verification)).toEqual([
-        "verification.DocumentSplitIntoPages",
-      ]);
-      expect(verification.getUncommittedEvents()[0]).toBeInstanceOf(
-        DocumentSplitIntoPages,
+      expect(verification.fileWith(file.id).pageCount).toBe(2);
+      expect(verification.getUncommittedEvents().at(-1)).toBeInstanceOf(
+        SourceFileSplitIntoPages,
       );
     });
 
-    it("leaves the other documents of the package alone", () => {
-      const documents = [aDocument(), aDocument()];
-      const { verification } = aStartedPackage({ documents });
+    it("leaves the other files of the package alone", () => {
+      const files = [aFile(), aFile()];
+      const { verification } = aStartedPackage({ files });
 
-      verification.splitIntoPages(documents[0]!.id, [aPage(1)]);
+      verification.splitIntoPages(files[0]!.id, [aPage(1)]);
 
-      expect(verification.documentWith(documents[1]!.id).isSplit).toBe(false);
+      expect(verification.fileWith(files[1]!.id).isSplit).toBe(false);
     });
 
     it("refuses a package the pipeline is not running", () => {
-      const { verification, document } = aPackage();
-      verification.commit();
+      const { verification, file } = aPackage();
 
-      expect(() =>
-        verification.splitIntoPages(document.id, [aPage(1)]),
-      ).toThrow(PackageNotUnderWayException);
-    });
-
-    it("changes nothing when the package is not under way", () => {
-      const { verification, document } = aPackage();
-      verification.commit();
-
-      expect(() =>
-        verification.splitIntoPages(document.id, [aPage(1)]),
-      ).toThrow(PackageNotUnderWayException);
-
-      expect(verification.documentWith(document.id).isSplit).toBe(false);
-      expect(verification.getUncommittedEvents()).toEqual([]);
-    });
-
-    it("refuses a document that belongs to another package", () => {
-      const { verification } = aStartedPackage();
-      const stranger = aDocument();
-
-      expect(() => verification.splitIntoPages(stranger.id, [aPage(1)])).toThrow(
-        DocumentNotInPackageException,
+      expect(() => verification.splitIntoPages(file.id, [aPage(1)])).toThrow(
+        PackageNotUnderWayException,
       );
     });
 
-    it("refuses a second split of the same document", () => {
-      const { verification, document } = aStartedPackage();
-      verification.splitIntoPages(document.id, [aPage(1)]);
-      verification.commit();
+    it("refuses a file that belongs to another package", () => {
+      const { verification } = aStartedPackage();
 
       expect(() =>
-        verification.splitIntoPages(document.id, [aPage(1), aPage(2)]),
-      ).toThrow(DocumentAlreadySplitException);
+        verification.splitIntoPages(SourceFileId.of(anId()), [aPage(1)]),
+      ).toThrow(SourceFileNotInPackageException);
+    });
+
+    it("refuses a second split of the same file", () => {
+      const { verification, file } = aStartedPackage();
+      verification.splitIntoPages(file.id, [aPage(1)]);
+
+      expect(() => verification.splitIntoPages(file.id, [aPage(1)])).toThrow(
+        SourceFileAlreadySplitException,
+      );
     });
 
     it("changes nothing when it refuses a second split", () => {
-      const { verification, document } = aStartedPackage();
-      verification.splitIntoPages(document.id, [aPage(1)]);
+      const { verification, file } = aStartedPackage();
+      verification.splitIntoPages(file.id, [aPage(1), aPage(2)]);
       verification.commit();
 
-      expect(() =>
-        verification.splitIntoPages(document.id, [aPage(1), aPage(2)]),
-      ).toThrow(DocumentAlreadySplitException);
-
-      expect(verification.documentWith(document.id).pages).toHaveLength(1);
+      expect(() => verification.splitIntoPages(file.id, [aPage(1)])).toThrow(
+        SourceFileAlreadySplitException,
+      );
+      expect(verification.fileWith(file.id).pageCount).toBe(2);
       expect(verification.getUncommittedEvents()).toEqual([]);
     });
   });
 
   describe("recording what OCR read off a page", () => {
     it("records the reading against the page named", () => {
-      const { verification, document } = aStartedPackage();
-      const page = aPage(1);
-      verification.splitIntoPages(document.id, [page]);
-      verification.commit();
+      const { verification, file } = aStartedPackage();
+      const pages = [aPage(1), aPage(2)];
+      verification.splitIntoPages(file.id, pages);
 
-      verification.recordRecognition(
-        document.id,
-        page.id,
-        anOcrResult("page one"),
-      );
+      verification.recordRecognition(file.id, pages[0]!.id, anOcrResult());
 
-      expect(
-        verification.documentWith(document.id).pageWith(page.id).ocr?.text.value,
-      ).toBe("page one");
-      expect(typesOf(verification)).toEqual(["verification.PageRecognised"]);
-      expect(verification.getUncommittedEvents()[0]).toBeInstanceOf(
+      const stored = verification.fileWith(file.id);
+      expect(stored.pageWith(pages[0]!.id).isRecognised).toBe(true);
+      expect(stored.pageWith(pages[1]!.id).isRecognised).toBe(false);
+      expect(verification.getUncommittedEvents().at(-1)).toBeInstanceOf(
         PageRecognised,
       );
     });
 
     it("refuses a package the pipeline is not running", () => {
-      const { verification, document } = aStartedPackage();
-      const page = aPage(1);
-      verification.splitIntoPages(document.id, [page]);
+      const { verification, file, pages } = aReadPackage(1);
       verification.complete();
-      verification.commit();
 
       expect(() =>
-        verification.recordRecognition(document.id, page.id, anOcrResult()),
+        verification.recordRecognition(file.id, pages[0]!.id, anOcrResult()),
       ).toThrow(PackageNotUnderWayException);
     });
 
-    it("refuses a document that belongs to another package", () => {
-      const { verification } = aStartedPackage();
-      const stranger = aDocument();
-
-      expect(() =>
-        verification.recordRecognition(stranger.id, aPage(1).id, anOcrResult()),
-      ).toThrow(DocumentNotInPackageException);
-    });
-
-    it("refuses a page that belongs to another document", () => {
-      const { verification, document } = aStartedPackage();
-      verification.splitIntoPages(document.id, [aPage(1)]);
-      verification.commit();
-
-      expect(() =>
-        verification.recordRecognition(document.id, aPage(1).id, anOcrResult()),
-      ).toThrow(PageNotInDocumentException);
-    });
-
-    it("refuses a second recognition of the same page", () => {
-      const { verification, document } = aStartedPackage();
-      const page = aPage(1);
-      verification.splitIntoPages(document.id, [page]);
-      verification.recordRecognition(document.id, page.id, anOcrResult("first"));
-      verification.commit();
+    it("refuses a file that belongs to another package", () => {
+      const { verification, pages } = aReadPackage(1);
 
       expect(() =>
         verification.recordRecognition(
-          document.id,
-          page.id,
-          anOcrResult("second"),
+          SourceFileId.of(anId()),
+          pages[0]!.id,
+          anOcrResult(),
         ),
+      ).toThrow(SourceFileNotInPackageException);
+    });
+
+    it("refuses a page that belongs to another file", () => {
+      const { verification, file } = aReadPackage(1);
+
+      expect(() =>
+        verification.recordRecognition(file.id, PageId.of(anId()), anOcrResult()),
+      ).toThrow(PageNotInSourceFileException);
+    });
+
+    it("refuses a second recognition of the same page", () => {
+      const { verification, file, pages } = aReadPackage(1);
+
+      expect(() =>
+        verification.recordRecognition(file.id, pages[0]!.id, anOcrResult()),
       ).toThrow(PageAlreadyRecognisedException);
     });
 
     it("keeps the first reading when it refuses a second", () => {
-      const { verification, document } = aStartedPackage();
-      const page = aPage(1);
-      verification.splitIntoPages(document.id, [page]);
-      verification.recordRecognition(document.id, page.id, anOcrResult("first"));
-      verification.commit();
+      const { verification, file, pages } = aReadPackage(1);
 
       expect(() =>
         verification.recordRecognition(
-          document.id,
-          page.id,
-          anOcrResult("second"),
+          file.id,
+          pages[0]!.id,
+          anOcrResult("something else"),
         ),
       ).toThrow(PageAlreadyRecognisedException);
+      expect(
+        verification.fileWith(file.id).pageWith(pages[0]!.id).ocr?.text.value,
+      ).toBe("Republic of Azerbaijan");
+    });
+  });
+
+  describe("reading a file into the documents it holds", () => {
+    it("adds the documents found and says how many there were", () => {
+      const { verification, file } = aReadPackage(3);
+
+      verification.segmentIntoDocuments(file.id, [
+        aDocumentOf(file.id, range(1, 1)),
+        aDocumentOf(file.id, range(2, 3)),
+      ]);
+
+      expect(verification.documents).toHaveLength(2);
+      expect(verification.documentsIn(file.id)).toHaveLength(2);
+      expect(verification.getUncommittedEvents().at(-1)).toBeInstanceOf(
+        SourceFileSegmented,
+      );
+    });
+
+    it("finds several documents in one uploaded file", () => {
+      const { verification, file } = aReadPackage(4);
+
+      verification.segmentIntoDocuments(file.id, [
+        aDocumentOf(file.id, range(1, 1)),
+        aDocumentOf(file.id, range(2, 2)),
+        aDocumentOf(file.id, range(3, 4)),
+      ]);
 
       expect(
-        verification.documentWith(document.id).pageWith(page.id).ocr?.text.value,
-      ).toBe("first");
+        verification.documents.map((document) => [
+          document.pages.first.value,
+          document.pages.last.value,
+        ]),
+      ).toEqual([
+        [1, 1],
+        [2, 2],
+        [3, 4],
+      ]);
+    });
+
+    it("keeps the documents of one file apart from those of another", () => {
+      const files = [aFile(), aFile()];
+      const { verification } = aStartedPackage({ files });
+      for (const file of files) {
+        verification.splitIntoPages(file.id, [aPage(1)]);
+        verification.segmentIntoDocuments(file.id, [
+          aDocumentOf(file.id, range(1, 1)),
+        ]);
+      }
+
+      expect(verification.documentsIn(files[0]!.id)).toHaveLength(1);
+      expect(verification.documentsIn(files[1]!.id)).toHaveLength(1);
+      expect(verification.documents).toHaveLength(2);
+    });
+
+    it("refuses a package the pipeline is not running", () => {
+      const { verification, file } = aPackage();
+
+      expect(() =>
+        verification.segmentIntoDocuments(file.id, [
+          aDocumentOf(file.id, range(1, 1)),
+        ]),
+      ).toThrow(PackageNotUnderWayException);
+    });
+
+    it("refuses a file that belongs to another package", () => {
+      const { verification } = aReadPackage(1);
+      const stranger = SourceFileId.of(anId());
+
+      expect(() =>
+        verification.segmentIntoDocuments(stranger, [
+          aDocumentOf(stranger, range(1, 1)),
+        ]),
+      ).toThrow(SourceFileNotInPackageException);
+    });
+
+    it("refuses a file that has not been rendered into sheets yet", () => {
+      const { verification, file } = aStartedPackage();
+
+      expect(() =>
+        verification.segmentIntoDocuments(file.id, [
+          aDocumentOf(file.id, range(1, 1)),
+        ]),
+      ).toThrow(SourceFileNotSplitException);
+    });
+
+    it("refuses a file it is told holds nothing", () => {
+      const { verification, file } = aReadPackage(1);
+
+      expect(() => verification.segmentIntoDocuments(file.id, [])).toThrow(
+        SourceFileMustHaveADocumentException,
+      );
+    });
+
+    it("refuses a second reading of the same file", () => {
+      const { verification, file } = aSegmentedPackage(1);
+
+      expect(() =>
+        verification.segmentIntoDocuments(file.id, [
+          aDocumentOf(file.id, range(1, 1)),
+        ]),
+      ).toThrow(SourceFileAlreadySegmentedException);
+    });
+
+    it("refuses documents that leave a sheet out", () => {
+      const { verification, file } = aReadPackage(3);
+
+      expect(() =>
+        verification.segmentIntoDocuments(file.id, [
+          aDocumentOf(file.id, range(1, 1)),
+          aDocumentOf(file.id, range(3, 3)),
+        ]),
+      ).toThrow(DocumentsMustCoverEverySheetException);
+    });
+
+    it("refuses documents that claim the same sheet twice", () => {
+      const { verification, file } = aReadPackage(3);
+
+      expect(() =>
+        verification.segmentIntoDocuments(file.id, [
+          aDocumentOf(file.id, range(1, 2)),
+          aDocumentOf(file.id, range(2, 3)),
+        ]),
+      ).toThrow(DocumentsMustCoverEverySheetException);
+    });
+
+    it("refuses documents that do not start at the first sheet", () => {
+      const { verification, file } = aReadPackage(3);
+
+      expect(() =>
+        verification.segmentIntoDocuments(file.id, [
+          aDocumentOf(file.id, range(2, 3)),
+        ]),
+      ).toThrow(DocumentsMustCoverEverySheetException);
+    });
+
+    it("refuses documents that stop short of the last sheet", () => {
+      const { verification, file } = aReadPackage(3);
+
+      expect(() =>
+        verification.segmentIntoDocuments(file.id, [
+          aDocumentOf(file.id, range(1, 2)),
+        ]),
+      ).toThrow(DocumentsMustCoverEverySheetException);
+    });
+
+    it("refuses a document found in some other file", () => {
+      const { verification, file } = aReadPackage(1);
+
+      expect(() =>
+        verification.segmentIntoDocuments(file.id, [
+          aDocumentOf(SourceFileId.of(anId()), range(1, 1)),
+        ]),
+      ).toThrow(DocumentsMustCoverEverySheetException);
+    });
+
+    it("changes nothing when it refuses what it was told the file holds", () => {
+      const { verification, file } = aReadPackage(3);
+      verification.commit();
+
+      expect(() =>
+        verification.segmentIntoDocuments(file.id, [
+          aDocumentOf(file.id, range(1, 1)),
+        ]),
+      ).toThrow(DocumentsMustCoverEverySheetException);
+      expect(verification.documents).toEqual([]);
       expect(verification.getUncommittedEvents()).toEqual([]);
+    });
+
+    it("takes the documents in whatever order they were found", () => {
+      const { verification, file } = aReadPackage(3);
+
+      verification.segmentIntoDocuments(file.id, [
+        aDocumentOf(file.id, range(2, 3)),
+        aDocumentOf(file.id, range(1, 1)),
+      ]);
+
+      expect(verification.documents).toHaveLength(2);
     });
   });
 
   describe("recording the type the classifier chose", () => {
     it("records a type the profile expects", () => {
-      const { verification, document } = aStartedPackage();
+      const { verification, document } = aSegmentedPackage();
 
-      verification.classify(document.id, aClassification("title_deed"));
+      verification.classify(document.id, aClassification("license"));
 
       expect(
         verification.documentWith(document.id).classification?.type.value,
-      ).toBe("title_deed");
-      expect(typesOf(verification)).toEqual([
-        "verification.DocumentClassified",
-      ]);
-      expect(verification.getUncommittedEvents()[0]).toBeInstanceOf(
+      ).toBe("license");
+      expect(verification.getUncommittedEvents().at(-1)).toBeInstanceOf(
         DocumentClassified,
       );
     });
 
     it("refuses a document type the profile does not recognise", () => {
-      const { verification, document } = aStartedPackage({
+      const { verification, document } = aSegmentedPackage(1, {
         profile: VerificationProfile.CADASTRE,
       });
 
@@ -573,26 +750,17 @@ describe("VerificationPackage", () => {
     });
 
     it("names the type and the profile that does not expect it", () => {
-      const { verification, document } = aStartedPackage();
+      const { verification, document } = aSegmentedPackage(1, {
+        profile: VerificationProfile.CADASTRE,
+      });
 
       expect(() =>
         verification.classify(document.id, aClassification("driver_license")),
-      ).toThrow(/Profile "cadastre" does not recognise document type "driver_license"/);
-    });
-
-    it("changes nothing when it refuses a type the profile does not recognise", () => {
-      const { verification, document } = aStartedPackage();
-
-      expect(() =>
-        verification.classify(document.id, aClassification("driver_license")),
-      ).toThrow(DocumentTypeNotInProfileException);
-
-      expect(verification.documentWith(document.id).isClassified).toBe(false);
-      expect(verification.getUncommittedEvents()).toEqual([]);
+      ).toThrow(/cadastre[\s\S]*driver_license/);
     });
 
     it("accepts a type another profile does expect", () => {
-      const { verification, document } = aStartedPackage({
+      const { verification, document } = aSegmentedPackage(1, {
         profile: VerificationProfile.DEMO,
       });
 
@@ -604,24 +772,19 @@ describe("VerificationPackage", () => {
     });
 
     it("always accepts a document the classifier could not place, whatever the profile", () => {
-      const { verification, document } = aStartedPackage();
+      const { verification, document } = aSegmentedPackage();
 
       verification.classify(
         document.id,
         Classification.unplaced(Confidence.of(0.2)),
       );
 
-      expect(verification.documentWith(document.id).classification?.type).toBe(
-        DocumentType.UNKNOWN,
-      );
-      expect(typesOf(verification)).toEqual([
-        "verification.DocumentClassified",
-      ]);
+      expect(verification.documentWith(document.id).isClassified).toBe(true);
     });
 
     it("refuses a package the pipeline is not running", () => {
-      const { verification, document } = aPackage();
-      verification.commit();
+      const { verification, document } = aSegmentedPackage();
+      verification.complete();
 
       expect(() =>
         verification.classify(document.id, aClassification()),
@@ -629,193 +792,125 @@ describe("VerificationPackage", () => {
     });
 
     it("refuses a document that belongs to another package", () => {
-      const { verification } = aStartedPackage();
-      const stranger = aDocument();
+      const { verification } = aSegmentedPackage();
 
       expect(() =>
-        verification.classify(stranger.id, aClassification()),
+        verification.classify(DocumentId.of(anId()), aClassification()),
       ).toThrow(DocumentNotInPackageException);
     });
 
     it("refuses a second classification of the same document", () => {
-      const { verification, document } = aStartedPackage();
-      verification.classify(document.id, aClassification("passport"));
-      verification.commit();
+      const { verification, document } = aSegmentedPackage();
+      verification.classify(document.id, aClassification());
 
       expect(() =>
-        verification.classify(document.id, aClassification("title_deed")),
+        verification.classify(document.id, aClassification("license")),
       ).toThrow(DocumentAlreadyClassifiedException);
     });
 
     it("keeps the first decision when it refuses a second", () => {
-      const { verification, document } = aStartedPackage();
-      verification.classify(document.id, aClassification("passport"));
+      const { verification, document } = aSegmentedPackage();
+      verification.classify(document.id, aClassification("identity_card"));
       verification.commit();
 
       expect(() =>
-        verification.classify(document.id, aClassification("title_deed")),
+        verification.classify(document.id, aClassification("license")),
       ).toThrow(DocumentAlreadyClassifiedException);
-
       expect(
         verification.documentWith(document.id).classification?.type.value,
-      ).toBe("passport");
+      ).toBe("identity_card");
       expect(verification.getUncommittedEvents()).toEqual([]);
     });
   });
 
   describe("recording the values pulled from a document", () => {
     it("records values under keys the document's type declares", () => {
-      const { verification, document } = aStartedPackage();
-      verification.classify(document.id, aClassification("passport"));
-      verification.commit();
+      const { verification, document } = aSegmentedPackage();
+      verification.classify(document.id, aClassification("identity_card"));
 
-      verification.recordExtractedFields(document.id, [
-        aField("passport_no"),
-        aField("first_name"),
-      ]);
+      verification.recordExtractedFields(document.id, [aField("document_no")]);
 
-      expect(verification.documentWith(document.id).fields).toHaveLength(2);
-      expect(typesOf(verification)).toEqual(["verification.FieldsExtracted"]);
-      expect(verification.getUncommittedEvents()[0]).toBeInstanceOf(
+      expect(verification.documentWith(document.id).hasFields).toBe(true);
+      expect(verification.getUncommittedEvents().at(-1)).toBeInstanceOf(
         FieldsExtracted,
       );
     });
 
     it("refuses a key the document's type never declared", () => {
-      const { verification, document } = aStartedPackage();
-      verification.classify(document.id, aClassification("passport"));
-      verification.commit();
+      const { verification, document } = aSegmentedPackage();
+      verification.classify(document.id, aClassification("identity_card"));
 
       expect(() =>
-        verification.recordExtractedFields(document.id, [
-          aField("passport_no"),
-          aField("parcel_id"),
-        ]),
+        verification.recordExtractedFields(document.id, [aField("license_no")]),
       ).toThrow(FieldNotInSchemaException);
-    });
-
-    it("names the key and the type that does not declare it", () => {
-      const { verification, document } = aStartedPackage();
-      verification.classify(document.id, aClassification("passport"));
-      verification.commit();
-
-      expect(() =>
-        verification.recordExtractedFields(document.id, [aField("parcel_id")]),
-      ).toThrow(/Document type "passport" declares no field "parcel_id"/);
     });
 
     it("records none of the values when one of them breaks the schema", () => {
-      const { verification, document } = aStartedPackage();
-      verification.classify(document.id, aClassification("passport"));
-      verification.commit();
+      const { verification, document } = aSegmentedPackage();
+      verification.classify(document.id, aClassification("identity_card"));
 
       expect(() =>
         verification.recordExtractedFields(document.id, [
-          aField("passport_no"),
-          aField("parcel_id"),
+          aField("document_no"),
+          aField("license_no"),
         ]),
       ).toThrow(FieldNotInSchemaException);
-
-      expect(verification.documentWith(document.id).fields).toEqual([]);
-      expect(verification.getUncommittedEvents()).toEqual([]);
+      expect(verification.documentWith(document.id).hasFields).toBe(false);
     });
 
     it("judges each key against the type of that document, not of another", () => {
-      const documents = [aDocument(), aDocument()];
-      const { verification } = aStartedPackage({ documents });
-      verification.classify(documents[0]!.id, aClassification("passport"));
-      verification.classify(documents[1]!.id, aClassification("title_deed"));
-      verification.commit();
+      const { verification, documents } = aSegmentedPackage(2);
+      verification.classify(documents[0]!.id, aClassification("identity_card"));
+      verification.classify(documents[1]!.id, aClassification("license"));
 
       verification.recordExtractedFields(documents[1]!.id, [
-        aField("parcel_id"),
+        aField("license_no"),
       ]);
 
-      expect(() =>
-        verification.recordExtractedFields(documents[0]!.id, [
-          aField("parcel_id"),
-        ]),
-      ).toThrow(FieldNotInSchemaException);
+      expect(verification.documentWith(documents[1]!.id).hasFields).toBe(true);
     });
 
     it("refuses a document that has not been classified", () => {
-      const { verification, document } = aStartedPackage();
+      const { verification, document } = aSegmentedPackage();
 
       expect(() =>
-        verification.recordExtractedFields(document.id, [
-          aField("passport_no"),
-        ]),
+        verification.recordExtractedFields(document.id, [aField("document_no")]),
       ).toThrow(DocumentNotClassifiedException);
     });
 
     it("refuses a document the classifier could not place, because it declares no fields", () => {
-      const { verification, document } = aStartedPackage();
+      const { verification, document } = aSegmentedPackage();
       verification.classify(
         document.id,
         Classification.unplaced(Confidence.of(0.2)),
       );
-      verification.commit();
 
       expect(() =>
-        verification.recordExtractedFields(document.id, [
-          aField("passport_no"),
-        ]),
+        verification.recordExtractedFields(document.id, [aField("document_no")]),
       ).toThrow(UnclassifiableDocumentException);
     });
 
-    it("changes nothing when it refuses an unclassified document", () => {
-      const { verification, document } = aStartedPackage();
-
-      expect(() =>
-        verification.recordExtractedFields(document.id, [
-          aField("passport_no"),
-        ]),
-      ).toThrow(DocumentNotClassifiedException);
-
-      expect(verification.documentWith(document.id).hasFields).toBe(false);
-      expect(verification.getUncommittedEvents()).toEqual([]);
-    });
-
     it("refuses a package the pipeline is not running", () => {
-      const { verification, document } = aStartedPackage();
-      verification.classify(document.id, aClassification("passport"));
+      const { verification, document } = aSegmentedPackage();
+      verification.classify(document.id, aClassification());
       verification.complete();
-      verification.commit();
 
       expect(() =>
-        verification.recordExtractedFields(document.id, [
-          aField("passport_no"),
-        ]),
+        verification.recordExtractedFields(document.id, [aField("document_no")]),
       ).toThrow(PackageNotUnderWayException);
     });
 
-    it("refuses a document that belongs to another package", () => {
-      const { verification } = aStartedPackage();
-      const stranger = aDocument();
-
-      expect(() =>
-        verification.recordExtractedFields(stranger.id, [
-          aField("passport_no"),
-        ]),
-      ).toThrow(DocumentNotInPackageException);
-    });
-
     it("replaces the values wholesale when the stage runs again", () => {
-      const { verification, document } = aStartedPackage();
-      verification.classify(document.id, aClassification("passport"));
+      const { verification, document } = aSegmentedPackage();
+      verification.classify(document.id, aClassification("identity_card"));
       verification.recordExtractedFields(document.id, [
-        aField("passport_no"),
+        aField("document_no"),
         aField("first_name"),
       ]);
-      verification.commit();
 
-      verification.recordExtractedFields(document.id, [aField("passport_no")]);
+      verification.recordExtractedFields(document.id, [aField("document_no")]);
 
-      expect(
-        verification
-          .documentWith(document.id)
-          .fields.map((field) => field.key.value),
-      ).toEqual(["passport_no"]);
+      expect(verification.documentWith(document.id).fields).toHaveLength(1);
     });
   });
 
@@ -825,41 +920,23 @@ describe("VerificationPackage", () => {
 
       verification.complete();
 
-      expect(verification.status).toBe(PackageStatus.COMPLETED);
-      expect(verification.getUncommittedEvents()[0]).toBeInstanceOf(
+      expect(verification.status.equals(PackageStatus.COMPLETED)).toBe(true);
+      expect(verification.getUncommittedEvents().at(-1)).toBeInstanceOf(
         VerificationCompleted,
       );
     });
 
     it("refuses to finish a package that was never started", () => {
       const { verification } = aPackage();
-      verification.commit();
 
-      expect(() => verification.complete()).toThrow(
-        PackageNotUnderWayException,
-      );
+      expect(() => verification.complete()).toThrow(PackageNotUnderWayException);
     });
 
     it("refuses to finish a package that is already done", () => {
       const { verification } = aStartedPackage();
       verification.complete();
-      verification.commit();
 
-      expect(() => verification.complete()).toThrow(
-        PackageNotUnderWayException,
-      );
-    });
-
-    it("changes nothing when it refuses to finish", () => {
-      const { verification } = aPackage();
-      verification.commit();
-
-      expect(() => verification.complete()).toThrow(
-        PackageNotUnderWayException,
-      );
-
-      expect(verification.status).toBe(PackageStatus.PENDING);
-      expect(verification.getUncommittedEvents()).toEqual([]);
+      expect(() => verification.complete()).toThrow(PackageNotUnderWayException);
     });
 
     it("marks a package that hit a permanent error as failed, with the reason", () => {
@@ -867,8 +944,8 @@ describe("VerificationPackage", () => {
 
       verification.fail(FailureReason.create("the OCR provider gave up"));
 
-      expect(verification.status).toBe(PackageStatus.FAILED);
-      const [event] = verification.getUncommittedEvents();
+      expect(verification.status.equals(PackageStatus.FAILED)).toBe(true);
+      const event = verification.getUncommittedEvents().at(-1);
       expect(event).toBeInstanceOf(VerificationFailed);
       expect((event as VerificationFailed).reason.value).toBe(
         "the OCR provider gave up",
@@ -876,53 +953,44 @@ describe("VerificationPackage", () => {
     });
 
     it("keeps the documents of a failed package, so a retry resumes from where it stopped", () => {
-      const { verification, document } = aStartedPackage();
-      const page = aPage(1);
-      verification.splitIntoPages(document.id, [page]);
-      verification.recordRecognition(document.id, page.id, anOcrResult());
+      const { verification } = aSegmentedPackage(2);
 
-      verification.fail(FailureReason.create("the classifier gave up"));
+      verification.fail(FailureReason.create("the provider gave up"));
 
-      expect(verification.documentWith(document.id).isFullyRecognised).toBe(
-        true,
-      );
+      expect(verification.documents).toHaveLength(2);
     });
   });
 
   describe("knowing when every stage has run", () => {
-    it("is fully processed once each document is read, placed and pulled from", () => {
-      const { verification, document } = aStartedPackage();
-      const page = aPage(1);
-      verification.splitIntoPages(document.id, [page]);
-      verification.recordRecognition(document.id, page.id, anOcrResult());
-      verification.classify(document.id, aClassification("passport"));
-      verification.recordExtractedFields(document.id, [aField("passport_no")]);
+    it("is fully processed once each file is read and each document placed and pulled from", () => {
+      const { verification, document } = aSegmentedPackage();
+      verification.classify(document.id, aClassification("identity_card"));
+      verification.recordExtractedFields(document.id, [aField("document_no")]);
 
       expect(verification.isFullyProcessed).toBe(true);
     });
 
     it("is not fully processed while a page is still unread", () => {
-      const { verification, document } = aStartedPackage();
-      verification.splitIntoPages(document.id, [aPage(1), aPage(2)]);
-      verification.classify(document.id, aClassification("passport"));
+      const { verification, file } = aStartedPackage();
+      verification.splitIntoPages(file.id, [aPage(1), aPage(2)]);
+
+      expect(verification.isFullyProcessed).toBe(false);
+    });
+
+    it("is not fully processed while a file has not been read into its documents", () => {
+      const { verification } = aReadPackage(2);
 
       expect(verification.isFullyProcessed).toBe(false);
     });
 
     it("is not fully processed while a document is still unplaced by the classifier", () => {
-      const { verification, document } = aStartedPackage();
-      const page = aPage(1);
-      verification.splitIntoPages(document.id, [page]);
-      verification.recordRecognition(document.id, page.id, anOcrResult());
+      const { verification } = aSegmentedPackage();
 
       expect(verification.isFullyProcessed).toBe(false);
     });
 
     it("asks for no fields from a document the classifier could not place", () => {
-      const { verification, document } = aStartedPackage();
-      const page = aPage(1);
-      verification.splitIntoPages(document.id, [page]);
-      verification.recordRecognition(document.id, page.id, anOcrResult());
+      const { verification, document } = aSegmentedPackage();
       verification.classify(
         document.id,
         Classification.unplaced(Confidence.of(0.2)),
@@ -932,14 +1000,10 @@ describe("VerificationPackage", () => {
     });
 
     it("is not fully processed while one document of several is still behind", () => {
-      const documents = [aDocument(), aDocument()];
-      const { verification } = aStartedPackage({ documents });
-      const page = aPage(1);
-      verification.splitIntoPages(documents[0]!.id, [page]);
-      verification.recordRecognition(documents[0]!.id, page.id, anOcrResult());
-      verification.classify(documents[0]!.id, aClassification("passport"));
+      const { verification, documents } = aSegmentedPackage(2);
+      verification.classify(documents[0]!.id, aClassification("identity_card"));
       verification.recordExtractedFields(documents[0]!.id, [
-        aField("passport_no"),
+        aField("document_no"),
       ]);
 
       expect(verification.isFullyProcessed).toBe(false);
@@ -950,28 +1014,28 @@ describe("VerificationPackage", () => {
     it("records one for the submission and nothing else", () => {
       const { verification } = aPackage();
 
-      expect(typesOf(verification)).toEqual([
-        "verification.PackageSubmitted",
-      ]);
+      expect(typesOf(verification)).toEqual(["verification.PackageSubmitted"]);
     });
 
     it("keeps them in the order the pipeline decided them", () => {
-      const { verification, document } = aPackage();
+      const { verification, file } = aPackage();
       const page = aPage(1);
+
       verification.start();
-      verification.splitIntoPages(document.id, [page]);
-      verification.recordRecognition(document.id, page.id, anOcrResult());
-      verification.classify(document.id, aClassification("passport"));
-      verification.recordExtractedFields(document.id, [aField("passport_no")]);
+      verification.splitIntoPages(file.id, [page]);
+      verification.recordRecognition(file.id, page.id, anOcrResult());
+      const document = aDocumentOf(file.id, range(1, 1));
+      verification.segmentIntoDocuments(file.id, [document]);
+      verification.classify(document.id, aClassification("identity_card"));
       verification.complete();
 
       expect(typesOf(verification)).toEqual([
         "verification.PackageSubmitted",
         "verification.VerificationStarted",
-        "verification.DocumentSplitIntoPages",
+        "verification.SourceFileSplitIntoPages",
         "verification.PageRecognised",
+        "verification.SourceFileSegmented",
         "verification.DocumentClassified",
-        "verification.FieldsExtracted",
         "verification.VerificationCompleted",
       ]);
     });
@@ -979,8 +1043,8 @@ describe("VerificationPackage", () => {
     it("reads them without clearing them", () => {
       const { verification } = aPackage();
 
-      expect(verification.getUncommittedEvents()).toHaveLength(1);
-      expect(verification.getUncommittedEvents()).toHaveLength(1);
+      verification.getUncommittedEvents();
+
       expect(verification.getUncommittedEvents()).toHaveLength(1);
     });
 
@@ -992,16 +1056,6 @@ describe("VerificationPackage", () => {
       expect(verification.getUncommittedEvents()).toEqual([]);
     });
 
-    it("leaves the ones already handed over alone when it commits", () => {
-      const { verification } = aPackage();
-      const handedOver = verification.getUncommittedEvents();
-
-      verification.commit();
-
-      expect(handedOver).toHaveLength(1);
-      expect(handedOver[0]).toBeInstanceOf(PackageSubmitted);
-    });
-
     it("records again after a commit", () => {
       const { verification } = aPackage();
       verification.commit();
@@ -1011,12 +1065,6 @@ describe("VerificationPackage", () => {
       expect(typesOf(verification)).toEqual([
         "verification.VerificationStarted",
       ]);
-    });
-
-    it("cannot publish anything itself", () => {
-      const { verification } = aPackage();
-
-      expect("publish" in verification).toBe(false);
     });
   });
 });

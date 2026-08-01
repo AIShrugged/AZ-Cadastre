@@ -38,7 +38,7 @@ describe("OcrProviderAdapter", () => {
   });
 
   it("reads the same text and the same confidence off a page however often it is asked", async () => {
-    const key = `${anId()}/passport.png`;
+    const key = `${anId()}/vesiqe.png`;
 
     const first = await recognise(key);
     const second = await recognise(key);
@@ -47,76 +47,87 @@ describe("OcrProviderAdapter", () => {
     expect(second.confidence.equals(first.confidence)).toBe(true);
   });
 
-  it("reads a passport page as a passport", async () => {
-    const result = await recognise(`${anId()}/passport-scan.png`);
+  it("reads an identity card page as an identity card", async () => {
+    const result = await recognise(`${anId()}/vesiqe-scan.png`);
 
-    expect(result.text.value).toContain("PASSPORT");
-    expect(result.text.value).toContain("Passport No: AZE1234567");
+    expect(result.text.value).toContain("ŞƏXSİYYƏT VƏSİQƏSİ");
+    expect(result.text.value).toContain("Vəsiqə No: AZE1234567");
   });
 
-  it("reads a sheet rendered off a PDF as the document it came out of, not as a numbered page", async () => {
-    const result = await recognise(
-      `${anId()}/passport.pdf/pages/page_002.png`,
-    );
+  it("reads a sheet rendered off a PDF as the file it came out of, not as a numbered page", async () => {
+    const result = await recognise(`${anId()}/vesiqe.pdf/pages/page_002.png`);
 
-    expect(result.text.value).toContain("PASSPORT");
+    expect(result.text.value).toContain("ŞƏXSİYYƏT VƏSİQƏSİ");
   });
 
-  it("gives two sheets of one PDF their own confidences, so a document does not read as one page", async () => {
-    const document = `${anId()}/passport.pdf`;
+  it("gives two sheets of one PDF their own confidences, so a file does not read as one page", async () => {
+    const file = `${anId()}/vesiqe.pdf`;
 
-    const first = await recognise(`${document}/pages/page_001.png`);
-    const second = await recognise(`${document}/pages/page_002.png`);
+    const first = await recognise(`${file}/pages/page_001.png`);
+    const second = await recognise(`${file}/pages/page_002.png`);
 
     expect(second.confidence.equals(first.confidence)).toBe(false);
   });
 
-  it("reads a driver licence page as a driver licence, however the word was spelled", async () => {
-    const license = await recognise(`${anId()}/license.png`);
-    const licence = await recognise(`${anId()}/licence.png`);
-    const driver = await recognise(`${anId()}/driver.png`);
+  it("reads a licence page as a licence, however the word was spelled", async () => {
+    const azeri = await recognise(`${anId()}/lisenziya.png`);
+    const english = await recognise(`${anId()}/license.png`);
+    const british = await recognise(`${anId()}/licence.png`);
 
-    for (const result of [license, licence, driver]) {
-      expect(result.text.value).toContain("DRIVER LICENSE");
+    for (const result of [azeri, english, british]) {
+      expect(result.text.value).toContain("LİSENZİYA");
+      expect(result.text.value).toContain("Lisenziya No: AZ-LIC-2019-4471");
     }
   });
 
-  it("reads an application form as an application form, mentioning the documents it cites", async () => {
-    const result = await recognise(`${anId()}/application.pdf.png`);
+  it("reads an annex as the annex and not as the licence it belongs to", async () => {
+    const result = await recognise(`${anId()}/lisenziya-elave.png`);
 
-    expect(result.text.value).toContain("APPLICATION FORM");
-    expect(result.text.value).toContain("Passport No: AZE1234567");
+    expect(result.text.value).toContain("LİSENZİYAYA ƏLAVƏ");
+    expect(result.text.value).toContain("Əlavə No: 1");
   });
 
-  it("reads a title deed as a title deed", async () => {
-    const result = await recognise(`${anId()}/title-deed.png`);
+  it("reads a registration application as one, mentioning the documents it cites", async () => {
+    const result = await recognise(`${anId()}/qeydiyyat-erize.pdf.png`);
 
-    expect(result.text.value).toContain("TITLE DEED");
-    expect(result.text.value).toContain("Parcel ID: AZ-CAD-1024-311");
+    expect(result.text.value).toContain("DÖVLƏT QEYDİYYATI HAQQINDA ƏRİZƏ");
+    expect(result.text.value).toContain("Şəxsiyyət vəsiqəsi No: AZE1234567");
   });
 
-  it("reads a cadastral extract as a cadastral extract", async () => {
-    const result = await recognise(`${anId()}/cadastral-extract.png`);
+  it("tells the notification-procedure application apart from the registration one", async () => {
+    const result = await recognise(`${anId()}/bildiris-erize.png`);
 
-    expect(result.text.value).toContain("CADASTRAL EXTRACT");
+    expect(result.text.value).toContain("BİLDİRİŞ İCRAATI QAYDASINDA ƏRİZƏ");
+  });
+
+  it("reads an architectural plan as an architectural plan", async () => {
+    const result = await recognise(`${anId()}/memarliq-hell.png`);
+
+    expect(result.text.value).toContain("MEMARLIQ-PLANLAŞDIRMA HƏLLİ");
+    expect(result.text.value).toContain("Kadastr nömrəsi: AZ-CAD-1024-311");
   });
 
   it("gives each persona its own text, so a package of different files does not read alike", async () => {
     const folder = anId();
 
     const texts = await Promise.all(
-      ["passport.png", "license.png", "application.png", "deed.png", "cadastre.png"].map(
-        (filename) => recognise(`${folder}/${filename}`),
-      ),
+      [
+        "qeydiyyat.png",
+        "vesiqe.png",
+        "bildiris.png",
+        "memarliq.png",
+        "lisenziya.png",
+        "lisenziya-elave.png",
+      ].map((filename) => recognise(`${folder}/${filename}`)),
     );
 
-    expect(new Set(texts.map((result) => result.text.value)).size).toBe(5);
+    expect(new Set(texts.map((result) => result.text.value)).size).toBe(6);
   });
 
   it("falls back to a page that names itself when the filename says nothing about the type", async () => {
     const result = await recognise(`${anId()}/scan-0001.png`);
 
-    expect(result.text.value).toContain("DOCUMENT");
+    expect(result.text.value).toContain("SƏNƏD");
     expect(result.text.value).toContain("scan-0001.png");
     expect(result.text.value).toContain("no distinguishing text recognised");
   });
@@ -167,8 +178,8 @@ describe("OcrProviderAdapter", () => {
     expect(first.text.equals(second.text)).toBe(false);
   });
 
-  it("reads the same page the same way whatever format the source document was", async () => {
-    const key = `${anId()}/passport.png`;
+  it("reads the same page the same way whatever format the source file was", async () => {
+    const key = `${anId()}/vesiqe.png`;
 
     const fromPdf = await recognise(key, ContentType.PDF);
     const fromImage = await recognise(key, ContentType.PNG);
@@ -177,8 +188,8 @@ describe("OcrProviderAdapter", () => {
   });
 
   it("reads a key with no folder in it off the key itself", async () => {
-    const result = await recognise("passport.png");
+    const result = await recognise("vesiqe.png");
 
-    expect(result.text.value).toContain("PASSPORT");
+    expect(result.text.value).toContain("ŞƏXSİYYƏT VƏSİQƏSİ");
   });
 });

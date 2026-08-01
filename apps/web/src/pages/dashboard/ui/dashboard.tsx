@@ -120,10 +120,11 @@ function Findings({ p }: { p: VerificationPackage }) {
 }
 
 // ─── Documents cell ─────────────────────────────────────────────────────────
-// Detected against what the governing profile expects. `expected` is null when
+// Placed against what the governing profile expects. `expected` is null when
 // the engine named no such profile — this build has never heard of the policy
-// this package was opened under — so the cell reports what it knows (documents
-// placed, out of documents attached) rather than inventing a total.
+// this package was opened under — so the cell reports what it knows rather than
+// inventing a total: the documents the engine found inside the uploaded files,
+// or, before it has read them, the number of files themselves.
 function Documents({
   p,
   expected,
@@ -131,8 +132,8 @@ function Documents({
   p: VerificationPackage
   expected: number | null
 }) {
-  const total = expected ?? p.docsAttached
-  const short = p.docsDetected < total
+  const total = expected ?? (p.docsFound || p.filesAttached)
+  const short = p.docsClassified < total
   return (
     <span
       data-mono
@@ -141,7 +142,7 @@ function Documents({
         short ? "text-incomplete-ink" : "text-foreground/80",
       )}
     >
-      {p.docsDetected}/{total}
+      {p.docsClassified}/{total}
     </span>
   )
 }
@@ -319,8 +320,9 @@ function RegisterEntries({
                 <span>
                   {t("col.documents")}{" "}
                   <span data-mono className="text-foreground/70">
-                    {p.docsDetected}/
-                    {documentsExpected(profiles, p.profile) ?? p.docsAttached}
+                    {p.docsClassified}/
+                    {documentsExpected(profiles, p.profile) ??
+                      (p.docsFound || p.filesAttached)}
                   </span>
                 </span>
                 <span data-mono>{formatDate(p.submittedAt, locale)}</span>

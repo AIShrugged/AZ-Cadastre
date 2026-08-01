@@ -27,7 +27,7 @@ export class PackagesController {
     @Body({ schema: CreatePackageRequestSchema }) body: CreatePackageRequest,
   ): Promise<PackageDto> {
     const packageId = await this.commands.execute(
-      new CreatePackageCommand(body.profileKey, body.documents),
+      new CreatePackageCommand(body.profileKey, body.files),
     );
 
     return toSummaryDto(

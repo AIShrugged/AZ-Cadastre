@@ -13,6 +13,7 @@ import {
   type DocumentWrite,
   type PackageWrite,
   type PageWrite,
+  type SourceFileWrite,
   VerificationPackageMapper,
 } from "./verification-package.mapper.js";
 import { VerificationPrismaService } from "./verification-prisma.service.js";
@@ -20,12 +21,15 @@ import { VerificationPrismaService } from "./verification-prisma.service.js";
 const FIRST_STORED_VERSION = 1;
 
 const WHOLE_AGGREGATE = {
-  documents: {
+  sourceFiles: {
     orderBy: { createdAt: "asc" },
     include: {
       pages: { orderBy: { pageNumber: "asc" }, include: { ocr: true } },
-      extractedFields: { orderBy: { createdAt: "asc" } },
     },
+  },
+  documents: {
+    orderBy: { firstPage: "asc" },
+    include: { extractedFields: { orderBy: { createdAt: "asc" } } },
   },
 } as const satisfies Prisma.VerificationPackageInclude;
 
@@ -62,8 +66,12 @@ export class PrismaVerificationPackageRepository extends VerificationPackageRepo
         await this.updateAt(tx, row, loadedAt);
       }
 
+      for (const file of row.sourceFiles) {
+        await this.writeSourceFile(tx, file);
+      }
+
       for (const document of row.documents) {
-        await this.writeDocument(tx, document);
+        await this.writeDocument(tx, row.id, document);
       }
     });
 
@@ -82,12 +90,12 @@ export class PrismaVerificationPackageRepository extends VerificationPackageRepo
         status: row.status,
         profileKey: row.profileKey,
         version: FIRST_STORED_VERSION,
-        documents: {
-          create: row.documents.map((document) => ({
-            id: document.id,
-            originalFilename: document.originalFilename,
-            contentType: document.contentType,
-            storageKey: document.storageKey,
+        sourceFiles: {
+          create: row.sourceFiles.map((file) => ({
+            id: file.id,
+            originalFilename: file.originalFilename,
+            contentType: file.contentType,
+            storageKey: file.storageKey,
           })),
         },
       },
@@ -119,29 +127,53 @@ export class PrismaVerificationPackageRepository extends VerificationPackageRepo
     }
   }
 
+  private async writeSourceFile(
+    tx: Prisma.TransactionClient,
+    file: SourceFileWrite,
+  ): Promise<void> {
+    for (const page of file.pages) {
+      await this.writePage(tx, file.id, page);
+    }
+  }
+
   private async writeDocument(
     tx: Prisma.TransactionClient,
+    packageId: string,
     document: DocumentWrite,
   ): Promise<void> {
-    await tx.document.update({
-      where: { id: document.id },
-      data: {
+    // Keyed on where the document starts in its file rather than on the id:
+    // that is what a re-run of the segmentation stage identifies it by, so the
+    // stage stays idempotent instead of writing a second copy.
+    const stored = await tx.document.upsert({
+      where: {
+        sourceFileId_firstPage: {
+          sourceFileId: document.sourceFileId,
+          firstPage: document.firstPage,
+        },
+      },
+      create: {
+        id: document.id,
+        sourceFileId: document.sourceFileId,
+        packageId,
+        firstPage: document.firstPage,
+        lastPage: document.lastPage,
+        type: document.type,
+        classificationConfidence: document.classificationConfidence,
+      },
+      update: {
+        lastPage: document.lastPage,
         type: document.type,
         classificationConfidence: document.classificationConfidence,
       },
     });
 
-    for (const page of document.pages) {
-      await this.writePage(tx, document.id, page);
-    }
-
     for (const field of document.fields) {
       await tx.extractedField.upsert({
         where: {
-          documentId_name: { documentId: document.id, name: field.name },
+          documentId_name: { documentId: stored.id, name: field.name },
         },
         create: {
-          documentId: document.id,
+          documentId: stored.id,
           name: field.name,
           value: field.value,
           confidence: field.confidence,
@@ -158,18 +190,18 @@ export class PrismaVerificationPackageRepository extends VerificationPackageRepo
 
   private async writePage(
     tx: Prisma.TransactionClient,
-    documentId: string,
+    sourceFileId: string,
     page: PageWrite,
   ): Promise<void> {
-    // Keyed on (documentId, pageNumber) rather than the id: which sheet this is,
-    // is what a re-run of the split identifies it by.
+    // Keyed on (sourceFileId, pageNumber) rather than the id: which sheet this
+    // is, is what a re-run of the split identifies it by.
     const stored = await tx.page.upsert({
       where: {
-        documentId_pageNumber: { documentId, pageNumber: page.pageNumber },
+        sourceFileId_pageNumber: { sourceFileId, pageNumber: page.pageNumber },
       },
       create: {
         id: page.id,
-        documentId,
+        sourceFileId,
         pageNumber: page.pageNumber,
         imageStorageKey: page.imageStorageKey,
         imageContentType: page.imageContentType,

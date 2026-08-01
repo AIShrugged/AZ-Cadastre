@@ -1,9 +1,12 @@
 /**
  * Verification details — the inspector's review surface for one package. Reads
  * live pipeline output from `GET /api/packages/:id`: the process stepper, then
- * every document with its detected type and the real OCR text per page. Fields /
- * validation / report appear here as those pipeline stages are built. It reports
- * evidence; it never states an approval or a verdict.
+ * every uploaded file with the real OCR text per sheet and the documents the
+ * engine found inside it, each with its detected type and page range. A file is
+ * a container — one PDF may hold a passport and a title deed — so the file is
+ * what the inspector recognises and the documents are what the engine reports
+ * within it. Fields / validation / report appear here as those pipeline stages
+ * are built. It reports evidence; it never states an approval or a verdict.
  */
 import { useState, type ReactNode } from "react"
 import {
@@ -21,15 +24,18 @@ import type {
   DocumentDto,
   FieldDto,
   PackageDetailDto,
+  SourceFileDto,
 } from "@cadastre/contracts"
 
 import { Button } from "@/shared/ui/button"
 import {
   DispositionMark,
   STAGES,
+  missingTypes,
   profileName,
   toViewPackage,
   useGetPackageQuery,
+  useGetProfilesQuery,
   type Disposition,
 } from "@/entities/verification-package"
 import {
@@ -38,7 +44,7 @@ import {
   SurfaceHeading,
   SurfacePage,
 } from "@/shared/ui/surface"
-import { formatDate, relativeShort, useI18n } from "@/shared/i18n"
+import { formatDate, relativeShort, translateOr, useI18n } from "@/shared/i18n"
 import { Skeleton } from "@/shared/ui/skeleton"
 import { paths } from "@/shared/config"
 import { cn } from "@/shared/lib/cn"
@@ -139,67 +145,84 @@ function Stepper({
   )
 }
 
+/** Every document the engine found, across all uploaded files, in reading
+ *  order. */
+function documentsOf(pkg: PackageDetailDto): DocumentDto[] {
+  return pkg.files.flatMap((file) => file.documents)
+}
+
 /** Confidence score per implemented stage (0–100), or null if it hasn't run.
  *  OCR = mean page confidence; Classification = mean per-document classifier
- *  confidence; Field extraction = mean per-field confidence. */
+ *  confidence; Field extraction = mean per-field confidence. Document detection
+ *  reports no score: where one document ends and the next begins is a boundary,
+ *  not a reading with a certainty attached. */
 function stageScores(pkg: PackageDetailDto): (number | null)[] {
   const mean = (xs: number[]) =>
     Math.round((xs.reduce((s, x) => s + x, 0) / xs.length) * 100)
   const scores: (number | null)[] = Array.from({ length: STAGES }, () => null)
+  const documents = documentsOf(pkg)
 
-  const ocr = pkg.documents
-    .flatMap((d) => d.pages.map((p) => p.ocr?.confidence))
+  const ocr = pkg.files
+    .flatMap((f) => f.pages.map((p) => p.ocr?.confidence))
     .filter((c): c is number => c != null)
   if (ocr.length) scores[0] = mean(ocr)
 
-  const cls = pkg.documents
+  const cls = documents
     .map((d) => d.classificationConfidence)
     .filter((c): c is number => c != null)
-  if (cls.length) scores[1] = mean(cls)
+  if (cls.length) scores[2] = mean(cls)
 
-  const fields = pkg.documents.flatMap((d) => d.fields.map((f) => f.confidence))
-  if (fields.length) scores[2] = mean(fields)
+  const fields = documents.flatMap((d) => d.fields.map((f) => f.confidence))
+  if (fields.length) scores[3] = mean(fields)
 
   return scores
 }
 
-/** Real per-stage status from pipeline output. OCR + Classification are wired;
- *  later stages stay pending until they exist. */
+/** Real per-stage status from pipeline output. OCR, Document detection and
+ *  Classification are wired; later stages stay pending until they exist. */
 function stageStatuses(
   pkg: PackageDetailDto,
   disposition: Disposition,
 ): StageStatus[] {
-  const total = pkg.documentsCount
+  const files = pkg.files
+  const documents = documentsOf(pkg)
   const ocrDone =
-    total > 0 &&
-    pkg.documents.every(
-      (d) => d.pages.length > 0 && d.pages.every((p) => p.ocr !== null),
+    files.length > 0 &&
+    files.every(
+      (f) => f.pages.length > 0 && f.pages.every((p) => p.ocr !== null),
     )
-  const classifyDone = total > 0 && pkg.classifiedCount === total
-  const hasUnknown = pkg.documents.some((d) => d.type === "unknown")
+  // Every file has been read into the documents it holds. A file that holds
+  // nothing has not been detected yet, not detected as empty.
+  const detectDone = files.length > 0 && files.every((f) => f.documents.length > 0)
+  const classifyDone =
+    detectDone && documents.every((d) => d.type !== null)
+  const hasUnknown = documents.some((d) => d.type === "unknown")
   // Extraction is done once every classified document (that has a schema — i.e.
   // not "unknown") has its fields; unknowns have nothing to extract.
   const extractDone =
     classifyDone &&
-    pkg.documents
+    documents
       .filter((d) => d.type && d.type !== "unknown")
       .every((d) => d.fields.length > 0)
 
   const stages: StageStatus[] = Array.from({ length: STAGES }, () => "pending")
   if (disposition === "failed") {
     stages[0] = ocrDone ? "done" : "error"
-    if (ocrDone) stages[1] = "error"
+    if (ocrDone) stages[1] = detectDone ? "done" : "error"
+    if (ocrDone && detectDone) stages[2] = "error"
     return stages
   }
   stages[0] = ocrDone ? "done" : "current"
+  stages[1] = detectDone ? "done" : ocrDone ? "current" : "pending"
+  if (!detectDone) return stages
   if (classifyDone && hasUnknown) {
     // The classifier ran but couldn't place a document — the run halts at
     // Classification (red) and never advances to extraction.
-    stages[1] = "error"
+    stages[2] = "error"
     return stages
   }
-  stages[1] = classifyDone ? "done" : ocrDone ? "current" : "pending"
-  stages[2] = extractDone ? "done" : classifyDone ? "current" : "pending"
+  stages[2] = classifyDone ? "done" : "current"
+  stages[3] = extractDone ? "done" : classifyDone ? "current" : "pending"
   return stages
 }
 
@@ -271,10 +294,10 @@ function StatusLine({
 // pending) with its confidence, and — when recognised — it IS the disclosure for
 // the full transcription. No separate "view text" control; the status and the
 // text it produced are the same affordance (Product Principle 2).
-function OcrStatus({ doc, failed }: { doc: DocumentDto; failed: boolean }) {
+function OcrStatus({ file, failed }: { file: SourceFileDto; failed: boolean }) {
   const { t } = useI18n()
-  const recognised = doc.pages.filter((p) => p.ocr)
-  const done = doc.pages.length > 0 && recognised.length === doc.pages.length
+  const recognised = file.pages.filter((p) => p.ocr)
+  const done = file.pages.length > 0 && recognised.length === file.pages.length
 
   if (!done) {
     return failed ? (
@@ -297,7 +320,7 @@ function OcrStatus({ doc, failed }: { doc: DocumentDto; failed: boolean }) {
   const avg =
     recognised.reduce((sum, p) => sum + (p.ocr?.confidence ?? 0), 0) /
     recognised.length
-  const text = doc.pages
+  const text = file.pages
     .map((p) => p.ocr?.text ?? "")
     .join("\n\n")
     .trim()
@@ -327,14 +350,14 @@ function OcrStatus({ doc, failed }: { doc: DocumentDto; failed: boolean }) {
 }
 
 // ─── Page tally ───────────────────────────────────────────────────────────────
-// The document's meta line doubles as the progress read-out for a long PDF: how
-// many sheets it was split into, and — while the pages are still being read —
-// how many have come back. It carries its own separator, because a document with
-// nothing to count yet must not leave a dangling one behind.
-function PageTally({ doc, failed }: { doc: DocumentDto; failed: boolean }) {
+// The file's meta line doubles as the progress read-out for a long PDF: how many
+// sheets it was split into, and — while the pages are still being read — how
+// many have come back. It carries its own separator, because a file with nothing
+// to count yet must not leave a dangling one behind.
+function PageTally({ file, failed }: { file: SourceFileDto; failed: boolean }) {
   const { t } = useI18n()
-  const total = doc.pages.length
-  const read = doc.pages.filter((p) => p.ocr).length
+  const total = file.pages.length
+  const read = file.pages.filter((p) => p.ocr).length
 
   // No sheets yet: a run under way is still being split, and one that failed
   // never got that far — the OCR line below is what reports that.
@@ -410,7 +433,7 @@ function Fields({ fields }: { fields: FieldDto[] }) {
             >
               <div className="min-w-0">
                 <dt className="text-[0.6875rem] text-muted-foreground">
-                  {t(`field.${f.name}`)}
+                  {translateOr(t, `field.${f.name}`, f.name)}
                 </dt>
                 <dd
                   data-mono
@@ -433,21 +456,26 @@ function Fields({ fields }: { fields: FieldDto[] }) {
   )
 }
 
-// ─── One document ────────────────────────────────────────────────────────────
-function DocumentBlock({
-  doc,
-  failed,
-}: {
-  doc: DocumentDto
-  failed: boolean
-}) {
+// ─── One document found inside a file ────────────────────────────────────────
+// A file is a container, so a document is identified by where it sits in that
+// container — the sheets it occupies — not by a filename of its own.
+function pageLabel(
+  t: (key: string, vars?: Record<string, string | number>) => string,
+  doc: DocumentDto,
+): string {
+  return doc.firstPage === doc.lastPage
+    ? t("detail.page_single", { n: doc.firstPage })
+    : t("detail.page_range", { from: doc.firstPage, to: doc.lastPage })
+}
+
+function DocumentBlock({ doc, file }: { doc: DocumentDto; file: SourceFileDto }) {
   const { t } = useI18n()
-  const Icon = doc.contentType.startsWith("image/") ? ImageIcon : FileTextIcon
   const unclassified = doc.type === "unknown"
-  // Unclassified: skip the transcription, show a one-line preview so the
-  // inspector can still tell roughly what the document is.
+  // Unclassified: show a one-line preview off the document's own sheets, so the
+  // inspector can still tell roughly what it is.
   const snippet = unclassified
-    ? doc.pages
+    ? file.pages
+        .filter((p) => p.pageNumber >= doc.firstPage && p.pageNumber <= doc.lastPage)
         .map((p) => p.ocr?.text ?? "")
         .join(" ")
         .replace(/\s+/g, " ")
@@ -456,8 +484,69 @@ function DocumentBlock({
     : ""
 
   return (
+    <div className="rounded-lg border border-rule bg-card/40 p-3">
+      <div className="flex items-baseline justify-between gap-3">
+        <span data-mono className="shrink-0 text-[0.6875rem] text-muted-foreground">
+          {pageLabel(t, doc)}
+        </span>
+        {doc.type ? (
+          <span
+            className={cn(
+              "shrink-0 rounded-full px-2 py-0.5 text-[0.6875rem] font-medium",
+              unclassified
+                ? "border border-rule-strong bg-muted/40 text-muted-foreground"
+                : "border border-primary/20 bg-primary/8 text-primary",
+            )}
+          >
+            {translateOr(t, `doctype.${doc.type}`, doc.type)}
+          </span>
+        ) : (
+          <span className="flex shrink-0 items-center gap-1.5 text-[0.6875rem] font-medium text-primary">
+            <span
+              aria-hidden
+              className="size-1.5 rounded-full bg-primary motion-safe:animate-pulse"
+            />
+            {t("detail.classifying")}
+          </span>
+        )}
+      </div>
+
+      {unclassified ? (
+        <p className="mt-2 text-[0.8125rem] leading-relaxed text-muted-foreground">
+          {t("detail.unclassified")}
+          {snippet && (
+            <span className="mt-1.5 block truncate text-[0.75rem] italic text-foreground/55">
+              “{snippet}…”
+            </span>
+          )}
+        </p>
+      ) : (
+        doc.fields.length > 0 && (
+          <div className="mt-3">
+            <div className="mb-2 flex items-center gap-1.5">
+              <ScanTextIcon className="size-3.5 text-muted-foreground" />
+              <span className="register-label">{t("detail.fields")}</span>
+            </div>
+            <Fields fields={doc.fields} />
+          </div>
+        )
+      )}
+    </div>
+  )
+}
+
+// ─── One uploaded file ───────────────────────────────────────────────────────
+// What the inspector recognises: the file they attached, its sheets, and the
+// documents the engine read out of it.
+function FileBlock({ file, failed }: { file: SourceFileDto; failed: boolean }) {
+  const { t } = useI18n()
+  const Icon = file.contentType.startsWith("image/") ? ImageIcon : FileTextIcon
+  const read = file.pages.length > 0 && file.pages.every((p) => p.ocr !== null)
+  const found = file.documents.length
+
+  return (
     <div>
-      {/* Header — filename + detected type */}
+      {/* Header — filename + how many documents it turned out to hold */}
       <div className="flex items-center gap-3">
         <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-rule-strong bg-card text-muted-foreground">
           <Icon className="size-4.5" />
@@ -465,26 +554,13 @@ function DocumentBlock({
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-3">
             <h3 className="truncate text-[0.9375rem] font-semibold text-foreground">
-              {doc.originalFilename}
+              {file.originalFilename}
             </h3>
-            {doc.type ? (
-              <span
-                className={cn(
-                  "shrink-0 rounded-full px-2 py-0.5 text-[0.6875rem] font-medium",
-                  unclassified
-                    ? "border border-rule-strong bg-muted/40 text-muted-foreground"
-                    : "border border-primary/20 bg-primary/8 text-primary",
-                )}
-              >
-                {t(`doctype.${doc.type}`)}
-              </span>
-            ) : (
-              <span className="flex shrink-0 items-center gap-1.5 text-[0.6875rem] font-medium text-primary">
-                <span
-                  aria-hidden
-                  className="size-1.5 rounded-full bg-primary motion-safe:animate-pulse"
-                />
-                {t("detail.classifying")}
+            {found > 0 && (
+              <span className="shrink-0 text-[0.6875rem] text-muted-foreground">
+                {found === 1
+                  ? t("detail.in_file_one")
+                  : t("detail.in_file", { n: found })}
               </span>
             )}
           </div>
@@ -492,41 +568,93 @@ function DocumentBlock({
             data-mono
             className="truncate text-[0.6875rem] text-muted-foreground"
           >
-            {doc.contentType}
-            <PageTally doc={doc} failed={failed} />
+            {file.contentType}
+            <PageTally file={file} failed={failed} />
           </div>
         </div>
       </div>
 
-      {/* Body — the OCR status line (which discloses the raw text), then fields */}
-      {unclassified ? (
-        <div className="mt-4 flex flex-col gap-3 border-t border-rule pt-4">
-          <OcrStatus doc={doc} failed={failed} />
-          <p className="text-[0.8125rem] leading-relaxed text-muted-foreground">
-            {t("detail.unclassified")}
-            {snippet && (
-              <span className="mt-1.5 block truncate text-[0.75rem] italic text-foreground/55">
-                “{snippet}…”
-              </span>
-            )}
-          </p>
-        </div>
-      ) : (
-        <div className="mt-4 flex flex-col gap-5 border-t border-rule pt-4">
-          <OcrStatus doc={doc} failed={failed} />
+      {/* Body — the OCR status line (which discloses the raw text), then the
+          documents found inside */}
+      <div className="mt-4 flex flex-col gap-4 border-t border-rule pt-4">
+        <OcrStatus file={file} failed={failed} />
 
-          {doc.fields.length > 0 && (
-            <div>
-              <div className="mb-2 flex items-center gap-1.5">
-                <ScanTextIcon className="size-3.5 text-muted-foreground" />
-                <span className="register-label">{t("detail.fields")}</span>
-              </div>
-              <Fields fields={doc.fields} />
-            </div>
-          )}
-        </div>
-      )}
+        {found > 0 ? (
+          <div className="flex flex-col gap-3">
+            {file.documents.map((doc) => (
+              <DocumentBlock key={doc.id} doc={doc} file={file} />
+            ))}
+          </div>
+        ) : (
+          // The sheets are read but nothing has been carved out of them yet: the
+          // file is still being split into the documents it holds.
+          read &&
+          !failed && (
+            <span className="flex items-center gap-1.5 text-[0.8125rem] text-primary">
+              <span
+                aria-hidden
+                className="size-1.5 rounded-full bg-primary motion-safe:animate-pulse"
+              />
+              {t("detail.detecting")}
+            </span>
+          )
+        )}
+      </div>
     </div>
+  )
+}
+
+// ─── Required documents ───────────────────────────────────────────────────────
+// What the governing profile insists on, against what the engine actually found.
+// It reports a shortfall; it never refuses the package — the inspector decides,
+// and a document the classifier could not place may still be the missing one.
+function RequiredDocuments({
+  missing,
+  settled,
+}: {
+  missing: readonly string[]
+  settled: boolean
+}) {
+  const { t } = useI18n()
+
+  return (
+    <section>
+      <div className="flex items-baseline justify-between gap-4">
+        <h2 className="register-label">{t("detail.required")}</h2>
+        {settled && missing.length > 0 && (
+          <span
+            data-mono
+            className="text-[0.75rem] tabular-nums text-incomplete-ink"
+          >
+            {t("detail.required_missing", { n: missing.length })}
+          </span>
+        )}
+      </div>
+
+      {!settled ? (
+        <p className="mt-3 text-[0.8125rem] text-muted-foreground">
+          {t("detail.required_pending")}
+        </p>
+      ) : missing.length === 0 ? (
+        <StatusLine
+          tone="ok"
+          icon={<CheckIcon className="size-3" strokeWidth={3} />}
+          label={t("detail.required_all")}
+        />
+      ) : (
+        <ul className="mt-3 flex flex-col gap-2">
+          {missing.map((type) => (
+            <li key={type}>
+              <StatusLine
+                tone="fail"
+                icon={<TriangleAlertIcon className="size-3" />}
+                label={translateOr(t, `doctype.${type}`, type)}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   )
 }
 
@@ -547,6 +675,9 @@ export function VerificationDetails() {
     pollingInterval: polling ? 1500 : 0,
     skipPollingIfUnfocused: true,
   })
+  // The profile says which documents the package must carry; the register never
+  // keeps a copy of that policy (ADR-0002).
+  const { data: profiles } = useGetProfilesQuery()
   const shouldPoll =
     pkg?.status === "Pending" || pkg?.status === "Processing"
   if (shouldPoll !== polling) setPolling(shouldPoll)
@@ -589,6 +720,15 @@ export function VerificationDetails() {
   const stages = stageStatuses(pkg, view.disposition)
   const scores = stageScores(pkg)
   const currentStage = stages.findIndex((s) => s === "current")
+  const documents = documentsOf(pkg)
+  // Only once classification has been through every document is a type's
+  // absence a finding rather than a stage that has not run yet.
+  const classified = stages[2] === "done" || stages[2] === "error"
+  const missing = missingTypes(
+    profiles ?? [],
+    view.profile,
+    documents.map((d) => d.type),
+  )
 
   return (
     <SurfacePage>
@@ -619,14 +759,19 @@ export function VerificationDetails() {
             </div>
           </section>
 
-          {/* ── Documents + OCR ── */}
+          {/* ── Completeness against the governing profile ── */}
+          <RequiredDocuments missing={missing} settled={classified} />
+
+          {/* ── Files, the documents inside them, and OCR ── */}
           <section>
             <div className="flex items-baseline justify-between gap-4">
-              <h2 className="register-label">{t("detail.documents")}</h2>
+              <h2 className="register-label">{t("detail.files")}</h2>
               <span
                 data-mono
                 className="text-[0.75rem] tabular-nums text-muted-foreground"
               >
+                {/* Documents placed out of documents found — both discovered by
+                    the pipeline, so before detection runs this reads 0 of 0. */}
                 {t("detail.docs_count", {
                   d: pkg.classifiedCount,
                   r: pkg.documentsCount,
@@ -634,10 +779,10 @@ export function VerificationDetails() {
               </span>
             </div>
             <div className="mt-4 flex flex-col divide-y divide-rule-strong">
-              {pkg.documents.map((doc) => (
-                <div key={doc.id} className="py-5 first:pt-0 last:pb-0">
-                  <DocumentBlock
-                    doc={doc}
+              {pkg.files.map((file) => (
+                <div key={file.id} className="py-5 first:pt-0 last:pb-0">
+                  <FileBlock
+                    file={file}
                     failed={view.disposition === "failed"}
                   />
                 </div>

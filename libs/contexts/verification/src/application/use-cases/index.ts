@@ -1,7 +1,7 @@
 export {
   CreatePackageCommand,
   CreatePackageHandler,
-  type SubmittedDocument,
+  type SubmittedFile,
 } from "./create-package/index.js";
 export { GetPackageHandler, GetPackageQuery } from "./get-package/index.js";
 export {

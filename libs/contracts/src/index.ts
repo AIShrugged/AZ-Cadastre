@@ -11,6 +11,7 @@ export {
   PackageDtoSchema,
   PackageStatusSchema,
   PageDtoSchema,
+  SourceFileDtoSchema,
   type DocumentDto,
   type FieldDto,
   type OcrDto,
@@ -18,6 +19,7 @@ export {
   type PackageDto,
   type PackageStatus,
   type PageDto,
+  type SourceFileDto,
 } from "./package.dto.js";
 
 export {
@@ -30,10 +32,10 @@ export {
 export {
   CreatePackageRequestSchema,
   CreatePackageResponseSchema,
-  DocumentInputSchema,
+  FileInputSchema,
   type CreatePackageRequest,
   type CreatePackageResponse,
-  type DocumentInput,
+  type FileInput,
 } from "./create-package.dto.js";
 
 export {
@@ -48,7 +50,9 @@ export {
 
 export {
   ListProfilesResponseSchema,
+  ProfileDocumentTypeDtoSchema,
   ProfileDtoSchema,
   type ListProfilesResponse,
+  type ProfileDocumentTypeDto,
   type ProfileDto,
 } from "./list-profiles.dto.js";

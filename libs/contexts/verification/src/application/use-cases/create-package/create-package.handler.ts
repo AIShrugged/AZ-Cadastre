@@ -1,7 +1,7 @@
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
 import { VerificationPackage } from "../../../domain/aggregates/index.js";
-import { Document } from "../../../domain/entities/index.js";
+import { SourceFile } from "../../../domain/entities/index.js";
 import { VerificationPackageRepository } from "../../../domain/repositories/index.js";
 import {
   ContentType,
@@ -26,12 +26,12 @@ export class CreatePackageHandler
     const submitted = VerificationPackage.create(
       this.ids.packageId(),
       VerificationProfile.of(command.profileKey),
-      command.documents.map((document) =>
-        Document.create(
-          this.ids.documentId(),
-          Filename.create(document.originalFilename),
-          ContentType.of(document.contentType),
-          StorageKey.create(document.storageKey),
+      command.files.map((file) =>
+        SourceFile.create(
+          this.ids.sourceFileId(),
+          Filename.create(file.originalFilename),
+          ContentType.of(file.contentType),
+          StorageKey.create(file.storageKey),
         ),
       ),
     );

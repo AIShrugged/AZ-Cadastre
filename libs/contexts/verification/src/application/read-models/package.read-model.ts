@@ -2,6 +2,7 @@ export type PackageSummaryView = {
   id: string;
   status: string;
   profileKey: string;
+  filesCount: number;
   documentsCount: number;
   classifiedCount: number;
   unclassifiedCount: number;
@@ -30,14 +31,21 @@ export type FieldView = {
 
 export type DocumentView = {
   id: string;
-  originalFilename: string;
-  contentType: string;
+  firstPage: number;
+  lastPage: number;
   type: string | null;
   classificationConfidence: number | null;
-  pages: readonly PageView[];
   fields: readonly FieldView[];
 };
 
-export type PackageDetailView = PackageSummaryView & {
+export type SourceFileView = {
+  id: string;
+  originalFilename: string;
+  contentType: string;
+  pages: readonly PageView[];
   documents: readonly DocumentView[];
+};
+
+export type PackageDetailView = PackageSummaryView & {
+  files: readonly SourceFileView[];
 };

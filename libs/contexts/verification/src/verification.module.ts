@@ -12,6 +12,7 @@ import {
 import { RunVerificationOnSubmissionHandler } from "./application/event-handlers/index.js";
 import {
   DocumentClassifier,
+  DocumentSegmenter,
   FieldExtractor,
   IdGenerator,
   ObjectStorage,
@@ -31,12 +32,14 @@ import {
 import { VerificationPackageRepository } from "./domain/repositories/index.js";
 import {
   DocumentClassifierAdapter,
+  DocumentSegmenterAdapter,
   FieldExtractorAdapter,
   ObjectStorageAdapter,
   OcrProviderAdapter,
   OpenRouterClassifierAdapter,
   OpenRouterFieldExtractorAdapter,
   OpenRouterOcrAdapter,
+  OpenRouterSegmenterAdapter,
   PdfSplitterAdapter,
 } from "./infrastructure/adapters/index.js";
 import { EnvironmentSchema, type Environment } from "./infrastructure/config/index.js";
@@ -90,6 +93,16 @@ const handlers = [
           ? new OpenRouterOcrAdapter(config, storage)
           : new OcrProviderAdapter(),
       inject: [ConfigService, ObjectStorage],
+    },
+    {
+      provide: DocumentSegmenter,
+      useFactory: (
+        config: ConfigService<Environment, true>,
+      ): DocumentSegmenter =>
+        config.get("segmenter", { infer: true }).provider === "openrouter"
+          ? new OpenRouterSegmenterAdapter(config)
+          : new DocumentSegmenterAdapter(),
+      inject: [ConfigService],
     },
     {
       provide: DocumentClassifier,

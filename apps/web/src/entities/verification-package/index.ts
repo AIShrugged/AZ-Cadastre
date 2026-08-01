@@ -5,7 +5,12 @@
  * read-only UI marks.
  */
 export type { ProfileDto } from "./model/profile"
-export { documentsExpected, profileName } from "./model/profile"
+export {
+  documentsExpected,
+  missingTypes,
+  profileName,
+  requiredTypes,
+} from "./model/profile"
 
 export { STAGES } from "./model/pipeline"
 

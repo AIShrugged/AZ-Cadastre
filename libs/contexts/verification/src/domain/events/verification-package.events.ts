@@ -6,6 +6,7 @@ import type {
   FailureReason,
   PackageId,
   PageId,
+  SourceFileId,
   VerificationProfile,
 } from "../value-objects/index.js";
 
@@ -15,7 +16,7 @@ export class PackageSubmitted extends DomainEvent {
   constructor(
     public readonly packageId: PackageId,
     public readonly profile: VerificationProfile,
-    public readonly documentCount: number,
+    public readonly fileCount: number,
   ) {
     super();
   }
@@ -29,12 +30,12 @@ export class VerificationStarted extends DomainEvent {
   }
 }
 
-export class DocumentSplitIntoPages extends DomainEvent {
-  override readonly type = "verification.DocumentSplitIntoPages";
+export class SourceFileSplitIntoPages extends DomainEvent {
+  override readonly type = "verification.SourceFileSplitIntoPages";
 
   constructor(
     public readonly packageId: PackageId,
-    public readonly documentId: DocumentId,
+    public readonly sourceFileId: SourceFileId,
     public readonly pageCount: number,
   ) {
     super();
@@ -46,8 +47,20 @@ export class PageRecognised extends DomainEvent {
 
   constructor(
     public readonly packageId: PackageId,
-    public readonly documentId: DocumentId,
+    public readonly sourceFileId: SourceFileId,
     public readonly pageId: PageId,
+  ) {
+    super();
+  }
+}
+
+export class SourceFileSegmented extends DomainEvent {
+  override readonly type = "verification.SourceFileSegmented";
+
+  constructor(
+    public readonly packageId: PackageId,
+    public readonly sourceFileId: SourceFileId,
+    public readonly documentCount: number,
   ) {
     super();
   }

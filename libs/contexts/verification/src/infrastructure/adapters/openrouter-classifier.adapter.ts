@@ -10,6 +10,7 @@ import {
   Classification,
   Confidence,
   DocumentType,
+  type DocumentTypeSpec,
 } from "../../domain/value-objects/index.js";
 import type { Environment } from "../config/index.js";
 import { MissingOpenRouterApiKeyException } from "../exceptions/index.js";
@@ -41,9 +42,6 @@ export class OpenRouterClassifierAdapter extends DocumentClassifier {
   }
 
   async classify(request: ClassificationRequest): Promise<Classification> {
-    // "Could not place it" is an answer the model is allowed to give.
-    const allowed = [...request.candidateTypes, DocumentType.UNKNOWN];
-    const keys = allowed.map((type) => type.value);
     const text = request.text.value.slice(0, MAX_TEXT);
 
     const completion = await this.client.chat.completions.create({
@@ -51,19 +49,16 @@ export class OpenRouterClassifierAdapter extends DocumentClassifier {
       temperature: 0,
       logprobs: true,
       messages: [
-        {
-          role: "system",
-          content:
-            "You classify a single scanned document from its OCR text. " +
-            `Choose exactly one type from this list: ${keys.join(", ")}. ` +
-            `Use "${DocumentType.UNKNOWN.value}" if none clearly fit. The text ` +
-            "may be in any language. Reply with ONLY the type key — no other words.",
-        },
+        { role: "system", content: this.instructions(request.candidates) },
         { role: "user", content: text },
       ],
     });
 
     const raw = completion.choices[0]?.message?.content?.trim() ?? "";
+    const allowed = [
+      ...request.candidates.map((candidate) => candidate.type),
+      DocumentType.UNKNOWN,
+    ];
     const type = this.match(raw, allowed);
     const confidence =
       confidenceFromLogprobs(completion) ??
@@ -77,16 +72,54 @@ export class OpenRouterClassifierAdapter extends DocumentClassifier {
     return Classification.of(type, Confidence.of(confidence));
   }
 
-  private match(
-    raw: string,
-    allowed: readonly DocumentType[],
-  ): DocumentType {
+  private instructions(candidates: readonly DocumentTypeSpec[]): string {
+    return [
+      "You classify one scanned document submitted to the Azerbaijani real",
+      "estate registration authority. You are given the OCR text of that",
+      "document — one document, though it may run over several sheets.",
+      "",
+      "The text is usually Azerbaijani (Latin script), sometimes Russian or",
+      "English, and often a mix. OCR is imperfect: headings may be misspelled,",
+      "diacritics dropped (ə→e, ı→i, ş→s) and letters confused. Judge by what",
+      "the document evidently IS, not by an exact string match.",
+      "",
+      "Choose exactly one type key from this list:",
+      "",
+      ...candidates.map((candidate) => this.describe(candidate)),
+      "",
+      `- ${DocumentType.UNKNOWN.value}`,
+      "  Nothing above fits, or the text is too damaged to tell. Prefer this",
+      "  over a guess you are not reasonably sure of — a wrong type is worse",
+      "  for the inspector than an honest 'unknown'.",
+      "",
+      "Weigh the whole document, above all its heading and its issuing body.",
+      "A type mentioned in passing — a licence number quoted on an application —",
+      "does not make the document that type.",
+      "",
+      "Reply with ONLY the type key. No punctuation, no explanation.",
+    ].join("\n");
+  }
+
+  private describe(candidate: DocumentTypeSpec): string {
+    const headings = candidate.hints.map((hint) => `"${hint}"`).join(", ");
+
+    return [
+      `- ${candidate.type.value}`,
+      `  ${candidate.description}`,
+      `  Usually headed: ${headings}.`,
+    ].join("\n");
+  }
+
+  private match(raw: string, allowed: readonly DocumentType[]): DocumentType {
     const answer = raw.toLowerCase();
     const exact = allowed.find((type) => type.value === answer);
     if (exact) return exact;
-    const contained = allowed.find(
-      (type) => type.isKnown && answer.includes(type.value),
-    );
-    return contained ?? DocumentType.UNKNOWN;
+    // The longest key contained in the answer, so "license_annex" is not read
+    // as "license" when the model wrapped its choice in a sentence.
+    const contained = allowed
+      .filter((type) => type.isKnown && answer.includes(type.value))
+      .sort((left, right) => right.value.length - left.value.length);
+
+    return contained[0] ?? DocumentType.UNKNOWN;
   }
 }

@@ -1,14 +1,14 @@
 import type { ExtractedField } from "../../domain/entities/index.js";
 import type {
-  DocumentType,
-  FieldSchema,
+  DocumentTypeSpec,
   RecognisedText,
 } from "../../domain/value-objects/index.js";
 
 export type ExtractionRequest = {
   text: RecognisedText;
-  documentType: DocumentType;
-  schema: FieldSchema;
+  // What kind of document this is and which fields it declares. The schema
+  // alone names the keys to look for, not the paper they are printed on.
+  spec: DocumentTypeSpec;
 };
 
 export abstract class FieldExtractor {

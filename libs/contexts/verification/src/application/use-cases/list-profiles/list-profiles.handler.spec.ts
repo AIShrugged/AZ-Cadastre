@@ -16,8 +16,24 @@ describe("ListProfilesHandler", () => {
     const profiles = await new ListProfilesHandler().execute();
 
     for (const view of profiles) {
-      expect(view.documentTypes).toEqual(
+      expect(view.documentTypes.map((type) => type.key)).toEqual(
         VerificationProfile.of(view.key).documentTypes.map(
+          (type) => type.value,
+        ),
+      );
+    }
+  });
+
+  it("says which of them a package cannot be complete without", async () => {
+    const profiles = await new ListProfilesHandler().execute();
+
+    for (const view of profiles) {
+      const required = view.documentTypes
+        .filter((type) => type.required)
+        .map((type) => type.key);
+
+      expect(required).toEqual(
+        VerificationProfile.of(view.key).requiredTypes.map(
           (type) => type.value,
         ),
       );
@@ -33,7 +49,9 @@ describe("ListProfilesHandler", () => {
       for (const type of profile.documentTypes) {
         expect(profile.recognises(type)).toBe(true);
       }
-      expect(view.documentTypes).not.toContain("unknown");
+      expect(view.documentTypes.map((type) => type.key)).not.toContain(
+        "unknown",
+      );
     }
   });
 

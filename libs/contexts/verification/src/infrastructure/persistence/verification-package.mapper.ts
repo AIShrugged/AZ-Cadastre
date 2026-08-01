@@ -1,5 +1,10 @@
 import { VerificationPackage } from "../../domain/aggregates/index.js";
-import { Document, ExtractedField, Page } from "../../domain/entities/index.js";
+import {
+  Document,
+  ExtractedField,
+  Page,
+  SourceFile,
+} from "../../domain/entities/index.js";
 import {
   Classification,
   Confidence,
@@ -15,7 +20,9 @@ import {
   PageId,
   PageImage,
   PageNumber,
+  PageRange,
   RecognisedText,
+  SourceFileId,
   StorageKey,
   VerificationProfile,
 } from "../../domain/value-objects/index.js";
@@ -26,17 +33,25 @@ export type PackageRow = {
   readonly status: string;
   readonly profileKey: string;
   readonly version: number;
+  readonly sourceFiles: readonly SourceFileRow[];
   readonly documents: readonly DocumentRow[];
 };
 
-export type DocumentRow = {
+export type SourceFileRow = {
   readonly id: string;
   readonly originalFilename: string;
   readonly contentType: string;
   readonly storageKey: string;
+  readonly pages: readonly PageRow[];
+};
+
+export type DocumentRow = {
+  readonly id: string;
+  readonly sourceFileId: string;
+  readonly firstPage: number;
+  readonly lastPage: number;
   readonly type: string | null;
   readonly classificationConfidence: number | null;
-  readonly pages: readonly PageRow[];
   readonly extractedFields: readonly FieldRow[];
 };
 
@@ -64,17 +79,25 @@ export type PackageWrite = {
   readonly id: string;
   readonly status: StatusColumn;
   readonly profileKey: string;
+  readonly sourceFiles: readonly SourceFileWrite[];
   readonly documents: readonly DocumentWrite[];
 };
 
-export type DocumentWrite = {
+export type SourceFileWrite = {
   readonly id: string;
   readonly originalFilename: string;
   readonly contentType: string;
   readonly storageKey: string;
+  readonly pages: readonly PageWrite[];
+};
+
+export type DocumentWrite = {
+  readonly id: string;
+  readonly sourceFileId: string;
+  readonly firstPage: number;
+  readonly lastPage: number;
   readonly type: string | null;
   readonly classificationConfidence: number | null;
-  readonly pages: readonly PageWrite[];
   readonly fields: readonly FieldWrite[];
 };
 
@@ -105,6 +128,9 @@ export class VerificationPackageMapper {
       version: row.version,
       profile: VerificationProfile.of(row.profileKey),
       status: PackageStatus.of(row.status),
+      files: row.sourceFiles.map((file) =>
+        VerificationPackageMapper.fileToDomain(file),
+      ),
       documents: row.documents.map((document) =>
         VerificationPackageMapper.documentToDomain(document),
       ),
@@ -116,15 +142,12 @@ export class VerificationPackageMapper {
       id: aggregate.id.value,
       status: VerificationPackageMapper.statusColumn(aggregate.status),
       profileKey: aggregate.profile.key,
-      documents: aggregate.documents.map((document) => ({
-        id: document.id.value,
-        originalFilename: document.filename.value,
-        contentType: document.contentType.value,
-        storageKey: document.storageKey.value,
-        type: document.classification?.type.value ?? null,
-        classificationConfidence:
-          document.classification?.confidence.value ?? null,
-        pages: document.pages.map((page) => ({
+      sourceFiles: aggregate.files.map((file) => ({
+        id: file.id.value,
+        originalFilename: file.filename.value,
+        contentType: file.contentType.value,
+        storageKey: file.storageKey.value,
+        pages: file.pages.map((page) => ({
           id: page.id.value,
           pageNumber: page.number.value,
           imageStorageKey: page.image.storageKey.value,
@@ -136,6 +159,15 @@ export class VerificationPackageMapper {
               }
             : null,
         })),
+      })),
+      documents: aggregate.documents.map((document) => ({
+        id: document.id.value,
+        sourceFileId: document.sourceFileId.value,
+        firstPage: document.pages.first.value,
+        lastPage: document.pages.last.value,
+        type: document.classification?.type.value ?? null,
+        classificationConfidence:
+          document.classification?.confidence.value ?? null,
         fields: document.fields.map((field) => ({
           name: field.key.value,
           value: field.value.value,
@@ -146,14 +178,25 @@ export class VerificationPackageMapper {
     };
   }
 
-  private static documentToDomain(row: DocumentRow): Document {
-    return Document.restore({
-      id: DocumentId.of(row.id),
+  private static fileToDomain(row: SourceFileRow): SourceFile {
+    return SourceFile.restore({
+      id: SourceFileId.of(row.id),
       filename: Filename.create(row.originalFilename),
       contentType: ContentType.of(row.contentType),
       storageKey: StorageKey.create(row.storageKey),
       pages: row.pages.map((page) =>
         VerificationPackageMapper.pageToDomain(page),
+      ),
+    });
+  }
+
+  private static documentToDomain(row: DocumentRow): Document {
+    return Document.restore({
+      id: DocumentId.of(row.id),
+      sourceFileId: SourceFileId.of(row.sourceFileId),
+      pages: PageRange.of(
+        PageNumber.of(row.firstPage),
+        PageNumber.of(row.lastPage),
       ),
       classification: VerificationPackageMapper.classificationToDomain(row),
       fields: row.extractedFields.map((field) =>

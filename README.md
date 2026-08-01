@@ -6,9 +6,14 @@ AI-assisted document verification system for the Real Estate Registration Author
 
 AZ-Cadastre processes multi-page, multi-format document packages (PDF, JPG, PNG) in multiple languages (Azerbaijani Latin/Cyrillic scripts) with complex validation workflows and human intervention loops. The system provides real-time progress updates to inspectors while maintaining comprehensive audit trails.
 
+An uploaded file is a **container**, not a document: one PDF may hold a passport
+on sheet 1 and a title deed on sheets 2–4. The inspector attaches files; the
+pipeline reads each one into the documents it actually holds, and classifies and
+extracts from those. See `docs/CONTEXT.md` for the language this is expressed in.
+
 ## Key Features
 
-- **Multi-Stage Verification Pipeline**: 7-stage orchestrated workflow (classification, OCR, completeness check, cross-validation, legal rules, report generation, human review)
+- **Multi-Stage Verification Pipeline**: orchestrated workflow (page rendering, OCR, document detection, classification, field extraction, completeness check, cross-validation, report generation, human review)
 - **Real-Time Updates**: WebSocket-based progress notifications
 - **Long-Running Workflows**: Temporal-based orchestration for resumable, auditable processes
 - **Structured Data Integration**: PostgreSQL for application data, RustFS (S3-compatible) for document storage

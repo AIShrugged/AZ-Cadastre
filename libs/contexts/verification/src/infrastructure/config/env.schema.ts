@@ -41,6 +41,12 @@ export const EnvironmentSchema = z
     // the provider starts answering with rate limits.
     OCR_CONCURRENCY: z.coerce.number().int().positive().default(4),
 
+    // Reads an uploaded file into the documents it holds. A container PDF is
+    // only as good as this boundary call, so it is worth pointing at a real
+    // model even when the rest of the pipeline is mocked.
+    SEGMENTER_PROVIDER: z.enum(["mock", "openrouter"]).default("mock"),
+    SEGMENTER_MODEL: z.string().default("google/gemini-2.5-flash"),
+
     CLASSIFIER_PROVIDER: z.enum(["mock", "openrouter"]).default("mock"),
     CLASSIFIER_MODEL: z.string().default("google/gemini-2.5-flash"),
 
@@ -76,6 +82,10 @@ export const EnvironmentSchema = z
       provider: env.OCR_PROVIDER,
       model: env.OCR_MODEL,
       concurrency: env.OCR_CONCURRENCY,
+    },
+    segmenter: {
+      provider: env.SEGMENTER_PROVIDER,
+      model: env.SEGMENTER_MODEL,
     },
     classifier: {
       provider: env.CLASSIFIER_PROVIDER,

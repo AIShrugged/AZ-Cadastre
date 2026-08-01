@@ -1,11 +1,12 @@
 // Aggregate root: a Verification Package — one upload of one or more files.
-// Each file becomes exactly one Document (PRD §3).
+// A file is a container: the pipeline reads it into the one-or-more Documents
+// it actually holds (PRD §3).
 
 /// Pipeline lifecycle of a package — distinct from the verification *outcome*
 /// (OK / Issues Found / Incomplete), which belongs to the Report aggregate.
 enum PackageStatus {
   Pending // uploaded, pipeline not started
-  Processing // pipeline running (OCR → classify → extract → validate)
+  Processing // pipeline running (split → OCR → segment → classify → extract → validate)
   Completed // pipeline finished, report available
   Failed // pipeline hit a permanent error
 }
@@ -28,8 +29,9 @@ model VerificationPackage {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  documents Document[]
-  report    Report?
+  sourceFiles SourceFile[]
+  documents   Document[]
+  report      Report?
 
   @@map("verification_packages")
 }

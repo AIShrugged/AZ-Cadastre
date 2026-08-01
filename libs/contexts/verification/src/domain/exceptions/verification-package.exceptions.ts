@@ -1,10 +1,10 @@
 import { DomainException } from "@cadastre/kernel";
 
-export class PackageMustHaveADocumentException extends DomainException {
-  override readonly code = "PACKAGE_MUST_HAVE_A_DOCUMENT";
+export class PackageMustHaveAFileException extends DomainException {
+  override readonly code = "PACKAGE_MUST_HAVE_A_FILE";
 
   constructor() {
-    super("A verification package must contain at least one document");
+    super("A verification package must contain at least one file");
   }
 }
 
@@ -12,9 +12,18 @@ export class DuplicateStorageKeyException extends DomainException {
   override readonly code = "DUPLICATE_STORAGE_KEY";
 
   constructor(public readonly storageKey: string) {
-    super(
-      `Two documents in the package point at the same object: ${storageKey}`,
-    );
+    super(`Two files in the package point at the same object: ${storageKey}`);
+  }
+}
+
+export class SourceFileNotInPackageException extends DomainException {
+  override readonly code = "SOURCE_FILE_NOT_IN_PACKAGE";
+
+  constructor(
+    public readonly sourceFileId: string,
+    public readonly packageId: string,
+  ) {
+    super(`Package ${packageId} has no source file ${sourceFileId}`);
   }
 }
 

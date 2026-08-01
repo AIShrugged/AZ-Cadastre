@@ -1,17 +1,19 @@
-// A single page of a Document. A PDF is split into one page per sheet (PRD
-// §4.2); a JPG/PNG document has exactly one page. The page image is what the
-// OCR stage consumes.
+// A single sheet of a source file. A PDF is split into one page per sheet (PRD
+// §4.2); a JPG/PNG file has exactly one page. The page image is what the OCR
+// stage consumes, and page numbers run across the whole file — which document
+// inside the file a sheet belongs to is the Document's page range, not a column
+// here.
 
 model Page {
-  id         String   @id @default(uuid()) @db.Uuid
-  documentId String   @db.Uuid
-  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  id           String     @id @default(uuid()) @db.Uuid
+  sourceFileId String     @db.Uuid
+  sourceFile   SourceFile @relation(fields: [sourceFileId], references: [id], onDelete: Cascade)
 
-  pageNumber      Int // 1-based; a non-PDF document has a single page (1)
+  pageNumber      Int // 1-based within the file; a single-image file has one page (1)
   imageStorageKey String // object-store key of the page image (PDF page → rendered PNG)
 
   /// Format the page image is stored in — image/png for a sheet rendered off a
-  /// PDF, the uploaded type itself for a single-image document. What the OCR
+  /// PDF, the uploaded type itself for a single-image file. What the OCR
   /// provider must be told to read the bytes as.
   imageContentType String
 
@@ -21,6 +23,6 @@ model Page {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([documentId, pageNumber])
+  @@unique([sourceFileId, pageNumber])
   @@map("pages")
 }

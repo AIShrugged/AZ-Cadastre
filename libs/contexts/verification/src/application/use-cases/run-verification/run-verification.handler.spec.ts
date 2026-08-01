@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { VerificationPackage } from "../../../domain/aggregates/index.js";
-import { Document, type ExtractedField } from "../../../domain/entities/index.js";
+import {
+  type Document,
+  type ExtractedField,
+  SourceFile,
+} from "../../../domain/entities/index.js";
 import { PackageNotStartableException } from "../../../domain/exceptions/index.js";
 import { VerificationPackageRepository } from "../../../domain/repositories/index.js";
 import {
@@ -16,17 +20,22 @@ import {
   PageId,
   PageImage,
   PageNumber,
+  PageRange,
   RecognisedText,
+  SourceFileId,
   StorageKey,
   VerificationProfile,
 } from "../../../domain/value-objects/index.js";
 import {
   DocumentClassifier,
+  DocumentSegmenter,
   FieldExtractor,
   IdGenerator,
   OcrProvider,
   PdfSplitter,
+  type ClassificationRequest,
   type PdfSplitRequest,
+  type SegmentationRequest,
   type SplitPage,
 } from "../../ports/index.js";
 import { RunVerificationCommand } from "./run-verification.command.js";
@@ -59,6 +68,10 @@ class InMemoryPackages extends VerificationPackageRepository {
 class SequentialIds extends IdGenerator {
   override packageId(): PackageId {
     return PackageId.of(anId());
+  }
+
+  override sourceFileId(): SourceFileId {
+    return SourceFileId.of(anId());
   }
 
   override documentId(): DocumentId {
@@ -131,10 +144,42 @@ class RecordingOcr extends OcrProvider {
   }
 }
 
-class FixedClassifier extends DocumentClassifier {
-  override async classify(): Promise<Classification> {
+// Cuts a file into documents at the sheets it was told to, so a test can say
+// "this PDF holds three documents" without a real model.
+class SegmenterCuttingAt extends DocumentSegmenter {
+  readonly asked: SegmentationRequest[] = [];
+
+  constructor(private readonly starts: readonly number[] = []) {
+    super();
+  }
+
+  override async segment(
+    request: SegmentationRequest,
+  ): Promise<readonly PageRange[]> {
+    this.asked.push(request);
+
+    const boundaries = [1, ...this.starts];
+    const total = request.pages.length;
+
+    return boundaries.map((start, index) =>
+      PageRange.of(
+        PageNumber.of(start),
+        PageNumber.of((boundaries[index + 1] ?? total + 1) - 1),
+      ),
+    );
+  }
+}
+
+class RecordingClassifier extends DocumentClassifier {
+  readonly asked: ClassificationRequest[] = [];
+
+  override async classify(
+    request: ClassificationRequest,
+  ): Promise<Classification> {
+    this.asked.push(request);
+
     return Classification.of(
-      DocumentType.create("passport"),
+      DocumentType.create("identity_card"),
       Confidence.of(0.9),
     );
   }
@@ -146,17 +191,17 @@ class NoFields extends FieldExtractor {
   }
 }
 
-function aPackageOf(...documents: readonly Document[]): VerificationPackage {
+function aPackageOf(...files: readonly SourceFile[]): VerificationPackage {
   return VerificationPackage.create(
     PackageId.of(PACKAGE_ID),
     VerificationProfile.CADASTRE,
-    documents,
+    files,
   );
 }
 
-function aDocument(filename: string, contentType: ContentType): Document {
-  return Document.create(
-    DocumentId.of(anId()),
+function aFile(filename: string, contentType: ContentType): SourceFile {
+  return SourceFile.create(
+    SourceFileId.of(anId()),
     Filename.create(filename),
     contentType,
     StorageKey.create(`${anId()}/${filename}`),
@@ -167,6 +212,8 @@ function pipelineOver(
   verification: VerificationPackage,
   pdf: PdfSplitter,
   ocr: RecordingOcr = new RecordingOcr(),
+  segmenter: DocumentSegmenter = new SegmenterCuttingAt(),
+  classifier: DocumentClassifier = new RecordingClassifier(),
 ): {
   run: () => Promise<void>;
   packages: InMemoryPackages;
@@ -178,7 +225,8 @@ function pipelineOver(
     new SequentialIds(),
     pdf,
     ocr,
-    new FixedClassifier(),
+    segmenter,
+    classifier,
     new NoFields(),
   );
 
@@ -189,53 +237,71 @@ function pipelineOver(
   };
 }
 
+async function storedPackage(
+  packages: InMemoryPackages,
+): Promise<VerificationPackage> {
+  return (await packages.findById())!;
+}
+
 async function documentsAfter(
   packages: InMemoryPackages,
 ): Promise<readonly Document[]> {
-  return (await packages.findById())!.documents;
+  return (await storedPackage(packages)).documents;
+}
+
+function spansOf(documents: readonly Document[]): [number, number][] {
+  return documents.map((document) => [
+    document.pages.first.value,
+    document.pages.last.value,
+  ]);
 }
 
 describe("RunVerificationHandler", () => {
   it("makes a page of every sheet the PDF was split into", async () => {
-    const verification = aPackageOf(
-      aDocument("passport.pdf", ContentType.PDF),
+    const file = aFile("submission.pdf", ContentType.PDF);
+    const { run, packages } = pipelineOver(
+      aPackageOf(file),
+      new RenderingSplitter(3),
     );
-    const { run, packages } = pipelineOver(verification, new RenderingSplitter(3));
 
     await run();
 
-    const [document] = await documentsAfter(packages);
-    expect(document?.pages.map((page) => page.number.value)).toEqual([1, 2, 3]);
+    const stored = await storedPackage(packages);
+    expect(
+      stored.fileWith(file.id).pages.map((page) => page.number.value),
+    ).toEqual([1, 2, 3]);
   });
 
   it("gives each page the image the splitter rendered for it", async () => {
-    const document = aDocument("passport.pdf", ContentType.PDF);
+    const file = aFile("submission.pdf", ContentType.PDF);
     const { run, packages } = pipelineOver(
-      aPackageOf(document),
+      aPackageOf(file),
       new RenderingSplitter(2),
     );
 
     await run();
 
-    const [stored] = await documentsAfter(packages);
-    expect(stored?.pages.map((page) => page.image.storageKey.value)).toEqual([
-      `${document.storageKey.value}/pages/page_001.png`,
-      `${document.storageKey.value}/pages/page_002.png`,
+    const stored = await storedPackage(packages);
+    expect(
+      stored.fileWith(file.id).pages.map((page) => page.image.storageKey.value),
+    ).toEqual([
+      `${file.storageKey.value}/pages/page_001.png`,
+      `${file.storageKey.value}/pages/page_002.png`,
     ]);
   });
 
   it("splits the PDF once, by the key the file was uploaded under", async () => {
-    const document = aDocument("deed.pdf", ContentType.PDF);
+    const file = aFile("deed.pdf", ContentType.PDF);
     const splitter = new RenderingSplitter(2);
 
-    await pipelineOver(aPackageOf(document), splitter).run();
+    await pipelineOver(aPackageOf(file), splitter).run();
 
-    expect(splitter.asked).toEqual([{ storageKey: document.storageKey }]);
+    expect(splitter.asked).toEqual([{ storageKey: file.storageKey }]);
   });
 
   it("reads every sheet of a PDF, each as the PNG it was rendered to", async () => {
     const { run, ocr } = pipelineOver(
-      aPackageOf(aDocument("passport.pdf", ContentType.PDF)),
+      aPackageOf(aFile("submission.pdf", ContentType.PDF)),
       new RenderingSplitter(3),
     );
 
@@ -247,9 +313,9 @@ describe("RunVerificationHandler", () => {
     }
   });
 
-  it("reads the pages of one document at the same time, not one after another", async () => {
+  it("reads the sheets of one file at the same time, not one after another", async () => {
     const { run, ocr } = pipelineOver(
-      aPackageOf(aDocument("passport.pdf", ContentType.PDF)),
+      aPackageOf(aFile("submission.pdf", ContentType.PDF)),
       new RenderingSplitter(4),
     );
 
@@ -260,8 +326,9 @@ describe("RunVerificationHandler", () => {
 
   it("reads no more pages at once than the provider says it will take", async () => {
     const ocr = new RecordingOcr(2);
+    const file = aFile("submission.pdf", ContentType.PDF);
     const { run, packages } = pipelineOver(
-      aPackageOf(aDocument("passport.pdf", ContentType.PDF)),
+      aPackageOf(file),
       new RenderingSplitter(5),
       ocr,
     );
@@ -269,40 +336,42 @@ describe("RunVerificationHandler", () => {
     await run();
 
     expect(ocr.peakInFlight).toBe(2);
-    const [document] = await documentsAfter(packages);
-    expect(document?.pages.every((page) => page.isRecognised)).toBe(true);
+    const stored = await storedPackage(packages);
+    expect(stored.fileWith(file.id).isFullyRecognised).toBe(true);
   });
 
   it("keeps the readings it got when one page of the batch fails", async () => {
+    const file = aFile("submission.pdf", ContentType.PDF);
     const refusesPageTwo = (image: PageImage) =>
       image.storageKey.value.endsWith("page_002.png");
     const { run, packages } = pipelineOver(
-      aPackageOf(aDocument("passport.pdf", ContentType.PDF)),
+      aPackageOf(file),
       new RenderingSplitter(3),
       new RecordingOcr(8, refusesPageTwo),
     );
 
     await expect(run()).rejects.toThrow("no reading of");
 
-    const verification = (await packages.findById())!;
-    expect(verification.status.value).toBe("Failed");
+    const stored = await storedPackage(packages);
+    expect(stored.status.value).toBe("Failed");
     expect(
-      verification.documents[0]?.pages.map((page) => page.isRecognised),
+      stored.fileWith(file.id).pages.map((page) => page.isRecognised),
     ).toEqual([true, false, true]);
   });
 
   it("asks the provider only for the pages a failed run left unread", async () => {
-    const document = aDocument("passport.pdf", ContentType.PDF);
+    const file = aFile("submission.pdf", ContentType.PDF);
     const refusesPageTwo = (image: PageImage) =>
       image.storageKey.value.endsWith("page_002.png");
-    const packages = new InMemoryPackages(aPackageOf(document));
+    const packages = new InMemoryPackages(aPackageOf(file));
     const pipeline = (ocr: RecordingOcr) =>
       new RunVerificationHandler(
         packages,
         new SequentialIds(),
         new RenderingSplitter(3),
         ocr,
-        new FixedClassifier(),
+        new SegmenterCuttingAt(),
+        new RecordingClassifier(),
         new NoFields(),
       ).execute(new RunVerificationCommand(PACKAGE_ID));
 
@@ -313,34 +382,30 @@ describe("RunVerificationHandler", () => {
     await pipeline(second);
 
     expect(second.read.map((image) => image.storageKey.value)).toEqual([
-      `${document.storageKey.value}/pages/page_002.png`,
+      `${file.storageKey.value}/pages/page_002.png`,
     ]);
-    expect((await packages.findById())!.status.value).toBe("Completed");
+    expect((await storedPackage(packages)).status.value).toBe("Completed");
   });
 
-  it("takes a photographed document as the single page it already is", async () => {
-    const document = aDocument("scan.jpg", ContentType.JPEG);
+  it("takes a photographed file as the single page it already is", async () => {
+    const file = aFile("scan.jpg", ContentType.JPEG);
     const { run, packages } = pipelineOver(
-      aPackageOf(document),
+      aPackageOf(file),
       new RefusingSplitter(),
     );
 
     await run();
 
-    const [stored] = await documentsAfter(packages);
-    expect(stored?.pages).toHaveLength(1);
-    expect(stored?.pages[0]?.image.storageKey.equals(document.storageKey)).toBe(
-      true,
-    );
-    expect(stored?.pages[0]?.image.contentType.equals(ContentType.JPEG)).toBe(
-      true,
-    );
+    const pages = (await storedPackage(packages)).fileWith(file.id).pages;
+    expect(pages).toHaveLength(1);
+    expect(pages[0]?.image.storageKey.equals(file.storageKey)).toBe(true);
+    expect(pages[0]?.image.contentType.equals(ContentType.JPEG)).toBe(true);
   });
 
   it("splits the PDFs of a package and leaves its images alone", async () => {
-    const scan = aDocument("scan.png", ContentType.PNG);
-    const first = aDocument("passport.pdf", ContentType.PDF);
-    const second = aDocument("application.pdf", ContentType.PDF);
+    const scan = aFile("scan.png", ContentType.PNG);
+    const first = aFile("passport.pdf", ContentType.PDF);
+    const second = aFile("application.pdf", ContentType.PDF);
     const splitter = new RenderingSplitter(1);
 
     const { run, packages } = pipelineOver(
@@ -353,21 +418,23 @@ describe("RunVerificationHandler", () => {
       first.storageKey.value,
       second.storageKey.value,
     ]);
-    for (const document of await documentsAfter(packages)) {
-      expect(document.pages).toHaveLength(1);
+    for (const stored of (await storedPackage(packages)).files) {
+      expect(stored.pageCount).toBe(1);
     }
   });
 
-  it("does not split again a document an earlier run already split", async () => {
+  it("does not split again a file an earlier run already split", async () => {
     const splitter = new RenderingSplitter(2);
-    const verification = aPackageOf(aDocument("passport.pdf", ContentType.PDF));
-    const packages = new InMemoryPackages(verification);
+    const packages = new InMemoryPackages(
+      aPackageOf(aFile("submission.pdf", ContentType.PDF)),
+    );
     const handler = new RunVerificationHandler(
       packages,
       new SequentialIds(),
       splitter,
       new RecordingOcr(),
-      new FixedClassifier(),
+      new SegmenterCuttingAt(),
+      new RecordingClassifier(),
       new NoFields(),
     );
 
@@ -377,5 +444,206 @@ describe("RunVerificationHandler", () => {
     ).rejects.toThrow(PackageNotStartableException);
 
     expect(splitter.asked).toHaveLength(1);
+  });
+
+  describe("reading a file into the documents it holds", () => {
+    it("finds one document per boundary the segmenter named", async () => {
+      const { run, packages } = pipelineOver(
+        aPackageOf(aFile("submission.pdf", ContentType.PDF)),
+        new RenderingSplitter(5),
+        new RecordingOcr(),
+        new SegmenterCuttingAt([2, 4]),
+      );
+
+      await run();
+
+      expect(spansOf(await documentsAfter(packages))).toEqual([
+        [1, 1],
+        [2, 3],
+        [4, 5],
+      ]);
+    });
+
+    it("reads a container PDF holding several documents as several documents", async () => {
+      const { run, packages } = pipelineOver(
+        aPackageOf(aFile("submission.pdf", ContentType.PDF)),
+        new RenderingSplitter(3),
+        new RecordingOcr(),
+        new SegmenterCuttingAt([2, 3]),
+      );
+
+      await run();
+
+      expect(await documentsAfter(packages)).toHaveLength(3);
+    });
+
+    it("asks the segmenter only after every sheet of the file has been read", async () => {
+      const segmenter = new SegmenterCuttingAt([2]);
+
+      await pipelineOver(
+        aPackageOf(aFile("submission.pdf", ContentType.PDF)),
+        new RenderingSplitter(3),
+        new RecordingOcr(),
+        segmenter,
+      ).run();
+
+      const [asked] = segmenter.asked;
+      expect(asked?.pages.map((page) => page.text.value)).toEqual([
+        expect.stringContaining("page_001.png"),
+        expect.stringContaining("page_002.png"),
+        expect.stringContaining("page_003.png"),
+      ]);
+    });
+
+    it("offers the segmenter the types the governing profile expects, described", async () => {
+      const segmenter = new SegmenterCuttingAt();
+
+      await pipelineOver(
+        aPackageOf(aFile("submission.pdf", ContentType.PDF)),
+        new RenderingSplitter(2),
+        new RecordingOcr(),
+        segmenter,
+      ).run();
+
+      const offered = segmenter.asked[0]?.candidates ?? [];
+      expect(offered.map((candidate) => candidate.type.value)).toEqual(
+        VerificationProfile.CADASTRE.documentTypes.map((type) => type.value),
+      );
+      expect(
+        offered.every((candidate) => candidate.description.length > 0),
+      ).toBe(true);
+    });
+
+    it("does not ask the segmenter about a file of a single sheet", async () => {
+      const segmenter = new SegmenterCuttingAt();
+      const { run, packages } = pipelineOver(
+        aPackageOf(aFile("scan.jpg", ContentType.JPEG)),
+        new RefusingSplitter(),
+        new RecordingOcr(),
+        segmenter,
+      );
+
+      await run();
+
+      expect(segmenter.asked).toEqual([]);
+      expect(spansOf(await documentsAfter(packages))).toEqual([[1, 1]]);
+    });
+
+    it("reads each file of a package into its own documents", async () => {
+      const { run, packages } = pipelineOver(
+        aPackageOf(
+          aFile("first.pdf", ContentType.PDF),
+          aFile("second.pdf", ContentType.PDF),
+        ),
+        new RenderingSplitter(2),
+        new RecordingOcr(),
+        new SegmenterCuttingAt([2]),
+      );
+
+      await run();
+
+      const documents = await documentsAfter(packages);
+      expect(documents).toHaveLength(4);
+      expect(new Set(documents.map((d) => d.sourceFileId.value)).size).toBe(2);
+    });
+
+    it("does not read again a file an earlier run already read", async () => {
+      const segmenter = new SegmenterCuttingAt([2]);
+      const packages = new InMemoryPackages(
+        aPackageOf(aFile("submission.pdf", ContentType.PDF)),
+      );
+      const handler = new RunVerificationHandler(
+        packages,
+        new SequentialIds(),
+        new RenderingSplitter(3),
+        new RecordingOcr(),
+        segmenter,
+        new RecordingClassifier(),
+        new NoFields(),
+      );
+
+      await handler.execute(new RunVerificationCommand(PACKAGE_ID));
+      await expect(
+        handler.execute(new RunVerificationCommand(PACKAGE_ID)),
+      ).rejects.toThrow(PackageNotStartableException);
+
+      expect(segmenter.asked).toHaveLength(1);
+      expect(await documentsAfter(packages)).toHaveLength(2);
+    });
+  });
+
+  describe("classifying what was found", () => {
+    it("tells the classifier what each candidate type is, not only its key", async () => {
+      const classifier = new RecordingClassifier();
+
+      await pipelineOver(
+        aPackageOf(aFile("submission.pdf", ContentType.PDF)),
+        new RenderingSplitter(2),
+        new RecordingOcr(),
+        new SegmenterCuttingAt(),
+        classifier,
+      ).run();
+
+      const offered = classifier.asked[0]?.candidates ?? [];
+      expect(offered.map((candidate) => candidate.type.value)).toEqual(
+        VerificationProfile.CADASTRE.documentTypes.map((type) => type.value),
+      );
+      expect(offered.every((candidate) => candidate.hints.length > 0)).toBe(
+        true,
+      );
+    });
+
+    it("classifies every document, not every file", async () => {
+      const classifier = new RecordingClassifier();
+      const { run, packages } = pipelineOver(
+        aPackageOf(aFile("submission.pdf", ContentType.PDF)),
+        new RenderingSplitter(4),
+        new RecordingOcr(),
+        new SegmenterCuttingAt([3]),
+        classifier,
+      );
+
+      await run();
+
+      expect(classifier.asked).toHaveLength(2);
+      for (const document of await documentsAfter(packages)) {
+        expect(document.isClassified).toBe(true);
+      }
+    });
+
+    it("classifies a document from the text of its own sheets alone", async () => {
+      const file = aFile("submission.pdf", ContentType.PDF);
+      const classifier = new RecordingClassifier();
+
+      await pipelineOver(
+        aPackageOf(file),
+        new RenderingSplitter(3),
+        new RecordingOcr(),
+        new SegmenterCuttingAt([3]),
+        classifier,
+      ).run();
+
+      const [first, second] = classifier.asked;
+      expect(first?.text.value).toBe(
+        `text of ${file.storageKey.value}/pages/page_001.png\n` +
+          `text of ${file.storageKey.value}/pages/page_002.png`,
+      );
+      expect(second?.text.value).toBe(
+        `text of ${file.storageKey.value}/pages/page_003.png`,
+      );
+    });
+
+    it("completes the package once every document has been placed", async () => {
+      const { run, packages } = pipelineOver(
+        aPackageOf(aFile("submission.pdf", ContentType.PDF)),
+        new RenderingSplitter(3),
+        new RecordingOcr(),
+        new SegmenterCuttingAt([2]),
+      );
+
+      await run();
+
+      expect((await storedPackage(packages)).status.value).toBe("Completed");
+    });
   });
 });

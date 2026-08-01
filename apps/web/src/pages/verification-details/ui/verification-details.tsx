@@ -1,12 +1,20 @@
 /**
  * Verification details — the inspector's review surface for one package. Reads
- * live pipeline output from `GET /api/packages/:id`: the process stepper, then
- * every uploaded file with the real OCR text per sheet and the documents the
- * engine found inside it, each with its detected type and page range. A file is
- * a container — one PDF may hold a passport and a title deed — so the file is
- * what the inspector recognises and the documents are what the engine reports
- * within it. Fields / validation / report appear here as those pipeline stages
- * are built. It reports evidence; it never states an approval or a verdict.
+ * live pipeline output from `GET /api/packages/:id`.
+ *
+ * The surface is an evidence workbench, not a scroll: a wide register of the
+ * documents the engine read (label / value / confidence in aligned columns,
+ * each entry disclosing the source text of its own sheets) beside a sticky rail
+ * that holds the package's state — how far the pipeline got, what the profile
+ * still expects, and an index of what is in the package. The rail answers "did
+ * it finish, is anything missing, what is in here"; the register answers "is
+ * this value right", which is where the inspector's attention actually goes.
+ *
+ * A file is a container — one PDF may hold a passport and a title deed — so the
+ * file is what the inspector recognises and the documents are what the engine
+ * reports within it. Fields / validation / report appear here as those pipeline
+ * stages are built. It reports evidence; it never states an approval or a
+ * verdict.
  */
 import { useState, type ReactNode } from "react"
 import {
@@ -15,7 +23,6 @@ import {
   ChevronRightIcon,
   FileTextIcon,
   ImageIcon,
-  ScanTextIcon,
   TriangleAlertIcon,
 } from "lucide-react"
 import { useNavigate, useParams } from "react-router-dom"
@@ -49,24 +56,29 @@ import { Skeleton } from "@/shared/ui/skeleton"
 import { paths } from "@/shared/config"
 import { cn } from "@/shared/lib/cn"
 
+type Translate = (key: string, vars?: Record<string, string | number>) => string
+
 type StageStatus = "done" | "current" | "pending" | "error"
 
-// ─── Pipeline stepper ─────────────────────────────────────────────────────────
-function StageNode({ status, n }: { status: StageStatus; n: number }) {
+// ─── Pipeline, read down the rail ─────────────────────────────────────────────
+// Vertical, because the seven stage names are long in all three languages and a
+// horizontal run of them either wraps, truncates, or scrolls sideways. Read
+// downward it is one narrow column: marker, stage, its score.
+function StageMarker({ status, n }: { status: StageStatus; n: number }) {
   return (
     <span
       className={cn(
-        "grid size-7 shrink-0 place-items-center rounded-full border-2 text-[0.6875rem] font-semibold tabular-nums transition-colors duration-300",
-        status === "done" && "border-ok-ink bg-ok-ink text-background",
-        status === "current" && "border-primary text-primary",
-        status === "pending" && "border-rule-strong text-muted-foreground",
-        status === "error" && "border-destructive bg-destructive text-white",
+        "grid size-5 shrink-0 place-items-center rounded-full text-[0.625rem] font-semibold tabular-nums transition-colors duration-300",
+        status === "done" && "bg-ok-ink text-background",
+        status === "current" && "border-2 border-primary text-primary",
+        status === "pending" && "border border-rule-strong text-muted-foreground",
+        status === "error" && "bg-destructive text-white",
       )}
     >
       {status === "done" ? (
-        <CheckIcon className="size-3.5" strokeWidth={3} />
+        <CheckIcon className="size-3" strokeWidth={3} />
       ) : status === "error" ? (
-        <TriangleAlertIcon className="size-3.5" />
+        <TriangleAlertIcon className="size-3" />
       ) : (
         n
       )}
@@ -74,21 +86,7 @@ function StageNode({ status, n }: { status: StageStatus; n: number }) {
   )
 }
 
-type ConnectorState = "done" | "pending" | "hidden"
-
-function Connector({ state }: { state: ConnectorState }) {
-  if (state === "hidden") return <span className="h-0.5 flex-1" />
-  return (
-    <span
-      className={cn(
-        "h-0.5 flex-1 rounded transition-colors duration-500",
-        state === "done" ? "bg-ok-ink" : "bg-rule",
-      )}
-    />
-  )
-}
-
-function Stepper({
+function Pipeline({
   stages,
   scores,
 }: {
@@ -96,31 +94,37 @@ function Stepper({
   scores: (number | null)[]
 }) {
   const { t } = useI18n()
-  const stateOf = (i: number, side: "left" | "right"): ConnectorState => {
-    if (side === "left" && i === 0) return "hidden"
-    if (side === "right" && i === stages.length - 1) return "hidden"
-    const s = side === "left" ? stages[i - 1] : stages[i]
-    return s === "done" ? "done" : "pending"
-  }
   return (
-    <ol className="flex min-w-max items-start md:min-w-0">
+    <ol className="mt-3 flex flex-col">
       {stages.map((st, i) => (
-        <li key={i} className="flex flex-1 flex-col items-center gap-2 px-1">
-          <div className="flex w-full items-center">
-            <Connector state={stateOf(i, "left")} />
-            <StageNode status={st} n={i + 1} />
-            <Connector state={stateOf(i, "right")} />
+        <li key={i} className="flex gap-3">
+          <div className="flex flex-col items-center">
+            <StageMarker status={st} n={i + 1} />
+            {i < stages.length - 1 && (
+              <span
+                aria-hidden
+                className={cn(
+                  "my-1 w-px flex-1 transition-colors duration-500",
+                  st === "done" ? "bg-ok-ink/35" : "bg-rule",
+                )}
+              />
+            )}
           </div>
-          <div className="flex flex-col items-center gap-0.5">
+          <div
+            className={cn(
+              "flex min-w-0 flex-1 items-baseline justify-between gap-2",
+              i < stages.length - 1 && "pb-3",
+            )}
+          >
             <span
               className={cn(
-                "min-w-[4rem] max-w-[6rem] text-center text-[0.6875rem] leading-tight transition-colors duration-300",
+                "text-[0.8125rem] leading-tight transition-colors duration-300",
                 st === "current"
                   ? "font-medium text-primary"
-                  : st === "done"
-                    ? "text-ok-ink"
-                    : st === "error"
-                      ? "font-medium text-destructive"
+                  : st === "error"
+                    ? "font-medium text-failed-ink"
+                    : st === "done"
+                      ? "text-foreground/80"
                       : "text-muted-foreground",
               )}
             >
@@ -131,7 +135,7 @@ function Stepper({
               <span
                 data-mono
                 className={cn(
-                  "text-[0.625rem] tabular-nums",
+                  "shrink-0 text-[0.6875rem] tabular-nums",
                   st === "error" ? "text-failed-ink" : "text-muted-foreground",
                 )}
               >
@@ -228,14 +232,16 @@ function stageStatuses(
 
 // ─── Confidence ────────────────────────────────────────────────────────────────
 // A machine-read value: tabular mono, and below the 80% threshold it flags for
-// review in the clay "incomplete" ink (PRD §4.6).
+// review in the clay "incomplete" ink (PRD §4.6). Above the floor it stays a
+// quiet figure in its own column — provenance travels with every field, but a
+// reading the engine is sure of must not shout down the value it produced.
 const CONFIDENCE_FLOOR = 0.8
 
 function Confidence({ value }: { value: number }) {
   const { t } = useI18n()
   const low = value < CONFIDENCE_FLOOR
   return (
-    <span className="inline-flex shrink-0 items-center gap-1.5">
+    <span className="inline-flex shrink-0 items-baseline justify-end gap-1.5">
       {low && (
         <span className="rounded-full bg-incomplete/12 px-1.5 py-0.5 text-[0.625rem] font-medium text-incomplete-ink">
           {t("detail.needs_review")}
@@ -245,7 +251,7 @@ function Confidence({ value }: { value: number }) {
         data-mono
         className={cn(
           "text-[0.75rem] tabular-nums",
-          low ? "font-medium text-incomplete-ink" : "text-muted-foreground",
+          low ? "font-medium text-incomplete-ink" : "text-muted-foreground/80",
         )}
       >
         {Math.round(value * 100)}%
@@ -289,12 +295,40 @@ function StatusLine({
   )
 }
 
+// The disclosure every raw transcription opens into — the machine's reading,
+// set in mono on a recessed panel so it never passes for extracted data.
+function Transcript({ label, text }: { label: string; text: string }) {
+  return (
+    <details className="group mt-3">
+      <summary className="inline-flex cursor-pointer list-none select-none items-center gap-1.5 text-[0.75rem] text-muted-foreground transition-colors hover:text-foreground">
+        <ChevronRightIcon className="size-3 transition-transform duration-200 group-open:rotate-90" />
+        {label}
+      </summary>
+      <pre
+        data-mono
+        className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap rounded-lg border border-rule bg-muted/30 p-3 text-[0.75rem] leading-relaxed text-foreground/75"
+      >
+        {text}
+      </pre>
+    </details>
+  )
+}
+
 // ─── OCR status ────────────────────────────────────────────────────────────────
-// One line does the whole job: it reports the reading (recognised / failed /
-// pending) with its confidence, and — when recognised — it IS the disclosure for
-// the full transcription. No separate "view text" control; the status and the
-// text it produced are the same affordance (Product Principle 2).
-function OcrStatus({ file, failed }: { file: SourceFileDto; failed: boolean }) {
+// One line reports the reading of a whole file — recognised / failed / pending —
+// with its confidence. The transcription itself belongs to each document that
+// was carved out of the file, so it is disclosed there; only while nothing has
+// been carved out yet does this line carry the whole-file text (`orphan`), so
+// the reading is never unreachable.
+function OcrStatus({
+  file,
+  failed,
+  orphan,
+}: {
+  file: SourceFileDto
+  failed: boolean
+  orphan: boolean
+}) {
   const { t } = useI18n()
   const recognised = file.pages.filter((p) => p.ocr)
   const done = file.pages.length > 0 && recognised.length === file.pages.length
@@ -326,26 +360,17 @@ function OcrStatus({ file, failed }: { file: SourceFileDto; failed: boolean }) {
     .trim()
 
   return (
-    <details className="group">
-      <summary className="flex cursor-pointer list-none select-none items-center justify-between gap-3 py-0.5 text-[0.8125rem]">
-        <span className="flex items-center gap-2">
-          <span className="grid size-5 shrink-0 place-items-center rounded-full bg-ok/12 text-ok-ink">
-            <CheckIcon className="size-3" strokeWidth={3} />
-          </span>
-          <span className="text-foreground/80 transition-colors group-hover:text-foreground">
-            {t("detail.ocr_done")}
-          </span>
-          <ChevronRightIcon className="size-3 text-muted-foreground transition-transform duration-200 group-open:rotate-90" />
-        </span>
+    <div className="min-w-0">
+      <div className="flex items-center gap-3">
+        <StatusLine
+          tone="ok"
+          icon={<CheckIcon className="size-3" strokeWidth={3} />}
+          label={t("detail.ocr_done")}
+        />
         <Confidence value={avg} />
-      </summary>
-      <pre
-        data-mono
-        className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap rounded-lg border border-rule bg-muted/30 p-3 text-[0.75rem] leading-relaxed text-foreground/80"
-      >
-        {text}
-      </pre>
-    </details>
+      </div>
+      {orphan && <Transcript label={t("detail.source_text")} text={text} />}
+    </div>
   )
 }
 
@@ -412,44 +437,36 @@ function PageTally({ file, failed }: { file: SourceFileDto; failed: boolean }) {
 }
 
 // ─── Extracted fields ────────────────────────────────────────────────────────
-// The type's schema, filled in: label over the machine-read value, each carrying
-// its own confidence so provenance travels with every field. Fields are paired
-// into rows so every hairline spans the full width, even at an odd count.
+// The type's schema, filled in — read as a register, not as a form: the label
+// column, then the machine-read value, then the confidence that reading carries.
+// Values align down one column across every document on the page, which is what
+// makes a name in the application comparable to the name on the identity card at
+// a glance. Nothing is truncated; a long value wraps, because a value the
+// inspector cannot read is a value they cannot verify.
 function Fields({ fields }: { fields: FieldDto[] }) {
   const { t } = useI18n()
-  const rows: FieldDto[][] = []
-  for (let i = 0; i < fields.length; i += 2) rows.push(fields.slice(i, i + 2))
   return (
-    <dl className="border-t border-rule">
-      {rows.map((row, ri) => (
+    <dl className="mt-3 border-t border-rule">
+      {fields.map((f) => (
         <div
-          key={ri}
-          className="grid grid-cols-1 divide-y divide-rule border-b border-rule sm:grid-cols-2 sm:gap-x-8 sm:divide-y-0"
+          key={f.name}
+          className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1 border-b border-rule py-2.5 sm:grid-cols-[minmax(8rem,15rem)_minmax(0,1fr)_auto] sm:gap-x-6 sm:gap-y-0"
         >
-          {row.map((f) => (
-            <div
-              key={f.name}
-              className="flex items-baseline justify-between gap-3 py-2.5"
-            >
-              <div className="min-w-0">
-                <dt className="text-[0.6875rem] text-muted-foreground">
-                  {translateOr(t, `field.${f.name}`, f.name)}
-                </dt>
-                <dd
-                  data-mono
-                  className={cn(
-                    "mt-0.5 truncate text-[0.875rem]",
-                    f.confidence < CONFIDENCE_FLOOR
-                      ? "text-incomplete-ink"
-                      : "text-foreground",
-                  )}
-                >
-                  {f.value || "—"}
-                </dd>
-              </div>
-              <Confidence value={f.confidence} />
-            </div>
-          ))}
+          <dt className="col-span-2 text-[0.8125rem] leading-snug text-muted-foreground sm:col-span-1">
+            {translateOr(t, `field.${f.name}`, f.name)}
+          </dt>
+          <dd
+            data-mono
+            className={cn(
+              "min-w-0 break-words whitespace-pre-line text-[0.875rem] leading-snug",
+              f.confidence < CONFIDENCE_FLOOR
+                ? "text-incomplete-ink"
+                : "text-foreground",
+            )}
+          >
+            {f.value || "—"}
+          </dd>
+          <Confidence value={f.confidence} />
         </div>
       ))}
     </dl>
@@ -459,148 +476,154 @@ function Fields({ fields }: { fields: FieldDto[] }) {
 // ─── One document found inside a file ────────────────────────────────────────
 // A file is a container, so a document is identified by where it sits in that
 // container — the sheets it occupies — not by a filename of its own.
-function pageLabel(
-  t: (key: string, vars?: Record<string, string | number>) => string,
-  doc: DocumentDto,
-): string {
+function pageLabel(t: Translate, doc: DocumentDto): string {
   return doc.firstPage === doc.lastPage
     ? t("detail.page_single", { n: doc.firstPage })
     : t("detail.page_range", { from: doc.firstPage, to: doc.lastPage })
 }
 
-function DocumentBlock({ doc, file }: { doc: DocumentDto; file: SourceFileDto }) {
+/** The document's own sheets, read out — the evidence its fields were taken
+ *  from, so provenance sits one line below the value it produced. */
+function documentText(doc: DocumentDto, file: SourceFileDto): string {
+  return file.pages
+    .filter((p) => p.pageNumber >= doc.firstPage && p.pageNumber <= doc.lastPage)
+    .map((p) => p.ocr?.text ?? "")
+    .join("\n\n")
+    .trim()
+}
+
+function DocumentEntry({ doc, file }: { doc: DocumentDto; file: SourceFileDto }) {
   const { t } = useI18n()
   const unclassified = doc.type === "unknown"
+  const text = documentText(doc, file)
   // Unclassified: show a one-line preview off the document's own sheets, so the
   // inspector can still tell roughly what it is.
-  const snippet = unclassified
-    ? file.pages
-        .filter((p) => p.pageNumber >= doc.firstPage && p.pageNumber <= doc.lastPage)
-        .map((p) => p.ocr?.text ?? "")
-        .join(" ")
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 120)
-    : ""
+  const snippet = unclassified ? text.replace(/\s+/g, " ").slice(0, 160) : ""
 
   return (
-    <div className="rounded-lg border border-rule bg-card/40 p-3">
-      <div className="flex items-baseline justify-between gap-3">
-        <span data-mono className="shrink-0 text-[0.6875rem] text-muted-foreground">
-          {pageLabel(t, doc)}
-        </span>
-        {doc.type ? (
+    <article id={`doc-${doc.id}`} className="scroll-mt-6 py-6 first:pt-5 last:pb-0">
+      <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <div className="flex min-w-0 items-baseline gap-3">
           <span
-            className={cn(
-              "shrink-0 rounded-full px-2 py-0.5 text-[0.6875rem] font-medium",
-              unclassified
-                ? "border border-rule-strong bg-muted/40 text-muted-foreground"
-                : "border border-primary/20 bg-primary/8 text-primary",
-            )}
+            data-mono
+            className="shrink-0 text-[0.75rem] tabular-nums text-muted-foreground"
           >
-            {translateOr(t, `doctype.${doc.type}`, doc.type)}
+            {pageLabel(t, doc)}
           </span>
-        ) : (
-          <span className="flex shrink-0 items-center gap-1.5 text-[0.6875rem] font-medium text-primary">
-            <span
-              aria-hidden
-              className="size-1.5 rounded-full bg-primary motion-safe:animate-pulse"
-            />
-            {t("detail.classifying")}
+          {doc.type ? (
+            <h3
+              className={cn(
+                "text-[0.9375rem] font-[550] leading-tight tracking-[-0.01em]",
+                unclassified ? "text-muted-foreground" : "text-foreground",
+              )}
+            >
+              {translateOr(t, `doctype.${doc.type}`, doc.type)}
+            </h3>
+          ) : (
+            <span className="flex items-center gap-1.5 text-[0.8125rem] font-medium text-primary">
+              <span
+                aria-hidden
+                className="size-1.5 rounded-full bg-primary motion-safe:animate-pulse"
+              />
+              {t("detail.classifying")}
+            </span>
+          )}
+        </div>
+        {doc.classificationConfidence != null && (
+          // Pushed right on its own line when the type name takes the full
+          // width, so a wrapped confidence still lands in its column.
+          <span className="ml-auto">
+            <Confidence value={doc.classificationConfidence} />
           </span>
         )}
-      </div>
+      </header>
 
       {unclassified ? (
-        <p className="mt-2 text-[0.8125rem] leading-relaxed text-muted-foreground">
+        <p className="mt-2 max-w-[65ch] text-[0.8125rem] leading-relaxed text-muted-foreground">
           {t("detail.unclassified")}
           {snippet && (
-            <span className="mt-1.5 block truncate text-[0.75rem] italic text-foreground/55">
+            <span className="mt-1.5 block text-[0.75rem] italic text-foreground/55">
               “{snippet}…”
             </span>
           )}
         </p>
       ) : (
-        doc.fields.length > 0 && (
-          <div className="mt-3">
-            <div className="mb-2 flex items-center gap-1.5">
-              <ScanTextIcon className="size-3.5 text-muted-foreground" />
-              <span className="register-label">{t("detail.fields")}</span>
-            </div>
-            <Fields fields={doc.fields} />
-          </div>
-        )
+        doc.fields.length > 0 && <Fields fields={doc.fields} />
       )}
-    </div>
+
+      {text && (
+        <Transcript
+          label={`${t("detail.source_text")} · ${pageLabel(t, doc)}`}
+          text={text}
+        />
+      )}
+    </article>
   )
 }
 
 // ─── One uploaded file ───────────────────────────────────────────────────────
-// What the inspector recognises: the file they attached, its sheets, and the
-// documents the engine read out of it.
-function FileBlock({ file, failed }: { file: SourceFileDto; failed: boolean }) {
+// The provenance line for the documents beneath it: what the inspector attached,
+// how many sheets it was split into, and whether those sheets were read. With
+// one file it reads as a caption; with several it becomes the rule that groups
+// each file's documents.
+function FileGroup({ file, failed }: { file: SourceFileDto; failed: boolean }) {
   const { t } = useI18n()
   const Icon = file.contentType.startsWith("image/") ? ImageIcon : FileTextIcon
   const read = file.pages.length > 0 && file.pages.every((p) => p.ocr !== null)
   const found = file.documents.length
+  const detecting = found === 0 && read && !failed
+  // The rule under the file line divides it from what it holds. A file that
+  // holds nothing — a run that failed before detection — gets no divider, so the
+  // section never ends on a hairline with nothing beneath it.
+  const holds = found > 0 || detecting
 
   return (
-    <div>
-      {/* Header — filename + how many documents it turned out to hold */}
-      <div className="flex items-center gap-3">
-        <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-rule-strong bg-card text-muted-foreground">
-          <Icon className="size-4.5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline justify-between gap-3">
-            <h3 className="truncate text-[0.9375rem] font-semibold text-foreground">
-              {file.originalFilename}
-            </h3>
-            {found > 0 && (
-              <span className="shrink-0 text-[0.6875rem] text-muted-foreground">
-                {found === 1
-                  ? t("detail.in_file_one")
-                  : t("detail.in_file", { n: found })}
-              </span>
-            )}
-          </div>
-          <div
+    <section>
+      <div
+        className={cn(
+          "flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2",
+          holds && "border-b border-rule-strong pb-3",
+        )}
+      >
+        <div className="flex min-w-0 items-baseline gap-2.5">
+          <Icon
+            aria-hidden
+            className="size-4 shrink-0 translate-y-0.5 text-muted-foreground"
+          />
+          <h2 className="truncate text-[0.9375rem] font-semibold text-foreground">
+            {file.originalFilename}
+          </h2>
+          <span
             data-mono
-            className="truncate text-[0.6875rem] text-muted-foreground"
+            className="shrink-0 text-[0.6875rem] text-muted-foreground"
           >
             {file.contentType}
             <PageTally file={file} failed={failed} />
-          </div>
+          </span>
         </div>
+        <OcrStatus file={file} failed={failed} orphan={found === 0} />
       </div>
 
-      {/* Body — the OCR status line (which discloses the raw text), then the
-          documents found inside */}
-      <div className="mt-4 flex flex-col gap-4 border-t border-rule pt-4">
-        <OcrStatus file={file} failed={failed} />
-
-        {found > 0 ? (
-          <div className="flex flex-col gap-3">
-            {file.documents.map((doc) => (
-              <DocumentBlock key={doc.id} doc={doc} file={file} />
-            ))}
-          </div>
-        ) : (
-          // The sheets are read but nothing has been carved out of them yet: the
-          // file is still being split into the documents it holds.
-          read &&
-          !failed && (
-            <span className="flex items-center gap-1.5 text-[0.8125rem] text-primary">
-              <span
-                aria-hidden
-                className="size-1.5 rounded-full bg-primary motion-safe:animate-pulse"
-              />
-              {t("detail.detecting")}
-            </span>
-          )
-        )}
-      </div>
-    </div>
+      {found > 0 ? (
+        <div className="divide-y divide-rule">
+          {file.documents.map((doc) => (
+            <DocumentEntry key={doc.id} doc={doc} file={file} />
+          ))}
+        </div>
+      ) : (
+        // The sheets are read but nothing has been carved out of them yet: the
+        // file is still being split into the documents it holds.
+        detecting && (
+          <span className="mt-4 flex items-center gap-1.5 text-[0.8125rem] text-primary">
+            <span
+              aria-hidden
+              className="size-1.5 rounded-full bg-primary motion-safe:animate-pulse"
+            />
+            {t("detail.detecting")}
+          </span>
+        )
+      )}
+    </section>
   )
 }
 
@@ -619,12 +642,12 @@ function RequiredDocuments({
 
   return (
     <section>
-      <div className="flex items-baseline justify-between gap-4">
+      <div className="flex items-baseline justify-between gap-3">
         <h2 className="register-label">{t("detail.required")}</h2>
         {settled && missing.length > 0 && (
           <span
             data-mono
-            className="text-[0.75rem] tabular-nums text-incomplete-ink"
+            className="text-[0.6875rem] tabular-nums text-incomplete-ink"
           >
             {t("detail.required_missing", { n: missing.length })}
           </span>
@@ -632,15 +655,17 @@ function RequiredDocuments({
       </div>
 
       {!settled ? (
-        <p className="mt-3 text-[0.8125rem] text-muted-foreground">
+        <p className="mt-3 text-[0.8125rem] leading-snug text-muted-foreground">
           {t("detail.required_pending")}
         </p>
       ) : missing.length === 0 ? (
-        <StatusLine
-          tone="ok"
-          icon={<CheckIcon className="size-3" strokeWidth={3} />}
-          label={t("detail.required_all")}
-        />
+        <div className="mt-3">
+          <StatusLine
+            tone="ok"
+            icon={<CheckIcon className="size-3" strokeWidth={3} />}
+            label={t("detail.required_all")}
+          />
+        </div>
       ) : (
         <ul className="mt-3 flex flex-col gap-2">
           {missing.map((type) => (
@@ -655,6 +680,61 @@ function RequiredDocuments({
         </ul>
       )}
     </section>
+  )
+}
+
+// ─── Contents ─────────────────────────────────────────────────────────────────
+// The package read as a table of contents: every document the engine placed, in
+// sheet order, as a jump into the register. It is the only navigation this
+// surface needs — and, read on its own, the fastest answer to "what is in this
+// package". Sheet numbers restart in every file, so once a package carries more
+// than one, each file names itself above its own documents; otherwise "p. 1"
+// would appear twice meaning two different sheets.
+function Contents({ files }: { files: readonly SourceFileDto[] }) {
+  const { t } = useI18n()
+  const groups = files.filter((file) => file.documents.length > 0)
+  const named = groups.length > 1
+
+  return (
+    <nav className="hidden xl:block">
+      <h2 className="register-label">{t("detail.contents")}</h2>
+      <div className="mt-2 flex flex-col gap-3">
+        {groups.map((file) => (
+          <div key={file.id}>
+            {named && (
+              <p
+                data-mono
+                className="mb-1 truncate text-[0.6875rem] text-muted-foreground/80"
+              >
+                {file.originalFilename}
+              </p>
+            )}
+            <ul className="flex flex-col">
+              {file.documents.map((doc) => (
+                <li key={doc.id}>
+                  <a
+                    href={`#doc-${doc.id}`}
+                    className="-mx-2 flex items-baseline gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                  >
+                    <span
+                      data-mono
+                      className="shrink-0 text-[0.6875rem] tabular-nums text-muted-foreground"
+                    >
+                      {pageLabel(t, doc)}
+                    </span>
+                    <span className="truncate text-[0.8125rem] text-foreground/85">
+                      {doc.type
+                        ? translateOr(t, `doctype.${doc.type}`, doc.type)
+                        : t("detail.classifying")}
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </nav>
   )
 }
 
@@ -687,10 +767,16 @@ export function VerificationDetails() {
       <SurfacePage>
         <SurfaceHeading title={t("col.status")} />
         <SurfaceBody>
-          <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-4 py-8 md:px-8">
-            <Skeleton className="h-6 w-48" />
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-40 w-full" />
+          <div className="mx-auto grid w-full max-w-[88rem] gap-x-10 gap-y-8 px-4 py-7 md:px-8 md:py-9 xl:grid-cols-[minmax(0,1fr)_18rem]">
+            <div className="flex flex-col gap-4 xl:col-start-1 xl:row-start-1">
+              <Skeleton className="h-6 w-56" />
+              <Skeleton className="h-40 w-full" />
+              <Skeleton className="h-40 w-full" />
+            </div>
+            <div className="flex flex-col gap-4 xl:col-start-2 xl:row-start-1">
+              <Skeleton className="h-48 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </div>
           </div>
         </SurfaceBody>
       </SurfacePage>
@@ -733,39 +819,52 @@ export function VerificationDetails() {
   return (
     <SurfacePage>
       <SurfaceHeading
-        title={pkg.id}
+        title={
+          <span data-mono className="text-[1.0625rem] font-medium md:text-[1.25rem]">
+            {pkg.id}
+          </span>
+        }
         badge={<DispositionMark disposition={view.disposition} />}
         subtitle={subtitle}
       />
 
       <SurfaceBody>
-        <div className="mx-auto flex w-full max-w-4xl flex-col gap-9 px-4 py-7 md:px-8 md:py-9">
-          {/* ── Process ── */}
-          <section>
-            <div className="mb-4 flex items-center justify-between gap-4">
-              <h2 className="register-label">{t("detail.process")}</h2>
-              {currentStage >= 0 && (
-                <span className="flex items-center gap-1.5 text-[0.75rem] font-medium text-primary">
-                  <span
-                    aria-hidden
-                    className="size-1.5 rounded-full bg-primary motion-safe:animate-pulse"
-                  />
-                  {t(`stage.${currentStage + 1}`)} {t("detail.stage_running")}
-                </span>
-              )}
-            </div>
-            <div className="overflow-x-auto pb-1">
-              <Stepper stages={stages} scores={scores} />
-            </div>
-          </section>
+        <div className="mx-auto grid w-full max-w-[88rem] gap-x-10 gap-y-7 px-4 py-7 md:px-8 md:py-9 xl:grid-cols-[minmax(0,1fr)_18rem]">
+          {/* ── State of the run: how far it got, what is still expected, and
+              what the package turned out to contain. Declared first so it is
+              also read first — a summary before the evidence. ── */}
+          <aside className="border-b border-rule pb-7 xl:col-start-2 xl:row-start-1 xl:border-b-0 xl:border-l xl:border-rule xl:pb-0 xl:pl-9">
+            {/* Capped and scrollable where it sticks: a package with many
+                documents must not push the end of the index past the fold with
+                no way to reach it. */}
+            <div className="flex flex-col gap-7 xl:sticky xl:top-1 xl:-mx-2 xl:max-h-[calc(100dvh-10rem)] xl:overflow-y-auto xl:overscroll-contain xl:px-2 xl:pb-2">
+              <section>
+                <div className="flex items-baseline justify-between gap-3">
+                  <h2 className="register-label">{t("detail.process")}</h2>
+                  {currentStage >= 0 && (
+                    <span className="flex items-center gap-1.5 text-[0.6875rem] font-medium text-primary">
+                      <span
+                        aria-hidden
+                        className="size-1.5 rounded-full bg-primary motion-safe:animate-pulse"
+                      />
+                      {t("detail.stage_running")}
+                    </span>
+                  )}
+                </div>
+                <Pipeline stages={stages} scores={scores} />
+              </section>
 
-          {/* ── Completeness against the governing profile ── */}
-          <RequiredDocuments missing={missing} settled={classified} />
+              <RequiredDocuments missing={missing} settled={classified} />
 
-          {/* ── Files, the documents inside them, and OCR ── */}
-          <section>
+              {documents.length > 1 && <Contents files={pkg.files} />}
+            </div>
+          </aside>
+
+          {/* ── The evidence: every document the engine read, with its fields
+              and the source text they came from. ── */}
+          <main className="min-w-0 xl:col-start-1 xl:row-start-1">
             <div className="flex items-baseline justify-between gap-4">
-              <h2 className="register-label">{t("detail.files")}</h2>
+              <h2 className="register-label">{t("detail.documents")}</h2>
               <span
                 data-mono
                 className="text-[0.75rem] tabular-nums text-muted-foreground"
@@ -778,17 +877,16 @@ export function VerificationDetails() {
                 })}
               </span>
             </div>
-            <div className="mt-4 flex flex-col divide-y divide-rule-strong">
+            <div className="mt-5 flex flex-col gap-10">
               {pkg.files.map((file) => (
-                <div key={file.id} className="py-5 first:pt-0 last:pb-0">
-                  <FileBlock
-                    file={file}
-                    failed={view.disposition === "failed"}
-                  />
-                </div>
+                <FileGroup
+                  key={file.id}
+                  file={file}
+                  failed={view.disposition === "failed"}
+                />
               ))}
             </div>
-          </section>
+          </main>
         </div>
       </SurfaceBody>
 

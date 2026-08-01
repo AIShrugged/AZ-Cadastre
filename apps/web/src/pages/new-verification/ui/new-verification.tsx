@@ -49,6 +49,7 @@ import { failureCode } from "@/shared/api"
 import { paths } from "@/shared/config"
 import {
   profileName,
+  requiredTypes,
   useCreatePackageMutation,
   useGetProfilesQuery,
   type ProfileDto,
@@ -92,7 +93,9 @@ function ProfilePicker({
       {profiles.map((profile) => {
         const selected = profile.key === value
         const Icon = PROFILE_ICON[profile.key] ?? PROFILE_ICON_FALLBACK
-        const count = profile.documentTypes.length
+        // The required ones: an optional type the engine merely recognises is
+        // not something the inspector is being asked for.
+        const count = requiredTypes(profile).length
         return (
           <button
             key={profile.key}

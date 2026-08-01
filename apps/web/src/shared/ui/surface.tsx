@@ -65,7 +65,7 @@ export function SurfaceHeading({
         <h1 className="truncate text-[1.375rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">
           {title}
         </h1>
-        {badge}
+        {badge && <span className="shrink-0">{badge}</span>}
       </div>
       {subtitle && (
         <p className="mt-1 text-[0.875rem] leading-relaxed text-muted-foreground">{subtitle}</p>

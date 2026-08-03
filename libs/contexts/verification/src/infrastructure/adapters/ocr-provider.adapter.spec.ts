@@ -69,42 +69,44 @@ describe("OcrProviderAdapter", () => {
     expect(second.confidence.equals(first.confidence)).toBe(false);
   });
 
-  it("reads a licence page as a licence, however the word was spelled", async () => {
-    const azeri = await recognise(`${anId()}/lisenziya.png`);
-    const english = await recognise(`${anId()}/license.png`);
-    const british = await recognise(`${anId()}/licence.png`);
+  it("reads a receipt page as a receipt, however the word was spelled", async () => {
+    const azeri = await recognise(`${anId()}/odenis-qebz.png`);
+    const english = await recognise(`${anId()}/receipt.png`);
+    const russian = await recognise(`${anId()}/kvitanciya.png`);
 
-    for (const result of [azeri, english, british]) {
-      expect(result.text.value).toContain("LİSENZİYA");
-      expect(result.text.value).toContain("Lisenziya No: AZ-LIC-2019-4471");
+    for (const result of [azeri, english, russian]) {
+      expect(result.text.value).toContain("ÖDƏNİŞ QƏBZİ");
+      expect(result.text.value).toContain("Qəbz No: QB-2025-88301");
     }
   });
 
-  it("reads an annex as the annex and not as the licence it belongs to", async () => {
-    const result = await recognise(`${anId()}/lisenziya-elave.png`);
+  it("reads an extract from the order as the extract it is", async () => {
+    const result = await recognise(`${anId()}/serencam-cixaris.png`);
 
-    expect(result.text.value).toContain("LİSENZİYAYA ƏLAVƏ");
-    expect(result.text.value).toContain("Əlavə No: 1");
+    expect(result.text.value).toContain("SƏRƏNCAMDAN ÇIXARIŞ");
+    expect(result.text.value).toContain("Sərəncam No: R-1147");
   });
 
-  it("reads a registration application as one, mentioning the documents it cites", async () => {
+  it("reads an application as one, mentioning the documents it cites", async () => {
     const result = await recognise(`${anId()}/qeydiyyat-erize.pdf.png`);
 
     expect(result.text.value).toContain("DÖVLƏT QEYDİYYATI HAQQINDA ƏRİZƏ");
     expect(result.text.value).toContain("Şəxsiyyət vəsiqəsi No: AZE1234567");
   });
 
-  it("tells the notification-procedure application apart from the registration one", async () => {
-    const result = await recognise(`${anId()}/bildiris-erize.png`);
+  it("tells the plan of the plot apart from the design of the house", async () => {
+    const plan = await recognise(`${anId()}/torpaq-plan-sxem.png`);
+    const project = await recognise(`${anId()}/eskiz-layihe.png`);
 
-    expect(result.text.value).toContain("BİLDİRİŞ İCRAATI QAYDASINDA ƏRİZƏ");
+    expect(plan.text.value).toContain("TORPAQ SAHƏSİNİN PLAN-SXEMİ");
+    expect(project.text.value).toContain("ESKİZ LAYİHƏSİ");
   });
 
-  it("reads an architectural plan as an architectural plan", async () => {
-    const result = await recognise(`${anId()}/memarliq-hell.png`);
+  it("reads an archival certificate as an archival certificate", async () => {
+    const result = await recognise(`${anId()}/arxiv-arayis.png`);
 
-    expect(result.text.value).toContain("MEMARLIQ-PLANLAŞDIRMA HƏLLİ");
-    expect(result.text.value).toContain("Kadastr nömrəsi: AZ-CAD-1024-311");
+    expect(result.text.value).toContain("ARXİV ARAYIŞI");
+    expect(result.text.value).toContain("Arayış No: ARX-2025-0417");
   });
 
   it("gives each persona its own text, so a package of different files does not read alike", async () => {
@@ -112,16 +114,17 @@ describe("OcrProviderAdapter", () => {
 
     const texts = await Promise.all(
       [
-        "qeydiyyat.png",
+        "torpaq-plan-sxem.png",
+        "serencam.png",
+        "odenis-qebz.png",
+        "eskiz-layihe.png",
+        "arxiv-arayis.png",
+        "qeydiyyat-erize.png",
         "vesiqe.png",
-        "bildiris.png",
-        "memarliq.png",
-        "lisenziya.png",
-        "lisenziya-elave.png",
       ].map((filename) => recognise(`${folder}/${filename}`)),
     );
 
-    expect(new Set(texts.map((result) => result.text.value)).size).toBe(6);
+    expect(new Set(texts.map((result) => result.text.value)).size).toBe(7);
   });
 
   it("falls back to a page that names itself when the filename says nothing about the type", async () => {

@@ -16,7 +16,7 @@
  * stages are built. It reports evidence; it never states an approval or a
  * verdict.
  */
-import { useState, type ReactNode } from "react"
+import { useState, type ComponentProps, type ReactNode } from "react"
 import {
   ArrowLeftIcon,
   CheckIcon,
@@ -44,6 +44,7 @@ import {
   STAGES,
   missingTypes,
   profileName,
+  documentsExpected,
   toViewPackage,
   useGetPackageQuery,
   useGetProfilesQuery,
@@ -159,6 +160,58 @@ function documentsOf(pkg: PackageDetailDto): DocumentDto[] {
   return pkg.files.flatMap((file) => file.documents)
 }
 
+// ─── What the register is filtered by ────────────────────────────────────────
+// A package this size is mostly settled work: of sixteen documents the engine
+// read here, six carry a reading the inspector should look at and eight are not
+// documents this profile asks for at all. Rendering all of them at equal weight
+// is what buries the six. The segments are the register's own triage — the same
+// control the package register uses, with the same counts.
+type DocSegment = "review" | "all" | "other"
+
+const SEGMENTS: DocSegment[] = ["review", "all", "other"]
+
+const SEGMENT_KEY: Record<DocSegment, string> = {
+  review: "detail.seg.review",
+  all: "detail.seg.all",
+  other: "detail.seg.other",
+}
+
+/** A document the profile has nothing to say about: read, placed, and not asked
+ *  for. It is evidence of what was in the envelope, never a shortfall. */
+function isAside(doc: DocumentDto): boolean {
+  return doc.type === "out_of_profile"
+}
+
+/** Whether this document holds anything the inspector should actually look at:
+ *  a reading below the floor, or a type the classifier could not place. Its
+ *  answer decides both the segment a document falls in and whether the entry
+ *  opens with its fields showing. */
+function needsReview(doc: DocumentDto): boolean {
+  if (doc.type === null || doc.type === "unknown") return true
+  if (isAside(doc)) return false
+  if (
+    doc.classificationConfidence != null &&
+    doc.classificationConfidence < CONFIDENCE_FLOOR
+  )
+    return true
+  return doc.fields.some((f) => f.confidence < CONFIDENCE_FLOOR)
+}
+
+function inSegment(doc: DocumentDto, segment: DocSegment): boolean {
+  if (segment === "all") return true
+  if (segment === "other") return isAside(doc)
+  return needsReview(doc)
+}
+
+/** Rendered *and* spelled out. Under "all" the service sheets are in the
+ *  register but folded into the line that stands for them, so a jump aimed at
+ *  one has to land somewhere else — being on the page is not the same as being
+ *  reachable. */
+function isOpenIn(doc: DocumentDto, segment: DocSegment): boolean {
+  if (!inSegment(doc, segment)) return false
+  return !(segment === "all" && isAside(doc))
+}
+
 /** Confidence score per implemented stage (0–100), or null if it hasn't run.
  *  OCR = mean page confidence; Classification = mean per-document classifier
  *  confidence; Field extraction = mean per-field confidence. Document detection
@@ -198,14 +251,11 @@ function stageStatuses(
   const documents = documentsOf(pkg)
   const ocrDone =
     files.length > 0 &&
-    files.every(
-      (f) => f.pages.length > 0 && f.pages.every((p) => p.ocr !== null),
-    )
+    files.every((f) => f.pages.length > 0 && f.pages.every((p) => p.ocr !== null))
   // Every file has been read into the documents it holds. A file that holds
   // nothing has not been detected yet, not detected as empty.
   const detectDone = files.length > 0 && files.every((f) => f.documents.length > 0)
-  const classifyDone =
-    detectDone && documents.every((d) => d.type !== null)
+  const classifyDone = detectDone && documents.every((d) => d.type !== null)
   // Extraction is done once every document with a schema behind it has its
   // fields. Neither answer the engine keeps for itself declares any: a document
   // it could not place has nothing to extract, and one it placed outside the
@@ -246,13 +296,13 @@ const CONFIDENCE_FLOOR = 0.8
 // nor the model would say how sure it was, so the engine declines to make a
 // number up (docs/MODELS.md). It reads as an absence, and it still flags for
 // review — an unscored reading is exactly one an inspector should check.
-function Confidence({ value }: { value: number }) {
+function Confidence({ value, bare = false }: { value: number; bare?: boolean }) {
   const { t } = useI18n()
   const unscored = value === 0
   const low = value < CONFIDENCE_FLOOR
   return (
     <span className="inline-flex shrink-0 items-baseline justify-end gap-1.5">
-      {low && (
+      {low && !bare && (
         <span className="rounded-full bg-incomplete/12 px-1.5 py-0.5 text-[0.625rem] font-medium text-incomplete-ink">
           {t("detail.needs_review")}
         </span>
@@ -295,9 +345,7 @@ function StatusLine({
       </span>
       <span
         className={cn(
-          tone === "fail"
-            ? "font-medium text-failed-ink"
-            : "text-foreground/80",
+          tone === "fail" ? "font-medium text-failed-ink" : "text-foreground/80",
         )}
       >
         {label}
@@ -454,14 +502,18 @@ function PageTally({ file, failed }: { file: SourceFileDto; failed: boolean }) {
 // makes a name in the application comparable to the name on the identity card at
 // a glance. Nothing is truncated; a long value wraps, because a value the
 // inspector cannot read is a value they cannot verify.
-function Fields({ fields }: { fields: FieldDto[] }) {
+function Fields({ fields, docId }: { fields: FieldDto[]; docId: string }) {
   const { t } = useI18n()
   return (
     <dl className="mt-3 border-t border-rule">
       {fields.map((f) => (
         <div
           key={f.name}
-          className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1 border-b border-rule py-2.5 sm:grid-cols-[minmax(8rem,15rem)_minmax(0,1fr)_auto] sm:gap-x-6 sm:gap-y-0"
+          // The worklist's landing point. `target:` washes the row in the
+          // register's own selection tint so a jump from the finding arrives on
+          // a row the eye can find, and the wash fades rather than sticking.
+          id={`field-${docId}-${f.name}`}
+          className="grid scroll-mt-16 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1 border-b border-rule py-2.5 transition-colors duration-500 target:bg-accent sm:grid-cols-[minmax(8rem,15rem)_minmax(0,1fr)_auto] sm:gap-x-6 sm:gap-y-0"
         >
           <dt className="col-span-2 text-[0.8125rem] leading-snug text-muted-foreground sm:col-span-1">
             {translateOr(t, `field.${f.name}`, f.name)}
@@ -521,7 +573,14 @@ function Sheets({ doc, file }: { doc: DocumentDto; file: SourceFileDto }) {
   if (sheets.length === 0) return null
 
   return (
-    <div className="mt-3">
+    // Rides in the entry's side column from `lg` up, so the paper sits level
+    // with the values taken off it — a reading and its evidence on one line of
+    // sight, instead of the reading here and the scan three hundred pixels
+    // below it. Below `lg` it falls back under the fields, where the column
+    // would be too narrow to show anything.
+    // No heading: sixteen entries each captioned "Sheets" is the same repetition
+    // this surface was buried under, and a column of scans needs no label.
+    <div className="mt-4 lg:mt-0">
       <ul className="flex flex-wrap gap-2">
         {sheets.map((page) => (
           <li key={page.pageNumber}>
@@ -530,7 +589,7 @@ function Sheets({ doc, file }: { doc: DocumentDto; file: SourceFileDto }) {
               target="_blank"
               rel="noreferrer"
               title={t("detail.page_single", { n: page.pageNumber })}
-              className="group block w-20 overflow-hidden rounded-md border border-rule transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="group block w-[5.25rem] overflow-hidden rounded-md border border-rule transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               <img
                 src={page.imageUrl ?? undefined}
@@ -539,7 +598,7 @@ function Sheets({ doc, file }: { doc: DocumentDto; file: SourceFileDto }) {
                 // A tall crop of the head of the sheet: a scanned form says what
                 // it is in its first inch, and a whole A4 shrunk to 80px says
                 // nothing at all.
-                className="h-24 w-full bg-background object-cover object-top"
+                className="h-28 w-full bg-background object-cover object-top"
               />
               <span
                 data-mono
@@ -567,67 +626,132 @@ function DocumentEntry({ doc, file }: { doc: DocumentDto; file: SourceFileDto })
   // Either way there are no fields to show, so a one-line preview off the
   // document's own sheets tells the inspector roughly what is there.
   const snippet = fieldless ? text.replace(/\s+/g, " ").slice(0, 160) : ""
+  const flagged = doc.fields.filter((f) => f.confidence < CONFIDENCE_FLOOR).length
+  // A confidence the engine is sure of is a figure nobody reads. It is kept
+  // where it can be checked — on the fields, and in the rail's stage scores —
+  // and dropped from the heading unless the heading is where the doubt is.
+  const headline =
+    doc.classificationConfidence != null &&
+    doc.classificationConfidence < CONFIDENCE_FLOOR
+      ? doc.classificationConfidence
+      : null
 
   return (
-    <article id={`doc-${doc.id}`} className="scroll-mt-6 py-6 first:pt-5 last:pb-0">
-      <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <div className="flex min-w-0 items-baseline gap-3">
-          <span
-            data-mono
-            className="shrink-0 text-[0.75rem] tabular-nums text-muted-foreground"
-          >
-            {pageLabel(t, doc)}
-          </span>
-          {doc.type ? (
-            <h3
-              className={cn(
-                "text-[0.9375rem] font-[550] leading-tight tracking-[-0.01em]",
-                fieldless ? "text-muted-foreground" : "text-foreground",
-              )}
+    // Values left, the paper they were read off right — the heading sits in the
+    // values column so its confidence lands in the values column too, and the
+    // sheets start level with the document's own title.
+    <article
+      id={`doc-${doc.id}`}
+      className="scroll-mt-16 py-6 first:pt-5 last:pb-0 lg:grid lg:grid-cols-[minmax(0,1fr)_11.5rem] lg:gap-x-8"
+    >
+      <div className="min-w-0">
+        <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <div className="flex min-w-0 items-baseline gap-3">
+            <span
+              data-mono
+              className="shrink-0 text-[0.75rem] tabular-nums text-muted-foreground"
             >
-              {translateOr(t, `doctype.${doc.type}`, doc.type)}
-            </h3>
-          ) : (
-            <span className="flex items-center gap-1.5 text-[0.8125rem] font-medium text-primary">
+              {pageLabel(t, doc)}
+            </span>
+            {doc.type ? (
+              <h3
+                className={cn(
+                  "text-[0.9375rem] font-[550] leading-tight tracking-[-0.01em]",
+                  fieldless ? "text-muted-foreground" : "text-foreground",
+                )}
+              >
+                {translateOr(t, `doctype.${doc.type}`, doc.type)}
+              </h3>
+            ) : (
+              <span className="flex items-center gap-1.5 text-[0.8125rem] font-medium text-primary">
+                <span
+                  aria-hidden
+                  className="size-1.5 rounded-full bg-primary motion-safe:animate-pulse"
+                />
+                {t("detail.classifying")}
+              </span>
+            )}
+            {/* How many readings in this document want a second look — the count
+              the worklist above sent the inspector here for, restated where the
+              work is. Silent when there is nothing to check. */}
+            {flagged > 0 && (
               <span
-                aria-hidden
-                className="size-1.5 rounded-full bg-primary motion-safe:animate-pulse"
-              />
-              {t("detail.classifying")}
+                data-mono
+                className="shrink-0 rounded-full bg-incomplete/12 px-1.5 py-0.5 text-[0.6875rem] font-medium tabular-nums text-incomplete-ink"
+              >
+                {flagged}
+              </span>
+            )}
+          </div>
+          {headline != null && (
+            // Pushed right on its own line when the type name takes the full
+            // width, so a wrapped confidence still lands in its column.
+            <span className="ml-auto">
+              <Confidence value={headline} />
             </span>
           )}
-        </div>
-        {doc.classificationConfidence != null && (
-          // Pushed right on its own line when the type name takes the full
-          // width, so a wrapped confidence still lands in its column.
-          <span className="ml-auto">
-            <Confidence value={doc.classificationConfidence} />
-          </span>
-        )}
-      </header>
+        </header>
 
-      {fieldless ? (
-        <p className="mt-2 max-w-[65ch] text-[0.8125rem] leading-relaxed text-muted-foreground">
-          {outOfProfile ? t("detail.out_of_profile") : t("detail.unclassified")}
-          {snippet && (
-            <span className="mt-1.5 block text-[0.75rem] italic text-foreground/55">
-              “{snippet}…”
-            </span>
-          )}
-        </p>
-      ) : (
-        doc.fields.length > 0 && <Fields fields={doc.fields} />
-      )}
+        {fieldless ? (
+          <p className="mt-2 max-w-[65ch] text-[0.8125rem] leading-relaxed text-muted-foreground">
+            {outOfProfile ? t("detail.out_of_profile") : t("detail.unclassified")}
+            {snippet && (
+              <span className="mt-1.5 block text-[0.75rem] italic text-foreground/55">
+                “{snippet}…”
+              </span>
+            )}
+          </p>
+        ) : (
+          doc.fields.length > 0 && <Fields fields={doc.fields} docId={doc.id} />
+        )}
+
+        {/* The machine's account of the same sheets the column beside it
+            shows, so it stays under the values it explains. */}
+        {text && (
+          <Transcript
+            label={`${t("detail.source_text")} · ${pageLabel(t, doc)}`}
+            text={text}
+          />
+        )}
+      </div>
 
       <Sheets doc={doc} file={file} />
-
-      {text && (
-        <Transcript
-          label={`${t("detail.source_text")} · ${pageLabel(t, doc)}`}
-          text={text}
-        />
-      )}
     </article>
+  )
+}
+
+// ─── The documents the profile has nothing to ask of ─────────────────────────
+// Eight of the sixteen documents in a package like this one are the registry's
+// own service sheets: read, placed, and not asked for. Spelled out they are the
+// largest thing on the page and the least actionable, so they fold into one
+// line that says how many there are and which sheets they sit on. Nothing is
+// lost — the line opens.
+function AsideGroup({ docs, file }: { docs: DocumentDto[]; file: SourceFileDto }) {
+  const { t } = useI18n()
+  if (docs.length === 0) return null
+
+  return (
+    <details className="group">
+      <summary className="flex cursor-pointer list-none select-none items-baseline gap-3 py-3.5 text-[0.8125rem] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+        <ChevronRightIcon className="size-3.5 shrink-0 translate-y-0.5 transition-transform duration-200 group-open:rotate-90" />
+        <span className="min-w-0">
+          {docs.length === 1
+            ? t("detail.other_group_one")
+            : t("detail.other_group", { n: docs.length })}
+        </span>
+        <span
+          data-mono
+          className="ml-auto shrink-0 text-[0.6875rem] tabular-nums text-muted-foreground/70"
+        >
+          {docs.map((doc) => pageLabel(t, doc).replace(/^\D+/, "")).join(", ")}
+        </span>
+      </summary>
+      <div className="divide-y divide-rule border-t border-rule">
+        {docs.map((doc) => (
+          <DocumentEntry key={doc.id} doc={doc} file={file} />
+        ))}
+      </div>
+    </details>
   )
 }
 
@@ -636,12 +760,28 @@ function DocumentEntry({ doc, file }: { doc: DocumentDto; file: SourceFileDto })
 // how many sheets it was split into, and whether those sheets were read. With
 // one file it reads as a caption; with several it becomes the rule that groups
 // each file's documents.
-function FileGroup({ file, failed }: { file: SourceFileDto; failed: boolean }) {
+function FileGroup({
+  file,
+  failed,
+  segment,
+}: {
+  file: SourceFileDto
+  failed: boolean
+  segment: DocSegment
+}) {
   const { t } = useI18n()
   const Icon = file.contentType.startsWith("image/") ? ImageIcon : FileTextIcon
   const read = file.pages.length > 0 && file.pages.every((p) => p.ocr !== null)
   const found = file.documents.length
   const detecting = found === 0 && read && !failed
+  const shown = file.documents.filter((doc) => inSegment(doc, segment))
+  // Under "all" the register still reads down the file in sheet order — the
+  // service sheets keep their place in the sequence, folded into the line that
+  // stands for them rather than spelled out. Under a segment that is already a
+  // filter, folding a second time would just hide the answer.
+  const folded = segment === "all"
+  const listed = folded ? shown.filter((doc) => !isAside(doc)) : shown
+  const asides = folded ? shown.filter(isAside) : []
   // The rule under the file line divides it from what it holds. A file that
   // holds nothing — a run that failed before detection — gets no divider, so the
   // section never ends on a hairline with nothing beneath it.
@@ -675,11 +815,18 @@ function FileGroup({ file, failed }: { file: SourceFileDto; failed: boolean }) {
       </div>
 
       {found > 0 ? (
-        <div className="divide-y divide-rule">
-          {file.documents.map((doc) => (
-            <DocumentEntry key={doc.id} doc={doc} file={file} />
-          ))}
-        </div>
+        shown.length === 0 ? (
+          <p className="py-5 text-[0.8125rem] text-muted-foreground">
+            {t("detail.empty_filter")}
+          </p>
+        ) : (
+          <div className="divide-y divide-rule">
+            {listed.map((doc) => (
+              <DocumentEntry key={doc.id} doc={doc} file={file} />
+            ))}
+            <AsideGroup docs={asides} file={file} />
+          </div>
+        )
       ) : (
         // The sheets are read but nothing has been carved out of them yet: the
         // file is still being split into the documents it holds.
@@ -703,9 +850,11 @@ function FileGroup({ file, failed }: { file: SourceFileDto; failed: boolean }) {
 // and a document the classifier could not place may still be the missing one.
 function RequiredDocuments({
   missing,
+  total,
   settled,
 }: {
   missing: readonly string[]
+  total: number
   settled: boolean
 }) {
   const { t } = useI18n()
@@ -714,12 +863,17 @@ function RequiredDocuments({
     <section>
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="register-label">{t("detail.required")}</h2>
-        {settled && missing.length > 0 && (
+        {/* Found against asked-for, so the rail's first line answers the
+            completeness question outright rather than only naming the gap. */}
+        {settled && total > 0 && (
           <span
             data-mono
-            className="text-[0.6875rem] tabular-nums text-incomplete-ink"
+            className={cn(
+              "shrink-0 text-[0.6875rem] tabular-nums",
+              missing.length > 0 ? "text-incomplete-ink" : "text-muted-foreground",
+            )}
           >
-            {t("detail.required_missing", { n: missing.length })}
+            {t("detail.required_found", { n: total - missing.length, total })}
           </span>
         )}
       </div>
@@ -765,13 +919,17 @@ const ISSUE_SECTIONS: { kind: IssueKind; heading: string }[] = [
   { kind: "MissingDocument", heading: "detail.sec.missing" },
   { kind: "UnreadableDocument", heading: "detail.sec.unreadable" },
   { kind: "LowConfidence", heading: "detail.sec.low" },
-  { kind: "DuplicateDocument", heading: "detail.sec.duplicate" },
-  { kind: "ExtraDocument", heading: "detail.sec.extra" },
 ]
 
 // The two that are observations rather than shortfalls. They are counted apart
 // from the findings, so a report that only notes the registry's own service
-// sheets does not announce five problems.
+// sheets does not announce five problems — and, for the same reason, they are
+// folded away rather than listed beside them.
+const NOTE_SECTIONS: { kind: IssueKind; heading: string }[] = [
+  { kind: "DuplicateDocument", heading: "detail.sec.duplicate" },
+  { kind: "ExtraDocument", heading: "detail.sec.extra" },
+]
+
 const INFORMATIONAL: readonly IssueKind[] = ["ExtraDocument", "DuplicateDocument"]
 
 const REPORT_TONE: Record<ReportStatus, "ok" | "issues" | "incomplete"> = {
@@ -786,14 +944,36 @@ const REPORT_LABEL: Record<ReportStatus, string> = {
   IncompletePackage: "status.incomplete",
 }
 
-/** What a finding is about, in the reader's own language. The wire carries the
- *  English audit line; nothing here reads it. */
+type Finding = {
+  subject: string
+  where: string
+  anchor: string | null
+  docId: string | null
+}
+
+/** A click on a worklist or index row. The target may be filtered out of the
+ *  register the inspector is currently looking at, so the jump is allowed to
+ *  change the segment first — a link that lands on nothing is worse than no
+ *  link. */
+type Jump = (docId: string | null, anchor: string) => (e: MouseEvent) => void
+
+type MouseEvent = Parameters<NonNullable<ComponentProps<"a">["onClick"]>>[0]
+
+/** What a finding is about, in the reader's own language, and where in the
+ *  register it can be answered. The wire carries the English audit line;
+ *  nothing here reads it.
+ *
+ *  `named` is false for a single-file package: printing a fifty-character
+ *  filename on every row of a list that is all one file states nothing and
+ *  crowds out the page number, which is the part the inspector navigates by. */
 function findingOf(
   t: Translate,
   issue: IssueDto,
   pkg: PackageDetailDto,
-): { subject: string; where: string } {
+  named: boolean,
+): Finding {
   const file = pkg.files.find((candidate) => candidate.id === issue.sourceFileId)
+  const filename = named ? file?.originalFilename : undefined
   const document = documentsOf(pkg).find(
     (candidate) => candidate.id === issue.documentId,
   )
@@ -801,7 +981,16 @@ function findingOf(
     issue.pageNumber === null
       ? ""
       : t("detail.page_single", { n: issue.pageNumber })
-  const within = [file?.originalFilename, sheet].filter(Boolean).join(" · ")
+  const within = [filename, sheet].filter(Boolean).join(" · ")
+  // The exact row the finding is about, so the list is a set of jumps into the
+  // register rather than a second account of it. A field is addressed by name;
+  // anything else lands on its document. A missing document has no evidence to
+  // land on — it is the one finding with nowhere to go.
+  const anchor = document
+    ? issue.fieldName
+      ? `#field-${document.id}-${issue.fieldName}`
+      : `#doc-${document.id}`
+    : null
 
   if (issue.kind === "MissingDocument") {
     return {
@@ -811,21 +1000,28 @@ function findingOf(
         issue.documentType ?? "",
       ),
       where: t("detail.f.missing_sub"),
+      anchor: null,
+      docId: null,
     }
   }
 
   if (issue.kind === "UnreadableDocument") {
     if (document) {
       return {
-        subject: `${pageLabel(t, document)} · ${file?.originalFilename ?? ""}`,
+        subject: [pageLabel(t, document), filename].filter(Boolean).join(" · "),
         where: t("detail.f.unplaced_sub"),
+        anchor,
+        docId: document.id,
       }
     }
     return {
       subject: within || t("detail.files"),
-      where: issue.pageNumber === null
-        ? t("detail.f.unread_file_sub")
-        : t("detail.f.unread_sheet_sub"),
+      where:
+        issue.pageNumber === null
+          ? t("detail.f.unread_file_sub")
+          : t("detail.f.unread_sheet_sub"),
+      anchor,
+      docId: null,
     }
   }
 
@@ -846,21 +1042,94 @@ function findingOf(
 
     return {
       subject: document
-        ? `${pageLabel(t, document)} · ${file?.originalFilename ?? ""}`
+        ? [pageLabel(t, document), filename].filter(Boolean).join(" · ")
         : within || t("detail.files"),
       where,
+      anchor,
+      docId: document?.id ?? null,
     }
   }
 
+  // Low confidence: the field is the subject, and the sheet it was read off is
+  // where the inspector goes to settle it. A finding about the document as a
+  // whole carries no sheet of its own, so it takes the document's — without it
+  // a package holding two applications states the same finding twice with
+  // nothing to tell the two apart.
+  const seat = document
+    ? [pageLabel(t, document), filename].filter(Boolean).join(" · ")
+    : ""
   return {
     subject: issue.fieldName
       ? translateOr(t, `field.${issue.fieldName}`, issue.fieldName)
       : translateOr(t, `doctype.${issue.documentType}`, issue.documentType ?? ""),
-    where: within || t("detail.f.low_sub"),
+    where: within || seat || t("detail.f.low_sub"),
+    anchor,
+    docId: document?.id ?? null,
   }
 }
 
-function Report({ report, pkg }: { report: ReportDto; pkg: PackageDetailDto }) {
+/** One line of the worklist. A finding with somewhere to go is a link into the
+ *  register; one without reads the same and simply doesn't move. */
+function FindingRow({
+  finding,
+  confidence,
+  onJump,
+}: {
+  finding: Finding
+  confidence: number | null
+  onJump: Jump
+}) {
+  const { t } = useI18n()
+  // `shrink` and a wrapping row, not `shrink-0`: at tablet width the old fixed
+  // meta column was pushed past the card's clipped edge, taking every finding's
+  // confidence figure off the screen with it.
+  const body = (
+    <>
+      <span className="min-w-0 text-[0.8125rem] leading-snug text-foreground">
+        {finding.subject}
+      </span>
+      <span className="flex min-w-0 shrink items-baseline gap-3">
+        <span className="min-w-0 text-[0.75rem] leading-snug text-muted-foreground">
+          {finding.where}
+        </span>
+        {confidence !== null && <Confidence value={confidence} bare />}
+      </span>
+    </>
+  )
+
+  const shape =
+    "flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 border-b border-rule py-2"
+
+  return (
+    <li>
+      {finding.anchor ? (
+        <a
+          href={finding.anchor}
+          onClick={onJump(finding.docId, finding.anchor)}
+          title={t("detail.attention_go")}
+          className={cn(
+            shape,
+            "-mx-2 rounded-md px-2 transition-colors hover:bg-foreground/4 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+          )}
+        >
+          {body}
+        </a>
+      ) : (
+        <div className={shape}>{body}</div>
+      )}
+    </li>
+  )
+}
+
+function Worklist({
+  report,
+  pkg,
+  onJump,
+}: {
+  report: ReportDto
+  pkg: PackageDetailDto
+  onJump: Jump
+}) {
   const { t } = useI18n()
   const tone = REPORT_TONE[report.status]
   // Findings are counted; observations are mentioned. Counting them together
@@ -869,12 +1138,38 @@ function Report({ report, pkg }: { report: ReportDto; pkg: PackageDetailDto }) {
   const findings = report.issues.filter(
     (issue) => !INFORMATIONAL.includes(issue.kind),
   )
-  const noted = report.issues.length - findings.length
+  const notes = report.issues.filter((issue) => INFORMATIONAL.includes(issue.kind))
+  const named = pkg.files.length > 1
+
+  const section = (kind: IssueKind, heading: string) => {
+    const found = report.issues.filter((issue) => issue.kind === kind)
+    if (found.length === 0) return null
+    return (
+      <div key={kind}>
+        <h3 className="register-label">
+          {t(heading)}
+          <span data-mono className="ml-2 tabular-nums opacity-70">
+            {found.length}
+          </span>
+        </h3>
+        <ul className="mt-2 flex flex-col border-t border-rule">
+          {found.map((issue, index) => (
+            <FindingRow
+              key={`${kind}-${index}`}
+              finding={findingOf(t, issue, pkg, named)}
+              confidence={issue.confidence}
+              onJump={onJump}
+            />
+          ))}
+        </ul>
+      </div>
+    )
+  }
 
   return (
     <section className="mb-9">
       <div className="flex items-baseline justify-between gap-4">
-        <h2 className="register-label">{t("detail.report")}</h2>
+        <h2 className="register-label">{t("detail.attention")}</h2>
         <span
           data-mono
           className="text-[0.75rem] tabular-nums text-muted-foreground"
@@ -884,7 +1179,6 @@ function Report({ report, pkg }: { report: ReportDto; pkg: PackageDetailDto }) {
             : findings.length === 1
               ? t("findings.issue_one")
               : t("findings.issues", { n: findings.length })}
-          {noted > 0 && ` · ${t("findings.noted", { n: noted })}`}
         </span>
       </div>
 
@@ -918,53 +1212,41 @@ function Report({ report, pkg }: { report: ReportDto; pkg: PackageDetailDto }) {
           </span>
         </div>
 
-        {findings.length === 0 && noted === 0 ? (
+        {findings.length === 0 ? (
           <p className="mt-2.5 max-w-[70ch] text-[0.8125rem] leading-relaxed text-muted-foreground">
             {t("detail.clean")}
           </p>
         ) : (
           <div className="mt-4 flex flex-col gap-5">
-            {ISSUE_SECTIONS.map(({ kind, heading }) => {
-              const found = report.issues.filter((issue) => issue.kind === kind)
-              if (found.length === 0) return null
-
-              return (
-                <div key={kind}>
-                  <h3 className="register-label">
-                    {t(heading)}
-                    <span data-mono className="ml-2 tabular-nums opacity-70">
-                      {found.length}
-                    </span>
-                  </h3>
-                  <ul className="mt-2 flex flex-col border-t border-rule">
-                    {found.map((issue, index) => {
-                      const { subject, where } = findingOf(t, issue, pkg)
-                      return (
-                        <li
-                          key={`${kind}-${index}`}
-                          className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 border-b border-rule py-2"
-                        >
-                          <span className="min-w-0 text-[0.8125rem] leading-snug text-foreground">
-                            {subject}
-                          </span>
-                          <span className="flex shrink-0 items-baseline gap-3">
-                            <span className="text-[0.75rem] text-muted-foreground">
-                              {where}
-                            </span>
-                            {issue.confidence !== null && (
-                              <Confidence value={issue.confidence} />
-                            )}
-                          </span>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </div>
-              )
-            })}
+            {ISSUE_SECTIONS.map(({ kind, heading }) => section(kind, heading))}
           </div>
         )}
       </div>
+
+      {/* What the package carries beyond what the profile asks for. It is not a
+          shortfall, so it does not sit inside the disposition panel and does
+          not open by default — it is available, one line down, for the
+          inspector who wants the full inventory. */}
+      {notes.length > 0 && (
+        <details className="group mt-3">
+          <summary className="flex cursor-pointer list-none select-none items-baseline gap-2 text-[0.8125rem] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+            <ChevronRightIcon className="size-3.5 shrink-0 translate-y-0.5 transition-transform duration-200 group-open:rotate-90" />
+            {t("detail.observations")}
+            <span
+              data-mono
+              className="text-[0.6875rem] tabular-nums text-muted-foreground/70"
+            >
+              {notes.length}
+            </span>
+          </summary>
+          <p className="mt-2 max-w-[70ch] pl-5 text-[0.8125rem] leading-relaxed text-muted-foreground">
+            {t("detail.observations_note")}
+          </p>
+          <div className="mt-3 flex flex-col gap-5 pl-5">
+            {NOTE_SECTIONS.map(({ kind, heading }) => section(kind, heading))}
+          </div>
+        </details>
+      )}
     </section>
   )
 }
@@ -976,50 +1258,99 @@ function Report({ report, pkg }: { report: ReportDto; pkg: PackageDetailDto }) {
 // package". Sheet numbers restart in every file, so once a package carries more
 // than one, each file names itself above its own documents; otherwise "p. 1"
 // would appear twice meaning two different sheets.
-function Contents({ files }: { files: readonly SourceFileDto[] }) {
+function ContentsRow({ doc, onJump }: { doc: DocumentDto; onJump: Jump }) {
+  const { t } = useI18n()
+  const flagged = needsReview(doc) && doc.type !== null
+  return (
+    <li>
+      <a
+        href={`#doc-${doc.id}`}
+        onClick={onJump(doc.id, `#doc-${doc.id}`)}
+        className="-mx-2 flex items-baseline gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+      >
+        <span
+          data-mono
+          className="shrink-0 text-[0.6875rem] tabular-nums text-muted-foreground"
+        >
+          {pageLabel(t, doc)}
+        </span>
+        <span
+          className={cn(
+            "truncate text-[0.8125rem]",
+            isAside(doc) ? "text-muted-foreground" : "text-foreground/85",
+          )}
+        >
+          {doc.type
+            ? translateOr(t, `doctype.${doc.type}`, doc.type)
+            : t("detail.classifying")}
+        </span>
+        {flagged && (
+          <TriangleAlertIcon
+            aria-label={t("detail.needs_review")}
+            className="ml-auto size-3 shrink-0 translate-y-0.5 text-incomplete-ink"
+          />
+        )}
+      </a>
+    </li>
+  )
+}
+
+function Contents({
+  files,
+  onJump,
+}: {
+  files: readonly SourceFileDto[]
+  onJump: Jump
+}) {
   const { t } = useI18n()
   const groups = files.filter((file) => file.documents.length > 0)
   const named = groups.length > 1
+  // The index answers "what is in this package". Half of what the engine placed
+  // here is not a document the profile asks for, and eight identical lines
+  // saying so make the seven that matter harder to find than no index at all —
+  // so they fold to a count that opens.
+  const asides = groups.flatMap((file) => file.documents.filter(isAside))
 
   return (
     <nav className="hidden xl:block">
       <h2 className="register-label">{t("detail.contents")}</h2>
       <div className="mt-2 flex flex-col gap-3">
-        {groups.map((file) => (
-          <div key={file.id}>
-            {named && (
-              <p
-                data-mono
-                className="mb-1 truncate text-[0.6875rem] text-muted-foreground/80"
-              >
-                {file.originalFilename}
-              </p>
-            )}
-            <ul className="flex flex-col">
-              {file.documents.map((doc) => (
-                <li key={doc.id}>
-                  <a
-                    href={`#doc-${doc.id}`}
-                    className="-mx-2 flex items-baseline gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                  >
-                    <span
-                      data-mono
-                      className="shrink-0 text-[0.6875rem] tabular-nums text-muted-foreground"
-                    >
-                      {pageLabel(t, doc)}
-                    </span>
-                    <span className="truncate text-[0.8125rem] text-foreground/85">
-                      {doc.type
-                        ? translateOr(t, `doctype.${doc.type}`, doc.type)
-                        : t("detail.classifying")}
-                    </span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+        {groups.map((file) => {
+          const listed = file.documents.filter((doc) => !isAside(doc))
+          if (listed.length === 0) return null
+          return (
+            <div key={file.id}>
+              {named && (
+                <p
+                  data-mono
+                  className="mb-1 truncate text-[0.6875rem] text-muted-foreground/80"
+                >
+                  {file.originalFilename}
+                </p>
+              )}
+              <ul className="flex flex-col">
+                {listed.map((doc) => (
+                  <ContentsRow key={doc.id} doc={doc} onJump={onJump} />
+                ))}
+              </ul>
+            </div>
+          )
+        })}
       </div>
+
+      {asides.length > 0 && (
+        <details className="group mt-2">
+          <summary className="-mx-2 flex cursor-pointer list-none select-none items-baseline gap-1.5 rounded-md px-2 py-1.5 text-[0.8125rem] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+            <ChevronRightIcon className="size-3 shrink-0 translate-y-0.5 transition-transform duration-200 group-open:rotate-90" />
+            {t("detail.contents_rest", { n: asides.length })}
+          </summary>
+          <ul className="mt-1 flex flex-col">
+            {asides.map((doc) => (
+              <ContentsRow key={doc.id} doc={doc} onJump={onJump} />
+            ))}
+          </ul>
+        </details>
+      )}
     </nav>
   )
 }
@@ -1033,6 +1364,10 @@ export function VerificationDetails() {
   // Poll while the pipeline is still working; stop once it settles. The toggle
   // is adjusted during render (no effect) from the data we just received.
   const [polling, setPolling] = useState(true)
+  // Null until the inspector picks one, so the default can follow what the run
+  // actually found rather than being frozen at first render — the package is
+  // still being verified while this page is open.
+  const [pickedSegment, setPickedSegment] = useState<DocSegment | null>(null)
   const {
     data: pkg,
     isLoading,
@@ -1044,8 +1379,7 @@ export function VerificationDetails() {
   // The profile says which documents the package must carry; the register never
   // keeps a copy of that policy (ADR-0002).
   const { data: profiles } = useGetProfilesQuery()
-  const shouldPoll =
-    pkg?.status === "Pending" || pkg?.status === "Processing"
+  const shouldPoll = pkg?.status === "Pending" || pkg?.status === "Processing"
   if (shouldPoll !== polling) setPolling(shouldPoll)
 
   if (isLoading) {
@@ -1093,20 +1427,54 @@ export function VerificationDetails() {
   const scores = stageScores(pkg)
   const currentStage = stages.findIndex((s) => s === "current")
   const documents = documentsOf(pkg)
+  const failed = view.disposition === "failed"
+  const running = !pkg.report && !failed
   // Only once classification has been through every document is a type's
   // absence a finding rather than a stage that has not run yet.
   const classified = stages[2] === "done" || stages[2] === "error"
+  // Null while the profiles are still loading, and null is what the rail wants:
+  // it declines to state a total rather than state a wrong one.
+  const expected = documentsExpected(profiles ?? [], view.profile)
   const missing = missingTypes(
     profiles ?? [],
     view.profile,
     documents.map((d) => d.type),
   )
 
+  const counts = {
+    review: documents.filter((d) => needsReview(d)).length,
+    all: documents.length,
+    other: documents.filter(isAside).length,
+  }
+  // Open on the work when there is work: a package this size is mostly settled,
+  // and the segment that shows only what wants a second look is the one the
+  // inspector would pick anyway. With nothing flagged there is nothing to
+  // filter to, so the register opens whole.
+  const segment = pickedSegment ?? (counts.review > 0 ? "review" : "all")
+
+  // A jump out of the worklist or the index into the register. If the segment
+  // on screen already shows the target, the browser's own fragment navigation
+  // does the work — hash, :target wash, scroll-margin and all. If it does not,
+  // the segment changes to one where the target is rendered open, and the hash
+  // is set on the next frame so the jump lands after the register has re-laid.
+  const jump: Jump = (docId, anchor) => (event) => {
+    const doc = documents.find((candidate) => candidate.id === docId)
+    if (!doc || isOpenIn(doc, segment)) return
+    event.preventDefault()
+    setPickedSegment(isAside(doc) ? "other" : needsReview(doc) ? "review" : "all")
+    requestAnimationFrame(() => {
+      window.location.hash = anchor
+    })
+  }
+
   return (
     <SurfacePage>
       <SurfaceHeading
         title={
-          <span data-mono className="text-[1.0625rem] font-medium md:text-[1.25rem]">
+          <span
+            data-mono
+            className="text-[1.0625rem] font-medium md:text-[1.25rem]"
+          >
             {pkg.id}
           </span>
         }
@@ -1124,36 +1492,65 @@ export function VerificationDetails() {
                 documents must not push the end of the index past the fold with
                 no way to reach it. */}
             <div className="flex flex-col gap-7 xl:sticky xl:top-1 xl:-mx-2 xl:max-h-[calc(100dvh-10rem)] xl:overflow-y-auto xl:overscroll-contain xl:px-2 xl:pb-2">
+              <RequiredDocuments
+                missing={missing}
+                total={expected ?? 0}
+                settled={classified}
+              />
+
+              {documents.length > 1 && <Contents files={pkg.files} onJump={jump} />}
+
+              {/* Last, and folded once it is over. A run still working is the
+                  most useful thing in the rail; a run that finished is six
+                  green marks reporting history, and it was holding the top of
+                  the rail — and the first screen on a phone — ahead of the one
+                  fact the inspector came for. */}
               <section>
-                <div className="flex items-baseline justify-between gap-3">
-                  <h2 className="register-label">{t("detail.process")}</h2>
-                  {currentStage >= 0 && (
-                    <span className="flex items-center gap-1.5 text-[0.6875rem] font-medium text-primary">
+                {running ? (
+                  <>
+                    <div className="flex items-baseline justify-between gap-3">
+                      <h2 className="register-label">{t("detail.process")}</h2>
+                      {currentStage >= 0 && (
+                        <span className="flex items-center gap-1.5 text-[0.6875rem] font-medium text-primary">
+                          <span
+                            aria-hidden
+                            className="size-1.5 rounded-full bg-primary motion-safe:animate-pulse"
+                          />
+                          {t("detail.stage_running")}
+                        </span>
+                      )}
+                    </div>
+                    <Pipeline stages={stages} scores={scores} />
+                  </>
+                ) : (
+                  <details className="group">
+                    <summary className="-mx-2 flex cursor-pointer list-none select-none items-baseline gap-2 rounded-md px-2 py-1 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+                      <ChevronRightIcon className="size-3 shrink-0 translate-y-0.5 text-muted-foreground transition-transform duration-200 group-open:rotate-90" />
+                      <span className="register-label">
+                        {failed ? t("status.failed") : t("detail.process_done")}
+                      </span>
                       <span
-                        aria-hidden
-                        className="size-1.5 rounded-full bg-primary motion-safe:animate-pulse"
-                      />
-                      {t("detail.stage_running")}
-                    </span>
-                  )}
-                </div>
-                <Pipeline stages={stages} scores={scores} />
+                        data-mono
+                        className="ml-auto shrink-0 text-[0.6875rem] tabular-nums text-muted-foreground/70"
+                      >
+                        {t("detail.stages_done", { n: stages.length })}
+                      </span>
+                    </summary>
+                    <Pipeline stages={stages} scores={scores} />
+                  </details>
+                )}
               </section>
-
-              <RequiredDocuments missing={missing} settled={classified} />
-
-              {documents.length > 1 && <Contents files={pkg.files} />}
             </div>
           </aside>
 
           {/* ── The evidence: every document the engine read, with its fields
               and the source text they came from. ── */}
           <main className="min-w-0 xl:col-start-1 xl:row-start-1">
-            {/* The run's result comes first — the inspector reads what was
-                found, then the evidence it was found in. */}
-            {pkg.report && <Report report={pkg.report} pkg={pkg} />}
+            {/* The work comes first — what the run found that wants the
+                inspector's eyes, each line a jump into the evidence below. */}
+            {pkg.report && <Worklist report={pkg.report} pkg={pkg} onJump={jump} />}
 
-            <div className="flex items-baseline justify-between gap-4">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
               <h2 className="register-label">{t("detail.documents")}</h2>
               <span
                 data-mono
@@ -1167,12 +1564,55 @@ export function VerificationDetails() {
                 })}
               </span>
             </div>
+
+            {/* ── The register's own triage ── the same segment strip the
+                package register uses, so the two surfaces filter alike. It
+                sticks, because it is how the inspector gets back out of a long
+                document. */}
+            {counts.all > 1 && (
+              <div className="sticky top-0 z-10 -mx-1 mt-2 flex items-stretch gap-0.5 overflow-x-auto border-b border-rule-strong bg-background px-1">
+                {SEGMENTS.map((seg) => {
+                  const active = segment === seg
+                  return (
+                    <button
+                      key={seg}
+                      onClick={() => setPickedSegment(seg)}
+                      aria-pressed={active}
+                      disabled={counts[seg] === 0}
+                      className={cn(
+                        "relative flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2.5 py-2 text-[0.8125rem] transition-colors",
+                        "after:absolute after:inset-x-2 after:bottom-0 after:h-[2px] after:bg-transparent",
+                        "disabled:pointer-events-none disabled:opacity-40",
+                        active
+                          ? "font-medium text-foreground after:bg-foreground"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {t(SEGMENT_KEY[seg])}
+                      <span
+                        data-mono
+                        className={cn(
+                          "text-[0.6875rem] tabular-nums",
+                          active
+                            ? "text-foreground/60"
+                            : "text-muted-foreground/60",
+                        )}
+                      >
+                        {counts[seg]}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
             <div className="mt-5 flex flex-col gap-10">
               {pkg.files.map((file) => (
                 <FileGroup
                   key={file.id}
                   file={file}
                   failed={view.disposition === "failed"}
+                  segment={segment}
                 />
               ))}
             </div>

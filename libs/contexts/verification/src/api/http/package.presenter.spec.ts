@@ -57,7 +57,7 @@ function aFileView(overrides: Partial<SourceFileView> = {}): SourceFileView {
     id: anId(),
     originalFilename: "submission.pdf",
     contentType: "application/pdf",
-    pages: [{ pageNumber: 1, ocr: { text: "PASSPORT", confidence: 0.91 } }],
+    pages: [{ pageNumber: 1, imageStorageKey: "pkg/page_001.png", imageUrl: null, ocr: { text: "PASSPORT", confidence: 0.91 } }],
     documents: [aDocumentView()],
     ...overrides,
   };
@@ -209,9 +209,9 @@ describe("toDetailDto", () => {
         files: [
           aFileView({
             pages: [
-              { pageNumber: 1, ocr: null },
-              { pageNumber: 2, ocr: null },
-              { pageNumber: 3, ocr: null },
+              { pageNumber: 1, imageStorageKey: "pkg/page_001.png", imageUrl: null, ocr: null },
+              { pageNumber: 2, imageStorageKey: "pkg/page_002.png", imageUrl: null, ocr: null },
+              { pageNumber: 3, imageStorageKey: "pkg/page_003.png", imageUrl: null, ocr: null },
             ],
             documents: [
               aDocumentView({ firstPage: 1, lastPage: 1 }),
@@ -250,7 +250,7 @@ describe("toDetailDto", () => {
   it("renders a page OCR has not read yet with no OCR block", () => {
     const dto = toDetailDto(
       aDetailView({
-        files: [aFileView({ pages: [{ pageNumber: 1, ocr: null }] })],
+        files: [aFileView({ pages: [{ pageNumber: 1, imageStorageKey: "pkg/page_001.png", imageUrl: null, ocr: null }] })],
       }),
     );
 
@@ -263,17 +263,20 @@ describe("toDetailDto", () => {
         files: [
           aFileView({
             pages: [
-              { pageNumber: 1, ocr: { text: "PASSPORT", confidence: 0.91 } },
-              { pageNumber: 2, ocr: { text: "TITLE DEED", confidence: 0.62 } },
+              { pageNumber: 1, imageStorageKey: "pkg/page_001.png", imageUrl: null, ocr: { text: "PASSPORT", confidence: 0.91 } },
+              { pageNumber: 2, imageStorageKey: "pkg/page_002.png", imageUrl: null, ocr: { text: "TITLE DEED", confidence: 0.62 } },
             ],
           }),
         ],
       }),
     );
 
+    // The signed link travels; the storage key does not. Where the register
+    // keeps a scan is its own business, and a key on the wire is a key someone
+    // can ask storage for directly.
     expect(dto.files[0]?.pages).toEqual([
-      { pageNumber: 1, ocr: { text: "PASSPORT", confidence: 0.91 } },
-      { pageNumber: 2, ocr: { text: "TITLE DEED", confidence: 0.62 } },
+      { pageNumber: 1, imageUrl: null, ocr: { text: "PASSPORT", confidence: 0.91 } },
+      { pageNumber: 2, imageUrl: null, ocr: { text: "TITLE DEED", confidence: 0.62 } },
     ]);
   });
 

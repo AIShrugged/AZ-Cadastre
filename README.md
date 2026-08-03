@@ -18,6 +18,31 @@ extracts from those. See `docs/CONTEXT.md` for the language this is expressed in
 - **Long-Running Workflows**: Temporal-based orchestration for resumable, auditable processes
 - **Structured Data Integration**: PostgreSQL for application data, RustFS (S3-compatible) for document storage
 
+## Models and confidence
+
+Every reading the pipeline reports — a transcribed sheet, a document's type, an
+extracted field — carries a confidence, and PRD §4.6 makes that number decide
+something: below `0.80` the reading goes to the inspector as a finding instead
+of into the register as a fact.
+
+So the number has to be real. It is taken as the **lower** of two independent
+accounts: the token logprobs the route returns, and the model's own stated
+certainty (or, for transcription, the share of the page it did not mark
+`<?doubtful>`). Where a route offers neither, the reading is recorded as
+**unscored** rather than given a flattering default, which puts it below the
+floor and in front of a human.
+
+That matters more than it sounds. OpenRouter serves one model id from several
+providers, and they do not all honour `logprobs: true` — some return a
+one-token stub for a whole page, some return a table of perfect zeroes. The
+defaults in `.env.example` and `docker-compose.yml` are models observed to
+return real, varying logprobs from **every** provider that serves them.
+
+**Read [docs/MODELS.md](docs/MODELS.md) before changing `OCR_MODEL`,
+`SEGMENTER_MODEL`, `CLASSIFIER_MODEL` or `EXTRACTOR_MODEL`.** It records what
+each candidate actually answered, gives a one-command check for a new one, and
+explains why `PDF_PAGE_DPI` is 300 rather than 150.
+
 ## Project Structure
 
 ```

@@ -8,6 +8,8 @@ enum IssueKind {
   FieldMismatch // two documents disagree on a field that must match
   Expired // a document past its expiration date
   LowConfidence // a reading below the confidence threshold
+  ExtraDocument // a document read fine and not of a type the profile asks for
+  DuplicateDocument // a second document answering an already-answered required type
 }
 
 model ValidationIssue {

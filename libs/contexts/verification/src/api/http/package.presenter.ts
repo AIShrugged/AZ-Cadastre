@@ -70,6 +70,7 @@ function toSourceFileDto(view: SourceFileView): SourceFileDto {
     contentType: view.contentType as SourceFileDto["contentType"],
     pages: view.pages.map((page) => ({
       pageNumber: page.pageNumber,
+      imageUrl: page.imageUrl,
       ocr: page.ocr
         ? { text: page.ocr.text, confidence: page.ocr.confidence }
         : null,

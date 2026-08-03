@@ -1,4 +1,5 @@
 import type { Confidence } from "./confidence.vo.js";
+import { DocumentType as DocumentTypeRef } from "./document-type.vo.js";
 import type { DocumentType } from "./document-type.vo.js";
 import type { FieldKey } from "./field.vo.js";
 import type { DocumentId, SourceFileId } from "./ids.vo.js";
@@ -65,6 +66,41 @@ export class ValidationIssue {
         `could not be recognised as any type this profile expects.`,
       documentId,
       sourceFileId,
+      pageNumber: pages.first,
+    });
+  }
+
+  static extraDocument(
+    documentId: DocumentId,
+    sourceFileId: SourceFileId,
+    pages: PageRange,
+  ): ValidationIssue {
+    return ValidationIssue.of({
+      kind: IssueKind.EXTRA_DOCUMENT,
+      message:
+        `The document on sheets ${pages.first.value}–${pages.last.value} ` +
+        `was read but is not a type this profile asks for.`,
+      documentId,
+      sourceFileId,
+      documentType: DocumentTypeRef.OUT_OF_PROFILE,
+      pageNumber: pages.first,
+    });
+  }
+
+  static duplicateDocument(
+    documentId: DocumentId,
+    sourceFileId: SourceFileId,
+    type: DocumentType,
+    pages: PageRange,
+  ): ValidationIssue {
+    return ValidationIssue.of({
+      kind: IssueKind.DUPLICATE_DOCUMENT,
+      message:
+        `The document on sheets ${pages.first.value}–${pages.last.value} is a ` +
+        `second "${type.value}" in this package; the requirement was already answered.`,
+      documentId,
+      sourceFileId,
+      documentType: type,
       pageNumber: pages.first,
     });
   }

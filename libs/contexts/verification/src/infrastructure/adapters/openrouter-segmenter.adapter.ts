@@ -14,15 +14,50 @@ import type {
 } from "../../domain/value-objects/index.js";
 import type { Environment } from "../config/index.js";
 import { MissingOpenRouterApiKeyException } from "../exceptions/index.js";
+import { answerOf } from "./answered.js";
 import { tileIntoRanges } from "./page-range-tiling.js";
+import { BLANK_PAGE } from "./transcription-marks.js";
 
 // Enough of a sheet to tell a title page from a continuation, without paying
 // for the body of a long file twice over.
-const MAX_TEXT_PER_PAGE = 1200;
+const MAX_HEAD_PER_PAGE = 900;
+
+// And enough of its foot to catch what a title alone cannot say. The drawing
+// sets in these packages number themselves only in the title block at the
+// bottom right — "Vərəq 3 / Vərəqlər 6" — which is the plainest statement of
+// "this sheet continues the last one" anywhere in the file, and head-only
+// truncation threw it away.
+const MAX_TAIL_PER_PAGE = 320;
+
+// A package is not only what the profile requires of it. These arrive in the
+// same envelope, and a segmenter with no word for them runs them together into
+// one shapeless block — three separate service sheets read as a single
+// document, which is what happened before they were named here. Naming them
+// costs nothing and it is the classifier, not this stage, that decides they are
+// out of profile.
+const ALSO_EXPECTED = [
+  "Dövriyyə vərəqi — the registry's own routing sheet, a table of departments",
+  "Ekspertiza vərəqi — the registry's own examination sheet, often left blank",
+  "Lisenziya and Lisenziyanın əlavəsi — a design firm's licence and its annex",
+  "Müqavilə — a contract, e.g. for valuation of the property",
+  "Kuryer xidmətinin bildirişi — a courier waybill",
+  "Müşayiət məktubu — a covering letter",
+];
 
 const AnswerSchema = z.object({
-  starts: z.array(z.number()).default([]),
+  documents: z
+    .array(
+      z.object({
+        start: z.number(),
+        label: z.string().default(""),
+        confidence: z.number().min(0).max(1).nullish(),
+      }),
+    )
+    .default([]),
 });
+
+// One call over the head and foot of every sheet in a file.
+const SEGMENTATION_TIMEOUT_MS = 120_000;
 
 @Injectable()
 export class OpenRouterSegmenterAdapter extends DocumentSegmenter {
@@ -41,6 +76,13 @@ export class OpenRouterSegmenterAdapter extends DocumentSegmenter {
       apiKey: openrouter.apiKey,
       baseURL: openrouter.baseUrl,
       defaultHeaders: { "X-Title": openrouter.appTitle },
+      // A page the provider never answers about must not hold the pipeline
+      // open: without these the SDK waits ten minutes and then retries twice,
+      // so one stuck sheet can cost half an hour of a run that has already read
+      // everything else. The per-sheet retry in the use case does the asking
+      // again; this only bounds one ask.
+      timeout: SEGMENTATION_TIMEOUT_MS,
+      maxRetries: 1,
     });
   }
 
@@ -57,12 +99,25 @@ export class OpenRouterSegmenterAdapter extends DocumentSegmenter {
       ],
     });
 
-    const starts = this.parse(completion.choices[0]?.message?.content ?? "");
-    const ranges = tileIntoRanges(starts, pageCount);
+    const found = this.parse(answerOf(this.model, completion).message?.content ?? "");
+    const ranges = tileIntoRanges(
+      found.map((document) => document.start),
+      pageCount,
+    );
 
     this.logger.log(
-      `Read ${pageCount} sheet(s) as ${ranges.length} document(s) ` +
-        `(model said ${JSON.stringify(starts)})`,
+      `Read ${pageCount} sheet(s) as ${ranges.length} document(s): ` +
+        (found.length === 0
+          ? "the model named no boundary, so the file is taken whole"
+          : found
+              .map(
+                (document) =>
+                  `p.${document.start} ${document.label || "?"}` +
+                  (document.confidence == null
+                    ? ""
+                    : ` (${document.confidence.toFixed(2)})`),
+              )
+              .join(", ")),
     );
 
     return ranges;
@@ -70,8 +125,8 @@ export class OpenRouterSegmenterAdapter extends DocumentSegmenter {
 
   private instructions(candidates: readonly DocumentTypeSpec[]): string {
     return [
-      "You are given the OCR text of every sheet of ONE scanned file submitted",
-      "to the Azerbaijani real estate registration authority, in order.",
+      "You are given the transcribed text of every sheet of ONE scanned file",
+      "submitted to the Azerbaijani real estate registration authority, in order.",
       "",
       "The file is a container: it may hold one document or several back to",
       "back, and a single document may run over several sheets. Decide which",
@@ -81,39 +136,65 @@ export class OpenRouterSegmenterAdapter extends DocumentSegmenter {
       "heading, a different issuing body, a new form or licence number, a fresh",
       "set of signatures and stamps. A sheet CONTINUES the previous document",
       "when it carries on its table, clauses or drawings, repeats its number in",
-      "a header or footer, or is numbered as its page 2 of N.",
+      "a header or footer, or numbers itself as one sheet of that document's set",
+      '(e.g. "Vərəq 3 / Vərəqlər 6" in a drawing title block).',
       "",
-      "Documents of these kinds are expected in this file:",
+      "Documents the profile expects in this file:",
       "",
       ...candidates.map(
         (candidate) => `- ${candidate.type.value}: ${candidate.description}`,
       ),
       "",
+      "Also commonly present, and each a document of its own — do not run them",
+      "together with their neighbours just because the profile does not ask for",
+      "them:",
+      "",
+      ...ALSO_EXPECTED.map((description) => `- ${description}`),
+      "",
       "Two documents of the SAME kind can sit back to back — two separate",
-      "licences, say. Start a new one whenever the record itself changes, not",
-      "only when the kind does.",
+      "licences, or two extracts from two different orders. Start a new one",
+      "whenever the record itself changes, not only when the kind does.",
       "",
-      "The text is usually Azerbaijani (Latin script), sometimes Russian, and",
-      "OCR may have mangled headings. Sheet 1 always starts a document.",
+      `A sheet transcribed as "${BLANK_PAGE}" is the back of the sheet before it.`,
+      "It CONTINUES that document and never starts one.",
       "",
-      'Reply with ONLY {"starts": [<sheet numbers>]} — no other words.',
+      "The text is usually Azerbaijani (Latin script), sometimes Azerbaijani in",
+      "Cyrillic script, sometimes Russian; transcription may have mangled",
+      "headings. Handwriting is marked [hw: ...] and stamps [stamp: ...].",
+      "Sheet 1 always starts a document.",
+      "",
+      // The word "JSON" is load-bearing: OpenAI refuses `response_format:
+      // json_object` outright — 400, no completion — unless the conversation
+      // says it somewhere.
+      "Reply with ONLY this JSON object:",
+      '{"documents":[{"start":<sheet number>,"label":"<what it appears to be, a few words>",',
+      '"confidence":<0..1, how sure you are this sheet starts a document>}]}',
     ].join("\n");
   }
 
+  // Head and tail of each sheet, with the middle dropped: a document announces
+  // itself at the top and numbers itself at the bottom, and the body between
+  // them is what the classifier reads, not this stage.
   private transcript(pages: readonly ReadPage[]): string {
     return pages
-      .map(
-        (page) =>
-          `--- SHEET ${page.number.value} ---\n` +
-          page.text.value.slice(0, MAX_TEXT_PER_PAGE),
-      )
+      .map((page) => {
+        const text = page.text.value;
+        const body =
+          text.length <= MAX_HEAD_PER_PAGE + MAX_TAIL_PER_PAGE
+            ? text
+            : `${text.slice(0, MAX_HEAD_PER_PAGE)}\n […] \n${text.slice(-MAX_TAIL_PER_PAGE)}`;
+
+        return `--- SHEET ${page.number.value} ---\n${body}`;
+      })
       .join("\n\n");
   }
 
   // A file the model answers nonsense about is still one document per sheet
   // boundary it did name; `tileIntoRanges` turns an empty answer into the whole
   // file as a single document, which is the safe reading.
-  private parse(raw: string): readonly number[] {
+  private parse(
+    raw: string,
+  ): readonly { start: number; label: string; confidence?: number | null }[] {
     const json = raw.match(/\{[\s\S]*\}/)?.[0] ?? raw;
     const parsed = AnswerSchema.safeParse(this.json(json));
 
@@ -122,7 +203,7 @@ export class OpenRouterSegmenterAdapter extends DocumentSegmenter {
       return [];
     }
 
-    return parsed.data.starts;
+    return parsed.data.documents;
   }
 
   private json(raw: string): unknown {

@@ -19,6 +19,7 @@ function aToken(
 
 function aCompletion(
   logprobs: OpenAI.Chat.Completions.ChatCompletion.Choice["logprobs"],
+  content = "passport",
 ): OpenAI.Chat.Completions.ChatCompletion {
   return {
     id: anId(),
@@ -30,10 +31,25 @@ function aCompletion(
         index: 0,
         finish_reason: "stop",
         logprobs,
-        message: { role: "assistant", content: "passport", refusal: null },
+        message: { role: "assistant", content, refusal: null },
       },
     ],
   };
+}
+
+// A page of transcription, which is what the OCR stage actually asks a route
+// for and what makes a one-entry logprob table obviously a stand-in.
+function aTranscribedPage(
+  tokenCount: number,
+  logprob: number,
+): OpenAI.Chat.Completions.ChatCompletion {
+  return aCompletion(
+    {
+      content: Array.from({ length: tokenCount }, () => aToken(logprob)),
+      refusal: null,
+    },
+    "ARXİV ARAYIŞI ".repeat(60),
+  );
 }
 
 function aCompletionWithLogprobs(
@@ -108,6 +124,28 @@ describe("confidenceFromLogprobs", () => {
       expect(confidence!).toBeLessThanOrEqual(1);
       expect(Confidence.of(confidence!).value).toBe(confidence);
     }
+  });
+
+  it("refuses a table too small to have scored the answer it came with", () => {
+    // What some routes answer: one entry standing in for 840 characters of
+    // transcription, which averages to certainty about a page nobody scored.
+    expect(confidenceFromLogprobs(aTranscribedPage(1, -0.02))).toBeNull();
+  });
+
+  it("refuses a table of nothing but certainty, which is the route talking about itself", () => {
+    expect(confidenceFromLogprobs(aTranscribedPage(400, 0))).toBeNull();
+  });
+
+  it("still scores a short answer the model was simply sure of", () => {
+    // Three certain tokens for the word "passport" is a model agreeing with
+    // itself, not a route declining to say — the refusals above must not eat it.
+    expect(confidenceFromLogprobs(aCompletionWithLogprobs(0, 0, 0))).toBe(1);
+  });
+
+  it("scores a page whose entries are real, however many of them there are", () => {
+    const confidence = confidenceFromLogprobs(aTranscribedPage(400, -0.2));
+
+    expect(confidence).toBeCloseTo(Math.exp(-0.2), 12);
   });
 
   it("reads only the first choice, because that is the answer the caller asked for", () => {

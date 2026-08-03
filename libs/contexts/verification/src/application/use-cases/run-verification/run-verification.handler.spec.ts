@@ -380,7 +380,11 @@ describe("RunVerificationHandler", () => {
     ).toContainEqual(["UnreadableDocument", 2]);
   });
 
-  it("asks the provider once for a page it has already refused", async () => {
+  it("asks again for a sheet the provider refused, and gives up on it in the end", async () => {
+    // Providers rate-limit and time out for reasons that have nothing to do
+    // with the sheet in hand, so one refusal is not an answer about the sheet.
+    // The asking is bounded, though: a page nobody will read must not hold the
+    // run open.
     const file = aFile("submission.pdf", ContentType.PDF);
     const refusesPageTwo = (image: PageImage) =>
       image.storageKey.value.endsWith("page_002.png");
@@ -393,11 +397,34 @@ describe("RunVerificationHandler", () => {
 
     await run();
 
+    const asked = ocr.read.filter((image) =>
+      image.storageKey.value.endsWith("page_002.png"),
+    );
+    expect(asked.length).toBeGreaterThan(1);
+    expect(asked.length).toBeLessThanOrEqual(3);
+  });
+
+  it("reads the sheets after the one it was refused, rather than abandoning the file", async () => {
+    // A rate-limited sheet in the middle of a long submission used to end the
+    // reading of everything after it, and the report then announced a package
+    // that was not the one submitted.
+    const file = aFile("submission.pdf", ContentType.PDF);
+    const refusesPageTwo = (image: PageImage) =>
+      image.storageKey.value.endsWith("page_002.png");
+    const { run, packages } = pipelineOver(
+      aPackageOf(file),
+      new RenderingSplitter(6),
+      // One sheet at a time, so the refusal falls in a batch of its own and
+      // everything after it depends on the run carrying on.
+      new RecordingOcr(1, refusesPageTwo),
+    );
+
+    await run();
+
+    const stored = await storedPackage(packages);
     expect(
-      ocr.read.filter((image) =>
-        image.storageKey.value.endsWith("page_002.png"),
-      ),
-    ).toHaveLength(1);
+      stored.fileWith(file.id).pages.map((page) => page.isRecognised),
+    ).toEqual([true, false, true, true, true, true]);
   });
 
   it("takes a photographed file as the single page it already is", async () => {

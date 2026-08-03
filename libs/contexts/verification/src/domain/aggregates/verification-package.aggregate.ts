@@ -170,6 +170,15 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     return this.fileWith(document.sourceFileId).textIn(document.pages);
   }
 
+  // The document's own sheets, in order, each as its image and its reading.
+  // Page numbers are the file's, which is what a report cites and what the
+  // inspector counts to when they open the scan.
+  sheetsOf(documentId: DocumentId): readonly Page[] {
+    const document = this.documentWith(documentId);
+
+    return this.fileWith(document.sourceFileId).pagesIn(document.pages);
+  }
+
   get isFullyProcessed(): boolean {
     const filesRead = this.#files.every(
       (file) => file.isFullyRecognised && this.isSegmented(file.id),
@@ -312,6 +321,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       ...this.missingDocuments(),
       ...this.unreadable(),
       ...this.lowConfidence(),
+      ...this.alsoInThePackage(),
     ];
 
     this.#report = VerificationReport.of(issues);
@@ -340,8 +350,15 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       ...(this.isSegmented(file.id) ? [] : [ValidationIssue.unreadableFile(file.id)]),
     ]);
 
+    // Only the documents nothing could be made of. One the classifier read and
+    // placed outside the profile was not unreadable, and is reported as what it
+    // is a few lines below.
     const documents = this.#documents
-      .filter((document) => !document.classification?.isPlaced)
+      .filter((document) => {
+        const classification = document.classification;
+
+        return !classification?.isPlaced && !classification?.isOutOfProfile;
+      })
       .map((document) =>
         ValidationIssue.unplacedDocument(
           document.id,
@@ -351,6 +368,45 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       );
 
     return [...sheets, ...documents];
+  }
+
+  // What the package turned out to hold beyond the profile's list: documents
+  // that are not of a required type, and second documents answering a type
+  // already answered. Neither counts against the package — they are here so the
+  // inspector can see the whole envelope, not only the parts the engine scores.
+  private alsoInThePackage(): readonly ValidationIssue[] {
+    const answered = new Set<string>();
+
+    return this.#documents.flatMap((document) => {
+      const classification = document.classification;
+
+      if (classification?.isOutOfProfile) {
+        return [
+          ValidationIssue.extraDocument(
+            document.id,
+            document.sourceFileId,
+            document.pages,
+          ),
+        ];
+      }
+
+      if (!classification?.isPlaced) return [];
+
+      const type = classification.type;
+      if (!answered.has(type.value)) {
+        answered.add(type.value);
+        return [];
+      }
+
+      return [
+        ValidationIssue.duplicateDocument(
+          document.id,
+          document.sourceFileId,
+          type,
+          document.pages,
+        ),
+      ];
+    });
   }
 
   private lowConfidence(): readonly ValidationIssue[] {

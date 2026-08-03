@@ -130,6 +130,7 @@ export class PrismaPackageQueries extends PackageQueries {
               orderBy: { pageNumber: "asc" },
               select: {
                 pageNumber: true,
+                imageStorageKey: true,
                 ocr: { select: { text: true, confidence: true } },
               },
             },
@@ -168,6 +169,10 @@ export class PrismaPackageQueries extends PackageQueries {
         contentType: file.contentType,
         pages: file.pages.map((page) => ({
           pageNumber: page.pageNumber,
+          imageStorageKey: page.imageStorageKey,
+          // Signed by the use case, which is where reaching object storage
+          // belongs; the register only knows where the sheet is kept.
+          imageUrl: null,
           ocr: page.ocr
             ? { text: page.ocr.text, confidence: page.ocr.confidence }
             : null,

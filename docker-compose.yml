@@ -36,21 +36,28 @@ services:
       - S3_FORCE_PATH_STYLE=true
       - S3_PRESIGN_TTL=600
 
-      # PDF splitting: every page is rendered at this resolution before OCR
-      - PDF_PAGE_DPI=150
+      # PDF splitting: every page is rendered at this resolution before OCR.
+      # 300 is the floor at which a photocopied identity card is legible — at
+      # 150 its card number is ~40px wide and readers invent one (docs/MODELS.md)
+      - PDF_PAGE_DPI=300
       - PDF_MAX_PAGES=30
 
-      # AI Providers (using mock providers for now)
+      # AI providers. Every model here was checked to return token logprobs
+      # through OpenRouter: a stage whose route reports none records its reading
+      # as unscored, which sends it to the inspector for review. Before changing
+      # one, run the check in docs/MODELS.md — advertised logprob support and
+      # delivered logprob support are not the same thing.
       - OCR_PROVIDER=openrouter
-      - OCR_MODEL=openai/gpt-4o-mini
+      - OCR_MODEL=qwen/qwen2.5-vl-72b-instruct
       # Pages read at once; lower it if the provider answers with rate limits
       - OCR_CONCURRENCY=4
       - SEGMENTER_PROVIDER=openrouter
-      - SEGMENTER_MODEL=openai/gpt-4o-mini
+      - SEGMENTER_MODEL=openai/gpt-4o
       - CLASSIFIER_PROVIDER=openrouter
-      - CLASSIFIER_MODEL=openai/gpt-4o-mini
+      - CLASSIFIER_MODEL=openai/gpt-4o
+      # Reads the sheets as images as well as transcriptions — must take images
       - EXTRACTOR_PROVIDER=openrouter
-      - EXTRACTOR_MODEL=openai/gpt-4o-mini
+      - EXTRACTOR_MODEL=qwen/qwen2.5-vl-72b-instruct
 
       # OpenRouter (optional, only needed if switching from mock to openrouter)
       - OPENROUTER_API_KEY=

@@ -41,6 +41,11 @@ export type OcrView = {
 export type PageView = {
   pageNumber: number;
   ocr: OcrView | null;
+  // Where the rendered sheet lives, and — once the query has signed for it — a
+  // URL the inspector's browser can open it at. The register keeps the key; the
+  // link is minted per request and expires, so it is never stored anywhere.
+  imageStorageKey: string;
+  imageUrl: string | null;
 };
 
 export type FieldView = {

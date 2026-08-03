@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   ObjectStorage,
+  type PresignedDownload,
   type PresignedUpload,
   type PutObjectRequest,
   type StoredObject,
@@ -70,6 +71,10 @@ class StorageStandingIn extends ObjectStorage {
 
   override presignUpload(): Promise<PresignedUpload> {
     throw new Error("the splitter never presigns an upload");
+  }
+
+  override presignDownload(): Promise<PresignedDownload> {
+    throw new Error("the splitter never presigns a download");
   }
 
   override async putObject(request: PutObjectRequest): Promise<void> {

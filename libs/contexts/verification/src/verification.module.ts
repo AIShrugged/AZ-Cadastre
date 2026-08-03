@@ -116,11 +116,14 @@ const handlers = [
     },
     {
       provide: FieldExtractor,
-      useFactory: (config: ConfigService<Environment, true>): FieldExtractor =>
+      useFactory: (
+        config: ConfigService<Environment, true>,
+        storage: ObjectStorage,
+      ): FieldExtractor =>
         config.get("extractor", { infer: true }).provider === "openrouter"
-          ? new OpenRouterFieldExtractorAdapter(config)
+          ? new OpenRouterFieldExtractorAdapter(config, storage)
           : new FieldExtractorAdapter(),
-      inject: [ConfigService],
+      inject: [ConfigService, ObjectStorage],
     },
 
     // Registered by the context that raises them, so its `code → status` table

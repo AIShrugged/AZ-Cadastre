@@ -12,6 +12,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import {
   ObjectStorage,
   type PresignUploadRequest,
+  type PresignedDownload,
   type PresignedUpload,
   type PutObjectRequest,
   type StoredObject,
@@ -93,6 +94,22 @@ export class ObjectStorageAdapter
         ContentType: request.contentType.value,
       }),
     );
+  }
+
+  async presignDownload(key: StorageKey): Promise<PresignedDownload> {
+    const url = await getSignedUrl(
+      this.client,
+      new GetObjectCommand({ Bucket: this.storage.bucket, Key: key.value }),
+      { expiresIn: this.storage.presignTtl },
+    );
+
+    return {
+      // Relative for the same reason the upload URL is: the browser fetches it
+      // from the web app's own origin, which the dev proxy and the nginx in
+      // front of the built app both forward to storage.
+      url: url.match(/^https?:\/\/[^/]+(\/.+)$/)?.[1] ?? url,
+      expiresIn: this.storage.presignTtl,
+    };
   }
 
   async getObject(key: StorageKey): Promise<StoredObject> {

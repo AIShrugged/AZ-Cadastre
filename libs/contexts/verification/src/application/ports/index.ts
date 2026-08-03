@@ -10,12 +10,14 @@ export {
 export {
   FieldExtractor,
   type ExtractionRequest,
+  type ExtractionSheet,
 } from "./field-extractor.port.js";
 export { IdGenerator } from "./id-generator.port.js";
 export {
   ObjectStorage,
   type PresignUploadRequest,
   type PresignedUpload,
+  type PresignedDownload,
   type PutObjectRequest,
   type StoredObject,
 } from "./object-storage.port.js";

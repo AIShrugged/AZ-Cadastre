@@ -5,12 +5,14 @@ import type { VerificationPackage } from "../../../domain/aggregates/index.js";
 import { Document, Page, type SourceFile } from "../../../domain/entities/index.js";
 import { VerificationPackageRepository } from "../../../domain/repositories/index.js";
 import {
+  Confidence,
   type DocumentId,
   FailureReason,
   PackageId,
   PageImage,
   PageNumber,
   type PageRange,
+  RecognisedText,
   type SourceFileId,
   type VerificationProfile,
 } from "../../../domain/value-objects/index.js";
@@ -24,6 +26,11 @@ import {
   PdfSplitter,
 } from "../../ports/index.js";
 import { RunVerificationCommand } from "./run-verification.command.js";
+
+// How many times one sheet is offered to the reader before the report says it
+// could not be read. Providers rate-limit and time out for reasons that have
+// nothing to do with the sheet in hand, and the second ask usually succeeds.
+const ATTEMPTS_PER_SHEET = 3;
 
 @CommandHandler(RunVerificationCommand)
 export class RunVerificationHandler
@@ -152,16 +159,29 @@ export class RunVerificationHandler
     );
   }
 
-  // Terminates because a pass that recognised nothing ends the loop: pages the
-  // provider refuses stay unread, and the report names them.
+  // Terminates because every failure is counted against the sheet it happened
+  // to, and a sheet that has used up its attempts is no longer offered: the
+  // queue empties whether the provider cooperates or not.
+  //
+  // A refusal used to end the whole file — one rate-limited sheet in the middle
+  // of a twenty-six page submission left twenty of them unread and the report
+  // announced a package that was not there. A provider saying no to one page is
+  // not a provider saying no, so each sheet gets its own few tries and the rest
+  // of the file goes on without it.
   private async recognise(
     packageId: PackageId,
     sourceFileId: SourceFileId,
   ): Promise<void> {
+    const refusals = new Map<string, number>();
+    const spent = (pageId: string): boolean =>
+      (refusals.get(pageId) ?? 0) >= ATTEMPTS_PER_SHEET;
+
     for (;;) {
       const verification = await this.load(packageId);
       const file = verification.fileWith(sourceFileId);
-      const batch = file.unrecognisedPages.slice(0, this.ocr.pagesAtOnce);
+      const batch = file.unrecognisedPages
+        .filter((page) => !spent(page.id.value))
+        .slice(0, this.ocr.pagesAtOnce);
 
       if (batch.length === 0) return;
 
@@ -172,27 +192,26 @@ export class RunVerificationHandler
       let recognised = 0;
       for (const [index, reading] of readings.entries()) {
         const page = batch[index];
-        if (!page || reading.status !== "fulfilled") continue;
+        if (!page) continue;
+
+        if (reading.status !== "fulfilled") {
+          const tries = (refusals.get(page.id.value) ?? 0) + 1;
+          refusals.set(page.id.value, tries);
+          this.logger.warn(
+            `Package ${packageId.value}: sheet ${page.number.value} of ` +
+              `"${file.filename.value}" could not be read ` +
+              `(attempt ${tries}/${ATTEMPTS_PER_SHEET}) — ${String(reading.reason)}`,
+          );
+          continue;
+        }
 
         verification.recordRecognition(sourceFileId, page.id, reading.value);
         recognised += 1;
       }
 
-      // Saved before anything is said about the refusals: what the provider did
-      // read is paid for, so a re-run asks it only for the pages still unread.
+      // Saved as soon as anything came back: what the provider did read is paid
+      // for, so a re-run asks it only for the pages still unread.
       if (recognised > 0) await this.packages.save(verification);
-
-      for (const reading of readings) {
-        if (reading.status === "rejected") {
-          this.logger.warn(
-            `Package ${packageId.value}: a sheet of ` +
-              `"${file.filename.value}" could not be read — ` +
-              String(reading.reason),
-          );
-        }
-      }
-
-      if (recognised < batch.length) return;
     }
   }
 
@@ -291,6 +310,12 @@ export class RunVerificationHandler
 
     const fields = await this.extractor.extract({
       text: verification.textOf(documentId),
+      sheets: verification.sheetsOf(documentId).map((page) => ({
+        number: page.number,
+        image: page.image,
+        text: page.ocr?.text ?? RecognisedText.empty(),
+        read: page.ocr?.confidence ?? Confidence.none(),
+      })),
       spec,
     });
 

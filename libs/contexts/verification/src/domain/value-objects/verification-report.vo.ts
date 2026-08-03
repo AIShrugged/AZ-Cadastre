@@ -30,7 +30,12 @@ export class VerificationReport {
       return ReportStatus.INCOMPLETE_PACKAGE;
     }
 
-    return issues.length === 0 ? ReportStatus.OK : ReportStatus.ISSUES_FOUND;
+    // An observation the run made in passing — a service sheet in the envelope,
+    // a second extract answering the same requirement — is not a finding
+    // against the package, so a report holding only those still reads OK.
+    const against = issues.filter((issue) => !issue.kind.isInformational);
+
+    return against.length === 0 ? ReportStatus.OK : ReportStatus.ISSUES_FOUND;
   }
 
   get issues(): readonly ValidationIssue[] {

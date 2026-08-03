@@ -23,6 +23,10 @@ export const IssueKindSchema = z.enum([
   "MissingDocument",
   "UnreadableDocument",
   "LowConfidence",
+  // Stated for the record rather than against the package: something the run
+  // noticed in the envelope that only the inspector can weigh.
+  "ExtraDocument",
+  "DuplicateDocument",
 ]);
 export type IssueKind = z.infer<typeof IssueKindSchema>;
 
@@ -60,6 +64,9 @@ export type OcrDto = z.infer<typeof OcrDtoSchema>;
 
 export const PageDtoSchema = z.object({
   pageNumber: z.number().int().positive(),
+  // A short-lived link to the rendered sheet, so a finding can be checked
+  // against the scan it was made from. Null when it could not be signed.
+  imageUrl: z.string().nullable(),
   ocr: OcrDtoSchema.nullable(),
 });
 export type PageDto = z.infer<typeof PageDtoSchema>;

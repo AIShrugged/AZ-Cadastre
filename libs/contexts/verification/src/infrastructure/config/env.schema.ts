@@ -23,8 +23,11 @@ export const EnvironmentSchema = z
     S3_PRESIGN_TTL: z.coerce.number().int().positive().default(600),
 
     // Resolution every PDF page is rendered at before OCR reads it. Higher
-    // reads small print better and costs more bytes per page.
-    PDF_PAGE_DPI: z.coerce.number().int().positive().default(150),
+    // reads small print better and costs more bytes per page. 300 is not a
+    // margin of comfort here: an identity card occupies about a quarter of the
+    // A4 sheet it was photocopied onto, so at 150 its card number is some 40
+    // pixels wide and every reader tested invented one. See docs/MODELS.md.
+    PDF_PAGE_DPI: z.coerce.number().int().positive().default(300),
     // The pipeline runs in-process (ADR-0001), so one upload cannot be allowed
     // to occupy it indefinitely.
     PDF_MAX_PAGES: z.coerce.number().int().positive().default(30),
@@ -35,8 +38,12 @@ export const EnvironmentSchema = z
     OPENROUTER_BASE_URL: z.string().default("https://openrouter.ai/api/v1"),
     OPENROUTER_APP_TITLE: z.string().default("AZ-Cadastre"),
 
+    // Every default below is a model observed to return usable token logprobs
+    // through OpenRouter, because a confidence the engine cannot obtain is a
+    // confidence it would otherwise invent. docs/MODELS.md records what each
+    // candidate actually answered and how to check a new one.
     OCR_PROVIDER: z.enum(["mock", "openrouter"]).default("mock"),
-    OCR_MODEL: z.string().default("google/gemini-2.5-flash"),
+    OCR_MODEL: z.string().default("qwen/qwen2.5-vl-72b-instruct"),
     // Pages read at once. Raise it to get through a long PDF faster, lower it if
     // the provider starts answering with rate limits.
     OCR_CONCURRENCY: z.coerce.number().int().positive().default(4),
@@ -45,13 +52,15 @@ export const EnvironmentSchema = z
     // only as good as this boundary call, so it is worth pointing at a real
     // model even when the rest of the pipeline is mocked.
     SEGMENTER_PROVIDER: z.enum(["mock", "openrouter"]).default("mock"),
-    SEGMENTER_MODEL: z.string().default("google/gemini-2.5-flash"),
+    SEGMENTER_MODEL: z.string().default("openai/gpt-4o"),
 
     CLASSIFIER_PROVIDER: z.enum(["mock", "openrouter"]).default("mock"),
-    CLASSIFIER_MODEL: z.string().default("google/gemini-2.5-flash"),
+    CLASSIFIER_MODEL: z.string().default("openai/gpt-4o"),
 
+    // Reads the sheets as pictures as well as transcriptions, so it wants a
+    // model that takes images.
     EXTRACTOR_PROVIDER: z.enum(["mock", "openrouter"]).default("mock"),
-    EXTRACTOR_MODEL: z.string().default("google/gemini-2.5-flash"),
+    EXTRACTOR_MODEL: z.string().default("qwen/qwen2.5-vl-72b-instruct"),
   })
   .transform((env) => ({
     web: {

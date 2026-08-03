@@ -206,12 +206,14 @@ function stageStatuses(
   const detectDone = files.length > 0 && files.every((f) => f.documents.length > 0)
   const classifyDone =
     detectDone && documents.every((d) => d.type !== null)
-  // Extraction is done once every classified document (that has a schema — i.e.
-  // not "unknown") has its fields; unknowns have nothing to extract.
+  // Extraction is done once every document with a schema behind it has its
+  // fields. Neither answer the engine keeps for itself declares any: a document
+  // it could not place has nothing to extract, and one it placed outside the
+  // profile has no schema to extract against.
   const extractDone =
     classifyDone &&
     documents
-      .filter((d) => d.type && d.type !== "unknown")
+      .filter((d) => d.type && d.type !== "unknown" && d.type !== "out_of_profile")
       .every((d) => d.fields.length > 0)
 
   const stages: StageStatus[] = Array.from({ length: STAGES }, () => "pending")
@@ -240,8 +242,13 @@ function stageStatuses(
 // reading the engine is sure of must not shout down the value it produced.
 const CONFIDENCE_FLOOR = 0.8
 
+// Zero is not "certainly wrong", it is "nobody scored this": neither the route
+// nor the model would say how sure it was, so the engine declines to make a
+// number up (docs/MODELS.md). It reads as an absence, and it still flags for
+// review — an unscored reading is exactly one an inspector should check.
 function Confidence({ value }: { value: number }) {
   const { t } = useI18n()
+  const unscored = value === 0
   const low = value < CONFIDENCE_FLOOR
   return (
     <span className="inline-flex shrink-0 items-baseline justify-end gap-1.5">
@@ -256,8 +263,9 @@ function Confidence({ value }: { value: number }) {
           "text-[0.75rem] tabular-nums",
           low ? "font-medium text-incomplete-ink" : "text-muted-foreground/80",
         )}
+        title={unscored ? t("detail.unscored_why") : undefined}
       >
-        {Math.round(value * 100)}%
+        {unscored ? t("detail.unscored") : `${Math.round(value * 100)}%`}
       </span>
     </span>
   )
@@ -495,13 +503,70 @@ function documentText(doc: DocumentDto, file: SourceFileDto): string {
     .trim()
 }
 
+// ─── The sheets themselves ────────────────────────────────────────────────────
+// Everything else on this page is the machine's account of the scan; this is the
+// scan. A value the inspector cannot check against the paper is a value they
+// have to take on trust, which is the one thing this surface exists not to ask
+// of them. Thumbnails, because the point is to find the right sheet quickly —
+// the sheet itself opens full size in its own tab.
+function Sheets({ doc, file }: { doc: DocumentDto; file: SourceFileDto }) {
+  const { t } = useI18n()
+  const sheets = file.pages.filter(
+    (page) =>
+      page.pageNumber >= doc.firstPage &&
+      page.pageNumber <= doc.lastPage &&
+      page.imageUrl,
+  )
+
+  if (sheets.length === 0) return null
+
+  return (
+    <div className="mt-3">
+      <ul className="flex flex-wrap gap-2">
+        {sheets.map((page) => (
+          <li key={page.pageNumber}>
+            <a
+              href={page.imageUrl ?? undefined}
+              target="_blank"
+              rel="noreferrer"
+              title={t("detail.page_single", { n: page.pageNumber })}
+              className="group block w-20 overflow-hidden rounded-md border border-rule transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              <img
+                src={page.imageUrl ?? undefined}
+                alt={t("detail.page_single", { n: page.pageNumber })}
+                loading="lazy"
+                // A tall crop of the head of the sheet: a scanned form says what
+                // it is in its first inch, and a whole A4 shrunk to 80px says
+                // nothing at all.
+                className="h-24 w-full bg-background object-cover object-top"
+              />
+              <span
+                data-mono
+                className="block border-t border-rule px-1 py-0.5 text-center text-[0.625rem] tabular-nums text-muted-foreground group-hover:text-foreground"
+              >
+                {page.pageNumber}
+              </span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 function DocumentEntry({ doc, file }: { doc: DocumentDto; file: SourceFileDto }) {
   const { t } = useI18n()
+  // Two different answers that both leave a document without fields, and they
+  // must not read alike: "we could not tell what this is" against "we could,
+  // and this profile does not ask for it".
   const unclassified = doc.type === "unknown"
+  const outOfProfile = doc.type === "out_of_profile"
+  const fieldless = unclassified || outOfProfile
   const text = documentText(doc, file)
-  // Unclassified: show a one-line preview off the document's own sheets, so the
-  // inspector can still tell roughly what it is.
-  const snippet = unclassified ? text.replace(/\s+/g, " ").slice(0, 160) : ""
+  // Either way there are no fields to show, so a one-line preview off the
+  // document's own sheets tells the inspector roughly what is there.
+  const snippet = fieldless ? text.replace(/\s+/g, " ").slice(0, 160) : ""
 
   return (
     <article id={`doc-${doc.id}`} className="scroll-mt-6 py-6 first:pt-5 last:pb-0">
@@ -517,7 +582,7 @@ function DocumentEntry({ doc, file }: { doc: DocumentDto; file: SourceFileDto })
             <h3
               className={cn(
                 "text-[0.9375rem] font-[550] leading-tight tracking-[-0.01em]",
-                unclassified ? "text-muted-foreground" : "text-foreground",
+                fieldless ? "text-muted-foreground" : "text-foreground",
               )}
             >
               {translateOr(t, `doctype.${doc.type}`, doc.type)}
@@ -541,9 +606,9 @@ function DocumentEntry({ doc, file }: { doc: DocumentDto; file: SourceFileDto })
         )}
       </header>
 
-      {unclassified ? (
+      {fieldless ? (
         <p className="mt-2 max-w-[65ch] text-[0.8125rem] leading-relaxed text-muted-foreground">
-          {t("detail.unclassified")}
+          {outOfProfile ? t("detail.out_of_profile") : t("detail.unclassified")}
           {snippet && (
             <span className="mt-1.5 block text-[0.75rem] italic text-foreground/55">
               “{snippet}…”
@@ -553,6 +618,8 @@ function DocumentEntry({ doc, file }: { doc: DocumentDto; file: SourceFileDto })
       ) : (
         doc.fields.length > 0 && <Fields fields={doc.fields} />
       )}
+
+      <Sheets doc={doc} file={file} />
 
       {text && (
         <Transcript
@@ -691,11 +758,21 @@ function RequiredDocuments({
 // promised: a run is never stopped by a document it could not read, so whatever
 // the engine met is stated here and handed over. It reports; the inspector
 // decides.
+// In the order an inspector works down them: what the package is short of,
+// what could not be read, what was read but should be checked, and last — under
+// its own heading, because it is not a fault — what else was in the envelope.
 const ISSUE_SECTIONS: { kind: IssueKind; heading: string }[] = [
   { kind: "MissingDocument", heading: "detail.sec.missing" },
   { kind: "UnreadableDocument", heading: "detail.sec.unreadable" },
   { kind: "LowConfidence", heading: "detail.sec.low" },
+  { kind: "DuplicateDocument", heading: "detail.sec.duplicate" },
+  { kind: "ExtraDocument", heading: "detail.sec.extra" },
 ]
+
+// The two that are observations rather than shortfalls. They are counted apart
+// from the findings, so a report that only notes the registry's own service
+// sheets does not announce five problems.
+const INFORMATIONAL: readonly IssueKind[] = ["ExtraDocument", "DuplicateDocument"]
 
 const REPORT_TONE: Record<ReportStatus, "ok" | "issues" | "incomplete"> = {
   OK: "ok",
@@ -752,6 +829,29 @@ function findingOf(
     }
   }
 
+  // A document that read perfectly well. It is named by where it sits, and the
+  // sub-line says what it is — not in the profile, or a second answer to a type
+  // the package had already answered.
+  if (issue.kind === "ExtraDocument" || issue.kind === "DuplicateDocument") {
+    const where =
+      issue.kind === "ExtraDocument"
+        ? t("detail.f.extra_sub")
+        : t("detail.f.duplicate_sub", {
+            type: translateOr(
+              t,
+              `doctype.${issue.documentType}`,
+              issue.documentType ?? "",
+            ),
+          })
+
+    return {
+      subject: document
+        ? `${pageLabel(t, document)} · ${file?.originalFilename ?? ""}`
+        : within || t("detail.files"),
+      where,
+    }
+  }
+
   return {
     subject: issue.fieldName
       ? translateOr(t, `field.${issue.fieldName}`, issue.fieldName)
@@ -763,6 +863,13 @@ function findingOf(
 function Report({ report, pkg }: { report: ReportDto; pkg: PackageDetailDto }) {
   const { t } = useI18n()
   const tone = REPORT_TONE[report.status]
+  // Findings are counted; observations are mentioned. Counting them together
+  // would tell the inspector a package with one missing receipt and four of the
+  // registry's own service sheets in it has five problems.
+  const findings = report.issues.filter(
+    (issue) => !INFORMATIONAL.includes(issue.kind),
+  )
+  const noted = report.issues.length - findings.length
 
   return (
     <section className="mb-9">
@@ -772,11 +879,12 @@ function Report({ report, pkg }: { report: ReportDto; pkg: PackageDetailDto }) {
           data-mono
           className="text-[0.75rem] tabular-nums text-muted-foreground"
         >
-          {report.issues.length === 0
+          {findings.length === 0
             ? t("findings.none")
-            : report.issues.length === 1
+            : findings.length === 1
               ? t("findings.issue_one")
-              : t("findings.issues", { n: report.issues.length })}
+              : t("findings.issues", { n: findings.length })}
+          {noted > 0 && ` · ${t("findings.noted", { n: noted })}`}
         </span>
       </div>
 
@@ -810,7 +918,7 @@ function Report({ report, pkg }: { report: ReportDto; pkg: PackageDetailDto }) {
           </span>
         </div>
 
-        {report.issues.length === 0 ? (
+        {findings.length === 0 && noted === 0 ? (
           <p className="mt-2.5 max-w-[70ch] text-[0.8125rem] leading-relaxed text-muted-foreground">
             {t("detail.clean")}
           </p>

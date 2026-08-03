@@ -33,6 +33,7 @@ function extract(
 ) {
   return new FieldExtractorAdapter().extract({
     text: RecognisedText.of(text),
+    sheets: [],
     spec: specOf(type, schema),
   });
 }

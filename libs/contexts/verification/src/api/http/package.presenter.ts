@@ -2,6 +2,7 @@ import type {
   DocumentDto,
   PackageDetailDto,
   PackageDto,
+  ReportDto,
   SourceFileDto,
 } from "@cadastre/contracts";
 
@@ -9,6 +10,7 @@ import type {
   DocumentView,
   PackageDetailView,
   PackageSummaryView,
+  ReportView,
   SourceFileView,
 } from "../../application/read-models/index.js";
 
@@ -24,6 +26,9 @@ export function toSummaryDto(view: PackageSummaryView): PackageDto {
     classifiedCount: view.classifiedCount,
     unclassifiedCount: view.unclassifiedCount,
     extractedCount: view.extractedCount,
+    reportStatus: view.reportStatus as PackageDto["reportStatus"],
+    issuesCount: view.issuesCount,
+    lowConfidenceCount: view.lowConfidenceCount,
     createdAt: view.createdAt.toISOString(),
     updatedAt: view.updatedAt.toISOString(),
   };
@@ -33,6 +38,26 @@ export function toDetailDto(view: PackageDetailView): PackageDetailDto {
   return {
     ...toSummaryDto(view),
     files: view.files.map(toSourceFileDto),
+    report: view.report ? toReportDto(view.report) : null,
+  };
+}
+
+function toReportDto(view: ReportView): ReportDto {
+  return {
+    // Only ever written through the domain's own enumerations, so the stored
+    // strings are ones the contract names.
+    status: view.status as ReportDto["status"],
+    generatedAt: view.generatedAt.toISOString(),
+    issues: view.issues.map((issue) => ({
+      kind: issue.kind as ReportDto["issues"][number]["kind"],
+      message: issue.message,
+      documentId: issue.documentId,
+      sourceFileId: issue.sourceFileId,
+      documentType: issue.documentType,
+      fieldName: issue.fieldName,
+      pageNumber: issue.pageNumber,
+      confidence: issue.confidence,
+    })),
   };
 }
 

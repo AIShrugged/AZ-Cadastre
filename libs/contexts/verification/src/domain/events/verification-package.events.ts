@@ -6,6 +6,7 @@ import type {
   FailureReason,
   PackageId,
   PageId,
+  ReportStatus,
   SourceFileId,
   VerificationProfile,
 } from "../value-objects/index.js";
@@ -85,6 +86,18 @@ export class FieldsExtracted extends DomainEvent {
     public readonly packageId: PackageId,
     public readonly documentId: DocumentId,
     public readonly fieldCount: number,
+  ) {
+    super();
+  }
+}
+
+export class ReportCompiled extends DomainEvent {
+  override readonly type = "verification.ReportCompiled";
+
+  constructor(
+    public readonly packageId: PackageId,
+    public readonly status: ReportStatus,
+    public readonly issueCount: number,
   ) {
     super();
   }

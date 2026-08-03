@@ -76,15 +76,17 @@ built for accountability in a government setting.
 - Split PDFs into pages; OCR each page (recognized text, optional bounding boxes,
   confidence score).
 - Classify each document (one type per document) against the active profile;
-  demo profile types: Passport, Driver License, Application, Unknown.
+  its types: Land parcel plan-scheme, Order (or extract from the order), Payment
+  receipt, Sketch design, Archival certificate, Application, Identity document,
+  Unknown.
 - Extract structured fields per the document type's schema; each field stores
   value + confidence + page reference.
-- Validate: required-document completeness, cross-document field consistency,
-  expiration checks, and OCR-confidence thresholds (e.g. below threshold →
-  "Needs review").
+- Validate the mandatory set: required-document completeness, documents that
+  could not be read, and OCR-confidence thresholds (e.g. below threshold →
+  "Needs review"). Nothing stops the run — every finished run reports.
 - Produce a Verification Report with overall status (OK / Issues Found /
-  Incomplete Package), detected documents, extracted fields, validation issues,
-  missing documents, mismatched values, confidences, and page references.
+  Incomplete Package), detected documents, extracted fields, missing documents,
+  documents that could not be read, confidences, and page references.
 
 **Constraints / explicitly out of MVP scope:**
 - No human-review workflows or notifications in the MVP.
@@ -122,10 +124,10 @@ decision, not a consumer app. The name in use is **AZ-Cadastre**.
 
 - Product documentation: `docs/PRD.md` (full MVP spec), `docs/CONTEXT.md`
   (ubiquitous language), `README.md`, and ADRs `docs/adr/0001`–`0004`.
-- The MVP ships **one demo Verification Profile** exercising every rule kind
-  (Passport, Driver License, Application, Unknown; required docs; cross-document
-  equality rules; expiration; confidence threshold). This is illustrative demo
-  data, not real cadastre document sets.
+- The MVP ships **one Verification Profile** — first state registration of an
+  individual residential house — whose seven document types are all required.
+  Only that mandatory set is checked; additional documents a submission may
+  carry are out of scope for now.
 - No real production cadastre profiles, real inspector testimonials, usage
   metrics, benchmarks, or authority endorsements exist yet — future work must not
   fabricate them or imply a live government deployment that has not happened.
@@ -142,7 +144,7 @@ decision, not a consumer app. The name in use is **AZ-Cadastre**.
    page, field, and confidence. The interface earns trust by showing its work.
 3. **Profiles are policy; the engine is neutral.** Design for a system where the
    rules are data that changes per domain, not fixed screens — surfaces should
-   generalize beyond the demo profile.
+   generalize beyond the profile that ships today.
 4. **Built for accountability.** Long-running, auditable, resumable — the
    experience should make state, progress, and history legible, because the
    output backs a legally consequential decision.

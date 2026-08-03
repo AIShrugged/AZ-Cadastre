@@ -19,7 +19,9 @@ model Report {
 
   issues ValidationIssue[]
 
-  generatedAt DateTime @default(now())
+  // The report is compiled afresh every time it is written, so this is when the
+  // findings below were last worked out, not when the row first appeared.
+  generatedAt DateTime @default(now()) @updatedAt
 
   @@map("reports")
 }

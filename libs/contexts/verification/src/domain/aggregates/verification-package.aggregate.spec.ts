@@ -11,6 +11,7 @@ import {
   FieldsExtracted,
   PackageSubmitted,
   PageRecognised,
+  ReportCompiled,
   SourceFileSegmented,
   SourceFileSplitIntoPages,
   VerificationCompleted,
@@ -102,14 +103,18 @@ function aClassification(type = "identity_card"): Classification {
   return Classification.of(DocumentType.create(type), Confidence.of(0.87));
 }
 
-function aField(key: string): ExtractedField {
+function aField(key: string, confidence = 0.8): ExtractedField {
   return ExtractedField.of(
     FieldKey.create(key),
     FieldValue.create("AZE1234567"),
-    Confidence.of(0.8),
+    Confidence.of(confidence),
     PageNumber.first(),
   );
 }
+
+const REQUIRED_TYPES = VerificationProfile.CADASTRE.requiredTypes.map(
+  (type) => type.value,
+);
 
 type Options = {
   profile?: VerificationProfile;
@@ -185,14 +190,14 @@ describe("VerificationPackage", () => {
 
     it("records that it was submitted, with the profile it is judged against", () => {
       const { verification } = aPackage({
-        profile: VerificationProfile.DEMO,
+        profile: VerificationProfile.CADASTRE,
         files: [aFile(), aFile()],
       });
 
       const [event] = verification.getUncommittedEvents();
       expect(event).toBeInstanceOf(PackageSubmitted);
       expect((event as PackageSubmitted).profile).toBe(
-        VerificationProfile.DEMO,
+        VerificationProfile.CADASTRE,
       );
       expect((event as PackageSubmitted).fileCount).toBe(2);
     });
@@ -242,6 +247,7 @@ describe("VerificationPackage", () => {
         status: PackageStatus.PROCESSING,
         files: [aFile()],
         documents: [],
+        report: null,
       });
 
       expect(restored.getUncommittedEvents()).toEqual([]);
@@ -254,15 +260,16 @@ describe("VerificationPackage", () => {
       const restored = VerificationPackage.restore({
         id: PackageId.of(anId()),
         version: 7,
-        profile: VerificationProfile.DEMO,
+        profile: VerificationProfile.CADASTRE,
         status: PackageStatus.COMPLETED,
         files: [file],
         documents: [document],
+        report: null,
       });
 
       expect(restored.version).toBe(7);
       expect(restored.status.equals(PackageStatus.COMPLETED)).toBe(true);
-      expect(restored.profile).toBe(VerificationProfile.DEMO);
+      expect(restored.profile).toBe(VerificationProfile.CADASTRE);
       expect(restored.documents).toHaveLength(1);
     });
 
@@ -274,6 +281,7 @@ describe("VerificationPackage", () => {
         status: PackageStatus.PENDING,
         files: [],
         documents: [],
+        report: null,
       });
 
       expect(restored.files).toEqual([]);
@@ -729,11 +737,11 @@ describe("VerificationPackage", () => {
     it("records a type the profile expects", () => {
       const { verification, document } = aSegmentedPackage();
 
-      verification.classify(document.id, aClassification("license"));
+      verification.classify(document.id, aClassification("payment_receipt"));
 
       expect(
         verification.documentWith(document.id).classification?.type.value,
-      ).toBe("license");
+      ).toBe("payment_receipt");
       expect(verification.getUncommittedEvents().at(-1)).toBeInstanceOf(
         DocumentClassified,
       );
@@ -757,18 +765,6 @@ describe("VerificationPackage", () => {
       expect(() =>
         verification.classify(document.id, aClassification("driver_license")),
       ).toThrow(/cadastre[\s\S]*driver_license/);
-    });
-
-    it("accepts a type another profile does expect", () => {
-      const { verification, document } = aSegmentedPackage(1, {
-        profile: VerificationProfile.DEMO,
-      });
-
-      verification.classify(document.id, aClassification("driver_license"));
-
-      expect(
-        verification.documentWith(document.id).classification?.type.value,
-      ).toBe("driver_license");
     });
 
     it("always accepts a document the classifier could not place, whatever the profile", () => {
@@ -804,7 +800,7 @@ describe("VerificationPackage", () => {
       verification.classify(document.id, aClassification());
 
       expect(() =>
-        verification.classify(document.id, aClassification("license")),
+        verification.classify(document.id, aClassification("payment_receipt")),
       ).toThrow(DocumentAlreadyClassifiedException);
     });
 
@@ -814,7 +810,7 @@ describe("VerificationPackage", () => {
       verification.commit();
 
       expect(() =>
-        verification.classify(document.id, aClassification("license")),
+        verification.classify(document.id, aClassification("payment_receipt")),
       ).toThrow(DocumentAlreadyClassifiedException);
       expect(
         verification.documentWith(document.id).classification?.type.value,
@@ -841,7 +837,7 @@ describe("VerificationPackage", () => {
       verification.classify(document.id, aClassification("identity_card"));
 
       expect(() =>
-        verification.recordExtractedFields(document.id, [aField("license_no")]),
+        verification.recordExtractedFields(document.id, [aField("receipt_no")]),
       ).toThrow(FieldNotInSchemaException);
     });
 
@@ -852,7 +848,7 @@ describe("VerificationPackage", () => {
       expect(() =>
         verification.recordExtractedFields(document.id, [
           aField("document_no"),
-          aField("license_no"),
+          aField("receipt_no"),
         ]),
       ).toThrow(FieldNotInSchemaException);
       expect(verification.documentWith(document.id).hasFields).toBe(false);
@@ -861,10 +857,10 @@ describe("VerificationPackage", () => {
     it("judges each key against the type of that document, not of another", () => {
       const { verification, documents } = aSegmentedPackage(2);
       verification.classify(documents[0]!.id, aClassification("identity_card"));
-      verification.classify(documents[1]!.id, aClassification("license"));
+      verification.classify(documents[1]!.id, aClassification("payment_receipt"));
 
       verification.recordExtractedFields(documents[1]!.id, [
-        aField("license_no"),
+        aField("receipt_no"),
       ]);
 
       expect(verification.documentWith(documents[1]!.id).hasFields).toBe(true);
@@ -961,6 +957,162 @@ describe("VerificationPackage", () => {
     });
   });
 
+  describe("the report it finishes with", () => {
+    // Every required type, one per sheet, each placed — the package an
+    // inspector should have nothing to be told about.
+    function aCompletePackage() {
+      const built = aSegmentedPackage(REQUIRED_TYPES.length);
+      built.documents.forEach((document, index) => {
+        built.verification.classify(
+          document.id,
+          aClassification(REQUIRED_TYPES[index]!),
+        );
+      });
+
+      return built;
+    }
+
+    function kindsOf(verification: VerificationPackage): readonly string[] {
+      return (verification.report?.issues ?? []).map((issue) => issue.kind.value);
+    }
+
+    it("hands one over however little of the package could be read", () => {
+      const { verification } = aSegmentedPackage();
+
+      verification.complete();
+
+      expect(verification.report).not.toBeNull();
+    });
+
+    it("reads as clean when every required document was found", () => {
+      const { verification } = aCompletePackage();
+
+      verification.complete();
+
+      expect(verification.report?.status.value).toBe("OK");
+      expect(verification.report?.isClean).toBe(true);
+    });
+
+    it("names every required document nobody supplied", () => {
+      const { verification, document } = aSegmentedPackage();
+      verification.classify(document.id, aClassification("identity_card"));
+
+      verification.complete();
+
+      expect(
+        verification.report?.issues.map((issue) => issue.documentType?.value),
+      ).toEqual(REQUIRED_TYPES.filter((type) => type !== "identity_card"));
+    });
+
+    it("reads as an incomplete package when a required document is missing", () => {
+      const { verification } = aSegmentedPackage();
+
+      verification.complete();
+
+      expect(verification.report?.status.value).toBe("IncompletePackage");
+    });
+
+    it("reports a document the classifier could not place, rather than stopping", () => {
+      const { verification, documents } = aSegmentedPackage(2);
+      verification.classify(documents[0]!.id, aClassification("identity_card"));
+      verification.classify(
+        documents[1]!.id,
+        Classification.unplaced(Confidence.of(0.2)),
+      );
+
+      verification.complete();
+
+      const unplaced = verification.report?.issues.find(
+        (issue) =>
+          issue.kind.value === "UnreadableDocument" &&
+          issue.documentId?.equals(documents[1]!.id) === true,
+      );
+      expect(unplaced).toBeDefined();
+      expect(verification.status.equals(PackageStatus.COMPLETED)).toBe(true);
+    });
+
+    it("reports a sheet that could not be read", () => {
+      const { verification, file } = aStartedPackage();
+      verification.splitIntoPages(file.id, [aPage(1), aPage(2)]);
+      verification.recordRecognition(file.id, verification.files[0]!.pages[0]!.id, anOcrResult());
+
+      verification.complete();
+
+      const unread = verification.report?.issues.filter(
+        (issue) => issue.kind.value === "UnreadableDocument",
+      );
+      expect(unread?.map((issue) => issue.pageNumber?.value)).toContain(2);
+    });
+
+    it("reports a file it never managed to read into documents", () => {
+      const { verification, file } = aReadPackage(2);
+
+      verification.complete();
+
+      expect(
+        verification.report?.issues.some(
+          (issue) =>
+            issue.kind.value === "UnreadableDocument" &&
+            issue.sourceFileId?.equals(file.id) === true &&
+            issue.pageNumber === null,
+        ),
+      ).toBe(true);
+    });
+
+    it("flags a value the engine is unsure of, and says how unsure", () => {
+      const { verification } = aCompletePackage();
+      const identity = verification.documents.at(-1)!;
+      verification.recordExtractedFields(identity.id, [
+        aField("document_no", 0.42),
+      ]);
+
+      verification.complete();
+
+      const flagged = verification.report?.issues.find(
+        (issue) => issue.kind.value === "LowConfidence",
+      );
+      expect(flagged?.fieldKey?.value).toBe("document_no");
+      expect(flagged?.confidence?.value).toBe(0.42);
+    });
+
+    it("leaves a value it is sure of out of the report", () => {
+      const { verification } = aCompletePackage();
+      const identity = verification.documents.at(-1)!;
+      verification.recordExtractedFields(identity.id, [
+        aField("document_no", 0.95),
+      ]);
+
+      verification.complete();
+
+      expect(kindsOf(verification)).toEqual([]);
+    });
+
+    it("works the findings out afresh, so a re-run drops one it has answered", () => {
+      const { verification, file } = aStartedPackage();
+      const page = aPage(1);
+      verification.splitIntoPages(file.id, [page]);
+      verification.complete();
+      expect(kindsOf(verification)).toContain("UnreadableDocument");
+
+      const reread = VerificationPackage.restore({
+        id: verification.id,
+        version: 2,
+        profile: VerificationProfile.CADASTRE,
+        status: PackageStatus.PROCESSING,
+        files: verification.files,
+        documents: verification.documents,
+        report: verification.report,
+      });
+      reread.recordRecognition(file.id, page.id, anOcrResult());
+      const document = aDocumentOf(file.id, range(1, 1));
+      reread.segmentIntoDocuments(file.id, [document]);
+      reread.classify(document.id, aClassification("identity_card"));
+      reread.complete();
+
+      expect(kindsOf(reread)).not.toContain("UnreadableDocument");
+    });
+  });
+
   describe("knowing when every stage has run", () => {
     it("is fully processed once each file is read and each document placed and pulled from", () => {
       const { verification, document } = aSegmentedPackage();
@@ -1036,6 +1188,7 @@ describe("VerificationPackage", () => {
         "verification.PageRecognised",
         "verification.SourceFileSegmented",
         "verification.DocumentClassified",
+        "verification.ReportCompiled",
         "verification.VerificationCompleted",
       ]);
     });

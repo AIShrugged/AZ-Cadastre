@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Отчёт о проверке комплектности документов — первичная регистрация ИЖД</title>
+<style>
+  :root{
+    --bg:#f7f7f5; --panel:#fff; --ink:#1c1c1a; --muted:#6b6b66; --line:#e2e2dd;
+    --crit:#b42318; --crit-bg:#fef3f2; --warn:#b54708; --warn-bg:#fffaeb;
+    --ok:#067647; --ok-bg:#ecfdf3; --info:#175cd3; --info-bg:#eff8ff;
+    --accent:#1c1c1a;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#17171a; --panel:#1f1f23; --ink:#e8e8e4; --muted:#9a9a94; --line:#33333a;
+      --crit:#f97066; --crit-bg:#2d1414; --warn:#fdb022; --warn-bg:#2b1f0a;
+      --ok:#47cd89; --ok-bg:#0d2b1c; --info:#84caff; --info-bg:#0e2338;
+      --accent:#e8e8e4;
+    }
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px; margin:0 auto; padding:32px 20px 96px}
+  header.doc{border-bottom:2px solid var(--ink); padding-bottom:20px; margin-bottom:28px}
+  .kicker{font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin:0 0 10px}
+  h1{font-size:clamp(24px,3.4vw,34px); line-height:1.2; margin:0 0 14px; letter-spacing:-.02em}
+  .meta{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:8px 28px; font-size:14px; margin-top:16px}
+  .meta div{display:flex; gap:8px}
+  .meta dt{color:var(--muted); flex:0 0 auto}
+  .meta dd{margin:0; font-weight:600}
+  h2{font-size:20px; margin:44px 0 6px; letter-spacing:-.01em; padding-top:14px; border-top:1px solid var(--line)}
+  h2 .num{color:var(--muted); font-weight:400; margin-right:8px}
+  h3{font-size:16px; margin:26px 0 8px}
+  p{margin:10px 0}
+  .lead{color:var(--muted); font-size:15px; margin:2px 0 18px}
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:22px 0 6px}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 16px}
+  .card .lbl{font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted)}
+  .card .val{font-size:26px; font-weight:700; line-height:1.25; margin-top:4px; letter-spacing:-.02em}
+  .card .sub{font-size:13px; color:var(--muted); margin-top:2px}
+  .card.crit .val{color:var(--crit)} .card.warn .val{color:var(--warn)} .card.ok .val{color:var(--ok)}
+  .scroll{overflow-x:auto; -webkit-overflow-scrolling:touch; margin:14px 0; border:1px solid var(--line); border-radius:10px; background:var(--panel)}
+  table{border-collapse:collapse; width:100%; font-size:14px; min-width:640px}
+  th,td{text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top}
+  thead th{background:var(--bg); font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600; position:sticky; top:0}
+  tbody tr:last-child td{border-bottom:0}
+  td.num,th.num{width:38px; color:var(--muted); text-align:right; font-variant-numeric:tabular-nums}
+  .b{display:inline-block; padding:2px 8px; border-radius:20px; font-size:12px; font-weight:600; white-space:nowrap}
+  .b-ok{background:var(--ok-bg); color:var(--ok)}
+  .b-warn{background:var(--warn-bg); color:var(--warn)}
+  .b-crit{background:var(--crit-bg); color:var(--crit)}
+  .b-info{background:var(--info-bg); color:var(--info)}
+  .b-mute{background:var(--bg); color:var(--muted); border:1px solid var(--line)}
+  .az{font-style:italic; color:var(--muted)}
+  code{background:var(--bg); border:1px solid var(--line); border-radius:4px; padding:1px 5px; font-size:13px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .finding{background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--muted); border-radius:8px; padding:14px 18px; margin:12px 0}
+  .finding.crit{border-left-color:var(--crit)}
+  .finding.warn{border-left-color:var(--warn)}
+  .finding.info{border-left-color:var(--info)}
+  .finding h4{margin:0 0 6px; font-size:15px; display:flex; gap:10px; align-items:baseline; flex-wrap:wrap}
+  .finding p{margin:6px 0; font-size:14.5px}
+  .finding p:last-child{margin-bottom:0}
+  ul,ol{margin:10px 0; padding-left:22px}
+  li{margin:5px 0}
+  .note{background:var(--info-bg); border:1px solid var(--line); border-radius:8px; padding:12px 16px; font-size:14px; margin:16px 0}
+  footer{margin-top:56px; padding-top:18px; border-top:1px solid var(--line); font-size:13px; color:var(--muted)}
+  @media print{
+    body{background:#fff; color:#000; font-size:11pt}
+    .wrap{max-width:none; padding:0}
+    .scroll{overflow:visible; border:0}
+    table{min-width:0}
+    h2{break-after:avoid} .finding,tr{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="doc">
+  <p class="kicker">Отчёт о проверке · Азербайджан · Госкадастр недвижимости</p>
+  <h1>Проверка комплектности и внутренней согласованности документов<br>первичной государственной регистрации индивидуального жилого дома</h1>
+  <dl class="meta">
+    <div><dt>Кейс:</dt><dd>Əliyeva Rübabə Kavi qızı</dd></div>
+    <div><dt>Заявка:</dt><dd>№ 1126012493 от 09.01.2026</dd></div>
+    <div><dt>Приём:</dt><dd>ASAN № 3, срок 15 дней</dd></div>
+    <div><dt>Объект:</dt><dd>уч. 5-862, пос. Бузовна, Хазарский р-н, Баку</dd></div>
+    <div><dt>Файл:</dt><dd>Example application and other documents- Əliyeva Rübabə.pdf, 26 стр.</dd></div>
+    <div><dt>Кейс сравнения:</dt><dd>Rusadze Vera Vladimirovna, 22 стр.</dd></div>
+  </dl>
+</header>
+
+<div class="cards">
+  <div class="card crit"><div class="lbl">Комплектность</div><div class="val">Неполна</div><div class="sub">5 позиций отсутствуют или не оформлены</div></div>
+  <div class="card crit"><div class="lbl">Критических расхождений</div><div class="val">4</div><div class="sub">требуют устранения до регистрации</div></div>
+  <div class="card warn"><div class="lbl">Существенных</div><div class="val">5</div><div class="sub">требуют уточнения</div></div>
+  <div class="card ok"><div class="lbl">Идентификаторы</div><div class="val">Сходятся</div><div class="sub">ФИО, участок, геометрия, цепочка актов</div></div>
+</div>
+
+<h2><span class="num">1.</span> Методика</h2>
+<p class="lead">Как получены данные и каковы границы достоверности.</p>
+<p>PDF представляет собой скан-образ с текстовым слоем OCR; страницы закодированы как двухуровневые изображения JBIG2. Текстовый слой извлечён программно (pdfjs), после чего страницы декодированы в растр и проверены визуально.</p>
+<p><strong>Визуально проверены страницы:</strong> 1, 3, 4, 8, 9, 11, 13, 15, 16, 20, 25. Выводы по этим страницам опираются на изображение оригинала. Выводы по остальным страницам опираются на текстовый слой OCR, в котором частично утрачена диакритика азербайджанского алфавита; это не влияет на идентификацию документов и числовых значений, но отдельные рукописные фрагменты могли быть прочитаны неточно.</p>
+
+<h2><span class="num">2.</span> Комплектность</h2>
+<p class="lead">Вывод: комплект достаточен для приёма заявления, но недостаточен для завершения регистрации.</p>
+
+<h3>2.1. Присутствует</h3>
+<div class="scroll">
+<table>
+  <thead><tr><th>Документ</th><th>Стр.</th><th>Состояние</th></tr></thead>
+  <tbody>
+    <tr><td>Заявление о государственной регистрации прав</td><td>4</td><td><span class="b b-ok">подписано</span> принято Rəminə Əlicanova</td></tr>
+    <tr><td>Удостоверение личности</td><td>5</td><td><span class="b b-ok">в порядке</span></td></tr>
+    <tr><td>Выписка из распоряжения ИВ Абшеронского р-на № 096 от 15.04.1999</td><td>11</td><td><span class="b b-crit">аномалия</span> см. 4.2</td></tr>
+    <tr><td>Выписка из приказа № 28 от 21.05.2003 Сельхозпредприятия УД Президента</td><td>9</td><td><span class="b b-crit">пробел</span> см. 4.3</td></tr>
+    <tr><td>Архивная справка № 1-2-28/2-496/2025 от 15.12.2025</td><td>13–14</td><td><span class="b b-ok">подписана, печать</span></td></tr>
+    <tr><td>План-чертёж участка, факт. 0,0468 га</td><td>15</td><td><span class="b b-ok">подписан, печать</span></td></tr>
+    <tr><td>Эскизный проект «MAX CONSULTING», инв. 3370/F</td><td>16, 19–24</td><td><span class="b b-warn">см. 5.3</span></td></tr>
+    <tr><td>Лицензия проектировщика + приложение</td><td>17–18</td><td><span class="b b-warn">рег. № и дата нечитаемы</span></td></tr>
+    <tr><td>Заявление в порядке <span class="az">Məlumatlandırma icraatı</span></td><td>8</td><td><span class="b b-crit">нет отметки о принятии</span> см. 4.4</td></tr>
+    <tr><td>Договор об оценке недвижимости</td><td>25–26</td><td><span class="b b-crit">не оформлен</span> см. 5.4</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>2.2. Отсутствует</h3>
+<div class="scroll">
+<table>
+  <thead><tr><th>Чего нет</th><th>Последствие</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Квитанция об оплате</strong> <span class="az">(Ödəniş qəbzi)</span> — заявлена п. 3 описи приложений на стр. 4, физически в деле отсутствует</td><td>Опись не соответствует фактическому вложению</td></tr>
+    <tr><td><strong>Отметка о принятии уведомления</strong> Хазарским райисполкомом — нет входящего номера, даты регистрации, штампа и подписи</td><td>Прохождение уведомительного производства не подтверждено</td></tr>
+    <tr><td><strong>Адрес объекта</strong> в заявлении — поле <span class="az">Ünvan</span> оставлено пустым</td><td>Объект идентифицируется только кодом участка</td></tr>
+    <tr><td><strong>Заполненный договор об оценке</strong> — номер, сумма, реквизиты и подпись заказчика</td><td>Услуга «Qiymətləndirmə» не может быть исполнена</td></tr>
+    <tr><td><strong>Кадастрово-адресное заключение</strong> — бланк на стр. 3 пуст полностью, включая дату рассмотрения и все четыре подписи</td><td>Не проверены пересечения с чужими правами, охранные зоны, категория земли, соответствие факта документам</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2><span class="num">3.</span> Сверка документов между собой</h2>
+<p class="lead">Совпадает по идентификаторам, расходится по параметрам.</p>
+
+<h3>3.1. Совпадает</h3>
+<div class="scroll">
+<table>
+  <thead><tr><th>Параметр</th><th>Источники</th><th>Результат</th></tr></thead>
+  <tbody>
+    <tr><td>ФИО «Əliyeva Rübabə Kavi qızı»</td><td>стр. 1, 4, 5, 8, 9, 11, 13, 15, 16, 20, 25</td><td><span class="b b-ok">идентично в 11 документах</span></td></tr>
+    <tr><td>Номер заявки 1126012493</td><td>стр. 1, 2, 3, 4, 25</td><td><span class="b b-ok">совпадает</span></td></tr>
+    <tr><td>Дата 09.01.2026</td><td>заявление, маршрутный лист, уведомление, договор</td><td><span class="b b-ok">совпадает</span></td></tr>
+    <tr><td>Участок 5-862</td><td>арх. справка, план-чертёж, уведомление, титул проекта, штампы чертежей</td><td><span class="b b-ok">совпадает</span></td></tr>
+    <tr><td><strong>Геометрия участка</strong></td><td>план-чертёж: 25,70 / 18,20 / 18,20 / 25,75 м → генплан: 25700 / 18200 / 18200 / 25750 мм</td><td><span class="b b-ok">точное совпадение</span></td></tr>
+    <tr><td>Площадь 0,0468 га</td><td>25,725 × 18,20 = 468,2 м²</td><td><span class="b b-ok">арифметически верно</span></td></tr>
+    <tr><td>Приказ № 28 от 21.05.2003</td><td>выписка (стр. 9) = архивная справка (стр. 13)</td><td><span class="b b-ok">совпадает</span></td></tr>
+    <tr><td>Распоряжение № 096 от 15.04.1999</td><td>выписка (стр. 11) = ссылка в приказе 2003 (стр. 9)</td><td><span class="b b-ok">совпадает</span></td></tr>
+    <tr><td>Площади помещений</td><td>1 эт.: 15,3 + 13,7 + 3,9 + 46,1 + 63,0 = <strong>142,0</strong><br>мансарда: 37,1 + 18,9 + 4,6 + 30,6 = <strong>91,2</strong></td><td><span class="b b-ok">суммы сходятся</span></td></tr>
+    <tr><td>Смена района: Абшеронский (1999) → Хазарский (2025)</td><td>—</td><td><span class="b b-ok">объяснимо адм.-терр. реформой</span></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2><span class="num">4.</span> Критические расхождения</h2>
+
+<div class="finding crit">
+  <h4><span class="b b-crit">4.1</span> Высота дома: 4 м против 6,20 м</h4>
+  <p>Уведомление (стр. 8, рукописно): «<span class="az">hündürlüyü <strong>4</strong> m, mərtəbəliliyi <strong>1 + mansarda</strong></span>».</p>
+  <p>Проект — разрез и фасад (стр. 23–24): отметка конька <strong>+6,20</strong>, промежуточные +2,90 / +3,20 / +3,70 / +5,10.</p>
+  <p>Расхождение 2,2 м, или +55 % к заявленному. Уведомительное производство исходит из заявленных параметров — фактические их превышают.</p>
+</div>
+
+<div class="finding crit">
+  <h4><span class="b b-crit">4.2</span> Хронологическая аномалия в выписке 1999 года</h4>
+  <p>Документ (стр. 11) датирован <strong>15 апреля 1999</strong>, но пункт 2 предписывает принять к сведению приказ трудового коллектива и профкома совхоза <strong>№ 27/К от 30 июля 1999</strong> — акт, изданный на 3,5 месяца позже.</p>
+  <p>Документ ссылается на будущее событие. Логически невозможно; требует объяснения выдавшего органа.</p>
+</div>
+
+<div class="finding crit">
+  <h4><span class="b b-crit">4.3</span> Номер участка отсутствует в первичном акте</h4>
+  <p>В выписке из приказа № 28 от 21.05.2003 (стр. 9): «<span class="az">0,05 hektar hesabı ilə <strong>_______</strong> №-li həyətyanı torpaq sahəsi ayrılsın</span>» — <strong>прочерк не заполнен</strong>.</p>
+  <p>Номер «5-862» впервые появляется только в архивной справке от 15.12.2025 и плане-чертеже той же даты. Привязка права к конкретному участку не подтверждается первичным документом — только производным, выданным 22 года спустя.</p>
+</div>
+
+<div class="finding crit">
+  <h4><span class="b b-crit">4.4</span> Уведомление не имеет отметки о принятии</h4>
+  <p>Страница 8 адресована «<span class="az">Xəzər Rayon İcra Hakimiyyətinə</span>», но на листе нет входящего номера, даты регистрации, штампа и подписи принявшего лица. Поле <span class="az">Ad/Soyad</span> также не заполнено — присутствует только подпись.</p>
+  <p>Дата подачи — 09.01.2026, то есть тот же день, что и подача в Кадастр, что не оставляет времени на прохождение процедуры.</p>
+</div>
+
+<h2><span class="num">5.</span> Существенные расхождения</h2>
+
+<div class="finding warn">
+  <h4><span class="b b-warn">5.1</span> Площадь участка: 0,05 га против 0,0468 га</h4>
+  <p>По приказу 2003 года и архивной справке — 0,05 га (500 м²). Фактический обмер — 0,0468 га (468 м²). Разница −32 м², или −6,4 %.</p>
+  <p>Направление расхождения нормальное (факт меньше отведённого), но требует фиксации: регистрируется фактическая площадь.</p>
+</div>
+
+<div class="finding warn">
+  <h4><span class="b b-warn">5.2</span> Внутреннее противоречие выписки 1999 года</h4>
+  <p>Пункт 1: участки выделяются «<span class="az">hər ailəyə <strong>0.10</strong> hektar hesabı ilə</span>». Пункты 2 и 3: «<span class="az"><strong>0.05</strong> hektar</span>». Норма выделения указана в одном документе дважды и по-разному.</p>
+</div>
+
+<div class="finding warn">
+  <h4><span class="b b-warn">5.3</span> Статус объекта в проекте противоречив</h4>
+  <p>Титул (стр. 16): «<span class="az">mövcud fərdi yaşayış evinin</span>» — существующего дома.<br>
+  Экспликация генплана (стр. 20, поз. A): «<span class="az">Layihələndirilən fərdi yaşayış evi</span>» — проектируемого.</p>
+  <p>Для узаконения уже построенного объекта («<span class="az">inşa etmişəm</span>» в уведомлении) обозначение должно быть единообразным. Тот же дефект присутствует и во втором комплекте (Rusadze) — это шаблонная ошибка проектировщика, а не признак подлога, но формально документ внутренне противоречив.</p>
+</div>
+
+<div class="finding warn">
+  <h4><span class="b b-warn">5.4</span> Договор об оценке не оформлен и содержит дефект текста</h4>
+  <p>Номер договора пуст, сумма в п. 3.1 «( ) manat» не проставлена, реквизиты и подпись заказчика отсутствуют.</p>
+  <p>В преамбуле выпал фрагмент шаблона: «<span class="az">Əliyeva Rübabə Kavi qızı qızıqiymətləndirmə fəaliyyəti ilə məşğul olmaq səlahiyyətinə malik (VÖEN 1500067091) gələcəkdə "İcraçı" adlandırılacaq</span>» — из-за чего заказчик грамматически описан как исполнитель оценки. В комплекте Rusadze (стр. 20) этот фрагмент полный, то есть дефект относится именно к данному экземпляру.</p>
+</div>
+
+<div class="finding warn">
+  <h4><span class="b b-warn">5.5</span> Адрес объекта в заявлении не заполнен</h4>
+  <p>Поле <span class="az">Ünvan</span> в разделе «<span class="az">Əmlak haqqında məlumatlar</span>» пусто, при том что присвоение адреса — одна из четырёх заявленных целей обращения.</p>
+</div>
+
+<h2><span class="num">6.</span> К сведению</h2>
+<ul>
+  <li><strong>Дворовые постройки.</strong> На генплане показаны три <span class="az">həyət tikilisi</span> и навес <span class="az">(kölgəlik)</span>; в составе регистрируемых объектов не заявлены.</li>
+  <li><strong>Плотность застройки:</strong> 175,2 м² / 468 м² = <strong>37,4 %</strong> — в обычных пределах для ИЖС, но подлежит проверке по местным нормам вместе с постройками.</li>
+  <li><strong>Общая площадь дома:</strong> 142,0 + 91,2 = <strong>233,2 м²</strong>; площадь застройки 175,2 м².</li>
+  <li><strong>Сроки:</strong> приём 09.01.2026, проставленная дата исполнения 01.02.2026 — 23 календарных дня при заявленных 15; 01.02.2026 приходится на воскресенье.</li>
+  <li><strong>Ход дела:</strong> маршрутный лист заполнен по 2 позициям из 14. Позиции 3–14 — архив, техинвентаризация, кадастр, адрес, юротдел, экспертиза, главный инженер, техдокументы, оценка, регистрация, выдача, архив — пусты. Дело на начальной стадии.</li>
+  <li><strong>Курьерский бланк</strong> (стр. 6) не заполнен.</li>
+  <li><strong>Лицензия проектировщика</strong> (стр. 17): регистрационный номер и дата выдачи в скане не читаются, действительность не подтверждена.</li>
+</ul>
+
+<h2><span class="num">7.</span> Сопоставление с перечнем заказчика</h2>
+<p class="lead">Перечень из 7 обязательных позиций + 1 дополнительной против фактического содержимого обоих кейсов.</p>
+
+<h3>7.1. Обязательный комплект</h3>
+<div class="scroll">
+<table>
+  <thead><tr><th class="num">№</th><th>По перечню заказчика</th><th>В описи заявления</th><th>Vera Vladimirovna</th><th>Əliyeva Rübabə</th><th>Сверка</th></tr></thead>
+  <tbody>
+    <tr>
+      <td class="num">1</td><td>План-схема земельного участка</td>
+      <td class="az">Torpaq sahəsinin plan-cızgısı (V)<br>Torpaq sahəsinin Plan-sxemi (Ə)</td>
+      <td>стр. 8 (схема 400 м²) + стр. 6 (архивный чертёж)</td><td>стр. 15 (0,0468 га)</td>
+      <td><span class="b b-warn">названия в описи разные</span></td>
+    </tr>
+    <tr>
+      <td class="num">2</td><td>Распоряжение (или выписка)</td>
+      <td class="az">Sərəncam (V)<br>Sərəncamdan çıxarış (Ə)</td>
+      <td>стр. 3 — распоряжение об <strong>исправлении фамилии</strong>; правоустанавливающее № 1471/1998 — стр. 5, внутри архивного пакета</td>
+      <td>стр. 11 (распоряж. № 096/1999) + стр. 9 (приказ № 28/2003)</td>
+      <td><span class="b b-crit">позиция означает разное</span></td>
+    </tr>
+    <tr>
+      <td class="num">3</td><td>Квитанция об оплате</td><td class="az">Qəbz (V) / Ödəniş qəbzi (Ə)</td>
+      <td><span class="b b-crit">отсутствует</span></td><td><span class="b b-crit">отсутствует</span></td>
+      <td><span class="b b-crit">нет ни в одном кейсе</span></td>
+    </tr>
+    <tr>
+      <td class="num">4</td><td>Эскизный проект</td><td class="az">Eskiz layihəsi</td>
+      <td>стр. 10–19 (10 л.)</td><td>стр. 16–24 (9 л.)</td>
+      <td><span class="b b-warn">разное число листов</span></td>
+    </tr>
+    <tr>
+      <td class="num">5</td><td>Архивная справка</td><td class="az">Arxiv arayışı</td>
+      <td>стр. 4–6 (письмо + 2 заверенные копии)</td><td>стр. 13–14 (справка + оборот)</td>
+      <td><span class="b b-warn">разная структура пакета</span></td>
+    </tr>
+    <tr>
+      <td class="num">6</td><td>Заявление</td><td class="az">Ərizə</td>
+      <td>стр. 1 (основное) <strong>и</strong> стр. 9 (уведомительное)</td><td>стр. 4 (основное) <strong>и</strong> стр. 8 (уведомительное)</td>
+      <td><span class="b b-crit">два разных заявления</span></td>
+    </tr>
+    <tr>
+      <td class="num">7</td><td>Документ, удостоверяющий личность</td><td class="az">Şəxsiyyət vəsiqəsi</td>
+      <td>стр. 2</td><td>стр. 5</td>
+      <td><span class="b b-ok">полное совпадение</span></td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h3>7.2. Дополнительный документ</h3>
+<div class="finding warn">
+  <h4><span class="b b-warn">Переформулировать</span> «Документ, связанный с изменением фамилии/имени»</h4>
+  <p><strong>Фактически в деле Vera Vladimirovna (стр. 3):</strong> распоряжение главы ИВ Сабунчинского района о том, что в распоряжении № 1471 от 29.10.1998 фамилия записана «<strong>Qusadze</strong>» вместо «<strong>Rusadze</strong>» → внесено <strong>исправление</strong>.</p>
+  <p>Это <strong>не смена ФИО</strong>, а <strong>исправление ошибки в акте органа власти</strong>. Фамилия заявителя никогда не менялась. В самом распоряжении как доказательства правильного написания указаны свидетельство о браке II-ЖГ № 351317 от 12.01.1980 и удостоверение личности — <strong>оба в комплект не приложены</strong>.</p>
+  <p>Для реализации это разные ветки: смена ФИО требует документа ЗАГС, исправление ошибки — нового акта того же органа.</p>
+</div>
+
+<h3>7.3. Найдено в файлах, но отсутствует в перечне заказчика</h3>
+<div class="scroll">
+<table>
+  <thead><tr><th>Документ</th><th>Vera</th><th>Əliyeva</th><th>Категория</th><th>Включать в проверку</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Заявление в порядке <span class="az">Məlumatlandırma icraatı</span></strong></td><td>стр. 9</td><td>стр. 8</td><td>Входной документ заявителя, <strong>есть в описи обоих кейсов</strong></td><td><span class="b b-crit">Да — 8-я обязательная позиция</span></td></tr>
+    <tr><td>Лицензия проектировщика + приложение</td><td>стр. 11–12</td><td>стр. 17–18</td><td>Входит в состав эскизного проекта</td><td><span class="b b-warn">Уточнить у заказчика</span></td></tr>
+    <tr><td>Договор об оценке недвижимости</td><td>стр. 20–21</td><td>стр. 25–26</td><td>Формируется Кадастром, не подаётся заявителем</td><td><span class="b b-mute">Нет</span></td></tr>
+    <tr><td>Служебные листы Кадастра: <span class="az">Dövriyyə vərəqi</span>, 2 × <span class="az">Ekspertiza vərəqi</span></td><td>—</td><td>стр. 1–3</td><td>Внутренние документы органа</td><td><span class="b b-mute">Нет</span></td></tr>
+    <tr><td>Курьерский бланк GOLD EXPRESS</td><td>стр. 22</td><td>стр. 6</td><td>Логистика выдачи</td><td><span class="b b-mute">Нет</span></td></tr>
+    <tr><td>Сопроводительное письмо ИВ 2023</td><td>стр. 7</td><td>—</td><td>Носитель план-схемы</td><td><span class="b b-mute">Нет — часть поз. 1</span></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2><span class="num">8.</span> Выводы для реализации проверки</h2>
+
+<div class="finding crit">
+  <h4><span class="b b-crit">8.1</span> Обязательных позиций не 7, а 8</h4>
+  <p><span class="az">Məlumatlandırma icraatı haqqında ərizə</span> присутствует в описи приложений <strong>обоих</strong> кейсов (Vera — п. 5, Əliyeva — п. 6), но в перечне заказчика его нет. При этом описи в обоих заявлениях содержат ровно 7 приложений — то есть позиция «Заявление» покрывает либо основное <span class="az">ərizə</span>, либо уведомительное, но не оба.</p>
+  <p><strong>Полная формула: 1 основное заявление + 7 приложений = 8 документов.</strong></p>
+</div>
+
+<div class="finding crit">
+  <h4><span class="b b-crit">8.2</span> «Заявление» — двусмысленный тип</h4>
+  <p>В деле два разных документа с одинаковым наименованием <span class="az">Ərizə</span>: основное — типографский бланк, Приложение № 1 к Процедурным правилам, подаётся в Кадастр; уведомительное — рукописный бланк по Градостроительному кодексу, подаётся в райисполком. Проверка должна их различать, иначе один засчитается за другой.</p>
+</div>
+
+<div class="finding warn">
+  <h4><span class="b b-warn">8.3</span> Позиция «Распоряжение» наполнена по-разному</h4>
+  <p><strong>Əliyeva:</strong> <span class="az">Sərəncamdan çıxarış</span> = правоустанавливающий акт, причём их два — распоряжение 1999 г. и приказ 2003 г.</p>
+  <p><strong>Vera:</strong> <span class="az">Sərəncam</span> в описи, по наиболее вероятному прочтению, — распоряжение <strong>об исправлении фамилии</strong>, а правоустанавливающее распоряжение № 1471/1998 поступило внутри архивного пакета и покрывается позицией <span class="az">Arxiv arayışı</span>.</p>
+  <p>Если прочтение верно, тезис «комплект одинаковый + 1 дополнительный документ» неточен: у Vera дополнительный документ <strong>занял основную позицию</strong>, а правоустанавливающий акт переехал в архивную справку. Требует подтверждения у заказчика — от ответа зависит логика маппинга.</p>
+</div>
+
+<div class="finding warn">
+  <h4><span class="b b-warn">8.4</span> Квитанция отсутствует в обоих эталонных кейсах</h4>
+  <p>Проверка «наличие квитанции об оплате» на этих двух файлах даст отрицательный результат в 100 % случаев. Нужно решить заранее: проверять по <strong>описи заявления</strong> (заявлена → зачтена) или по <strong>фактическому вложению</strong> (нет листа → ошибка).</p>
+</div>
+
+<div class="finding info">
+  <h4><span class="b b-info">8.5</span> Один тип ≠ один лист</h4>
+  <p>Соответствие «тип → страницы» в обоих кейсах многолистовое и нерегулярное: архивная справка — 3 листа у Vera и 2 у Əliyeva; эскизный проект — 10 и 9; план-схема у Vera приходит из двух независимых источников. Привязка по количеству листов или порядковому номеру не сработает.</p>
+</div>
+
+<div class="finding info">
+  <h4><span class="b b-info">8.6</span> Нужен словарь синонимов и независимость от порядка</h4>
+  <p>Одни и те же типы поименованы в описях по-разному:</p>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Тип</th><th>Vera</th><th>Əliyeva</th></tr></thead>
+    <tbody>
+      <tr><td>План участка</td><td class="az">Torpaq sahəsinin plan-cızgısı</td><td class="az">Torpaq sahəsinin Plan-sxemi</td></tr>
+      <tr><td>Распоряжение</td><td class="az">Sərəncam</td><td class="az">Sərəncamdan çıxarış</td></tr>
+      <tr><td>Квитанция</td><td class="az">Qəbz</td><td class="az">Ödəniş qəbzi</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Порядок в описи также разный. Vera: эскиз → арх. справка → ID → квитанция → уведомление → распоряжение → план. Əliyeva: план → распоряжение → квитанция → эскиз → арх. справка → уведомление → ID. Идентификация возможна только по типу, не по позиции.</p>
+</div>
+
+<h2><span class="num">9.</span> Рекомендуемая корректировка перечня</h2>
+<div class="scroll">
+<table>
+  <thead><tr><th class="num">№</th><th>Документ</th><th>Обязательность</th><th>Примечание для реализации</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Заявление о госрегистрации прав (основное)</td><td><span class="b b-crit">обязательный</span></td><td>Бланк-носитель, содержит опись приложений</td></tr>
+    <tr><td class="num">2</td><td>Заявление в порядке <span class="az">Məlumatlandırma icraatı</span></td><td><span class="b b-crit">обязательный — добавить</span></td><td>Есть в обоих кейсах; проверять наличие отметки о принятии органом</td></tr>
+    <tr><td class="num">3</td><td>Документ, удостоверяющий личность</td><td><span class="b b-crit">обязательный</span></td><td>—</td></tr>
+    <tr><td class="num">4</td><td>Правоустанавливающий акт</td><td><span class="b b-crit">обязательный</span></td><td>Допустить 3 подвида (распоряжение / выписка из распоряжения / выписка из приказа) и цепочку из двух актов</td></tr>
+    <tr><td class="num">5</td><td>Архивная справка</td><td><span class="b b-crit">обязательный</span></td><td>Допустить пакет: справка + заверенные копии + приложения</td></tr>
+    <tr><td class="num">6</td><td>План-схема земельного участка</td><td><span class="b b-crit">обязательный</span></td><td>Допустить несколько источников в одном деле</td></tr>
+    <tr><td class="num">7</td><td>Эскизный проект</td><td><span class="b b-crit">обязательный</span></td><td>Решить, входит ли лицензия проектировщика в состав</td></tr>
+    <tr><td class="num">8</td><td>Квитанция об оплате</td><td><span class="b b-crit">обязательный</span></td><td>Решить: проверка по описи или по факту вложения</td></tr>
+    <tr><td class="num">9</td><td>Документ об изменении <strong>или исправлении</strong> данных заявителя</td><td><span class="b b-warn">дополнительный</span></td><td><strong>Переформулировать.</strong> Фактический кейс относится к исправлению ошибки, а не смене ФИО. Предусмотреть оба подвида: акт органа власти об исправлении / свидетельство ЗАГС</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2><span class="num">10.</span> Приложение: полная опись обоих файлов</h2>
+<p class="lead">26 уникальных типов документов, объединение двух комплектов.</p>
+<div class="scroll">
+<table>
+  <thead><tr><th class="num">№</th><th>Azərbaycanca</th><th>English</th><th>Русский</th><th>Vera</th><th>Əliyeva</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td class="az">Daşınmaz əmlak üzərində hüquqların dövlət qeydiyyatı haqqında ərizə</td><td>Application for state registration of rights to immovable property</td><td>Заявление о государственной регистрации прав на недвижимое имущество</td><td>1</td><td>4</td></tr>
+    <tr><td class="num">2</td><td class="az">Şəxsiyyət vəsiqəsi</td><td>Identity card</td><td>Удостоверение личности</td><td>2</td><td>5</td></tr>
+    <tr><td class="num">3</td><td class="az">Məlumatlandırma icraatı haqqında ərizə</td><td>Application under the notification procedure</td><td>Заявление в порядке уведомительного производства</td><td>9</td><td>8</td></tr>
+    <tr><td class="num">4</td><td class="az">Dövriyyə vərəqi</td><td>Circulation (routing) sheet</td><td>Обходной (маршрутный) лист</td><td>—</td><td>1</td></tr>
+    <tr><td class="num">5</td><td class="az">Ekspertiza vərəqi</td><td>Expert examination sheet</td><td>Лист экспертизы</td><td>—</td><td>2</td></tr>
+    <tr><td class="num">6</td><td class="az">Ekspertiza vərəqi — kadastr və ünvan məsələləri şöbəsinin rəyi</td><td>Expert examination sheet — opinion of the Cadastre and Address Affairs Division</td><td>Лист экспертизы — заключение отдела кадастра и адресных вопросов</td><td>—</td><td>3</td></tr>
+    <tr><td class="num">7</td><td class="az">İcra Hakimiyyəti başçısının sərəncamı</td><td>Order of the Head of the District Executive Authority</td><td>Распоряжение главы исполнительной власти района</td><td>3, 5</td><td>—</td></tr>
+    <tr><td class="num">8</td><td class="az">Rayon İcra Hakimiyyətinin qərarı</td><td>Decision of the District Executive Authority</td><td>Решение исполнительной власти района</td><td>—</td><td>11</td></tr>
+    <tr><td class="num">9</td><td class="az">Əmrdən çıxarış</td><td>Extract from an order</td><td>Выписка из приказа</td><td>—</td><td>9</td></tr>
+    <tr><td class="num">10</td><td class="az">Arxiv arayışı</td><td>Archival certificate</td><td>Архивная справка</td><td>4</td><td>13–14</td></tr>
+    <tr><td class="num">11</td><td class="az">Arxiv sənədinin təsdiq edilmiş surəti</td><td>Certified copy of an archival document</td><td>Заверенная копия архивного документа</td><td>5–6</td><td>—</td></tr>
+    <tr><td class="num">12</td><td class="az">Müşayiət məktubu</td><td>Cover letter</td><td>Сопроводительное письмо</td><td>7</td><td>—</td></tr>
+    <tr><td class="num">13</td><td class="az">Torpaq sahəsinin plan-cızgısı (yerləşmə sxemi)</td><td>Land plot layout plan (site location scheme)</td><td>План-чертёж (схема расположения) земельного участка</td><td>6, 8</td><td>15</td></tr>
+    <tr><td class="num">14</td><td class="az">Memarlıq-planlaşdırma həlli (eskiz layihəsi)</td><td>Architectural and planning solution (sketch design)</td><td>Архитектурно-планировочное решение (эскизный проект)</td><td>10</td><td>16</td></tr>
+    <tr><td class="num">15</td><td class="az">Lisenziya</td><td>Licence</td><td>Лицензия</td><td>11</td><td>17</td></tr>
+    <tr><td class="num">16</td><td class="az">Lisenziyanın əlavəsi</td><td>Annex to the licence</td><td>Приложение к лицензии</td><td>12</td><td>18</td></tr>
+    <tr><td class="num">17</td><td class="az">Ümumi məlumat — çizgilərin cədvəli</td><td>General data — schedule of drawings</td><td>Общие данные — ведомость чертежей</td><td>13</td><td>19</td></tr>
+    <tr><td class="num">18</td><td class="az">Baş plan</td><td>Site plan (general layout)</td><td>Генеральный план</td><td>14</td><td>20</td></tr>
+    <tr><td class="num">19</td><td class="az">Zirzəminin planı</td><td>Basement floor plan</td><td>План подвала</td><td>15</td><td>—</td></tr>
+    <tr><td class="num">20</td><td class="az">1-ci mərtəbənin planı</td><td>Ground floor plan</td><td>План 1-го этажа</td><td>16</td><td>21</td></tr>
+    <tr><td class="num">21</td><td class="az">Mansardın planı</td><td>Attic (mansard) floor plan</td><td>План мансарды</td><td>17</td><td>22</td></tr>
+    <tr><td class="num">22</td><td class="az">1-1 kəsiyi</td><td>Section 1-1</td><td>Разрез 1-1</td><td>18</td><td>23</td></tr>
+    <tr><td class="num">23</td><td class="az">Ön fasad</td><td>Front elevation (main façade)</td><td>Главный фасад</td><td>19</td><td>24</td></tr>
+    <tr><td class="num">24</td><td class="az">Daşınmaz əmlakın qiymətləndirilməsi barədə müqavilə</td><td>Contract for the valuation of immovable property</td><td>Договор об оценке недвижимого имущества</td><td>20–21</td><td>25–26</td></tr>
+    <tr><td class="num">25</td><td class="az">Ödəniş qəbzi</td><td>Payment receipt</td><td>Квитанция об оплате</td><td><span class="b b-crit">нет</span></td><td><span class="b b-crit">нет</span></td></tr>
+    <tr><td class="num">26</td><td class="az">Kuryer xidmətinin bildirişi</td><td>Courier service notification (waybill)</td><td>Уведомление курьерской службы</td><td>22</td><td>6</td></tr>
+  </tbody>
+</table>
+</div>
+<p><strong>Итого:</strong> 16 типов общие для обоих кейсов (№ 1, 2, 3, 10, 13, 14–18, 20–24, 26), 4 только у Vera (№ 7, 11, 12, 19), 5 только у Əliyeva (№ 4, 5, 6, 8, 9), 1 отсутствует в обоих (№ 25).</p>
+
+<h2><span class="num">11.</span> Приоритет устранения</h2>
+<ol>
+  <li>Получить отметку Хазарского райисполкома о принятии уведомления либо переподать его с корректной высотой — 6,20 м вместо 4 м.</li>
+  <li>Запросить у архива разъяснение по хронологии выписки 1999 года и по незаполненному номеру участка в приказе 2003 года.</li>
+  <li>Приложить квитанцию об оплате.</li>
+  <li>Оформить договор об оценке — номер, сумма, реквизиты, подписи — и исправить дефект преамбулы.</li>
+  <li>Привести проект к единому обозначению «<span class="az">mövcud</span>»; определиться со статусом дворовых построек.</li>
+  <li>Дождаться кадастрово-адресного заключения — оно снимет вопросы по пересечениям и охранным зонам, которые сейчас не проверены.</li>
+</ol>
+
+<footer>
+  <p>Отчёт подготовлен на основе программного извлечения текстового слоя и визуальной проверки декодированных страниц PDF. Выводы по страницам, не прошедшим визуальную проверку (см. раздел 1), опираются на OCR и могут содержать неточности в прочтении рукописных фрагментов.</p>
+  <p>Исходные материалы: <code>E:\AzProjects\task 3\доки от клиента\Example application\1\</code></p>
+</footer>
+
+</div>
+</body>
+</html>

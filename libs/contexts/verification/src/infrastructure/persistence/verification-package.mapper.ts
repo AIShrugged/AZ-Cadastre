@@ -14,6 +14,7 @@ import {
   FieldKey,
   FieldValue,
   Filename,
+  IssueKind,
   OcrResult,
   PackageId,
   PackageStatus,
@@ -22,11 +23,18 @@ import {
   PageNumber,
   PageRange,
   RecognisedText,
+  ReportStatus,
   SourceFileId,
   StorageKey,
+  ValidationIssue,
   VerificationProfile,
+  VerificationReport,
 } from "../../domain/value-objects/index.js";
-import { PackageStatus as StatusColumn } from "./generated/client.js";
+import {
+  IssueKind as IssueKindColumn,
+  PackageStatus as StatusColumn,
+  ReportStatus as ReportStatusColumn,
+} from "./generated/client.js";
 
 export type PackageRow = {
   readonly id: string;
@@ -35,6 +43,23 @@ export type PackageRow = {
   readonly version: number;
   readonly sourceFiles: readonly SourceFileRow[];
   readonly documents: readonly DocumentRow[];
+  readonly report: ReportRow | null;
+};
+
+export type ReportRow = {
+  readonly status: string;
+  readonly issues: readonly IssueRow[];
+};
+
+export type IssueRow = {
+  readonly kind: string;
+  readonly message: string;
+  readonly documentId: string | null;
+  readonly sourceFileId: string | null;
+  readonly documentType: string | null;
+  readonly fieldName: string | null;
+  readonly pageNumber: number | null;
+  readonly confidence: number | null;
 };
 
 export type SourceFileRow = {
@@ -81,6 +106,23 @@ export type PackageWrite = {
   readonly profileKey: string;
   readonly sourceFiles: readonly SourceFileWrite[];
   readonly documents: readonly DocumentWrite[];
+  readonly report: ReportWrite | null;
+};
+
+export type ReportWrite = {
+  readonly status: ReportStatusColumn;
+  readonly issues: readonly IssueWrite[];
+};
+
+export type IssueWrite = {
+  readonly kind: IssueKindColumn;
+  readonly message: string;
+  readonly documentId: string | null;
+  readonly sourceFileId: string | null;
+  readonly documentType: string | null;
+  readonly fieldName: string | null;
+  readonly pageNumber: number | null;
+  readonly confidence: number | null;
 };
 
 export type SourceFileWrite = {
@@ -134,6 +176,9 @@ export class VerificationPackageMapper {
       documents: row.documents.map((document) =>
         VerificationPackageMapper.documentToDomain(document),
       ),
+      report: row.report
+        ? VerificationPackageMapper.reportToDomain(row.report)
+        : null,
     });
   }
 
@@ -175,7 +220,52 @@ export class VerificationPackageMapper {
           pageNumber: field.foundOn.value,
         })),
       })),
+      report: VerificationPackageMapper.reportRow(aggregate.report),
     };
+  }
+
+  private static reportRow(
+    report: VerificationReport | null,
+  ): ReportWrite | null {
+    if (!report) return null;
+
+    return {
+      status: VerificationPackageMapper.reportStatusColumn(report.status),
+      issues: report.issues.map((issue) => ({
+        kind: VerificationPackageMapper.issueKindColumn(issue.kind),
+        message: issue.message,
+        documentId: issue.documentId?.value ?? null,
+        sourceFileId: issue.sourceFileId?.value ?? null,
+        documentType: issue.documentType?.value ?? null,
+        fieldName: issue.fieldKey?.value ?? null,
+        pageNumber: issue.pageNumber?.value ?? null,
+        confidence: issue.confidence?.value ?? null,
+      })),
+    };
+  }
+
+  private static reportToDomain(row: ReportRow): VerificationReport {
+    return VerificationReport.restore(
+      ReportStatus.of(row.status),
+      row.issues.map((issue) =>
+        ValidationIssue.of({
+          kind: IssueKind.of(issue.kind),
+          message: issue.message,
+          documentId: issue.documentId ? DocumentId.of(issue.documentId) : null,
+          sourceFileId: issue.sourceFileId
+            ? SourceFileId.of(issue.sourceFileId)
+            : null,
+          documentType: issue.documentType
+            ? DocumentType.create(issue.documentType)
+            : null,
+          fieldKey: issue.fieldName ? FieldKey.create(issue.fieldName) : null,
+          pageNumber:
+            issue.pageNumber === null ? null : PageNumber.of(issue.pageNumber),
+          confidence:
+            issue.confidence === null ? null : Confidence.of(issue.confidence),
+        }),
+      ),
+    );
   }
 
   private static fileToDomain(row: SourceFileRow): SourceFile {
@@ -249,6 +339,30 @@ export class VerificationPackageMapper {
 
     if (!column) {
       throw new RangeError(`No status column for ${status.value}`);
+    }
+
+    return column;
+  }
+
+  private static reportStatusColumn(status: ReportStatus): ReportStatusColumn {
+    const column = Object.values(ReportStatusColumn).find(
+      (candidate) => candidate === status.value,
+    );
+
+    if (!column) {
+      throw new RangeError(`No report status column for ${status.value}`);
+    }
+
+    return column;
+  }
+
+  private static issueKindColumn(kind: IssueKind): IssueKindColumn {
+    const column = Object.values(IssueKindColumn).find(
+      (candidate) => candidate === kind.value,
+    );
+
+    if (!column) {
+      throw new RangeError(`No issue kind column for ${kind.value}`);
     }
 
     return column;

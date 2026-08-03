@@ -46,18 +46,131 @@ export class DocumentTypeSpec {
 }
 
 export class VerificationProfile {
+  // The one case the system handles: first state registration of an individual
+  // residential house. The key is what every stored package names its policy
+  // by, so it outlives the wording — the profile's name is a UI string in three
+  // languages, not this.
+  //
+  // Every type here is required: the profile is the mandatory set, and the
+  // additional documents a submission may carry are out of scope for now.
   static readonly CADASTRE = new VerificationProfile("cadastre", [
     {
-      key: "registration_application",
+      key: "land_plot_plan",
       description:
-        "Application for state registration of rights to immovable property, " +
-        "submitted by the applicant to the registration authority. Names the " +
-        "applicant and the property the rights concern.",
+        "Plan-scheme of the land parcel: the surveyed drawing of the plot " +
+        "with its boundaries, area and cadastral number. It depicts the land " +
+        "itself, not the building proposed on it.",
       hints: [
-        "hüquqların dövlət qeydiyyatı haqqında ərizə",
+        "torpaq sahəsinin plan-sxemi",
+        "plan-sxem",
+        "план-схема земельного участка",
+        "план-схема",
+      ],
+      required: true,
+      fields: [
+        ["property_address", "Property address"],
+        ["cadastral_number", "Cadastral number"],
+        ["plot_area", "Plot area"],
+        ["owner_name", "Owner name"],
+        ["plan_date", "Plan date"],
+      ],
+    },
+    {
+      key: "disposal_order",
+      description:
+        "Order of the executive authority allotting the land parcel, or an " +
+        "extract from that order. It is issued by an authority and carries an " +
+        "order number and date — an extract states the same order in short.",
+      hints: [
+        "sərəncamdan çıxarış",
+        "sərəncam",
+        "выписка из распоряжения",
+        "распоряжение",
+      ],
+      required: true,
+      fields: [
+        ["order_no", "Order number"],
+        ["issuing_authority", "Issuing authority"],
+        ["issue_date", "Issue date"],
+        ["applicant_name", "Applicant name"],
+        ["property_address", "Property address"],
+        ["plot_area", "Plot area"],
+      ],
+    },
+    {
+      key: "payment_receipt",
+      description:
+        "Receipt for the state duty paid for the registration. Carries a " +
+        "receipt number, the payer, an amount and the date it was paid.",
+      hints: [
+        "ödəniş qəbzi",
+        "qəbz",
+        "квитанция об оплате",
+        "квитанция",
+      ],
+      required: true,
+      fields: [
+        ["receipt_no", "Receipt number"],
+        ["payer_name", "Payer name"],
+        ["amount", "Amount paid"],
+        ["payment_date", "Payment date"],
+        ["payment_purpose", "Payment purpose"],
+      ],
+    },
+    {
+      key: "sketch_project",
+      description:
+        "Sketch design of the house, produced by a design organisation. " +
+        "Carries drawings, the designer's name and the areas and storeys of " +
+        "what is proposed — the building, not the plot it stands on.",
+      hints: [
+        "eskiz layihəsi",
+        "eskiz layihə",
+        "эскизный проект",
+        "эскизного проекта",
+      ],
+      required: true,
+      fields: [
+        ["project_name", "Project name"],
+        ["designer_name", "Design organisation"],
+        ["property_address", "Property address"],
+        ["total_area", "Total area"],
+        ["storeys", "Storeys"],
+        ["approval_date", "Approval date"],
+      ],
+    },
+    {
+      key: "archive_certificate",
+      description:
+        "Archival certificate: the statement an archive issues about the " +
+        "history of the plot or the building — what is on record about it, " +
+        "under a certificate number and a date of issue.",
+      hints: [
+        "arxiv arayışı",
+        "arxiv arayış",
+        "архивная справка",
+        "архивной справки",
+      ],
+      required: true,
+      fields: [
+        ["certificate_no", "Certificate number"],
+        ["issuing_authority", "Issuing authority"],
+        ["issue_date", "Issue date"],
+        ["property_address", "Property address"],
+        ["owner_name", "Owner name"],
+      ],
+    },
+    {
+      key: "application",
+      description:
+        "The applicant's own application for state registration, addressed " +
+        "to the registration authority. Names the applicant, their identity " +
+        "document and the property the registration concerns.",
+      hints: [
         "dövlət qeydiyyatı haqqında ərizə",
+        "ərizə",
         "заявление о государственной регистрации",
-        "государственной регистрации прав на недвижимое имущество",
+        "заявление",
       ],
       required: true,
       fields: [
@@ -65,7 +178,6 @@ export class VerificationProfile {
         ["applicant_document_no", "Applicant identity document number"],
         ["property_address", "Property address"],
         ["cadastral_number", "Cadastral number"],
-        ["registry_office", "Registration authority"],
         ["application_date", "Application date"],
       ],
     },
@@ -91,129 +203,6 @@ export class VerificationProfile {
         ["expiry_date", "Expiration date"],
       ],
     },
-    {
-      key: "notification_application",
-      description:
-        "Application filed under the notification procedure — the route for " +
-        "construction work that needs notice given rather than a permit " +
-        "issued. Distinguished from the registration application by naming " +
-        "that procedure explicitly.",
-      hints: [
-        "bildiriş icraatı qaydasında ərizə",
-        "bildiriş icraatı",
-        "в порядке уведомительного производства",
-        "уведомительного производства",
-      ],
-      required: true,
-      fields: [
-        ["applicant_name", "Applicant name"],
-        ["property_address", "Property address"],
-        ["cadastral_number", "Cadastral number"],
-        ["construction_purpose", "Purpose of the works"],
-        ["application_date", "Application date"],
-      ],
-    },
-    {
-      key: "architectural_plan",
-      description:
-        "Architectural and planning decision — the outline or sketch design " +
-        "of the building, produced by a design organisation. Carries drawings, " +
-        "the designer's name and the areas and storeys of what is proposed.",
-      hints: [
-        "memarlıq-planlaşdırma",
-        "eskiz layihə",
-        "архитектурно-планировочное",
-        "эскизный проект",
-      ],
-      required: true,
-      fields: [
-        ["project_name", "Project name"],
-        ["designer_name", "Design organisation"],
-        ["property_address", "Property address"],
-        ["cadastral_number", "Cadastral number"],
-        ["total_area", "Total area"],
-        ["approval_date", "Approval date"],
-      ],
-    },
-    {
-      key: "license",
-      description:
-        "The licence itself: the certificate authorising its holder to carry " +
-        "out a regulated activity such as design or construction. It states " +
-        "the holder, the activity and the issuing authority — it does not " +
-        "list individual works.",
-      hints: ["lisenziya", "лицензия", "licence", "license"],
-      required: true,
-      fields: [
-        ["license_no", "Licence number"],
-        ["licensee_name", "Licence holder"],
-        ["activity_type", "Licensed activity"],
-        ["issuing_authority", "Issuing authority"],
-        ["issue_date", "Issue date"],
-        ["expiry_date", "Expiration date"],
-      ],
-    },
-    {
-      key: "license_annex",
-      description:
-        "Annex to a licence: the sheet that lists the specific works or scope " +
-        "a licence covers, and refers to that licence by its number. It is not " +
-        "the licence itself — if the sheet grants the authorisation it is a " +
-        "license; if it enumerates what an already-granted licence covers it " +
-        "is this.",
-      hints: [
-        "lisenziyaya əlavə",
-        "приложение к лицензии",
-        "приложение к лицензи",
-      ],
-      required: true,
-      fields: [
-        ["license_no", "Licence number"],
-        ["annex_no", "Annex number"],
-        ["licensee_name", "Licence holder"],
-        ["activity_type", "Works covered"],
-        ["issue_date", "Issue date"],
-      ],
-    },
-  ]);
-
-  static readonly DEMO = new VerificationProfile("demo", [
-    {
-      key: "passport",
-      description: "Passport or identity card of a natural person.",
-      hints: ["passport", "паспорт", "şəxsiyyət vəsiqəsi"],
-      required: true,
-      fields: [
-        ["first_name", "First name"],
-        ["last_name", "Last name"],
-        ["dob", "Date of birth"],
-        ["passport_no", "Passport number"],
-        ["expiry_date", "Expiration date"],
-      ],
-    },
-    {
-      key: "driver_license",
-      description: "Driving licence of a natural person.",
-      hints: ["driver license", "driver licence", "driving licence"],
-      required: true,
-      fields: [
-        ["first_name", "First name"],
-        ["last_name", "Last name"],
-        ["license_no", "Licence number"],
-        ["expiry_date", "Expiration date"],
-      ],
-    },
-    {
-      key: "application",
-      description: "Application form naming an applicant and their documents.",
-      hints: ["application form", "application"],
-      required: true,
-      fields: [
-        ["applicant_name", "Applicant name"],
-        ["passport_no", "Passport number"],
-        ["driver_license_no", "Driver licence number"],
-      ],
-    },
   ]);
 
   readonly #specs: readonly DocumentTypeSpec[];
@@ -230,7 +219,7 @@ export class VerificationProfile {
   // The order a caller is offered them in, and a getter so it cannot be read
   // before the static instances exist.
   static get all(): readonly VerificationProfile[] {
-    return [VerificationProfile.CADASTRE, VerificationProfile.DEMO];
+    return [VerificationProfile.CADASTRE];
   }
 
   static of(rawKey: string): VerificationProfile {

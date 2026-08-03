@@ -81,10 +81,11 @@ function aPackageRow(overrides: Partial<PackageRow> = {}): PackageRow {
   return {
     id: anId(),
     status: "Processing",
-    profileKey: "demo",
+    profileKey: "cadastre",
     version: 3,
     sourceFiles: [aSourceFileRow()],
     documents: [aDocumentRow()],
+    report: null,
     ...overrides,
   };
 }
@@ -519,6 +520,7 @@ describe("VerificationPackageMapper", () => {
         profile: VerificationProfile.CADASTRE,
         status: PackageStatus.PROCESSING,
         files: [file],
+        report: null,
         documents: [
           document.classifiedAs(
             VerificationPackageMapper.toDomain(aPackageRow()).documents[0]!
@@ -532,6 +534,62 @@ describe("VerificationPackageMapper", () => {
       expect(row.documents[0]?.type).toBe(DocumentType.create("passport").value);
       expect(row.documents[0]?.firstPage).toBe(1);
       expect(row.documents[0]?.lastPage).toBe(2);
+    });
+  });
+
+  describe("the report a run finished with", () => {
+    // The pipeline's own way to a report: run a package with nothing in it
+    // through to the end, so every required type comes back missing.
+    function aReportedPackage(): VerificationPackage {
+      const aggregate = VerificationPackageMapper.toDomain(
+        aPackageRow({ status: "Processing", documents: [] }),
+      );
+      aggregate.complete();
+
+      return aggregate;
+    }
+
+    it("writes the outcome and every finding under it", () => {
+      const row = VerificationPackageMapper.toRow(aReportedPackage());
+
+      expect(row.report?.status).toBe("IncompletePackage");
+      expect(row.report?.issues).toHaveLength(
+        VerificationProfile.CADASTRE.requiredTypes.length +
+          // the file itself, which no document was carved out of
+          1,
+      );
+    });
+
+    it("writes a kind the database has a column value for", () => {
+      const row = VerificationPackageMapper.toRow(aReportedPackage());
+
+      expect(row.report?.issues.map((issue) => issue.kind)).toContain(
+        "MissingDocument",
+      );
+    });
+
+    it("reads a stored report back as the one that was written", () => {
+      const written = VerificationPackageMapper.toRow(aReportedPackage());
+
+      const restored = VerificationPackageMapper.toDomain(
+        aPackageRow({ report: written.report }),
+      );
+
+      expect(restored.report?.status.value).toBe(written.report?.status);
+      expect(restored.report?.issues.map((issue) => issue.kind.value)).toEqual(
+        written.report?.issues.map((issue) => issue.kind),
+      );
+      expect(
+        restored.report?.issues.map((issue) => issue.documentType?.value ?? null),
+      ).toEqual(written.report?.issues.map((issue) => issue.documentType));
+    });
+
+    it("writes no report for a package no run has finished", () => {
+      const row = VerificationPackageMapper.toRow(
+        VerificationPackageMapper.toDomain(aPackageRow()),
+      );
+
+      expect(row.report).toBeNull();
     });
   });
 });

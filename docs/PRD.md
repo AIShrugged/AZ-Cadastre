@@ -107,43 +107,54 @@ The backend stores OCR results.
 
 Each document is classified based on the OCR text of its pages (one type per document — see section 3). The set of recognizable document types is defined by the active Verification Profile.
 
-The demo profile ships with:
+The profile the MVP ships with — *First state registration of an individual
+residential house* — recognizes:
 
-- Passport
-- Driver License
+- Land parcel plan-scheme
+- Order (or extract from the order)
+- Payment receipt
+- Sketch design
+- Archival certificate
 - Application
+- Identity document
 - Unknown
 
 Example:
 
 ```
-passport.pdf → Passport
+submission.pdf pp. 1–2 → Sketch design
 ```
 
 ### 4.5 Field Extraction
 
 Depending on the detected document type, the system extracts structured fields. Field schemas are defined per document type in the Verification Profile.
 
-Demo profile — **Passport**:
+**Identity document**:
 
 - First Name
 - Last Name
-- Date of Birth
-- Passport Number
+- Document Number
+- Issue Date
 - Expiration Date
 
-Demo profile — **Driver License**:
+**Payment receipt**:
 
-- First Name
-- Last Name
-- License Number
-- Expiration Date
+- Receipt Number
+- Payer Name
+- Amount Paid
+- Payment Date
+- Payment Purpose
 
-Demo profile — **Application**:
+**Application**:
 
 - Applicant Name
-- Passport Number
-- Driver License Number
+- Applicant Identity Document Number
+- Property Address
+- Cadastral Number
+- Application Date
+
+The remaining types declare their own schemas the same way; the profile in
+`verification-profile.vo.ts` is the list of record.
 
 Each extracted field stores:
 
@@ -155,41 +166,51 @@ Each extracted field stores:
 
 Validation is driven by a **Verification Profile** — a declarative definition of what a valid package looks like: document types, field schemas, required documents, and cross-document rules (see ADR-0002). The engine interprets profiles; adding a new domain (e.g. cadastre document sets) means adding a profile, not changing the engine.
 
-The MVP ships one demo profile exercising every rule kind:
+The MVP ships one profile, and checks the **mandatory set only**. Additional
+documents a submission may carry are out of scope for now.
 
 #### Required documents
 
-The demo profile requires:
+Every type the profile declares is required:
 
-- Passport
-- Driver License
+- Land parcel plan-scheme
+- Order (or extract from the order)
+- Payment receipt
+- Sketch design
+- Archival certificate
+- Application
+- Identity document
 
-Missing documents should be reported.
+A required type no document was placed under is reported as missing.
 
-#### Cross-document validation
+#### Nothing stops the run
 
-Examples from the demo profile:
+By the operator's decision, a missing or unreadable document never halts
+verification. A file that will not split, a sheet the reader refuses and a
+document nothing can place are each carried through to the report and handed to
+the inspector, who decides. A run ends `Failed` only when the machinery lost the
+package itself.
 
-| Document       | Field           |            | Document       | Field                 |
-| -------------- | --------------- | ---------- | -------------- | --------------------- |
-| Passport       | First Name      | must equal | Driver License | First Name            |
-| Passport       | Last Name       | must equal | Driver License | Last Name             |
-| Passport       | Passport Number | must equal | Application    | Passport Number       |
-| Driver License | License Number  | must equal | Application    | Driver License Number |
+#### Unreadable documents
 
-#### Expiration validation
-
-Check expiration dates on documents whose profile schema declares an expiration field (demo: passport, driver license).
+Reported as findings of their own: a sheet OCR could not read, a file that was
+never read into documents, a document the classifier could not place.
 
 #### OCR confidence
 
-Fields below a configured confidence threshold should be flagged.
+Readings below the confidence threshold are flagged — a placed type as well as
+an extracted field.
 
 Example:
 
 ```
 confidence < 0.80 → Needs review
 ```
+
+#### Cross-document validation
+
+Deferred: the engine reserves `FieldMismatch` and `Expired` findings, and no
+stage produces them yet.
 
 ## 5. Verification Report
 
@@ -201,13 +222,14 @@ Overall status:
 - Issues Found
 - Incomplete Package
 
+Every finished run has one, whatever it managed to read.
+
 Report contains:
 
 - detected documents
 - extracted fields
-- validation issues
 - missing documents
-- mismatched values
+- documents that could not be read
 - OCR confidence
 - page references
 
@@ -215,21 +237,17 @@ Example:
 
 ```
 Status
-  Issues Found
+  Incomplete Package
 ---
 Missing Documents
-  None
+  Archival certificate
 ---
-Validation
-  Passport Name != Driver License Name
-  Page 1
-  Confidence 0.92
----
-Expired Documents
-  Driver License
+Could Not Be Read
+  submission.pdf · p. 4
+  pp. 5–6 · submission.pdf — type not recognized
 ---
 Low Confidence
-  Passport Number
+  Document Number
   Confidence 0.61
 ```
 
@@ -300,14 +318,17 @@ The workflow executes in stages (atomic activities), allowing:
 - Efficient parallel processing where possible
 - Clear audit trail of what happened and when
 
-| Stage               | Purpose                                                       | Output                     |
-| ------------------- | ------------------------------------------------------------- | -------------------------- |
-| 1. OCR              | Recognize text on every page                                  | OCR results stored         |
-| 2. Classify         | Determine each document's type from its OCR text              | Document types stored      |
-| 3. Extract Fields   | Extract structured fields per the profile's field schemas     | JSON fields in DB          |
-| 4. Completeness     | Verify required documents present                             | List of missing docs       |
-| 5. Rules            | Cross-document consistency, expiration, confidence thresholds | Validation issues list     |
-| 6. Generate Report  | Compile findings with confidence scores                       | JSON report                |
+No stage stops the run. Each records what it managed to do; what it could not
+becomes a finding in the report.
+
+| Stage               | Purpose                                                   | Output                     |
+| ------------------- | --------------------------------------------------------- | -------------------------- |
+| 1. OCR              | Recognize text on every page                              | OCR results stored         |
+| 2. Detect Documents | Read each file into the documents it holds                | Page ranges stored         |
+| 3. Classify         | Determine each document's type from its OCR text          | Document types stored      |
+| 4. Extract Fields   | Extract structured fields per the profile's field schemas | JSON fields in DB          |
+| 5. Completeness     | Verify required documents present                         | List of missing docs       |
+| 6. Generate Report  | Compile findings with confidence scores                   | Report + validation issues |
 
 ### Components
 
@@ -337,10 +358,10 @@ User[Inspector]
         WF[Document Verification Workflow]
 
         A1[OCR]
-        A2[Classify Documents]
-        A3[Extract Fields]
-        A4[Completeness Check]
-        A5[Rules Validation]
+        A2[Detect Documents]
+        A3[Classify Documents]
+        A4[Extract Fields]
+        A5[Completeness Check]
         A6[Generate Report]
     end
 

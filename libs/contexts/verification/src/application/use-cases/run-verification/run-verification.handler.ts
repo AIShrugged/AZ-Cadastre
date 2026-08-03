@@ -41,6 +41,10 @@ export class RunVerificationHandler
     private readonly extractor: FieldExtractor,
   ) {}
 
+  // A stage that cannot do its work does not stop the run: a file that will not
+  // split, a sheet the reader refuses, a document nothing can place — each is
+  // carried through to the report and handed to the inspector, which is what
+  // the operator asked for. Only losing the package itself ends a run.
   async execute(command: RunVerificationCommand): Promise<void> {
     const packageId = PackageId.of(command.packageId);
 
@@ -53,9 +57,15 @@ export class RunVerificationHandler
       // sheet says is how the sheet after it is told to be part of the same
       // document or the start of the next.
       for (const fileId of fileIds) {
-        await this.split(packageId, fileId);
-        await this.recognise(packageId, fileId);
-        await this.segment(packageId, fileId);
+        await this.despite(packageId, `splitting ${fileId.value}`, () =>
+          this.split(packageId, fileId),
+        );
+        await this.despite(packageId, `recognising ${fileId.value}`, () =>
+          this.recognise(packageId, fileId),
+        );
+        await this.despite(packageId, `reading ${fileId.value}`, () =>
+          this.segment(packageId, fileId),
+        );
       }
 
       const documentIds = (await this.load(packageId)).documents.map(
@@ -63,18 +73,42 @@ export class RunVerificationHandler
       );
 
       for (const documentId of documentIds) {
-        await this.classify(packageId, documentId);
-        await this.extract(packageId, documentId);
+        await this.despite(packageId, `classifying ${documentId.value}`, () =>
+          this.classify(packageId, documentId),
+        );
+        await this.despite(packageId, `extracting ${documentId.value}`, () =>
+          this.extract(packageId, documentId),
+        );
       }
 
+      // Completing is what compiles the report, so a run that read almost
+      // nothing still ends with one.
       await this.change(packageId, (verification) => verification.complete());
+
+      const report = (await this.load(packageId)).report;
       this.logger.log(
         `Package ${packageId.value}: verified ${documentIds.length} document(s) ` +
-          `across ${fileIds.length} file(s)`,
+          `across ${fileIds.length} file(s) — ${report?.status.value} ` +
+          `(${report?.issues.length ?? 0} finding(s))`,
       );
     } catch (error) {
       await this.recordFailure(packageId, error);
       throw error;
+    }
+  }
+
+  private async despite(
+    packageId: PackageId,
+    what: string,
+    stage: () => Promise<void>,
+  ): Promise<void> {
+    try {
+      await stage();
+    } catch (error) {
+      this.logger.warn(
+        `Package ${packageId.value}: ${what} failed — ${String(error)}. ` +
+          "The run continues and the report will say so.",
+      );
     }
   }
 
@@ -118,12 +152,12 @@ export class RunVerificationHandler
     );
   }
 
+  // Terminates because a pass that recognised nothing ends the loop: pages the
+  // provider refuses stay unread, and the report names them.
   private async recognise(
     packageId: PackageId,
     sourceFileId: SourceFileId,
   ): Promise<void> {
-    // Terminates because every pass either records a page as recognised or
-    // raises what stopped it.
     for (;;) {
       const verification = await this.load(packageId);
       const file = verification.fileWith(sourceFileId);
@@ -144,15 +178,21 @@ export class RunVerificationHandler
         recognised += 1;
       }
 
-      // Saved before the failure is raised: what the provider did read is paid
-      // for, so a re-run asks it only for the pages still unread.
+      // Saved before anything is said about the refusals: what the provider did
+      // read is paid for, so a re-run asks it only for the pages still unread.
       if (recognised > 0) await this.packages.save(verification);
 
-      const refused = readings.find(
-        (reading): reading is PromiseRejectedResult =>
-          reading.status === "rejected",
-      );
-      if (refused) throw refused.reason;
+      for (const reading of readings) {
+        if (reading.status === "rejected") {
+          this.logger.warn(
+            `Package ${packageId.value}: a sheet of ` +
+              `"${file.filename.value}" could not be read — ` +
+              String(reading.reason),
+          );
+        }
+      }
+
+      if (recognised < batch.length) return;
     }
   }
 
@@ -193,10 +233,22 @@ export class RunVerificationHandler
     // reason to pay a provider to confirm it.
     if (whole.isSingleSheet) return [whole];
 
-    return this.segmenter.segment({
-      pages: file.transcript(),
-      candidates: profile.specs,
-    });
+    try {
+      return await this.segmenter.segment({
+        pages: file.transcript(),
+        candidates: profile.specs,
+      });
+    } catch (error) {
+      // A file whose boundaries could not be found is still one run of sheets,
+      // and one document the classifier can be asked about, rather than pages
+      // that reach no stage at all.
+      this.logger.warn(
+        `Package: "${file.filename.value}" could not be read into documents — ` +
+          `${String(error)}. Taking the file as one document.`,
+      );
+
+      return [whole];
+    }
   }
 
   private async classify(

@@ -13,6 +13,10 @@ export {
   UnknownProfileException,
 } from "./profile.exceptions.js";
 export {
+  InvalidIssueKindException,
+  InvalidReportStatusException,
+} from "./report.exceptions.js";
+export {
   DocumentsMustCoverEverySheetException,
   DuplicatePageNumberException,
   InvalidFilenameException,

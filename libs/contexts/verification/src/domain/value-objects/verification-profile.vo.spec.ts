@@ -6,17 +6,17 @@ import { FieldKey } from "./field.vo.js";
 import { VerificationProfile } from "./verification-profile.vo.js";
 
 const CADASTRE_TYPES = [
-  "registration_application",
+  "land_plot_plan",
+  "disposal_order",
+  "payment_receipt",
+  "sketch_project",
+  "archive_certificate",
+  "application",
   "identity_card",
-  "notification_application",
-  "architectural_plan",
-  "license",
-  "license_annex",
 ];
 
 describe("VerificationProfile", () => {
   it("accepts each profile the system is shipped with", () => {
-    expect(VerificationProfile.of("demo")).toBe(VerificationProfile.DEMO);
     expect(VerificationProfile.of("cadastre")).toBe(
       VerificationProfile.CADASTRE,
     );
@@ -34,6 +34,12 @@ describe("VerificationProfile", () => {
     );
   });
 
+  it("refuses the profile the system used to demonstrate itself with", () => {
+    expect(() => VerificationProfile.of("demo")).toThrow(
+      UnknownProfileException,
+    );
+  });
+
   it("refuses an empty profile key", () => {
     expect(() => VerificationProfile.of("")).toThrow(UnknownProfileException);
     expect(() => VerificationProfile.of("   ")).toThrow(UnknownProfileException);
@@ -46,7 +52,6 @@ describe("VerificationProfile", () => {
   it("lists every profile it ships, in the order they are offered", () => {
     expect(VerificationProfile.all.map((profile) => profile.key)).toEqual([
       "cadastre",
-      "demo",
     ]);
   });
 
@@ -55,12 +60,6 @@ describe("VerificationProfile", () => {
       expect(
         VerificationProfile.CADASTRE.documentTypes.map((type) => type.value),
       ).toEqual(CADASTRE_TYPES);
-    });
-
-    it("names a different set for a different profile", () => {
-      expect(
-        VerificationProfile.DEMO.documentTypes.map((type) => type.value),
-      ).toEqual(["passport", "driver_license", "application"]);
     });
 
     it("never offers the classifier a type it cannot place", () => {
@@ -73,7 +72,7 @@ describe("VerificationProfile", () => {
   });
 
   describe("what a package must carry", () => {
-    it("requires every document a cadastre submission is made of", () => {
+    it("requires every document of the mandatory set", () => {
       expect(
         VerificationProfile.CADASTRE.requiredTypes.map((type) => type.value),
       ).toEqual(CADASTRE_TYPES);
@@ -89,11 +88,13 @@ describe("VerificationProfile", () => {
   describe("recognising a type", () => {
     it("recognises a type it declares", () => {
       expect(
-        VerificationProfile.CADASTRE.recognises(DocumentType.create("license")),
+        VerificationProfile.CADASTRE.recognises(
+          DocumentType.create("archive_certificate"),
+        ),
       ).toBe(true);
     });
 
-    it("does not recognise a type another profile declares", () => {
+    it("does not recognise a type it no longer declares", () => {
       expect(
         VerificationProfile.CADASTRE.recognises(
           DocumentType.create("driver_license"),
@@ -122,12 +123,16 @@ describe("VerificationProfile", () => {
       }
     });
 
-    it("tells the annex apart from the licence in its own description", () => {
-      const annex = VerificationProfile.CADASTRE.specFor(
-        DocumentType.create("license_annex"),
+    it("tells the plan of the plot apart from the design of the house", () => {
+      const plan = VerificationProfile.CADASTRE.specFor(
+        DocumentType.create("land_plot_plan"),
+      );
+      const project = VerificationProfile.CADASTRE.specFor(
+        DocumentType.create("sketch_project"),
       );
 
-      expect(annex.description).toMatch(/not the licence itself/i);
+      expect(plan.description).toMatch(/not the building/i);
+      expect(project.description).toMatch(/not the plot/i);
     });
 
     it("gives the headings in the languages the papers are written in", () => {
@@ -167,26 +172,25 @@ describe("VerificationProfile", () => {
 
     it("labels each field for the human who reads it", () => {
       const schema = VerificationProfile.CADASTRE.schemaFor(
-        DocumentType.create("license"),
+        DocumentType.create("payment_receipt"),
       );
 
       expect(schema.specs.map((spec) => spec.label)).toEqual([
-        "Licence number",
-        "Licence holder",
-        "Licensed activity",
-        "Issuing authority",
-        "Issue date",
-        "Expiration date",
+        "Receipt number",
+        "Payer name",
+        "Amount paid",
+        "Payment date",
+        "Payment purpose",
       ]);
     });
 
     it("declares the keys of that type and no others", () => {
       const schema = VerificationProfile.CADASTRE.schemaFor(
-        DocumentType.create("registration_application"),
+        DocumentType.create("application"),
       );
 
       expect(schema.declares(FieldKey.create("cadastral_number"))).toBe(true);
-      expect(schema.declares(FieldKey.create("license_no"))).toBe(false);
+      expect(schema.declares(FieldKey.create("receipt_no"))).toBe(false);
     });
 
     it("declares nothing for a type it does not recognise", () => {
@@ -204,27 +208,18 @@ describe("VerificationProfile", () => {
       ).toBe(true);
     });
 
-    it("has the licence and its annex agree on the key that ties them together", () => {
-      const license = VerificationProfile.CADASTRE.schemaFor(
-        DocumentType.create("license"),
+    it("has the papers that name the same property agree on the key that ties them together", () => {
+      const plan = VerificationProfile.CADASTRE.schemaFor(
+        DocumentType.create("land_plot_plan"),
       );
-      const annex = VerificationProfile.CADASTRE.schemaFor(
-        DocumentType.create("license_annex"),
+      const application = VerificationProfile.CADASTRE.schemaFor(
+        DocumentType.create("application"),
       );
 
-      expect(license.declares(FieldKey.create("license_no"))).toBe(true);
-      expect(annex.declares(FieldKey.create("license_no"))).toBe(true);
-    });
-
-    it("lets two profiles declare the same type their own way", () => {
-      expect(
-        VerificationProfile.DEMO.recognises(DocumentType.create("driver_license")),
-      ).toBe(true);
-      expect(
-        VerificationProfile.CADASTRE.recognises(
-          DocumentType.create("driver_license"),
-        ),
-      ).toBe(false);
+      expect(plan.declares(FieldKey.create("cadastral_number"))).toBe(true);
+      expect(application.declares(FieldKey.create("cadastral_number"))).toBe(
+        true,
+      );
     });
   });
 
@@ -232,8 +227,5 @@ describe("VerificationProfile", () => {
     expect(
       VerificationProfile.CADASTRE.equals(VerificationProfile.of("cadastre")),
     ).toBe(true);
-    expect(VerificationProfile.CADASTRE.equals(VerificationProfile.DEMO)).toBe(
-      false,
-    );
   });
 });

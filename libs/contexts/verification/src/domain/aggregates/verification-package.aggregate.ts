@@ -11,6 +11,7 @@ import {
   FieldsExtracted,
   PackageSubmitted,
   PageRecognised,
+  ReportCompiled,
   SourceFileSegmented,
   SourceFileSplitIntoPages,
   VerificationCompleted,
@@ -34,6 +35,7 @@ import {
 } from "../exceptions/index.js";
 import {
   type Classification,
+  Confidence,
   type DocumentId,
   FailureReason,
   type OcrResult,
@@ -42,7 +44,9 @@ import {
   type PageId,
   type RecognisedText,
   type SourceFileId,
+  ValidationIssue,
   type VerificationProfile,
+  VerificationReport,
 } from "../value-objects/index.js";
 
 export type VerificationPackageState = {
@@ -52,6 +56,7 @@ export type VerificationPackageState = {
   readonly status: PackageStatus;
   readonly files: readonly SourceFile[];
   readonly documents: readonly Document[];
+  readonly report: VerificationReport | null;
 };
 
 export class VerificationPackage extends AggregateRoot<PackageId> {
@@ -59,6 +64,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   #status: PackageStatus;
   #files: SourceFile[];
   #documents: Document[];
+  #report: VerificationReport | null;
 
   private constructor(state: VerificationPackageState) {
     super(state.id, state.version);
@@ -66,6 +72,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     this.#status = state.status;
     this.#files = [...state.files];
     this.#documents = [...state.documents];
+    this.#report = state.report;
   }
 
   static create(
@@ -90,6 +97,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       status: PackageStatus.PENDING,
       files,
       documents: [],
+      report: null,
     });
 
     submitted.apply(new PackageSubmitted(id, profile, files.length));
@@ -115,6 +123,10 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
 
   get documents(): readonly Document[] {
     return this.#documents;
+  }
+
+  get report(): VerificationReport | null {
+    return this.#report;
   }
 
   fileWith(sourceFileId: SourceFileId): SourceFile {
@@ -271,9 +283,12 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     this.apply(new FieldsExtracted(this.id, documentId, fields.length));
   }
 
+  // A run ends by reporting, so finishing compiles one: there is no state in
+  // which a package is done and the inspector has nothing to read.
   complete(): void {
     this.guardUnderWay();
 
+    this.compileReport();
     this.#status = PackageStatus.COMPLETED;
     this.apply(new VerificationCompleted(this.id));
   }
@@ -285,6 +300,92 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
 
     this.#status = PackageStatus.FAILED;
     this.apply(new VerificationFailed(this.id, reason));
+  }
+
+  // Compiled from what the run actually managed to read, however little that
+  // was: a document the classifier could not place, a sheet that came back
+  // unread and a type nobody supplied are each a finding, never a reason to
+  // stop. Worked out from scratch every time, so a re-run cannot leave behind a
+  // finding it has since answered.
+  private compileReport(): void {
+    const issues = [
+      ...this.missingDocuments(),
+      ...this.unreadable(),
+      ...this.lowConfidence(),
+    ];
+
+    this.#report = VerificationReport.of(issues);
+    this.apply(new ReportCompiled(this.id, this.#report.status, issues.length));
+  }
+
+  private missingDocuments(): readonly ValidationIssue[] {
+    const placed = this.#documents.flatMap((document) => {
+      const classification = document.classification;
+
+      return classification?.isPlaced ? [classification.type] : [];
+    });
+
+    return this.#profile.requiredTypes
+      .filter((required) => !placed.some((type) => type.equals(required)))
+      .map((required) => ValidationIssue.missingDocument(required));
+  }
+
+  private unreadable(): readonly ValidationIssue[] {
+    const sheets = this.#files.flatMap((file) => [
+      ...file.unrecognisedPages.map((page) =>
+        ValidationIssue.unreadableSheet(file.id, page.number),
+      ),
+      // Nothing was carved out of it, so whatever it holds is in no document
+      // and reaches no classifier.
+      ...(this.isSegmented(file.id) ? [] : [ValidationIssue.unreadableFile(file.id)]),
+    ]);
+
+    const documents = this.#documents
+      .filter((document) => !document.classification?.isPlaced)
+      .map((document) =>
+        ValidationIssue.unplacedDocument(
+          document.id,
+          document.sourceFileId,
+          document.pages,
+        ),
+      );
+
+    return [...sheets, ...documents];
+  }
+
+  private lowConfidence(): readonly ValidationIssue[] {
+    return this.#documents.flatMap((document) => {
+      const classification = document.classification;
+      const type = classification?.isPlaced ? classification.type : null;
+
+      const placement =
+        classification?.isPlaced &&
+        classification.confidence.isBelow(Confidence.FLOOR)
+          ? [
+              ValidationIssue.lowConfidenceType(
+                document.id,
+                document.sourceFileId,
+                classification.type,
+                classification.confidence,
+              ),
+            ]
+          : [];
+
+      const fields = document.fields
+        .filter((field) => field.isBelow(Confidence.FLOOR))
+        .map((field) =>
+          ValidationIssue.lowConfidenceField(
+            document.id,
+            document.sourceFileId,
+            type,
+            field.key,
+            field.foundOn,
+            field.confidence,
+          ),
+        );
+
+      return [...placement, ...fields];
+    });
   }
 
   private guardCoverOf(file: SourceFile, documents: readonly Document[]): void {

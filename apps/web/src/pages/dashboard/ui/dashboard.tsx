@@ -172,7 +172,7 @@ function Submitted({ p, locale, now }: { p: VerificationPackage; locale: Locale;
 // ─── Status cell ────────────────────────────────────────────────────────────
 function Status({ p }: { p: VerificationPackage }) {
   if (p.disposition === "in_progress" && p.stage) {
-    return <StageBar stage={p.stage} error={p.stageError} />
+    return <StageBar stage={p.stage} />
   }
   return <DispositionMark disposition={p.disposition} />
 }
@@ -314,7 +314,7 @@ function RegisterEntries({
               {p.disposition !== "in_progress" && <DispositionMark disposition={p.disposition} />}
             </div>
             {p.disposition === "in_progress" && p.stage ? (
-              <StageBar stage={p.stage} error={p.stageError} />
+              <StageBar stage={p.stage} />
             ) : (
               <div className="flex items-center gap-x-4 gap-y-1 text-[0.75rem] text-muted-foreground">
                 <span>

@@ -8,9 +8,9 @@ function aProfileView(overrides: Partial<ProfileView> = {}): ProfileView {
   return {
     key: "cadastre",
     documentTypes: [
-      { key: "registration_application", required: true },
+      { key: "land_plot_plan", required: true },
       { key: "identity_card", required: true },
-      { key: "license", required: true },
+      { key: "payment_receipt", required: true },
     ],
     ...overrides,
   };
@@ -18,26 +18,26 @@ function aProfileView(overrides: Partial<ProfileView> = {}): ProfileView {
 
 describe("toProfileDto", () => {
   it("carries the key across unchanged, because it is what a package is created with", () => {
-    const dto = toProfileDto(aProfileView({ key: "demo" }));
+    const dto = toProfileDto(aProfileView({ key: "mortgage" }));
 
-    expect(dto.key).toBe("demo");
+    expect(dto.key).toBe("mortgage");
   });
 
   it("renders the document types in the order the profile declared them", () => {
     const dto = toProfileDto(
       aProfileView({
         documentTypes: [
-          { key: "license", required: true },
-          { key: "license_annex", required: true },
-          { key: "architectural_plan", required: false },
+          { key: "payment_receipt", required: true },
+          { key: "sketch_project", required: true },
+          { key: "archive_certificate", required: false },
         ],
       }),
     );
 
     expect(dto.documentTypes.map((type) => type.key)).toEqual([
-      "license",
-      "license_annex",
-      "architectural_plan",
+      "payment_receipt",
+      "sketch_project",
+      "archive_certificate",
     ]);
   });
 
@@ -46,14 +46,14 @@ describe("toProfileDto", () => {
       aProfileView({
         documentTypes: [
           { key: "identity_card", required: true },
-          { key: "architectural_plan", required: false },
+          { key: "archive_certificate", required: false },
         ],
       }),
     );
 
     expect(dto.documentTypes).toEqual([
       { key: "identity_card", required: true },
-      { key: "architectural_plan", required: false },
+      { key: "archive_certificate", required: false },
     ]);
   });
 

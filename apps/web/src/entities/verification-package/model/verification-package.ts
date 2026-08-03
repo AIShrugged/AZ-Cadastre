@@ -3,17 +3,22 @@
  * inspector cites, its disposition, and the tallies the pipeline reports.
  *
  * Package summaries are served live by the core API (`GET /api/packages`); the
- * wire DTO and the mapping into this view model live here. Fields the pipeline
- * has not produced yet (applicant, issues, confidence) are absent until their
- * stages run. Ubiquitous language follows docs/CONTEXT.md.
+ * wire DTO and the mapping into this view model live here. Findings come from
+ * the report the run finished with, so they are absent until it has; the
+ * applicant is still ahead of the pipeline. Ubiquitous language follows
+ * docs/CONTEXT.md.
  *
  * What a profile expects is deliberately *not* here. That is policy the engine
  * owns and publishes (`GET /api/profiles`), and a mapper that reached for it
- * would have to keep a copy — which is how "1 of 2" came to be drawn for a demo
+ * would have to keep a copy — which is how "1 of 2" came to be drawn for a
  * package the engine expected three documents for. A screen that wants the total
  * asks `documentsExpected` with the profiles it fetched.
  */
-import type { PackageDto, PackageStatus } from "@cadastre/contracts"
+import type {
+  PackageDto,
+  PackageStatus,
+  ReportStatus,
+} from "@cadastre/contracts"
 
 export type Disposition =
   | "in_progress"
@@ -52,8 +57,6 @@ export type VerificationPackage = {
   minConfidence?: number
   /** For in_progress packages: current stage 1..6. */
   stage?: number
-  /** The current stage errored (e.g. a document couldn't be classified). */
-  stageError?: boolean
   /** Optional internal reference the inspector set at creation. */
   reference?: string
 }
@@ -91,14 +94,23 @@ export function matchesQuery(p: VerificationPackage, q: string): boolean {
 // PackageDto / PackageStatus are the shared contracts (@cadastre/contracts);
 // this maps them into the register's richer view model.
 
-function dispositionOf(status: PackageStatus): Disposition {
+/**
+ * What the register stamps on the row. The pipeline lifecycle only says whether
+ * a run finished; what it *found* is the report's to say, and every finished run
+ * has one — a run is never stopped by what it could not read, so "Completed"
+ * covers packages with findings as readily as clean ones.
+ */
+function dispositionOf(
+  status: PackageStatus,
+  reportStatus: ReportStatus | null,
+): Disposition {
   switch (status) {
     case "Pending":
     case "Processing":
       return "in_progress"
     case "Completed":
-      // Outcome (OK / Issues / Incomplete) comes from the report; until that
-      // stage is wired, a completed package reads as OK.
+      if (reportStatus === "IncompletePackage") return "incomplete"
+      if (reportStatus === "IssuesFound") return "issues"
       return "ok"
     case "Failed":
       return "failed"
@@ -110,7 +122,7 @@ function dispositionOf(status: PackageStatus): Disposition {
  * fields are defaulted until their stages produce real values.
  */
 export function toViewPackage(dto: PackageDto): VerificationPackage {
-  const disposition = dispositionOf(dto.status)
+  const disposition = dispositionOf(dto.status, dto.reportStatus)
   return {
     id: dto.id,
     applicant: "",
@@ -123,17 +135,9 @@ export function toViewPackage(dto: PackageDto): VerificationPackage {
     docsClassified: dto.classifiedCount,
     docsFound: dto.documentsCount,
     filesAttached: dto.filesCount,
-    issues: 0,
-    lowConfidence: 0,
+    issues: dto.issuesCount,
+    lowConfidence: dto.lowConfidenceCount,
     stage: disposition === "in_progress" ? pipelineStage(dto) : undefined,
-    // The classifier ran on every document found but couldn't place one → the
-    // pipeline halts at Classification, flagged red (it never proceeds to
-    // extraction).
-    stageError:
-      disposition === "in_progress" &&
-      dto.documentsCount > 0 &&
-      dto.classifiedCount === dto.documentsCount &&
-      dto.unclassifiedCount > 0,
   }
 }
 
@@ -141,8 +145,9 @@ export function toViewPackage(dto: PackageDto): VerificationPackage {
  * Coarse pipeline stage for the register's stage bar, from real progress:
  * reading while no document has been found yet, Classification while types are
  * still being assigned, then Field extraction once extraction has produced
- * fields. An unclassifiable document halts the run at Classification. Later
- * stages (completeness → report) light up when those pipeline steps exist.
+ * fields. A document the classifier cannot place no longer halts anything — it
+ * becomes a finding, so the run walks on to the completeness check and the
+ * report, which are compiled together when it finishes.
  *
  * A summary carries counts, not per-file progress, so it cannot separate OCR
  * from Document detection — both read as stage 1 here. The detail screen has
@@ -151,7 +156,6 @@ export function toViewPackage(dto: PackageDto): VerificationPackage {
 function pipelineStage(dto: PackageDto): number {
   if (dto.documentsCount === 0) return 1 // reading the files
   if (dto.classifiedCount < dto.documentsCount) return 3 // classifying
-  if (dto.unclassifiedCount > 0) return 3 // a document couldn't be classified
   if (dto.extractedCount > 0) return 4 // extraction reached
   return 3
 }

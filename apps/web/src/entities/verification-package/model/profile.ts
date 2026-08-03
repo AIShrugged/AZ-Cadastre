@@ -4,9 +4,9 @@
  * A profile is policy the engine interprets — which document types it expects —
  * and the engine publishes it at `GET /api/profiles` (ADR-0002). This module
  * holds no list of its own: it only answers questions about the list the server
- * sent. The hand-written copy it replaces said the demo profile expected two
- * documents where the engine expected three, so the register tallied every demo
- * package against a total that did not exist.
+ * sent. The hand-written copy it replaces disagreed with the engine about how
+ * many documents a profile expected, so the register tallied packages against a
+ * total that did not exist.
  *
  * A profile key is therefore a plain `string`. Narrowing it to a union here
  * would be the same claim in a different shape — that this file knows which
@@ -26,9 +26,9 @@ type Translate = (key: string, params?: Record<string, string | number>) => stri
  * dictionary has no word for it yet — a profile the engine has gained and the UI
  * has not been taught.
  *
- * Never another profile's name: the label was chosen by
- * `key === "demo" ? … : "profile.cadastre"`, which read every unknown profile
- * out as Cadastre.
+ * Never another profile's name: the label used to be chosen by a ternary over
+ * one known key, which read every profile the UI had not been taught out as the
+ * one it had.
  */
 export function profileName(t: Translate, key: string): string {
   return translateOr(t, `profile.${key}`, key)

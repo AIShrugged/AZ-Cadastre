@@ -30,7 +30,11 @@ import { skipToken } from "@reduxjs/toolkit/query"
 import type {
   DocumentDto,
   FieldDto,
+  IssueDto,
+  IssueKind,
   PackageDetailDto,
+  ReportDto,
+  ReportStatus,
   SourceFileDto,
 } from "@cadastre/contracts"
 
@@ -182,8 +186,10 @@ function stageScores(pkg: PackageDetailDto): (number | null)[] {
   return scores
 }
 
-/** Real per-stage status from pipeline output. OCR, Document detection and
- *  Classification are wired; later stages stay pending until they exist. */
+/** Real per-stage status from pipeline output. A stage that could not do its
+ *  work no longer halts the run: it is marked done-with-a-finding and the run
+ *  walks on, because the report is what the inspector is owed. Only a run that
+ *  lost the package altogether ends in error. */
 function stageStatuses(
   pkg: PackageDetailDto,
   disposition: Disposition,
@@ -200,7 +206,6 @@ function stageStatuses(
   const detectDone = files.length > 0 && files.every((f) => f.documents.length > 0)
   const classifyDone =
     detectDone && documents.every((d) => d.type !== null)
-  const hasUnknown = documents.some((d) => d.type === "unknown")
   // Extraction is done once every classified document (that has a schema — i.e.
   // not "unknown") has its fields; unknowns have nothing to extract.
   const extractDone =
@@ -216,15 +221,13 @@ function stageStatuses(
     if (ocrDone && detectDone) stages[2] = "error"
     return stages
   }
+  // A finished run compiled its report, so every stage behind it has had its
+  // turn — whatever each of them managed to make of the package.
+  if (pkg.report) return stages.map(() => "done")
+
   stages[0] = ocrDone ? "done" : "current"
   stages[1] = detectDone ? "done" : ocrDone ? "current" : "pending"
   if (!detectDone) return stages
-  if (classifyDone && hasUnknown) {
-    // The classifier ran but couldn't place a document — the run halts at
-    // Classification (red) and never advances to extraction.
-    stages[2] = "error"
-    return stages
-  }
   stages[2] = classifyDone ? "done" : "current"
   stages[3] = extractDone ? "done" : classifyDone ? "current" : "pending"
   return stages
@@ -683,6 +686,181 @@ function RequiredDocuments({
   )
 }
 
+// ─── The report ───────────────────────────────────────────────────────────────
+// The last thing every run produces, and the only thing the operator is
+// promised: a run is never stopped by a document it could not read, so whatever
+// the engine met is stated here and handed over. It reports; the inspector
+// decides.
+const ISSUE_SECTIONS: { kind: IssueKind; heading: string }[] = [
+  { kind: "MissingDocument", heading: "detail.sec.missing" },
+  { kind: "UnreadableDocument", heading: "detail.sec.unreadable" },
+  { kind: "LowConfidence", heading: "detail.sec.low" },
+]
+
+const REPORT_TONE: Record<ReportStatus, "ok" | "issues" | "incomplete"> = {
+  OK: "ok",
+  IssuesFound: "issues",
+  IncompletePackage: "incomplete",
+}
+
+const REPORT_LABEL: Record<ReportStatus, string> = {
+  OK: "status.ok",
+  IssuesFound: "status.issues",
+  IncompletePackage: "status.incomplete",
+}
+
+/** What a finding is about, in the reader's own language. The wire carries the
+ *  English audit line; nothing here reads it. */
+function findingOf(
+  t: Translate,
+  issue: IssueDto,
+  pkg: PackageDetailDto,
+): { subject: string; where: string } {
+  const file = pkg.files.find((candidate) => candidate.id === issue.sourceFileId)
+  const document = documentsOf(pkg).find(
+    (candidate) => candidate.id === issue.documentId,
+  )
+  const sheet =
+    issue.pageNumber === null
+      ? ""
+      : t("detail.page_single", { n: issue.pageNumber })
+  const within = [file?.originalFilename, sheet].filter(Boolean).join(" · ")
+
+  if (issue.kind === "MissingDocument") {
+    return {
+      subject: translateOr(
+        t,
+        `doctype.${issue.documentType}`,
+        issue.documentType ?? "",
+      ),
+      where: t("detail.f.missing_sub"),
+    }
+  }
+
+  if (issue.kind === "UnreadableDocument") {
+    if (document) {
+      return {
+        subject: `${pageLabel(t, document)} · ${file?.originalFilename ?? ""}`,
+        where: t("detail.f.unplaced_sub"),
+      }
+    }
+    return {
+      subject: within || t("detail.files"),
+      where: issue.pageNumber === null
+        ? t("detail.f.unread_file_sub")
+        : t("detail.f.unread_sheet_sub"),
+    }
+  }
+
+  return {
+    subject: issue.fieldName
+      ? translateOr(t, `field.${issue.fieldName}`, issue.fieldName)
+      : translateOr(t, `doctype.${issue.documentType}`, issue.documentType ?? ""),
+    where: within || t("detail.f.low_sub"),
+  }
+}
+
+function Report({ report, pkg }: { report: ReportDto; pkg: PackageDetailDto }) {
+  const { t } = useI18n()
+  const tone = REPORT_TONE[report.status]
+
+  return (
+    <section className="mb-9">
+      <div className="flex items-baseline justify-between gap-4">
+        <h2 className="register-label">{t("detail.report")}</h2>
+        <span
+          data-mono
+          className="text-[0.75rem] tabular-nums text-muted-foreground"
+        >
+          {report.issues.length === 0
+            ? t("findings.none")
+            : report.issues.length === 1
+              ? t("findings.issue_one")
+              : t("findings.issues", { n: report.issues.length })}
+        </span>
+      </div>
+
+      <div
+        className={cn(
+          "mt-3 rounded-xl border p-4 md:p-5",
+          tone === "ok" && "border-ok/35 bg-ok/6",
+          tone === "issues" && "border-issues/35 bg-issues/6",
+          tone === "incomplete" && "border-incomplete/35 bg-incomplete/6",
+        )}
+      >
+        <div className="flex items-center gap-2 leading-none">
+          <span
+            aria-hidden
+            className={cn(
+              "size-2 shrink-0 rounded-full",
+              tone === "ok" && "bg-ok",
+              tone === "issues" && "bg-issues",
+              tone === "incomplete" && "bg-incomplete",
+            )}
+          />
+          <span
+            className={cn(
+              "text-[0.875rem] font-semibold tracking-tight",
+              tone === "ok" && "text-ok-ink",
+              tone === "issues" && "text-issues-ink",
+              tone === "incomplete" && "text-incomplete-ink",
+            )}
+          >
+            {t(REPORT_LABEL[report.status])}
+          </span>
+        </div>
+
+        {report.issues.length === 0 ? (
+          <p className="mt-2.5 max-w-[70ch] text-[0.8125rem] leading-relaxed text-muted-foreground">
+            {t("detail.clean")}
+          </p>
+        ) : (
+          <div className="mt-4 flex flex-col gap-5">
+            {ISSUE_SECTIONS.map(({ kind, heading }) => {
+              const found = report.issues.filter((issue) => issue.kind === kind)
+              if (found.length === 0) return null
+
+              return (
+                <div key={kind}>
+                  <h3 className="register-label">
+                    {t(heading)}
+                    <span data-mono className="ml-2 tabular-nums opacity-70">
+                      {found.length}
+                    </span>
+                  </h3>
+                  <ul className="mt-2 flex flex-col border-t border-rule">
+                    {found.map((issue, index) => {
+                      const { subject, where } = findingOf(t, issue, pkg)
+                      return (
+                        <li
+                          key={`${kind}-${index}`}
+                          className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 border-b border-rule py-2"
+                        >
+                          <span className="min-w-0 text-[0.8125rem] leading-snug text-foreground">
+                            {subject}
+                          </span>
+                          <span className="flex shrink-0 items-baseline gap-3">
+                            <span className="text-[0.75rem] text-muted-foreground">
+                              {where}
+                            </span>
+                            {issue.confidence !== null && (
+                              <Confidence value={issue.confidence} />
+                            )}
+                          </span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
 // ─── Contents ─────────────────────────────────────────────────────────────────
 // The package read as a table of contents: every document the engine placed, in
 // sheet order, as a jump into the register. It is the only navigation this
@@ -863,6 +1041,10 @@ export function VerificationDetails() {
           {/* ── The evidence: every document the engine read, with its fields
               and the source text they came from. ── */}
           <main className="min-w-0 xl:col-start-1 xl:row-start-1">
+            {/* The run's result comes first — the inspector reads what was
+                found, then the evidence it was found in. */}
+            {pkg.report && <Report report={pkg.report} pkg={pkg} />}
+
             <div className="flex items-baseline justify-between gap-4">
               <h2 className="register-label">{t("detail.documents")}</h2>
               <span

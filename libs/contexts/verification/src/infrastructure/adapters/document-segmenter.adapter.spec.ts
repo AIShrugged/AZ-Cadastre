@@ -35,12 +35,16 @@ describe("DocumentSegmenterAdapter", () => {
 
   it("reads sheets that all name the same type as one document", async () => {
     expect(
-      await spansOf("LİSENZİYA səh. 1", "LİSENZİYA səh. 2", "LİSENZİYA səh. 3"),
+      await spansOf(
+        "ESKİZ LAYİHƏSİ səh. 1",
+        "ESKİZ LAYİHƏSİ səh. 2",
+        "ESKİZ LAYİHƏSİ səh. 3",
+      ),
     ).toEqual([[1, 3]]);
   });
 
   it("starts a new document where the type changes", async () => {
-    expect(await spansOf("ŞƏXSİYYƏT VƏSİQƏSİ", "LİSENZİYA")).toEqual([
+    expect(await spansOf("ŞƏXSİYYƏT VƏSİQƏSİ", "ÖDƏNİŞ QƏBZİ")).toEqual([
       [1, 1],
       [2, 2],
     ]);
@@ -51,7 +55,7 @@ describe("DocumentSegmenterAdapter", () => {
       await spansOf(
         "ŞƏXSİYYƏT VƏSİQƏSİ",
         "verilib 2021, etibarlıdır 2030",
-        "LİSENZİYA",
+        "ÖDƏNİŞ QƏBZİ",
       ),
     ).toEqual([
       [1, 2],
@@ -69,12 +73,12 @@ describe("DocumentSegmenterAdapter", () => {
     expect(await spansOf("oxunmur", "oxunmur")).toEqual([[1, 2]]);
   });
 
-  it("cuts a licence off from the annex that follows it", async () => {
+  it("cuts the plan of the plot off from the design of the house that follows it", async () => {
     expect(
       await spansOf(
-        "LİSENZİYA",
-        "Lisenziya No: AZ-LIC-2019-4471",
-        "LİSENZİYAYA ƏLAVƏ",
+        "TORPAQ SAHƏSİNİN PLAN-SXEMİ",
+        "Kadastr nömrəsi: AZ-CAD-1024-311",
+        "ESKİZ LAYİHƏSİ",
       ),
     ).toEqual([
       [1, 2],
@@ -85,13 +89,14 @@ describe("DocumentSegmenterAdapter", () => {
   it("finds every document in a full cadastre submission", async () => {
     expect(
       await spansOf(
-        "DAŞINMAZ ƏMLAK ÜZƏRİNDƏ HÜQUQLARIN DÖVLƏT QEYDİYYATI HAQQINDA ƏRİZƏ",
-        "ŞƏXSİYYƏT VƏSİQƏSİ",
-        "BİLDİRİŞ İCRAATI QAYDASINDA ƏRİZƏ",
-        "MEMARLIQ-PLANLAŞDIRMA HƏLLİ",
+        "TORPAQ SAHƏSİNİN PLAN-SXEMİ",
+        "SƏRƏNCAMDAN ÇIXARIŞ",
+        "ÖDƏNİŞ QƏBZİ",
+        "ESKİZ LAYİHƏSİ",
         "vərəq 2 — planlar",
-        "LİSENZİYA",
-        "LİSENZİYAYA ƏLAVƏ",
+        "ARXİV ARAYIŞI",
+        "DÖVLƏT QEYDİYYATI HAQQINDA ƏRİZƏ",
+        "ŞƏXSİYYƏT VƏSİQƏSİ",
       ),
     ).toEqual([
       [1, 1],
@@ -100,6 +105,7 @@ describe("DocumentSegmenterAdapter", () => {
       [4, 5],
       [6, 6],
       [7, 7],
+      [8, 8],
     ]);
   });
 

@@ -1,12 +1,13 @@
-// A single finding in a report (PRD §4.6 / §5). The four kinds are fixed by the
+// A single finding in a report (PRD §4.6 / §5). The kinds are fixed by the
 // validation *engine* (ADR-0002), not by profiles, so they're a DB enum. The
 // nullable descriptor columns cover every kind without per-kind tables.
 
 enum IssueKind {
   MissingDocument // a required document type is absent
+  UnreadableDocument // a sheet that could not be read, or a document that could not be placed
   FieldMismatch // two documents disagree on a field that must match
   Expired // a document past its expiration date
-  LowConfidence // a field below the confidence threshold
+  LowConfidence // a reading below the confidence threshold
 }
 
 model ValidationIssue {
@@ -22,6 +23,11 @@ model ValidationIssue {
   // document doesn't delete its report's findings.
   documentId String?   @db.Uuid
   document   Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  // The uploaded file the issue was met in. Set where a document could not be
+  // named — an unread sheet belongs to a file, not yet to a document.
+  sourceFileId String?     @db.Uuid
+  sourceFile   SourceFile? @relation(fields: [sourceFileId], references: [id], onDelete: SetNull)
 
   /// Profile document-type key (ADR-0002) the issue is about — for
   /// MissingDocument, the type that's missing.

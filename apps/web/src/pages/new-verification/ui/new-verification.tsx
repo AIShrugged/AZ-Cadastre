@@ -18,8 +18,7 @@
 import { useEffect, useRef, useState } from "react"
 import {
   FileStackIcon,
-  FlaskConicalIcon,
-  LandPlotIcon,
+  HouseIcon,
   LightbulbIcon,
   UploadCloudIcon,
   type LucideIcon,
@@ -64,8 +63,7 @@ import { cn } from "@/shared/lib/cn"
  * choices.
  */
 const PROFILE_ICON: Record<string, LucideIcon> = {
-  cadastre: LandPlotIcon,
-  demo: FlaskConicalIcon,
+  cadastre: HouseIcon,
 }
 const PROFILE_ICON_FALLBACK: LucideIcon = FileStackIcon
 

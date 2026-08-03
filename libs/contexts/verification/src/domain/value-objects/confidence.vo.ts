@@ -1,6 +1,10 @@
 import { InvalidConfidenceException } from "../exceptions/index.js";
 
 export class Confidence {
+  // Below this a reading goes to the inspector as a finding rather than as a
+  // fact (PRD §4.6). The engine owns the threshold, not a profile.
+  static readonly FLOOR = new Confidence(0.8);
+
   private constructor(public readonly value: number) {}
 
   static of(raw: number): Confidence {

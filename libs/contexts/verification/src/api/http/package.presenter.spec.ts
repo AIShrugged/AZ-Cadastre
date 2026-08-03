@@ -5,6 +5,7 @@ import type {
   DocumentView,
   PackageDetailView,
   PackageSummaryView,
+  ReportView,
   SourceFileView,
 } from "../../application/read-models/index.js";
 import { toDetailDto, toSummaryDto } from "./package.presenter.js";
@@ -28,6 +29,9 @@ function aSummaryView(
     classifiedCount: 3,
     unclassifiedCount: 1,
     extractedCount: 2,
+    reportStatus: "IssuesFound",
+    issuesCount: 1,
+    lowConfidenceCount: 2,
     createdAt: new Date("2026-03-14T08:15:30.000Z"),
     updatedAt: new Date("2026-03-14T09:02:11.250Z"),
     ...overrides,
@@ -59,12 +63,33 @@ function aFileView(overrides: Partial<SourceFileView> = {}): SourceFileView {
   };
 }
 
+function aReportView(overrides: Partial<ReportView> = {}): ReportView {
+  return {
+    status: "IssuesFound",
+    generatedAt: new Date("2026-03-14T09:02:11.250Z"),
+    issues: [
+      {
+        kind: "MissingDocument",
+        message: 'The package carries no "identity_card".',
+        documentId: null,
+        sourceFileId: null,
+        documentType: "identity_card",
+        fieldName: null,
+        pageNumber: null,
+        confidence: null,
+      },
+    ],
+    ...overrides,
+  };
+}
+
 function aDetailView(
   overrides: Partial<PackageDetailView> = {},
 ): PackageDetailView {
   return {
     ...aSummaryView(),
     files: [aFileView()],
+    report: aReportView(),
     ...overrides,
   };
 }

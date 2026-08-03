@@ -3,6 +3,7 @@ export {
   FieldsExtracted,
   PackageSubmitted,
   PageRecognised,
+  ReportCompiled,
   SourceFileSegmented,
   SourceFileSplitIntoPages,
   VerificationCompleted,

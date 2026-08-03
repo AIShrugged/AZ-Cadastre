@@ -52,7 +52,7 @@ describe("FieldExtractorAdapter", () => {
     ]);
   });
 
-  it("answers with the demo persona's own values, so a re-run reports the same numbers", async () => {
+  it("answers with one persona's own values, so a re-run reports the same numbers", async () => {
     const fields = await extract(
       VerificationProfile.CADASTRE.schemaFor(IDENTITY_CARD),
     );
@@ -132,7 +132,7 @@ describe("FieldExtractorAdapter", () => {
 
     const fields = await extract(
       schema,
-      DocumentType.create("registration_application"),
+      DocumentType.create("application"),
     );
 
     for (const field of fields) {

@@ -350,41 +350,54 @@ describe("RunVerificationHandler", () => {
       new RecordingOcr(8, refusesPageTwo),
     );
 
-    await expect(run()).rejects.toThrow("no reading of");
+    await run();
 
     const stored = await storedPackage(packages);
-    expect(stored.status.value).toBe("Failed");
     expect(
       stored.fileWith(file.id).pages.map((page) => page.isRecognised),
     ).toEqual([true, false, true]);
   });
 
-  it("asks the provider only for the pages a failed run left unread", async () => {
+  it("finishes a run whose reader refused a sheet, and reports the sheet", async () => {
     const file = aFile("submission.pdf", ContentType.PDF);
     const refusesPageTwo = (image: PageImage) =>
       image.storageKey.value.endsWith("page_002.png");
-    const packages = new InMemoryPackages(aPackageOf(file));
-    const pipeline = (ocr: RecordingOcr) =>
-      new RunVerificationHandler(
-        packages,
-        new SequentialIds(),
-        new RenderingSplitter(3),
-        ocr,
-        new SegmenterCuttingAt(),
-        new RecordingClassifier(),
-        new NoFields(),
-      ).execute(new RunVerificationCommand(PACKAGE_ID));
-
-    await expect(pipeline(new RecordingOcr(8, refusesPageTwo))).rejects.toThrow(
-      "no reading of",
+    const { run, packages } = pipelineOver(
+      aPackageOf(file),
+      new RenderingSplitter(3),
+      new RecordingOcr(8, refusesPageTwo),
     );
-    const second = new RecordingOcr();
-    await pipeline(second);
 
-    expect(second.read.map((image) => image.storageKey.value)).toEqual([
-      `${file.storageKey.value}/pages/page_002.png`,
-    ]);
-    expect((await storedPackage(packages)).status.value).toBe("Completed");
+    await run();
+
+    const stored = await storedPackage(packages);
+    expect(stored.status.value).toBe("Completed");
+    expect(
+      stored.report?.issues.map((issue) => [
+        issue.kind.value,
+        issue.pageNumber?.value,
+      ]),
+    ).toContainEqual(["UnreadableDocument", 2]);
+  });
+
+  it("asks the provider once for a page it has already refused", async () => {
+    const file = aFile("submission.pdf", ContentType.PDF);
+    const refusesPageTwo = (image: PageImage) =>
+      image.storageKey.value.endsWith("page_002.png");
+    const ocr = new RecordingOcr(8, refusesPageTwo);
+    const { run } = pipelineOver(
+      aPackageOf(file),
+      new RenderingSplitter(3),
+      ocr,
+    );
+
+    await run();
+
+    expect(
+      ocr.read.filter((image) =>
+        image.storageKey.value.endsWith("page_002.png"),
+      ),
+    ).toHaveLength(1);
   });
 
   it("takes a photographed file as the single page it already is", async () => {

@@ -10,6 +10,22 @@ export const PackageStatusSchema = z.enum([
 ]);
 export type PackageStatus = z.infer<typeof PackageStatusSchema>;
 
+// The verification outcome, which is not the pipeline lifecycle above: a run
+// that reached the end is Completed either way, and this says what it found.
+export const ReportStatusSchema = z.enum([
+  "OK",
+  "IssuesFound",
+  "IncompletePackage",
+]);
+export type ReportStatus = z.infer<typeof ReportStatusSchema>;
+
+export const IssueKindSchema = z.enum([
+  "MissingDocument",
+  "UnreadableDocument",
+  "LowConfidence",
+]);
+export type IssueKind = z.infer<typeof IssueKindSchema>;
+
 export const PackageDtoSchema = z.object({
   id: z.string(),
   status: PackageStatusSchema,
@@ -22,6 +38,13 @@ export const PackageDtoSchema = z.object({
   classifiedCount: z.number().int().nonnegative(),
   unclassifiedCount: z.number().int().nonnegative(),
   extractedCount: z.number().int().nonnegative(),
+  // Null until the run has compiled a report. A report is the last thing every
+  // run produces, however much of the package it managed to read.
+  reportStatus: ReportStatusSchema.nullable(),
+  // Findings about the package itself, and readings the engine is unsure of.
+  // Counted apart: they do not add up to one number.
+  issuesCount: z.number().int().nonnegative(),
+  lowConfidenceCount: z.number().int().nonnegative(),
   // ISO-8601.
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -73,7 +96,31 @@ export const SourceFileDtoSchema = z.object({
 });
 export type SourceFileDto = z.infer<typeof SourceFileDtoSchema>;
 
+export const IssueDtoSchema = z.object({
+  kind: IssueKindSchema,
+  // The audit line, written in English when the finding was made. A reader is
+  // shown the finding built from the fields below, in their own language.
+  message: z.string(),
+  documentId: z.string().nullable(),
+  sourceFileId: z.string().nullable(),
+  documentType: z.string().nullable(),
+  fieldName: z.string().nullable(),
+  pageNumber: z.number().int().positive().nullable(),
+  // 0..1.
+  confidence: z.number().nullable(),
+});
+export type IssueDto = z.infer<typeof IssueDtoSchema>;
+
+export const ReportDtoSchema = z.object({
+  status: ReportStatusSchema,
+  // ISO-8601.
+  generatedAt: z.string(),
+  issues: z.array(IssueDtoSchema),
+});
+export type ReportDto = z.infer<typeof ReportDtoSchema>;
+
 export const PackageDetailDtoSchema = PackageDtoSchema.extend({
   files: z.array(SourceFileDtoSchema),
+  report: ReportDtoSchema.nullable(),
 });
 export type PackageDetailDto = z.infer<typeof PackageDetailDtoSchema>;

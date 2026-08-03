@@ -26,8 +26,8 @@ const IDENTITY_TEXT = [
   "Vəsiqə No: AZE1234567",
 ].join("\n");
 
-const REGISTRATION_TEXT = [
-  "DAŞINMAZ ƏMLAK ÜZƏRİNDƏ HÜQUQLARIN DÖVLƏT QEYDİYYATI HAQQINDA ƏRİZƏ",
+const APPLICATION_TEXT = [
+  "DÖVLƏT QEYDİYYATI HAQQINDA ƏRİZƏ",
   "Ərizəçi: ELÇİN ƏLİYEV",
   "Şəxsiyyət vəsiqəsi No: AZE1234567",
 ].join("\n");
@@ -39,61 +39,56 @@ describe("DocumentClassifierAdapter", () => {
     expect(classification.type.value).toBe("identity_card");
   });
 
-  it("picks the heading over a cross-reference, so a registration application that cites an identity card is not read as one", async () => {
-    const classification = await classify(REGISTRATION_TEXT);
+  it("picks the heading over a cross-reference, so an application that cites an identity card is not read as one", async () => {
+    const classification = await classify(APPLICATION_TEXT);
 
-    expect(classification.type.value).toBe("registration_application");
+    expect(classification.type.value).toBe("application");
   });
 
-  it("reads an application under the notification procedure as its own kind", async () => {
+  it("reads the plan-scheme of the plot as its own kind", async () => {
     const classification = await classify(
       [
-        "BİLDİRİŞ İCRAATI QAYDASINDA ƏRİZƏ",
-        "Ərizəçi: ELÇİN ƏLİYEV",
+        "TORPAQ SAHƏSİNİN PLAN-SXEMİ",
         "Kadastr nömrəsi: AZ-CAD-1024-311",
       ].join("\n"),
     );
 
-    expect(classification.type.value).toBe("notification_application");
+    expect(classification.type.value).toBe("land_plot_plan");
   });
 
-  it("reads an architectural plan as an architectural plan", async () => {
+  it("reads the sketch design of the house as its own kind", async () => {
     const classification = await classify(
       [
-        "MEMARLIQ-PLANLAŞDIRMA HƏLLİ (ESKİZ LAYİHƏ)",
+        "ESKİZ LAYİHƏSİ",
         'Layihə təşkilatı: "AzMemarLayihə" MMC',
       ].join("\n"),
     );
 
-    expect(classification.type.value).toBe("architectural_plan");
+    expect(classification.type.value).toBe("sketch_project");
   });
 
-  it("reads a licence as a licence", async () => {
+  it("reads an extract from the order as the order it is an extract of", async () => {
     const classification = await classify(
-      ["LİSENZİYA", "Lisenziya No: AZ-LIC-2019-4471"].join("\n"),
+      ["SƏRƏNCAMDAN ÇIXARIŞ", "Sərəncam No: R-1147"].join("\n"),
     );
 
-    expect(classification.type.value).toBe("license");
+    expect(classification.type.value).toBe("disposal_order");
   });
 
-  it("tells an annex from the licence it is an annex to", async () => {
+  it("reads a receipt for the state duty as a receipt", async () => {
     const classification = await classify(
-      [
-        "LİSENZİYAYA ƏLAVƏ",
-        "Lisenziya No: AZ-LIC-2019-4471",
-        "Əlavə No: 1",
-      ].join("\n"),
+      ["ÖDƏNİŞ QƏBZİ", "Məbləğ: 60,00 AZN"].join("\n"),
     );
 
-    expect(classification.type.value).toBe("license_annex");
+    expect(classification.type.value).toBe("payment_receipt");
   });
 
-  it("tells a Russian annex from the licence too", async () => {
+  it("reads an archival certificate as an archival certificate", async () => {
     const classification = await classify(
-      ["ПРИЛОЖЕНИЕ К ЛИЦЕНЗИИ", "Лицензия No: AZ-LIC-2019-4471"].join("\n"),
+      ["ARXİV ARAYIŞI", "Arayış No: ARX-2025-0417"].join("\n"),
     );
 
-    expect(classification.type.value).toBe("license_annex");
+    expect(classification.type.value).toBe("archive_certificate");
   });
 
   it("reads a document written in Russian as readily as one in Azerbaijani", async () => {
@@ -142,7 +137,7 @@ describe("DocumentClassifierAdapter", () => {
   it("only ever answers with a type it was offered, or with none", async () => {
     const offered = CADASTRE.map((spec) => spec.type.value);
 
-    for (const text of [IDENTITY_TEXT, REGISTRATION_TEXT, "unrelated"]) {
+    for (const text of [IDENTITY_TEXT, APPLICATION_TEXT, "unrelated"]) {
       const classification = await classify(text);
 
       expect([...offered, "unknown"]).toContain(classification.type.value);

@@ -1,10 +1,12 @@
 export type {
   DocumentView,
   FieldView,
+  IssueView,
   OcrView,
   PackageDetailView,
   PackageSummaryView,
   PageView,
+  ReportView,
   SourceFileView,
 } from "./package.read-model.js";
 export type {

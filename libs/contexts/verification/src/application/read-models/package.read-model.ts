@@ -7,8 +7,29 @@ export type PackageSummaryView = {
   classifiedCount: number;
   unclassifiedCount: number;
   extractedCount: number;
+  // Null until the run has compiled a report.
+  reportStatus: string | null;
+  issuesCount: number;
+  lowConfidenceCount: number;
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type IssueView = {
+  kind: string;
+  message: string;
+  documentId: string | null;
+  sourceFileId: string | null;
+  documentType: string | null;
+  fieldName: string | null;
+  pageNumber: number | null;
+  confidence: number | null;
+};
+
+export type ReportView = {
+  status: string;
+  generatedAt: Date;
+  issues: readonly IssueView[];
 };
 
 export type OcrView = {
@@ -48,4 +69,5 @@ export type SourceFileView = {
 
 export type PackageDetailView = PackageSummaryView & {
   files: readonly SourceFileView[];
+  report: ReportView | null;
 };

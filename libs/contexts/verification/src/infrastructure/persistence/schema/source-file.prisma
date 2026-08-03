@@ -14,8 +14,9 @@ model SourceFile {
   contentType      String // application/pdf | image/jpeg | image/png
   storageKey       String @unique // object-store key handed back by the presign step
 
-  pages     Page[]
-  documents Document[]
+  pages            Page[]
+  documents        Document[]
+  validationIssues ValidationIssue[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -13,6 +13,7 @@ import {
   type DocumentWrite,
   type PackageWrite,
   type PageWrite,
+  type ReportWrite,
   type SourceFileWrite,
   VerificationPackageMapper,
 } from "./verification-package.mapper.js";
@@ -31,6 +32,7 @@ const WHOLE_AGGREGATE = {
     orderBy: { firstPage: "asc" },
     include: { extractedFields: { orderBy: { createdAt: "asc" } } },
   },
+  report: { include: { issues: { orderBy: { createdAt: "asc" } } } },
 } as const satisfies Prisma.VerificationPackageInclude;
 
 @Injectable()
@@ -73,6 +75,8 @@ export class PrismaVerificationPackageRepository extends VerificationPackageRepo
       for (const document of row.documents) {
         await this.writeDocument(tx, row.id, document);
       }
+
+      await this.writeReport(tx, row.id, row.report);
     });
 
     // After the write has landed, never before: an event names something that
@@ -186,6 +190,28 @@ export class PrismaVerificationPackageRepository extends VerificationPackageRepo
         },
       });
     }
+  }
+
+  private async writeReport(
+    tx: Prisma.TransactionClient,
+    packageId: string,
+    report: ReportWrite | null,
+  ): Promise<void> {
+    if (!report) return;
+
+    const stored = await tx.report.upsert({
+      where: { packageId },
+      create: { packageId, status: report.status },
+      update: { status: report.status },
+    });
+
+    // Findings are replaced, never merged: the report is worked out from the
+    // whole package each time it is compiled, so one the run has since answered
+    // must not survive it.
+    await tx.validationIssue.deleteMany({ where: { reportId: stored.id } });
+    await tx.validationIssue.createMany({
+      data: report.issues.map((issue) => ({ ...issue, reportId: stored.id })),
+    });
   }
 
   private async writePage(

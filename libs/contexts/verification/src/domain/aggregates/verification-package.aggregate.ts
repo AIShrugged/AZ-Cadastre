@@ -7,6 +7,7 @@ import {
   type SourceFile,
 } from "../entities/index.js";
 import {
+  CrossCheckMade,
   DocumentClassified,
   FieldsExtracted,
   PackageSubmitted,
@@ -19,6 +20,7 @@ import {
   VerificationStarted,
 } from "../events/index.js";
 import {
+  CrossCheckNotInProfileException,
   DocumentNotInPackageException,
   DocumentsMustCoverEverySheetException,
   DocumentTypeNotInProfileException,
@@ -34,8 +36,12 @@ import {
   SourceFileNotSplitException,
 } from "../exceptions/index.js";
 import {
+  CheckedValue,
   type Classification,
   Confidence,
+  type CrossCheck,
+  type CrossCheckKey,
+  type CrossCheckSpec,
   type DocumentId,
   FailureReason,
   type OcrResult,
@@ -56,6 +62,7 @@ export type VerificationPackageState = {
   readonly status: PackageStatus;
   readonly files: readonly SourceFile[];
   readonly documents: readonly Document[];
+  readonly crossChecks: readonly CrossCheck[];
   readonly report: VerificationReport | null;
 };
 
@@ -64,6 +71,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   #status: PackageStatus;
   #files: SourceFile[];
   #documents: Document[];
+  #crossChecks: CrossCheck[];
   #report: VerificationReport | null;
 
   private constructor(state: VerificationPackageState) {
@@ -72,6 +80,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     this.#status = state.status;
     this.#files = [...state.files];
     this.#documents = [...state.documents];
+    this.#crossChecks = [...state.crossChecks];
     this.#report = state.report;
   }
 
@@ -97,6 +106,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       status: PackageStatus.PENDING,
       files,
       documents: [],
+      crossChecks: [],
       report: null,
     });
 
@@ -123,6 +133,10 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
 
   get documents(): readonly Document[] {
     return this.#documents;
+  }
+
+  get crossChecks(): readonly CrossCheck[] {
+    return this.#crossChecks;
   }
 
   get report(): VerificationReport | null {
@@ -179,6 +193,67 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     return this.fileWith(document.sourceFileId).pagesIn(document.pages);
   }
 
+  // Every value one of the profile's checks reaches for, in the order the check
+  // names them: the anchor document first, then what it is held against. A type
+  // two documents answer to contributes both of them — a package carrying two
+  // identity cards has two names to reconcile, not one.
+  valuesFor(spec: CrossCheckSpec): readonly CheckedValue[] {
+    return spec.references.flatMap((reference) =>
+      this.#documents.flatMap((document) => {
+        const classification = document.classification;
+
+        if (!classification?.isPlaced) return [];
+        if (!classification.type.equals(reference.type)) return [];
+
+        return document.fields
+          .filter((field) => field.key.equals(reference.key))
+          .map((field) =>
+            CheckedValue.of({
+              documentId: document.id,
+              documentType: classification.type,
+              fieldKey: field.key,
+              value: field.value,
+              foundOn: field.foundOn,
+              confidence: field.confidence,
+            }),
+          );
+      }),
+    );
+  }
+
+  // A check needs two documents to be a cross-document check at all: the
+  // surname and the given name on one identity card are not evidence about each
+  // other, and a check whose counterpart never arrived is a missing document,
+  // which the report already says.
+  canMake(spec: CrossCheckSpec): boolean {
+    const values = this.valuesFor(spec);
+
+    return new Set(values.map((value) => value.documentId.value)).size >= 2;
+  }
+
+  hasMade(key: CrossCheckKey): boolean {
+    return this.#crossChecks.some((check) => check.key.equals(key));
+  }
+
+  recordCrossCheck(check: CrossCheck): void {
+    this.guardUnderWay();
+
+    if (!this.#profile.declaresCheck(check.key)) {
+      throw new CrossCheckNotInProfileException(
+        check.key.value,
+        this.#profile.key,
+      );
+    }
+
+    // Replaced rather than added: a re-run reads the same papers again, and the
+    // package holds one answer per check, not a history of them.
+    this.#crossChecks = [
+      ...this.#crossChecks.filter((made) => !made.key.equals(check.key)),
+      check,
+    ];
+    this.apply(new CrossCheckMade(this.id, check.key, check.verdict));
+  }
+
   get isFullyProcessed(): boolean {
     const filesRead = this.#files.every(
       (file) => file.isFullyRecognised && this.isSegmented(file.id),
@@ -190,6 +265,9 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
         (document) =>
           document.isClassified &&
           (document.hasFields || !this.expectsFieldsOf(document)),
+      ) &&
+      this.#profile.crossChecks.every(
+        (spec) => this.hasMade(spec.key) || !this.canMake(spec),
       )
     );
   }
@@ -319,6 +397,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   private compileReport(): void {
     const issues = [
       ...this.missingDocuments(),
+      ...this.disagreements(),
       ...this.unreadable(),
       ...this.lowConfidence(),
       ...this.alsoInThePackage(),
@@ -338,6 +417,15 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     return this.#profile.requiredTypes
       .filter((required) => !placed.some((type) => type.equals(required)))
       .map((required) => ValidationIssue.missingDocument(required));
+  }
+
+  // What the papers of one submission were asked to agree on and did not. A
+  // check nobody could decide is here too: the inspector is the one who decides
+  // it, and they can only do that if they are told.
+  private disagreements(): readonly ValidationIssue[] {
+    return this.#crossChecks
+      .filter((check) => check.needsInspector)
+      .map((check) => ValidationIssue.crossCheckFailed(check));
   }
 
   private unreadable(): readonly ValidationIssue[] {

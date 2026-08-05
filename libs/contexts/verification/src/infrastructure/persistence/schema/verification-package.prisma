@@ -31,6 +31,7 @@ model VerificationPackage {
 
   sourceFiles SourceFile[]
   documents   Document[]
+  crossChecks CrossCheck[]
   report      Report?
 
   @@map("verification_packages")

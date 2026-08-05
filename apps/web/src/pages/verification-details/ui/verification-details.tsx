@@ -28,6 +28,9 @@ import {
 import { useNavigate, useParams } from "react-router-dom"
 import { skipToken } from "@reduxjs/toolkit/query"
 import type {
+  CheckedValueDto,
+  CrossCheckDto,
+  CrossCheckVerdict,
   DocumentDto,
   FieldDto,
   IssueDto,
@@ -214,9 +217,10 @@ function isOpenIn(doc: DocumentDto, segment: DocSegment): boolean {
 
 /** Confidence score per implemented stage (0–100), or null if it hasn't run.
  *  OCR = mean page confidence; Classification = mean per-document classifier
- *  confidence; Field extraction = mean per-field confidence. Document detection
- *  reports no score: where one document ends and the next begins is a boundary,
- *  not a reading with a certainty attached. */
+ *  confidence; Field extraction = mean per-field confidence; Cross-document
+ *  check = mean per-check confidence. Document detection reports no score:
+ *  where one document ends and the next begins is a boundary, not a reading
+ *  with a certainty attached. */
 function stageScores(pkg: PackageDetailDto): (number | null)[] {
   const mean = (xs: number[]) =>
     Math.round((xs.reduce((s, x) => s + x, 0) / xs.length) * 100)
@@ -235,6 +239,9 @@ function stageScores(pkg: PackageDetailDto): (number | null)[] {
 
   const fields = documents.flatMap((d) => d.fields.map((f) => f.confidence))
   if (fields.length) scores[3] = mean(fields)
+
+  const checks = pkg.crossChecks.map((c) => c.confidence)
+  if (checks.length) scores[4] = mean(checks)
 
   return scores
 }
@@ -265,6 +272,10 @@ function stageStatuses(
     documents
       .filter((d) => d.type && d.type !== "unknown" && d.type !== "out_of_profile")
       .every((d) => d.fields.length > 0)
+  // The first check to come back is what says the stage is under way; a run
+  // that finished takes the branch below, so a package no check could be made
+  // over never sits here waiting.
+  const crossDone = extractDone && pkg.crossChecks.length > 0
 
   const stages: StageStatus[] = Array.from({ length: STAGES }, () => "pending")
   if (disposition === "failed") {
@@ -282,6 +293,7 @@ function stageStatuses(
   if (!detectDone) return stages
   stages[2] = classifyDone ? "done" : "current"
   stages[3] = extractDone ? "done" : classifyDone ? "current" : "pending"
+  stages[4] = crossDone ? "done" : extractDone ? "current" : "pending"
   return stages
 }
 
@@ -913,10 +925,12 @@ function RequiredDocuments({
 // the engine met is stated here and handed over. It reports; the inspector
 // decides.
 // In the order an inspector works down them: what the package is short of,
-// what could not be read, what was read but should be checked, and last — under
-// its own heading, because it is not a fault — what else was in the envelope.
+// where its documents contradict each other, what could not be read, what was
+// read but should be checked, and last — under its own heading, because it is
+// not a fault — what else was in the envelope.
 const ISSUE_SECTIONS: { kind: IssueKind; heading: string }[] = [
   { kind: "MissingDocument", heading: "detail.sec.missing" },
+  { kind: "FieldMismatch", heading: "detail.sec.mismatch" },
   { kind: "UnreadableDocument", heading: "detail.sec.unreadable" },
   { kind: "LowConfidence", heading: "detail.sec.low" },
 ]
@@ -1001,6 +1015,26 @@ function findingOf(
       ),
       where: t("detail.f.missing_sub"),
       anchor: null,
+      docId: null,
+    }
+  }
+
+  // A disagreement is about a rule, not about a field: it is named by the
+  // check, and it is answered in the cross-document panel, where both sides of
+  // it are on one line — not on the one field the finding happens to be filed
+  // against.
+  if (issue.kind === "FieldMismatch") {
+    const check = pkg.crossChecks.find(
+      (candidate) => candidate.key === issue.checkKey,
+    )
+
+    return {
+      subject: translateOr(t, `check.${issue.checkKey}`, issue.checkKey ?? ""),
+      where:
+        check?.verdict === "Unclear"
+          ? t("detail.f.unclear_sub")
+          : t("detail.f.mismatch_sub"),
+      anchor: issue.checkKey ? `#check-${issue.checkKey}` : null,
       docId: null,
     }
   }
@@ -1247,6 +1281,191 @@ function Worklist({
           </div>
         </details>
       )}
+    </section>
+  )
+}
+
+// ─── Cross-document checks ───────────────────────────────────────────────────
+// The one place on the surface where two documents are read on one line. Every
+// other section reports a document; this reports the submission — the name on
+// the identity card beside the name the application is made in, the address as
+// each paper writes it. It is the check an inspector would otherwise make by
+// holding two sheets up against each other, so it is laid out the way they
+// would: one row per document, values down one column, the value each row
+// contributes readable in full.
+//
+// A check that agreed is kept and folded rather than dropped: it is what the
+// inspector does not have to redo, and a panel showing only the failures would
+// leave them wondering which comparisons were made at all.
+const VERDICT_TONE: Record<CrossCheckVerdict, "ok" | "issues" | "incomplete"> = {
+  Match: "ok",
+  Mismatch: "issues",
+  Unclear: "incomplete",
+}
+
+const VERDICT_LABEL: Record<CrossCheckVerdict, string> = {
+  Match: "detail.check_agreed",
+  Mismatch: "detail.check_disagreed",
+  Unclear: "detail.check_unclear",
+}
+
+function VerdictMark({ verdict }: { verdict: CrossCheckVerdict }) {
+  const { t } = useI18n()
+  const tone = VERDICT_TONE[verdict]
+
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-[0.6875rem] font-medium",
+        tone === "ok" && "bg-ok/12 text-ok-ink",
+        tone === "issues" && "bg-issues/12 text-issues-ink",
+        tone === "incomplete" && "bg-incomplete/12 text-incomplete-ink",
+      )}
+    >
+      <span
+        aria-hidden
+        className={cn(
+          "size-1.5 rounded-full",
+          tone === "ok" && "bg-ok",
+          tone === "issues" && "bg-issues",
+          tone === "incomplete" && "bg-incomplete",
+        )}
+      />
+      {t(VERDICT_LABEL[verdict])}
+    </span>
+  )
+}
+
+/** One value a check weighed. It is a jump into the register, because the way
+ *  to settle a disagreement is to look at the sheet the value was read off. */
+function CheckedValueRow({
+  value,
+  onJump,
+}: {
+  value: CheckedValueDto
+  onJump: Jump
+}) {
+  const { t } = useI18n()
+  const anchor = value.documentId
+    ? `#field-${value.documentId}-${value.fieldName}`
+    : null
+
+  const body = (
+    <>
+      <span className="min-w-0 text-[0.8125rem] leading-snug text-muted-foreground">
+        {translateOr(t, `doctype.${value.documentType}`, value.documentType)}
+        <span className="text-muted-foreground/60">
+          {" · "}
+          {translateOr(t, `field.${value.fieldName}`, value.fieldName)}
+        </span>
+      </span>
+      <span className="flex min-w-0 items-baseline gap-3">
+        <span
+          data-mono
+          className="min-w-0 break-words text-[0.875rem] leading-snug text-foreground"
+        >
+          {value.value}
+        </span>
+        <Confidence value={value.confidence} bare />
+      </span>
+    </>
+  )
+
+  const shape =
+    "grid gap-x-6 gap-y-0.5 border-b border-rule py-2 sm:grid-cols-[minmax(10rem,18rem)_minmax(0,1fr)]"
+
+  return (
+    <li>
+      {anchor ? (
+        <a
+          href={anchor}
+          onClick={onJump(value.documentId, anchor)}
+          title={t("detail.checks_go")}
+          className={cn(
+            shape,
+            "-mx-2 rounded-md px-2 transition-colors hover:bg-foreground/4 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+          )}
+        >
+          {body}
+        </a>
+      ) : (
+        <div className={shape}>{body}</div>
+      )}
+    </li>
+  )
+}
+
+function CrossCheckEntry({
+  check,
+  onJump,
+}: {
+  check: CrossCheckDto
+  onJump: Jump
+}) {
+  const { t } = useI18n()
+
+  return (
+    // Open where there is something to settle, folded where there is not: a
+    // panel of five agreements spelled out would push the one disagreement off
+    // the screen it is on.
+    <details id={`check-${check.key}`} className="group scroll-mt-16" open={check.verdict !== "Match"}>
+      <summary className="-mx-2 flex cursor-pointer list-none select-none flex-wrap items-baseline gap-x-3 gap-y-1 rounded-md px-2 py-2 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+        <ChevronRightIcon className="size-3.5 shrink-0 translate-y-0.5 text-muted-foreground transition-transform duration-200 group-open:rotate-90" />
+        <span className="min-w-0 text-[0.8125rem] leading-snug text-foreground">
+          {translateOr(t, `check.${check.key}`, check.key)}
+        </span>
+        <span className="ml-auto flex shrink-0 items-baseline gap-2">
+          <VerdictMark verdict={check.verdict} />
+          <Confidence value={check.confidence} bare />
+        </span>
+      </summary>
+      <ul className="mt-1 flex flex-col border-t border-rule pl-5">
+        {check.values.map((value, index) => (
+          <CheckedValueRow
+            key={`${value.documentId ?? "gone"}-${value.fieldName}-${index}`}
+            value={value}
+            onJump={onJump}
+          />
+        ))}
+      </ul>
+    </details>
+  )
+}
+
+function CrossChecks({
+  checks,
+  onJump,
+}: {
+  checks: readonly CrossCheckDto[]
+  onJump: Jump
+}) {
+  const { t } = useI18n()
+  const agreed = checks.filter((check) => check.verdict === "Match").length
+
+  return (
+    <section className="mb-9">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h2 className="register-label">{t("detail.checks")}</h2>
+        <span
+          data-mono
+          className={cn(
+            "text-[0.75rem] tabular-nums",
+            agreed === checks.length
+              ? "text-muted-foreground"
+              : "text-issues-ink",
+          )}
+        >
+          {t("detail.checks_agreed", { n: agreed, total: checks.length })}
+        </span>
+      </div>
+      <p className="mt-1 max-w-[70ch] text-[0.8125rem] leading-relaxed text-muted-foreground">
+        {t("detail.checks_note")}
+      </p>
+      <div className="mt-2 flex flex-col divide-y divide-rule border-t border-rule">
+        {checks.map((check) => (
+          <CrossCheckEntry key={check.key} check={check} onJump={onJump} />
+        ))}
+      </div>
     </section>
   )
 }
@@ -1549,6 +1768,14 @@ export function VerificationDetails() {
             {/* The work comes first — what the run found that wants the
                 inspector's eyes, each line a jump into the evidence below. */}
             {pkg.report && <Worklist report={pkg.report} pkg={pkg} onJump={jump} />}
+
+            {/* What the papers were asked to agree on. It follows the worklist
+                because a disagreement there is answered here, and it precedes
+                the register because it is read across documents rather than
+                down one. */}
+            {pkg.crossChecks.length > 0 && (
+              <CrossChecks checks={pkg.crossChecks} onJump={jump} />
+            )}
 
             <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
               <h2 className="register-label">{t("detail.documents")}</h2>

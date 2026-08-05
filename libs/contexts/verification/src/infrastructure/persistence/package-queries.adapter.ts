@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 
 import { PackageQueries } from "../../application/ports/index.js";
 import type {
+  CrossCheckView,
   PackageDetailView,
   PackageSummaryView,
   ReportView,
@@ -22,9 +23,31 @@ const ISSUE_COLUMNS = {
   sourceFileId: true,
   documentType: true,
   fieldName: true,
+  checkKey: true,
   pageNumber: true,
   confidence: true,
 } as const satisfies Prisma.ValidationIssueSelect;
+
+const CROSS_CHECK_COLUMNS = {
+  orderBy: { key: "asc" },
+  select: {
+    key: true,
+    verdict: true,
+    confidence: true,
+    note: true,
+    values: {
+      orderBy: { position: "asc" },
+      select: {
+        documentId: true,
+        documentType: true,
+        fieldName: true,
+        value: true,
+        pageNumber: true,
+        confidence: true,
+      },
+    },
+  },
+} as const satisfies Prisma.VerificationPackage$crossChecksArgs;
 
 const SUMMARY_COLUMNS = {
   id: true,
@@ -59,8 +82,24 @@ type IssueRow = {
   readonly sourceFileId: string | null;
   readonly documentType: string | null;
   readonly fieldName: string | null;
+  readonly checkKey: string | null;
   readonly pageNumber: number | null;
   readonly confidence: number | null;
+};
+
+type CrossCheckRow = {
+  readonly key: string;
+  readonly verdict: string;
+  readonly confidence: number;
+  readonly note: string;
+  readonly values: readonly {
+    readonly documentId: string | null;
+    readonly documentType: string;
+    readonly fieldName: string;
+    readonly value: string;
+    readonly pageNumber: number;
+    readonly confidence: number;
+  }[];
 };
 
 type SummaryRow = {
@@ -120,6 +159,7 @@ export class PrismaPackageQueries extends PackageQueries {
       select: {
         ...SUMMARY_COLUMNS,
         report: REPORT_COLUMNS,
+        crossChecks: CROSS_CHECK_COLUMNS,
         sourceFiles: {
           orderBy: { createdAt: "asc" },
           select: {
@@ -163,6 +203,9 @@ export class PrismaPackageQueries extends PackageQueries {
     return {
       ...PrismaPackageQueries.toSummary(row),
       report: PrismaPackageQueries.toReport(row.report),
+      crossChecks: row.crossChecks.map((check) =>
+        PrismaPackageQueries.toCrossCheck(check),
+      ),
       files: row.sourceFiles.map((file) => ({
         id: file.id,
         originalFilename: file.originalFilename,
@@ -194,6 +237,23 @@ export class PrismaPackageQueries extends PackageQueries {
     };
   }
 
+  private static toCrossCheck(row: CrossCheckRow): CrossCheckView {
+    return {
+      key: row.key,
+      verdict: row.verdict,
+      confidence: row.confidence,
+      note: row.note,
+      values: row.values.map((value) => ({
+        documentId: value.documentId,
+        documentType: value.documentType,
+        fieldName: value.fieldName,
+        value: value.value,
+        pageNumber: value.pageNumber,
+        confidence: value.confidence,
+      })),
+    };
+  }
+
   private static toReport(row: DetailReportRow | null): ReportView | null {
     if (!row) return null;
 
@@ -207,6 +267,7 @@ export class PrismaPackageQueries extends PackageQueries {
         sourceFileId: issue.sourceFileId,
         documentType: issue.documentType,
         fieldName: issue.fieldName,
+        checkKey: issue.checkKey,
         pageNumber: issue.pageNumber,
         confidence: issue.confidence,
       })),

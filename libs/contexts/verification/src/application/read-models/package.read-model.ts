@@ -22,8 +22,27 @@ export type IssueView = {
   sourceFileId: string | null;
   documentType: string | null;
   fieldName: string | null;
+  // Set only for a cross-document finding: the profile rule it came out of.
+  checkKey: string | null;
   pageNumber: number | null;
   confidence: number | null;
+};
+
+export type CheckedValueView = {
+  documentId: string | null;
+  documentType: string;
+  fieldName: string;
+  value: string;
+  pageNumber: number;
+  confidence: number;
+};
+
+export type CrossCheckView = {
+  key: string;
+  verdict: string;
+  confidence: number;
+  note: string;
+  values: readonly CheckedValueView[];
 };
 
 export type ReportView = {
@@ -74,5 +93,8 @@ export type SourceFileView = {
 
 export type PackageDetailView = PackageSummaryView & {
   files: readonly SourceFileView[];
+  // Every check the run was able to make, agreed or not: one that agreed is
+  // work the inspector does not have to redo.
+  crossChecks: readonly CrossCheckView[];
   report: ReportView | null;
 };

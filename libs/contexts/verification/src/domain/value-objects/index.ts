@@ -1,6 +1,8 @@
 export { Classification } from "./classification.vo.js";
 export { Confidence } from "./confidence.vo.js";
 export { ContentType } from "./content-type.vo.js";
+export { CrossCheckVerdict } from "./cross-check-verdict.vo.js";
+export { CheckedValue, CrossCheck, CrossCheckKey } from "./cross-check.vo.js";
 export { DocumentType } from "./document-type.vo.js";
 export { FailureReason } from "./failure-reason.vo.js";
 export { FieldKey, FieldValue } from "./field.vo.js";
@@ -18,7 +20,9 @@ export { ReportStatus } from "./report-status.vo.js";
 export { StorageKey } from "./storage-key.vo.js";
 export { ValidationIssue } from "./validation-issue.vo.js";
 export {
+  CrossCheckSpec,
   DocumentTypeSpec,
+  FieldRef,
   VerificationProfile,
 } from "./verification-profile.vo.js";
 export { VerificationReport } from "./verification-report.vo.js";

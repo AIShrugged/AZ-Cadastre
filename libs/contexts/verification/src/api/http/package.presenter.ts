@@ -1,4 +1,5 @@
 import type {
+  CrossCheckDto,
   DocumentDto,
   PackageDetailDto,
   PackageDto,
@@ -7,6 +8,7 @@ import type {
 } from "@cadastre/contracts";
 
 import type {
+  CrossCheckView,
   DocumentView,
   PackageDetailView,
   PackageSummaryView,
@@ -38,7 +40,27 @@ export function toDetailDto(view: PackageDetailView): PackageDetailDto {
   return {
     ...toSummaryDto(view),
     files: view.files.map(toSourceFileDto),
+    crossChecks: view.crossChecks.map(toCrossCheckDto),
     report: view.report ? toReportDto(view.report) : null,
+  };
+}
+
+function toCrossCheckDto(view: CrossCheckView): CrossCheckDto {
+  return {
+    key: view.key,
+    // Only ever written through the domain's own enumeration, so the stored
+    // string is one the contract names.
+    verdict: view.verdict as CrossCheckDto["verdict"],
+    confidence: view.confidence,
+    note: view.note,
+    values: view.values.map((value) => ({
+      documentId: value.documentId,
+      documentType: value.documentType,
+      fieldName: value.fieldName,
+      value: value.value,
+      pageNumber: value.pageNumber,
+      confidence: value.confidence,
+    })),
   };
 }
 
@@ -55,6 +77,7 @@ function toReportDto(view: ReportView): ReportDto {
       sourceFileId: issue.sourceFileId,
       documentType: issue.documentType,
       fieldName: issue.fieldName,
+      checkKey: issue.checkKey,
       pageNumber: issue.pageNumber,
       confidence: issue.confidence,
     })),

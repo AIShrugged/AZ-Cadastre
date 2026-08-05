@@ -1,5 +1,10 @@
-import { UnknownProfileException } from "../exceptions/index.js";
+import {
+  CrossCheckNotInProfileException,
+  UnknownProfileException,
+} from "../exceptions/index.js";
+import { CrossCheckKey } from "./cross-check.vo.js";
 import { DocumentType } from "./document-type.vo.js";
+import { FieldKey } from "./field.vo.js";
 import { FieldSchema, FieldSpec } from "./field-schema.vo.js";
 
 type Declaration = {
@@ -14,6 +19,74 @@ type Declaration = {
   readonly required: boolean;
   readonly fields: readonly (readonly [string, string])[];
 };
+
+// A rule that spans documents: values printed on different papers of the same
+// submission which have to be the same value. Whether they are is a judgement,
+// not a string comparison — a surname is printed in capitals on the identity
+// card and in an oblique case on the application, and both are the same person
+// — so the profile says what is being compared and what counts as agreeing, and
+// the stage's reader answers.
+type CrossCheckDeclaration = {
+  readonly key: string;
+  // What the check is about, in one line: the thing the documents must agree
+  // on, not the fields it is spelled out in.
+  readonly description: string;
+  // What agreement means for this particular value, written for whoever judges
+  // it. This is the whole rule: everything the reader is allowed to forgive has
+  // to be said here, and everything it must not forgive too.
+  readonly agreesWhen: string;
+  // [document type key, field key], in the order the check reads them. The
+  // first is the anchor: the finding is filed against it.
+  readonly fields: readonly (readonly [string, string])[];
+};
+
+// One value the check reaches for, named by the document type that carries it.
+export class FieldRef {
+  private constructor(
+    public readonly type: DocumentType,
+    public readonly key: FieldKey,
+  ) {}
+
+  static of(type: DocumentType, key: FieldKey): FieldRef {
+    return new FieldRef(type, key);
+  }
+
+  matches(type: DocumentType, key: FieldKey): boolean {
+    return this.type.equals(type) && this.key.equals(key);
+  }
+}
+
+export class CrossCheckSpec {
+  readonly #references: readonly FieldRef[];
+
+  private constructor(
+    public readonly key: CrossCheckKey,
+    public readonly description: string,
+    public readonly agreesWhen: string,
+    references: readonly FieldRef[],
+  ) {
+    this.#references = [...references];
+  }
+
+  static of(declaration: CrossCheckDeclaration): CrossCheckSpec {
+    return new CrossCheckSpec(
+      CrossCheckKey.create(declaration.key),
+      declaration.description,
+      declaration.agreesWhen,
+      declaration.fields.map(([type, field]) =>
+        FieldRef.of(DocumentType.create(type), FieldKey.create(field)),
+      ),
+    );
+  }
+
+  get references(): readonly FieldRef[] {
+    return this.#references;
+  }
+
+  wants(type: DocumentType, key: FieldKey): boolean {
+    return this.#references.some((reference) => reference.matches(type, key));
+  }
+}
 
 export class DocumentTypeSpec {
   private constructor(
@@ -203,16 +276,109 @@ export class VerificationProfile {
         ["expiry_date", "Expiration date"],
       ],
     },
+  ],
+  // What has to be the same across the papers. Each of these is a question an
+  // inspector asks by holding two sheets side by side, and the one the operator
+  // named first: is the person on the identity document the person the
+  // application is for.
+  [
+    {
+      key: "applicant_identity",
+      description:
+        "The person the registration is for. The identity document prints a " +
+        "surname and a given name in fields of their own; the application " +
+        "prints one full name, usually surname first and often with a " +
+        "patronymic.",
+      agreesWhen:
+        "the names denote the same person. Word order, a patronymic present " +
+        "on one document and absent from the other, capitalisation, an " +
+        "Azerbaijani case ending on a form (Əliyeva Rübabə Kavı qızına is the " +
+        "same name as Əliyeva Rübabə Kavı qızı), and transliteration between " +
+        "Latin and Cyrillic script are all the same name. A different surname, " +
+        "or a given name that is a different name rather than a spelling of " +
+        "the same one, is not.",
+      fields: [
+        ["identity_card", "last_name"],
+        ["identity_card", "first_name"],
+        ["application", "applicant_name"],
+      ],
+    },
+    {
+      key: "identity_document_no",
+      description:
+        "The identity document number: the one printed on the card itself, " +
+        "and the one the applicant wrote on the application as theirs.",
+      agreesWhen:
+        "the two numbers are the same document number. Spacing, hyphens and " +
+        "a series prefix written apart from the digits are formatting; a " +
+        "different digit is a different document.",
+      fields: [
+        ["identity_card", "document_no"],
+        ["application", "applicant_document_no"],
+      ],
+    },
+    {
+      key: "property_address",
+      description:
+        "The address of the property being registered, as each document in " +
+        "the submission states it.",
+      agreesWhen:
+        "the addresses denote the same place. Abbreviations (küç. / küçəsi, " +
+        "ул. / улица), an administrative level one document spells out and " +
+        "another omits, word order and script are formatting. A different " +
+        "house or plot number, street or settlement is a different address.",
+      fields: [
+        ["application", "property_address"],
+        ["land_plot_plan", "property_address"],
+        ["disposal_order", "property_address"],
+        ["sketch_project", "property_address"],
+        ["archive_certificate", "property_address"],
+      ],
+    },
+    {
+      key: "cadastral_number",
+      description:
+        "The cadastral number of the parcel: the one surveyed on the " +
+        "plan-scheme, and the one the application is made under.",
+      agreesWhen:
+        "the numbers are the same cadastral number. Separators and spacing " +
+        "are formatting; a different group of digits is a different parcel.",
+      fields: [
+        ["land_plot_plan", "cadastral_number"],
+        ["application", "cadastral_number"],
+      ],
+    },
+    {
+      key: "plot_area",
+      description:
+        "The area of the land parcel: the surveyed figure on the plan-scheme " +
+        "and the figure the order allotted.",
+      agreesWhen:
+        "the two figures are the same area. Units written differently (m², " +
+        "kv.m, sot, hektar) and decimal comma against decimal point are " +
+        "formatting, and so is a figure given to more places than the other — " +
+        "convert before judging. A genuinely different area is a finding, " +
+        "however small the difference.",
+      fields: [
+        ["land_plot_plan", "plot_area"],
+        ["disposal_order", "plot_area"],
+      ],
+    },
   ]);
 
   readonly #specs: readonly DocumentTypeSpec[];
+  readonly #crossChecks: readonly CrossCheckSpec[];
 
   private constructor(
     public readonly key: string,
     declarations: readonly Declaration[],
+    crossChecks: readonly CrossCheckDeclaration[],
   ) {
     this.#specs = declarations.map((declaration) =>
       DocumentTypeSpec.of(declaration),
+    );
+    this.#crossChecks = crossChecks.map((declaration) =>
+      CrossCheckSpec.of(declaration),
     );
   }
 
@@ -234,6 +400,22 @@ export class VerificationProfile {
 
   get specs(): readonly DocumentTypeSpec[] {
     return this.#specs;
+  }
+
+  get crossChecks(): readonly CrossCheckSpec[] {
+    return this.#crossChecks;
+  }
+
+  declaresCheck(key: CrossCheckKey): boolean {
+    return this.#crossChecks.some((spec) => spec.key.equals(key));
+  }
+
+  checkFor(key: CrossCheckKey): CrossCheckSpec {
+    const found = this.#crossChecks.find((spec) => spec.key.equals(key));
+
+    if (!found) throw new CrossCheckNotInProfileException(key.value, this.key);
+
+    return found;
   }
 
   get documentTypes(): readonly DocumentType[] {

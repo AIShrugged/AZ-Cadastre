@@ -8,7 +8,8 @@ export class MissingOpenRouterApiKeyException extends InfrastructureException {
       | "OCR_PROVIDER"
       | "SEGMENTER_PROVIDER"
       | "CLASSIFIER_PROVIDER"
-      | "EXTRACTOR_PROVIDER",
+      | "EXTRACTOR_PROVIDER"
+      | "CROSS_CHECKER_PROVIDER",
   ) {
     super(
       `${providerSetting}=openrouter requires OPENROUTER_API_KEY to be set`,

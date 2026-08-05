@@ -38,6 +38,11 @@ model ValidationIssue {
   /// Profile field key involved (mismatch, low-confidence, expired).
   fieldName String?
 
+  /// Profile cross-check key (ADR-0002) the finding came out of — set only for
+  /// FieldMismatch, where the finding is about a rule rather than about one
+  /// field. It is what names the finding to a reader in their own language.
+  checkKey String?
+
   pageNumber Int? // page reference, when applicable
   confidence Float? // relevant confidence (e.g. the flagged low value)
 

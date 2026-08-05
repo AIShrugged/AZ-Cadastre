@@ -2,6 +2,7 @@ import { PackageDetailDtoSchema, PackageDtoSchema } from "@cadastre/contracts";
 import { describe, expect, it } from "vitest";
 
 import type {
+  CrossCheckView,
   DocumentView,
   PackageDetailView,
   PackageSummaryView,
@@ -75,8 +76,39 @@ function aReportView(overrides: Partial<ReportView> = {}): ReportView {
         sourceFileId: null,
         documentType: "identity_card",
         fieldName: null,
+        checkKey: null,
         pageNumber: null,
         confidence: null,
+      },
+    ],
+    ...overrides,
+  };
+}
+
+function aCrossCheckView(
+  overrides: Partial<CrossCheckView> = {},
+): CrossCheckView {
+  return {
+    key: "applicant_identity",
+    verdict: "Mismatch",
+    confidence: 0.62,
+    note: "the surnames differ",
+    values: [
+      {
+        documentId: anId(),
+        documentType: "identity_card",
+        fieldName: "last_name",
+        value: "ƏLİYEV",
+        pageNumber: 2,
+        confidence: 0.7,
+      },
+      {
+        documentId: anId(),
+        documentType: "application",
+        fieldName: "applicant_name",
+        value: "Məmmədov Elçin",
+        pageNumber: 1,
+        confidence: 0.88,
       },
     ],
     ...overrides,
@@ -89,6 +121,7 @@ function aDetailView(
   return {
     ...aSummaryView(),
     files: [aFileView()],
+    crossChecks: [],
     report: aReportView(),
     ...overrides,
   };
@@ -326,6 +359,70 @@ describe("toDetailDto", () => {
         pageNumber: 2,
       },
     ]);
+  });
+
+  it("renders a package the cross-document stage has not reached with no checks", () => {
+    expect(toDetailDto(aDetailView()).crossChecks).toEqual([]);
+  });
+
+  it("renders a check with its verdict, its confidence and the line it wrote", () => {
+    const dto = toDetailDto(aDetailView({ crossChecks: [aCrossCheckView()] }));
+
+    expect(dto.crossChecks[0]).toMatchObject({
+      key: "applicant_identity",
+      verdict: "Mismatch",
+      confidence: 0.62,
+      note: "the surnames differ",
+    });
+  });
+
+  it("renders both sides of a check, in the order the profile named them", () => {
+    const dto = toDetailDto(aDetailView({ crossChecks: [aCrossCheckView()] }));
+
+    expect(dto.crossChecks[0]?.values.map((value) => value.value)).toEqual([
+      "ƏLİYEV",
+      "Məmmədov Elçin",
+    ]);
+  });
+
+  it("renders a value whose document is gone without a document to jump to", () => {
+    const orphaned = aCrossCheckView({
+      values: [
+        {
+          documentId: null,
+          documentType: "identity_card",
+          fieldName: "last_name",
+          value: "ƏLİYEV",
+          pageNumber: 2,
+          confidence: 0.7,
+        },
+      ],
+    });
+
+    expect(toDetailDto(aDetailView({ crossChecks: [orphaned] }))
+      .crossChecks[0]?.values[0]?.documentId).toBeNull();
+  });
+
+  it("carries the check a finding came out of, so a reader can name it", () => {
+    const report = aReportView({
+      issues: [
+        {
+          kind: "FieldMismatch",
+          message: "The documents do not agree on \"applicant_identity\".",
+          documentId: null,
+          sourceFileId: null,
+          documentType: "identity_card",
+          fieldName: "last_name",
+          checkKey: "applicant_identity",
+          pageNumber: 2,
+          confidence: 0.62,
+        },
+      ],
+    });
+
+    expect(toDetailDto(aDetailView({ report })).report?.issues[0]?.checkKey).toBe(
+      "applicant_identity",
+    );
   });
 
   it("answers a shape the published detail contract accepts", () => {

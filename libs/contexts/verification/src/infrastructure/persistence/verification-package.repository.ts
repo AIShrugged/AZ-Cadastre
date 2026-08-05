@@ -10,6 +10,7 @@ import type { PackageId } from "../../domain/value-objects/index.js";
 import type { Prisma } from "./generated/client.js";
 import { isStoredId } from "./stored-id.js";
 import {
+  type CrossCheckWrite,
   type DocumentWrite,
   type PackageWrite,
   type PageWrite,
@@ -31,6 +32,10 @@ const WHOLE_AGGREGATE = {
   documents: {
     orderBy: { firstPage: "asc" },
     include: { extractedFields: { orderBy: { createdAt: "asc" } } },
+  },
+  crossChecks: {
+    orderBy: { key: "asc" },
+    include: { values: { orderBy: { position: "asc" } } },
   },
   report: { include: { issues: { orderBy: { createdAt: "asc" } } } },
 } as const satisfies Prisma.VerificationPackageInclude;
@@ -74,6 +79,10 @@ export class PrismaVerificationPackageRepository extends VerificationPackageRepo
 
       for (const document of row.documents) {
         await this.writeDocument(tx, row.id, document);
+      }
+
+      for (const check of row.crossChecks) {
+        await this.writeCrossCheck(tx, row.id, check);
       }
 
       await this.writeReport(tx, row.id, row.report);
@@ -190,6 +199,40 @@ export class PrismaVerificationPackageRepository extends VerificationPackageRepo
         },
       });
     }
+  }
+
+  // Keyed on which check this is, so a re-run replaces the answer instead of
+  // writing a second one. The values are replaced with it: they are the sides
+  // the answer was made over, and half of an old comparison beside a new one
+  // would be a comparison that never happened.
+  private async writeCrossCheck(
+    tx: Prisma.TransactionClient,
+    packageId: string,
+    check: CrossCheckWrite,
+  ): Promise<void> {
+    const stored = await tx.crossCheck.upsert({
+      where: { packageId_key: { packageId, key: check.key } },
+      create: {
+        packageId,
+        key: check.key,
+        verdict: check.verdict,
+        confidence: check.confidence,
+        note: check.note,
+      },
+      update: {
+        verdict: check.verdict,
+        confidence: check.confidence,
+        note: check.note,
+      },
+    });
+
+    await tx.crossCheckValue.deleteMany({ where: { crossCheckId: stored.id } });
+    await tx.crossCheckValue.createMany({
+      data: check.values.map((value) => ({
+        ...value,
+        crossCheckId: stored.id,
+      })),
+    });
   }
 
   private async writeReport(

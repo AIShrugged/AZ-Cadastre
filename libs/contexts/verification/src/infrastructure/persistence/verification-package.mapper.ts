@@ -6,9 +6,13 @@ import {
   SourceFile,
 } from "../../domain/entities/index.js";
 import {
+  CheckedValue,
   Classification,
   Confidence,
   ContentType,
+  CrossCheck,
+  CrossCheckKey,
+  CrossCheckVerdict,
   DocumentId,
   DocumentType,
   FieldKey,
@@ -31,6 +35,7 @@ import {
   VerificationReport,
 } from "../../domain/value-objects/index.js";
 import {
+  CrossCheckVerdict as CrossCheckVerdictColumn,
   IssueKind as IssueKindColumn,
   PackageStatus as StatusColumn,
   ReportStatus as ReportStatusColumn,
@@ -43,6 +48,7 @@ export type PackageRow = {
   readonly version: number;
   readonly sourceFiles: readonly SourceFileRow[];
   readonly documents: readonly DocumentRow[];
+  readonly crossChecks: readonly CrossCheckRow[];
   readonly report: ReportRow | null;
 };
 
@@ -58,8 +64,26 @@ export type IssueRow = {
   readonly sourceFileId: string | null;
   readonly documentType: string | null;
   readonly fieldName: string | null;
+  readonly checkKey: string | null;
   readonly pageNumber: number | null;
   readonly confidence: number | null;
+};
+
+export type CrossCheckRow = {
+  readonly key: string;
+  readonly verdict: string;
+  readonly confidence: number;
+  readonly note: string;
+  readonly values: readonly CheckedValueRow[];
+};
+
+export type CheckedValueRow = {
+  readonly documentId: string | null;
+  readonly documentType: string;
+  readonly fieldName: string;
+  readonly value: string;
+  readonly pageNumber: number;
+  readonly confidence: number;
 };
 
 export type SourceFileRow = {
@@ -106,6 +130,7 @@ export type PackageWrite = {
   readonly profileKey: string;
   readonly sourceFiles: readonly SourceFileWrite[];
   readonly documents: readonly DocumentWrite[];
+  readonly crossChecks: readonly CrossCheckWrite[];
   readonly report: ReportWrite | null;
 };
 
@@ -121,8 +146,27 @@ export type IssueWrite = {
   readonly sourceFileId: string | null;
   readonly documentType: string | null;
   readonly fieldName: string | null;
+  readonly checkKey: string | null;
   readonly pageNumber: number | null;
   readonly confidence: number | null;
+};
+
+export type CrossCheckWrite = {
+  readonly key: string;
+  readonly verdict: CrossCheckVerdictColumn;
+  readonly confidence: number;
+  readonly note: string;
+  readonly values: readonly CheckedValueWrite[];
+};
+
+export type CheckedValueWrite = {
+  readonly documentId: string;
+  readonly documentType: string;
+  readonly fieldName: string;
+  readonly value: string;
+  readonly pageNumber: number;
+  readonly confidence: number;
+  readonly position: number;
 };
 
 export type SourceFileWrite = {
@@ -176,6 +220,9 @@ export class VerificationPackageMapper {
       documents: row.documents.map((document) =>
         VerificationPackageMapper.documentToDomain(document),
       ),
+      crossChecks: row.crossChecks.map((check) =>
+        VerificationPackageMapper.crossCheckToDomain(check),
+      ),
       report: row.report
         ? VerificationPackageMapper.reportToDomain(row.report)
         : null,
@@ -220,8 +267,49 @@ export class VerificationPackageMapper {
           pageNumber: field.foundOn.value,
         })),
       })),
+      crossChecks: aggregate.crossChecks.map((check) => ({
+        key: check.key.value,
+        verdict: VerificationPackageMapper.verdictColumn(check.verdict),
+        confidence: check.confidence.value,
+        note: check.note,
+        values: check.values.map((value, position) => ({
+          documentId: value.documentId.value,
+          documentType: value.documentType.value,
+          fieldName: value.fieldKey.value,
+          value: value.value.value,
+          pageNumber: value.foundOn.value,
+          confidence: value.confidence.value,
+          position,
+        })),
+      })),
       report: VerificationPackageMapper.reportRow(aggregate.report),
     };
+  }
+
+  private static crossCheckToDomain(row: CrossCheckRow): CrossCheck {
+    return CrossCheck.restore({
+      key: CrossCheckKey.create(row.key),
+      verdict: CrossCheckVerdict.of(row.verdict),
+      confidence: Confidence.of(row.confidence),
+      note: row.note,
+      // A value whose document a later run removed is dropped rather than
+      // guessed at: the check keeps the sides it can still point the inspector
+      // to.
+      values: row.values.flatMap((value) =>
+        value.documentId === null
+          ? []
+          : [
+              CheckedValue.of({
+                documentId: DocumentId.of(value.documentId),
+                documentType: DocumentType.create(value.documentType),
+                fieldKey: FieldKey.create(value.fieldName),
+                value: FieldValue.create(value.value),
+                foundOn: PageNumber.of(value.pageNumber),
+                confidence: Confidence.of(value.confidence),
+              }),
+            ],
+      ),
+    });
   }
 
   private static reportRow(
@@ -238,6 +326,7 @@ export class VerificationPackageMapper {
         sourceFileId: issue.sourceFileId?.value ?? null,
         documentType: issue.documentType?.value ?? null,
         fieldName: issue.fieldKey?.value ?? null,
+        checkKey: issue.checkKey?.value ?? null,
         pageNumber: issue.pageNumber?.value ?? null,
         confidence: issue.confidence?.value ?? null,
       })),
@@ -259,6 +348,7 @@ export class VerificationPackageMapper {
             ? DocumentType.create(issue.documentType)
             : null,
           fieldKey: issue.fieldName ? FieldKey.create(issue.fieldName) : null,
+          checkKey: issue.checkKey ? CrossCheckKey.create(issue.checkKey) : null,
           pageNumber:
             issue.pageNumber === null ? null : PageNumber.of(issue.pageNumber),
           confidence:
@@ -351,6 +441,20 @@ export class VerificationPackageMapper {
 
     if (!column) {
       throw new RangeError(`No report status column for ${status.value}`);
+    }
+
+    return column;
+  }
+
+  private static verdictColumn(
+    verdict: CrossCheckVerdict,
+  ): CrossCheckVerdictColumn {
+    const column = Object.values(CrossCheckVerdictColumn).find(
+      (candidate) => candidate === verdict.value,
+    );
+
+    if (!column) {
+      throw new RangeError(`No cross-check verdict column for ${verdict.value}`);
     }
 
     return column;

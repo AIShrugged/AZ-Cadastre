@@ -4,6 +4,9 @@ export {
   type DocumentContentType,
 } from "./content-type.dto.js";
 export {
+  CheckedValueDtoSchema,
+  CrossCheckDtoSchema,
+  CrossCheckVerdictSchema,
   DocumentDtoSchema,
   FieldDtoSchema,
   IssueDtoSchema,
@@ -16,6 +19,9 @@ export {
   ReportDtoSchema,
   ReportStatusSchema,
   SourceFileDtoSchema,
+  type CheckedValueDto,
+  type CrossCheckDto,
+  type CrossCheckVerdict,
   type DocumentDto,
   type FieldDto,
   type IssueDto,

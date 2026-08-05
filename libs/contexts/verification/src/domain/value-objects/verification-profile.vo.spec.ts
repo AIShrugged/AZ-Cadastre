@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { UnknownProfileException } from "../exceptions/index.js";
+import {
+  CrossCheckNotInProfileException,
+  UnknownProfileException,
+} from "../exceptions/index.js";
+import { CrossCheckKey } from "./cross-check.vo.js";
 import { DocumentType } from "./document-type.vo.js";
 import { FieldKey } from "./field.vo.js";
 import { VerificationProfile } from "./verification-profile.vo.js";
@@ -220,6 +224,80 @@ describe("VerificationProfile", () => {
       expect(application.declares(FieldKey.create("cadastral_number"))).toBe(
         true,
       );
+    });
+  });
+
+  describe("what it says has to agree across documents", () => {
+    const CADASTRE = VerificationProfile.CADASTRE;
+
+    it("holds the person on the identity document against the applicant", () => {
+      const check = CADASTRE.checkFor(CrossCheckKey.create("applicant_identity"));
+
+      expect(
+        check.references.map(
+          (reference) => `${reference.type.value}.${reference.key.value}`,
+        ),
+      ).toEqual([
+        "identity_card.last_name",
+        "identity_card.first_name",
+        "application.applicant_name",
+      ]);
+    });
+
+    it("reaches only for fields the document types it names actually declare", () => {
+      for (const check of CADASTRE.crossChecks) {
+        for (const reference of check.references) {
+          expect(CADASTRE.schemaFor(reference.type).declares(reference.key)).toBe(
+            true,
+          );
+        }
+      }
+    });
+
+    it("names at least two document types per check, or it compares nothing", () => {
+      for (const check of CADASTRE.crossChecks) {
+        const types = new Set(
+          check.references.map((reference) => reference.type.value),
+        );
+
+        expect(types.size).toBeGreaterThanOrEqual(2);
+      }
+    });
+
+    it("says what agreement means for every check, since that is the whole rule", () => {
+      for (const check of CADASTRE.crossChecks) {
+        expect(check.description.length).toBeGreaterThan(0);
+        expect(check.agreesWhen.length).toBeGreaterThan(0);
+      }
+    });
+
+    it("knows which field of which type a check reaches for", () => {
+      const check = CADASTRE.checkFor(CrossCheckKey.create("cadastral_number"));
+
+      expect(
+        check.wants(
+          DocumentType.create("land_plot_plan"),
+          FieldKey.create("cadastral_number"),
+        ),
+      ).toBe(true);
+      expect(
+        check.wants(
+          DocumentType.create("payment_receipt"),
+          FieldKey.create("cadastral_number"),
+        ),
+      ).toBe(false);
+    });
+
+    it("refuses a check it does not declare", () => {
+      expect(() =>
+        CADASTRE.checkFor(CrossCheckKey.create("shoe_size")),
+      ).toThrow(CrossCheckNotInProfileException);
+    });
+
+    it("declares only checks with keys of their own", () => {
+      const keys = CADASTRE.crossChecks.map((check) => check.key.value);
+
+      expect(new Set(keys).size).toBe(keys.length);
     });
   });
 

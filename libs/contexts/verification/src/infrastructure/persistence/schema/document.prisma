@@ -29,6 +29,7 @@ model Document {
 
   extractedFields  ExtractedField[]
   validationIssues ValidationIssue[]
+  crossCheckValues CrossCheckValue[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

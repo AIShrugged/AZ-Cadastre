@@ -61,6 +61,14 @@ export const EnvironmentSchema = z
     // model that takes images.
     EXTRACTOR_PROVIDER: z.enum(["mock", "openrouter"]).default("mock"),
     EXTRACTOR_MODEL: z.string().default("qwen/qwen2.5-vl-72b-instruct"),
+
+    // Holds the documents against each other: whether the name on the identity
+    // card is the name the application is made in. It sees only the values the
+    // extractor already read, so it is a text model and a cheap call — but it
+    // is a judgement about names and addresses in two scripts, so it wants a
+    // model that reads Azerbaijani rather than the smallest one available.
+    CROSS_CHECKER_PROVIDER: z.enum(["mock", "openrouter"]).default("mock"),
+    CROSS_CHECKER_MODEL: z.string().default("openai/gpt-4o"),
   })
   .transform((env) => ({
     web: {
@@ -103,6 +111,10 @@ export const EnvironmentSchema = z
     extractor: {
       provider: env.EXTRACTOR_PROVIDER,
       model: env.EXTRACTOR_MODEL,
+    },
+    crossChecker: {
+      provider: env.CROSS_CHECKER_PROVIDER,
+      model: env.CROSS_CHECKER_MODEL,
     },
   }));
 

@@ -39,7 +39,8 @@ defaults in `.env.example` and `docker-compose.yml` are models observed to
 return real, varying logprobs from **every** provider that serves them.
 
 **Read [docs/MODELS.md](docs/MODELS.md) before changing `OCR_MODEL`,
-`SEGMENTER_MODEL`, `CLASSIFIER_MODEL` or `EXTRACTOR_MODEL`.** It records what
+`SEGMENTER_MODEL`, `CLASSIFIER_MODEL`, `EXTRACTOR_MODEL` or
+`CROSS_CHECKER_MODEL`.** It records what
 each candidate actually answered, gives a one-command check for a new one, and
 explains why `PDF_PAGE_DPI` is 300 rather than 150.
 

@@ -8,6 +8,12 @@ export {
   UnclassifiableDocumentException,
 } from "./document.exceptions.js";
 export {
+  CrossCheckMustCompareTwoDocumentsException,
+  CrossCheckNotInProfileException,
+  InvalidCrossCheckKeyException,
+  InvalidCrossCheckVerdictException,
+} from "./cross-check.exceptions.js";
+export {
   DocumentTypeNotInProfileException,
   FieldNotInSchemaException,
   UnknownProfileException,

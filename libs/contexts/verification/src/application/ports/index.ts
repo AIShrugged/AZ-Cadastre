@@ -1,4 +1,9 @@
 export {
+  CrossChecker,
+  type CrossCheckAnswer,
+  type CrossCheckRequest,
+} from "./cross-checker.port.js";
+export {
   DocumentClassifier,
   type ClassificationRequest,
 } from "./document-classifier.port.js";

@@ -17,8 +17,8 @@ assigned to each token it generated; `exp(mean(logprob))` is the geometric mean
 of those, i.e. how sure the model was of the characters it wrote. This is the
 better signal because the model is not asked for it and cannot posture with it.
 
-**The model's own account.** The segmenter, classifier and extractor answer in
-JSON and are asked for a `confidence` alongside every answer; the transcription
+**The model's own account.** The segmenter, classifier, extractor and
+cross-checker answer in JSON and are asked for a `confidence` alongside every answer; the transcription
 stage is asked to wrap doubtful fragments as `<?text>`, and the share of the
 page left unwrapped is its score. Coarse, but it works on routes that report no
 logprobs at all, and it is the only per-_field_ signal available — one logprob
@@ -30,6 +30,12 @@ it came from, so every extracted field is capped by the confidence of its own
 sheet. The identity card is why: the sheet came back at 0.68, and the extractor
 then reported its card number at 0.90 — with a digit wrong. The page knew;
 nothing was asking it.
+
+**And a ceiling from the values a check weighed.** The cross-document stage
+compares values it did not read, so its verdict is capped by the least
+confident of them. A name read at 0.4 off a faint card cannot produce a
+mismatch anyone should act on at 0.95 — the disagreement may be the scanner's,
+not the applicant's.
 
 **A ceiling for a reader that ran away.** A model that stops transcribing and
 starts repeating itself produces the highest-scoring output there is, because a
@@ -142,6 +148,13 @@ does not break — but it is a weaker signal and worth knowing you have chosen.
 The extractor additionally sends page **images**, so `EXTRACTOR_MODEL` must
 accept image input. `OCR_MODEL` obviously must.
 
+`CROSS_CHECKER_MODEL` needs neither: it sees the values the extractor already
+read, not the sheets. What it does need is Azerbaijani — its whole job is
+deciding that `ƏLİYEVA RÜBABƏ` and `Əliyeva Rübabə Kavı qızına` are one person
+while `Əliyev` and `Məmmədov` are not, in either script. A small model that
+compares strings will report every case ending as a mismatch, which is worse
+than not running the stage.
+
 ## Resolution is part of the model choice
 
 `PDF_PAGE_DPI` defaults to **300**, raised from 150. An identity card
@@ -170,6 +183,8 @@ described a package that was not the one submitted.
 ## Cost, roughly
 
 For the 26-sheet reference package: 26 OCR calls, 1 segmentation call, ~11
-classification calls, ~8 extraction calls (each carrying up to 6 page images).
-At the defaults that is a few cents. `OCR_CONCURRENCY` trades wall-clock against
+classification calls, ~8 extraction calls (each carrying up to 6 page images),
+and up to 5 cross-document calls — text only, a handful of short values each,
+so they are the cheapest stage in the pipeline. At the defaults the whole run
+is a few cents. `OCR_CONCURRENCY` trades wall-clock against
 the provider's rate limits; 4 is comfortable.

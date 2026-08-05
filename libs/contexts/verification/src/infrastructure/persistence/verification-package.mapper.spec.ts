@@ -85,6 +85,7 @@ function aPackageRow(overrides: Partial<PackageRow> = {}): PackageRow {
     version: 3,
     sourceFiles: [aSourceFileRow()],
     documents: [aDocumentRow()],
+    crossChecks: [],
     report: null,
     ...overrides,
   };
@@ -520,6 +521,7 @@ describe("VerificationPackageMapper", () => {
         profile: VerificationProfile.CADASTRE,
         status: PackageStatus.PROCESSING,
         files: [file],
+        crossChecks: [],
         report: null,
         documents: [
           document.classifiedAs(

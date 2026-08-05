@@ -2,6 +2,8 @@ import { DomainEvent } from "@cadastre/kernel";
 
 import type {
   Classification,
+  CrossCheckKey,
+  CrossCheckVerdict,
   DocumentId,
   FailureReason,
   PackageId,
@@ -86,6 +88,18 @@ export class FieldsExtracted extends DomainEvent {
     public readonly packageId: PackageId,
     public readonly documentId: DocumentId,
     public readonly fieldCount: number,
+  ) {
+    super();
+  }
+}
+
+export class CrossCheckMade extends DomainEvent {
+  override readonly type = "verification.CrossCheckMade";
+
+  constructor(
+    public readonly packageId: PackageId,
+    public readonly key: CrossCheckKey,
+    public readonly verdict: CrossCheckVerdict,
   ) {
     super();
   }

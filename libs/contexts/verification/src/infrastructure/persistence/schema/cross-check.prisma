@@ -1,0 +1,65 @@
+// Output of the Cross-document verification stage (PRD §4.6): one of the
+// profile's cross-document rules, applied to the values the extraction stage
+// read off this package's documents. Kept whole rather than reduced to the
+// findings it produced — a check that agreed is what the inspector does not
+// have to redo, and the report is compiled afresh from these every time.
+
+/// What the stage made of one check. Not a verdict on the package: it says only
+/// whether the values that must agree were shown to agree.
+enum CrossCheckVerdict {
+  Match // every document states the same value
+  Mismatch // at least two documents state genuinely different values
+  Unclear // compared, and could not be decided either way
+}
+
+model CrossCheck {
+  id        String              @id @default(uuid()) @db.Uuid
+  packageId String              @db.Uuid
+  package   VerificationPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  /// Profile cross-check key (ADR-0002), e.g. "applicant_identity". Kept as a
+  /// string so a new profile needs no migration.
+  key String
+
+  verdict    CrossCheckVerdict
+  confidence Float // 0..1, never higher than the least confident value below
+
+  /// The audit line, written in English when the check was made. A reader is
+  /// shown the check built from the values below, in their own language.
+  note String
+
+  values CrossCheckValue[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // One answer per check per package → the stage is an idempotent upsert.
+  @@unique([packageId, key])
+  @@map("cross_checks")
+}
+
+/// One value a check weighed, with the document and sheet it was read off, so
+/// the inspector can turn to both sides of a disagreement.
+model CrossCheckValue {
+  id           String     @id @default(uuid()) @db.Uuid
+  crossCheckId String     @db.Uuid
+  crossCheck   CrossCheck @relation(fields: [crossCheckId], references: [id], onDelete: Cascade)
+
+  // SetNull so re-segmenting a file does not delete the check it fed.
+  documentId String?   @db.Uuid
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  documentType String
+  fieldName    String
+  value        String
+  pageNumber   Int
+  confidence   Float // how well the value itself was read (0..1)
+
+  // The order the profile names them in, so the anchor stays first.
+  position Int
+
+  createdAt DateTime @default(now())
+
+  @@index([crossCheckId])
+  @@map("cross_check_values")
+}

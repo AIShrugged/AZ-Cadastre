@@ -4,6 +4,10 @@ export class IssueKind {
   static readonly MISSING_DOCUMENT = new IssueKind("MissingDocument");
   static readonly UNREADABLE_DOCUMENT = new IssueKind("UnreadableDocument");
   static readonly LOW_CONFIDENCE = new IssueKind("LowConfidence");
+  // Two documents of the same submission were asked to agree on a value the
+  // profile says must be one value — the name on the identity card against the
+  // name the application is made in — and they were not shown to agree.
+  static readonly FIELD_MISMATCH = new IssueKind("FieldMismatch");
   // A document the package carries that the profile does not ask for, and a
   // required type that two documents answer to at once. Neither is a fault:
   // packages arrive with the registry's own service sheets in them, and a title
@@ -19,6 +23,7 @@ export class IssueKind {
       IssueKind.MISSING_DOCUMENT,
       IssueKind.UNREADABLE_DOCUMENT,
       IssueKind.LOW_CONFIDENCE,
+      IssueKind.FIELD_MISMATCH,
       IssueKind.EXTRA_DOCUMENT,
       IssueKind.DUPLICATE_DOCUMENT,
     ];

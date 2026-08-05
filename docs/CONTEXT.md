@@ -31,6 +31,10 @@ _Avoid_: attribute, property
 A declarative definition of what a valid Package looks like: which Document Types exist, their field schemas, which documents are required, and the cross-document rules. Domains (cadastre, …) are expressed as profiles; the engine only interprets them.
 _Avoid_: ruleset, config, template
 
+**Cross-document Check**:
+One of the Verification Profile's cross-document rules, applied to a Package: the values several Documents must state alike (the name on the identity document against the applicant on the application), the verdict — Match, Mismatch or Unclear — and every value it weighed. A check that agreed is kept, not only the ones that failed.
+_Avoid_: comparison, consistency rule, match
+
 **Validation Issue**:
 A single problem found during verification (missing document, mismatched fields, expired document, low confidence), always tied to the page and field it came from.
 _Avoid_: error, violation, warning

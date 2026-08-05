@@ -209,8 +209,37 @@ confidence < 0.80 → Needs review
 
 #### Cross-document validation
 
-Deferred: the engine reserves `FieldMismatch` and `Expired` findings, and no
-stage produces them yet.
+The profile declares **cross-document checks**: values several documents of one
+submission must state alike. Each check names what is compared, what counts as
+agreement, and the `[document type, field]` pairs it reads — the first pair is
+the anchor, and the finding is filed against it.
+
+The cadastre profile ships five:
+
+| Check                  | Holds against each other                                                            |
+| ---------------------- | ----------------------------------------------------------------------------------- |
+| `applicant_identity`   | Surname + given name on the identity document, against the applicant on the application |
+| `identity_document_no` | The card's own number, against the number the application quotes                     |
+| `property_address`     | The address on the application, plan-scheme, order, sketch design and certificate    |
+| `cadastral_number`     | The parcel on the plan-scheme, against the parcel the application is made under      |
+| `plot_area`            | The surveyed area, against the area the order allotted                               |
+
+Agreement is a judgement, not a string comparison: a surname is printed in
+capitals on the card and in an oblique case on the form, an address abbreviates
+one way on one paper and spells itself out on another, and a scan drops
+diacritics on both. So the stage states the rule and a reader applies it,
+answering **Match**, **Mismatch** or **Unclear**.
+
+- A check needs **two documents** to run. One with a counterpart missing is not
+  a disagreement — it is a missing document, and that is already reported.
+- A verdict is never surer than the least confident value it weighed: a name
+  read at 0.4 cannot produce a mismatch anyone should act on at 0.95.
+- **Mismatch** and **Unclear** both become a `FieldMismatch` finding. A check
+  nobody could decide is one the inspector has to decide, so it is told to them.
+- A check that agreed is kept and reported too: it is what the inspector does
+  not have to redo.
+
+`Expired` remains reserved, and no stage produces it yet.
 
 ## 5. Verification Report
 
@@ -327,8 +356,9 @@ becomes a finding in the report.
 | 2. Detect Documents | Read each file into the documents it holds                | Page ranges stored         |
 | 3. Classify         | Determine each document's type from its OCR text          | Document types stored      |
 | 4. Extract Fields   | Extract structured fields per the profile's field schemas | JSON fields in DB          |
-| 5. Completeness     | Verify required documents present                         | List of missing docs       |
-| 6. Generate Report  | Compile findings with confidence scores                   | Report + validation issues |
+| 5. Cross-document   | Hold the documents against each other on the values the profile says must agree | Cross-check verdicts stored |
+| 6. Completeness     | Verify required documents present                         | List of missing docs       |
+| 7. Generate Report  | Compile findings with confidence scores                   | Report + validation issues |
 
 ### Components
 

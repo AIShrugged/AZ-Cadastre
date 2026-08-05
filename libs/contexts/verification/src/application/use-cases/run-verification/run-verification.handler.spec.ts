@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { VerificationPackage } from "../../../domain/aggregates/index.js";
 import {
   type Document,
-  type ExtractedField,
+  ExtractedField,
   SourceFile,
 } from "../../../domain/entities/index.js";
 import { PackageNotStartableException } from "../../../domain/exceptions/index.js";
@@ -12,7 +12,10 @@ import {
   Classification,
   Confidence,
   ContentType,
+  CrossCheckVerdict,
   DocumentId,
+  FieldKey,
+  FieldValue,
   DocumentType,
   Filename,
   OcrResult,
@@ -27,6 +30,7 @@ import {
   VerificationProfile,
 } from "../../../domain/value-objects/index.js";
 import {
+  CrossChecker,
   DocumentClassifier,
   DocumentSegmenter,
   FieldExtractor,
@@ -34,6 +38,9 @@ import {
   OcrProvider,
   PdfSplitter,
   type ClassificationRequest,
+  type CrossCheckAnswer,
+  type CrossCheckRequest,
+  type ExtractionRequest,
   type PdfSplitRequest,
   type SegmentationRequest,
   type SplitPage,
@@ -191,6 +198,26 @@ class NoFields extends FieldExtractor {
   }
 }
 
+class RecordingCrossChecker extends CrossChecker {
+  readonly asked: CrossCheckRequest[] = [];
+
+  constructor(
+    private readonly verdict: CrossCheckVerdict = CrossCheckVerdict.MATCH,
+  ) {
+    super();
+  }
+
+  override async check(request: CrossCheckRequest): Promise<CrossCheckAnswer> {
+    this.asked.push(request);
+
+    return {
+      verdict: this.verdict,
+      confidence: Confidence.of(0.95),
+      note: "compared in a test",
+    };
+  }
+}
+
 function aPackageOf(...files: readonly SourceFile[]): VerificationPackage {
   return VerificationPackage.create(
     PackageId.of(PACKAGE_ID),
@@ -214,6 +241,8 @@ function pipelineOver(
   ocr: RecordingOcr = new RecordingOcr(),
   segmenter: DocumentSegmenter = new SegmenterCuttingAt(),
   classifier: DocumentClassifier = new RecordingClassifier(),
+  extractor: FieldExtractor = new NoFields(),
+  crossChecker: CrossChecker = new RecordingCrossChecker(),
 ): {
   run: () => Promise<void>;
   packages: InMemoryPackages;
@@ -227,7 +256,8 @@ function pipelineOver(
     ocr,
     segmenter,
     classifier,
-    new NoFields(),
+    extractor,
+    crossChecker,
   );
 
   return {
@@ -476,6 +506,7 @@ describe("RunVerificationHandler", () => {
       new SegmenterCuttingAt(),
       new RecordingClassifier(),
       new NoFields(),
+      new RecordingCrossChecker(),
     );
 
     await handler.execute(new RunVerificationCommand(PACKAGE_ID));
@@ -600,6 +631,7 @@ describe("RunVerificationHandler", () => {
         segmenter,
         new RecordingClassifier(),
         new NoFields(),
+        new RecordingCrossChecker(),
       );
 
       await handler.execute(new RunVerificationCommand(PACKAGE_ID));
@@ -609,6 +641,188 @@ describe("RunVerificationHandler", () => {
 
       expect(segmenter.asked).toHaveLength(1);
       expect(await documentsAfter(packages)).toHaveLength(2);
+    });
+  });
+
+  describe("holding the documents against each other", () => {
+    const IDENTITY = VerificationProfile.CADASTRE.crossChecks[0]!;
+
+    // The card on sheet 1, the application on sheet 2 — the two papers the
+    // profile's first check reads the applicant's name off.
+    class CardThenApplication extends DocumentClassifier {
+      #placed = 0;
+
+      override async classify(): Promise<Classification> {
+        this.#placed += 1;
+
+        return Classification.of(
+          DocumentType.create(this.#placed === 1 ? "identity_card" : "application"),
+          Confidence.of(0.9),
+        );
+      }
+    }
+
+    class NamesOnTheDocument extends FieldExtractor {
+      constructor(private readonly applicant = "Əliyeva Rübabə") {
+        super();
+      }
+
+      override async extract(
+        request: ExtractionRequest,
+      ): Promise<readonly ExtractedField[]> {
+        const said =
+          request.spec.type.value === "identity_card"
+            ? ([
+                ["last_name", "ƏLİYEVA"],
+                ["first_name", "Rübabə"],
+              ] as const)
+            : ([["applicant_name", this.applicant]] as const);
+
+        return said.map(([key, value]) =>
+          ExtractedField.of(
+            FieldKey.create(key),
+            FieldValue.create(value),
+            Confidence.of(0.9),
+            PageNumber.first(),
+          ),
+        );
+      }
+    }
+
+    function aSubmission(
+      crossChecker: CrossChecker = new RecordingCrossChecker(),
+      extractor: FieldExtractor = new NamesOnTheDocument(),
+    ) {
+      return pipelineOver(
+        aPackageOf(aFile("submission.pdf", ContentType.PDF)),
+        new RenderingSplitter(2),
+        new RecordingOcr(),
+        new SegmenterCuttingAt([2]),
+        new CardThenApplication(),
+        extractor,
+        crossChecker,
+      );
+    }
+
+    it("asks about the check with every value the two documents offered", async () => {
+      const crossChecker = new RecordingCrossChecker();
+
+      await aSubmission(crossChecker).run();
+
+      const asked = crossChecker.asked.find(
+        (request) => request.spec.key.value === "applicant_identity",
+      );
+      expect(asked?.values.map((value) => value.value.value)).toEqual([
+        "ƏLİYEVA",
+        "Rübabə",
+        "Əliyeva Rübabə",
+      ]);
+    });
+
+    it("records what came back", async () => {
+      const { run, packages } = aSubmission(
+        new RecordingCrossChecker(CrossCheckVerdict.MISMATCH),
+      );
+
+      await run();
+
+      const stored = await storedPackage(packages);
+      expect(stored.hasMade(IDENTITY.key)).toBe(true);
+      expect(stored.crossChecks[0]?.verdict).toBe(CrossCheckVerdict.MISMATCH);
+    });
+
+    it("never lets a check be surer than the least confident value it weighed", async () => {
+      class AFaintCard extends NamesOnTheDocument {
+        override async extract(
+          request: ExtractionRequest,
+        ): Promise<readonly ExtractedField[]> {
+          const read = await super.extract(request);
+
+          return read.map((field) =>
+            ExtractedField.of(
+              field.key,
+              field.value,
+              Confidence.of(field.key.value === "last_name" ? 0.4 : 0.9),
+              field.foundOn,
+            ),
+          );
+        }
+      }
+
+      const { run, packages } = aSubmission(
+        new RecordingCrossChecker(),
+        new AFaintCard(),
+      );
+
+      await run();
+
+      expect((await storedPackage(packages)).crossChecks[0]?.confidence.value).toBe(
+        0.4,
+      );
+    });
+
+    it("asks about no check the package has only one document for", async () => {
+      const crossChecker = new RecordingCrossChecker();
+
+      await aSubmission(crossChecker).run();
+
+      expect(crossChecker.asked.map((request) => request.spec.key.value)).toEqual([
+        "applicant_identity",
+      ]);
+    });
+
+    it("does not ask again about a check an earlier run already made", async () => {
+      const crossChecker = new RecordingCrossChecker();
+      const packages = new InMemoryPackages(
+        aPackageOf(aFile("submission.pdf", ContentType.PDF)),
+      );
+      const handler = new RunVerificationHandler(
+        packages,
+        new SequentialIds(),
+        new RenderingSplitter(2),
+        new RecordingOcr(),
+        new SegmenterCuttingAt([2]),
+        new CardThenApplication(),
+        new NamesOnTheDocument(),
+        crossChecker,
+      );
+
+      await handler.execute(new RunVerificationCommand(PACKAGE_ID));
+      await expect(
+        handler.execute(new RunVerificationCommand(PACKAGE_ID)),
+      ).rejects.toThrow(PackageNotStartableException);
+
+      expect(crossChecker.asked).toHaveLength(1);
+    });
+
+    it("carries on to the report when the check itself could not be made", async () => {
+      class RefusingCrossChecker extends CrossChecker {
+        override check(): Promise<CrossCheckAnswer> {
+          throw new Error("no cross-check is made in this test");
+        }
+      }
+
+      const { run, packages } = aSubmission(new RefusingCrossChecker());
+
+      await run();
+
+      const stored = await storedPackage(packages);
+      expect(stored.crossChecks).toEqual([]);
+      expect(stored.report).not.toBeNull();
+      expect(stored.status.value).toBe("Completed");
+    });
+
+    it("puts a disagreement in the report it hands over", async () => {
+      const { run, packages } = aSubmission(
+        new RecordingCrossChecker(CrossCheckVerdict.MISMATCH),
+      );
+
+      await run();
+
+      const kinds = (await storedPackage(packages)).report?.issues.map(
+        (issue) => issue.kind.value,
+      );
+      expect(kinds).toContain("FieldMismatch");
     });
   });
 

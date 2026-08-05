@@ -19,6 +19,7 @@ import {
   VerificationStarted,
 } from "../events/index.js";
 import {
+  CrossCheckNotInProfileException,
   DocumentAlreadyClassifiedException,
   DocumentNotClassifiedException,
   DocumentNotInPackageException,
@@ -43,6 +44,9 @@ import {
   Classification,
   Confidence,
   ContentType,
+  CrossCheck,
+  CrossCheckKey,
+  CrossCheckVerdict,
   DocumentId,
   DocumentType,
   FailureReason,
@@ -247,6 +251,7 @@ describe("VerificationPackage", () => {
         status: PackageStatus.PROCESSING,
         files: [aFile()],
         documents: [],
+        crossChecks: [],
         report: null,
       });
 
@@ -264,6 +269,7 @@ describe("VerificationPackage", () => {
         status: PackageStatus.COMPLETED,
         files: [file],
         documents: [document],
+        crossChecks: [],
         report: null,
       });
 
@@ -281,6 +287,7 @@ describe("VerificationPackage", () => {
         status: PackageStatus.PENDING,
         files: [],
         documents: [],
+        crossChecks: [],
         report: null,
       });
 
@@ -1101,6 +1108,7 @@ describe("VerificationPackage", () => {
         status: PackageStatus.PROCESSING,
         files: verification.files,
         documents: verification.documents,
+        crossChecks: verification.crossChecks,
         report: verification.report,
       });
       reread.recordRecognition(file.id, page.id, anOcrResult());
@@ -1159,6 +1167,227 @@ describe("VerificationPackage", () => {
       ]);
 
       expect(verification.isFullyProcessed).toBe(false);
+    });
+  });
+
+  describe("when the documents are held against each other", () => {
+    const IDENTITY = VerificationProfile.CADASTRE.crossChecks[0]!;
+
+    // Two documents of one submission, each carrying the fields the identity
+    // check reaches for: the card's surname and given name, and the one full
+    // name the application is made in.
+    function aSubmission(applicantName = "Əliyeva Rübabə") {
+      const built = aSegmentedPackage(2);
+      const [card, application] = built.documents as [Document, Document];
+
+      built.verification.classify(card.id, aClassification("identity_card"));
+      built.verification.recordExtractedFields(card.id, [
+        aNamed("last_name", "ƏLİYEVA"),
+        aNamed("first_name", "Rübabə"),
+      ]);
+      built.verification.classify(application.id, aClassification("application"));
+      built.verification.recordExtractedFields(application.id, [
+        aNamed("applicant_name", applicantName),
+      ]);
+      built.verification.commit();
+
+      return { ...built, card, application };
+    }
+
+    function aNamed(key: string, value: string): ExtractedField {
+      return ExtractedField.of(
+        FieldKey.create(key),
+        FieldValue.create(value),
+        Confidence.of(0.9),
+        PageNumber.first(),
+      );
+    }
+
+    function aVerdict(
+      verification: VerificationPackage,
+      verdict: CrossCheckVerdict,
+      confidence = 0.9,
+    ): CrossCheck {
+      return CrossCheck.of({
+        key: IDENTITY.key,
+        verdict,
+        confidence: Confidence.of(confidence),
+        note: "compared in a test",
+        values: verification.valuesFor(IDENTITY),
+      });
+    }
+
+    it("offers every value the check reaches for, in the order it names them", () => {
+      const { verification } = aSubmission();
+
+      expect(
+        verification.valuesFor(IDENTITY).map((value) => value.value.value),
+      ).toEqual(["ƏLİYEVA", "Rübabə", "Əliyeva Rübabə"]);
+    });
+
+    it("offers nothing off a document the classifier could not place", () => {
+      const built = aSegmentedPackage(1);
+      built.verification.classify(
+        built.document.id,
+        Classification.unplaced(Confidence.of(0.2)),
+      );
+
+      expect(built.verification.valuesFor(IDENTITY)).toEqual([]);
+    });
+
+    it("will not make a check the package has only one document for", () => {
+      const built = aSegmentedPackage(1);
+      built.verification.classify(
+        built.document.id,
+        aClassification("identity_card"),
+      );
+      built.verification.recordExtractedFields(built.document.id, [
+        aNamed("last_name", "ƏLİYEVA"),
+        aNamed("first_name", "Rübabə"),
+      ]);
+
+      expect(built.verification.canMake(IDENTITY)).toBe(false);
+    });
+
+    it("makes a check the moment two documents can answer it", () => {
+      const { verification } = aSubmission();
+
+      expect(verification.canMake(IDENTITY)).toBe(true);
+    });
+
+    it("records the answer and says so", () => {
+      const { verification } = aSubmission();
+
+      verification.recordCrossCheck(aVerdict(verification, CrossCheckVerdict.MATCH));
+
+      expect(verification.hasMade(IDENTITY.key)).toBe(true);
+      expect(typesOf(verification)).toEqual(["verification.CrossCheckMade"]);
+    });
+
+    it("keeps one answer per check, so a re-run replaces rather than repeats", () => {
+      const { verification } = aSubmission();
+
+      verification.recordCrossCheck(aVerdict(verification, CrossCheckVerdict.MATCH));
+      verification.recordCrossCheck(
+        aVerdict(verification, CrossCheckVerdict.MISMATCH),
+      );
+
+      expect(verification.crossChecks).toHaveLength(1);
+      expect(verification.crossChecks[0]?.verdict).toBe(
+        CrossCheckVerdict.MISMATCH,
+      );
+    });
+
+    it("refuses a check this profile does not declare", () => {
+      const { verification } = aSubmission();
+      const foreign = CrossCheck.of({
+        key: CrossCheckKey.create("shoe_size"),
+        verdict: CrossCheckVerdict.MATCH,
+        confidence: Confidence.of(0.9),
+        note: "",
+        values: verification.valuesFor(IDENTITY),
+      });
+
+      expect(() => verification.recordCrossCheck(foreign)).toThrow(
+        CrossCheckNotInProfileException,
+      );
+    });
+
+    it("refuses a check once the run is over", () => {
+      const { verification } = aSubmission();
+      const check = aVerdict(verification, CrossCheckVerdict.MATCH);
+      verification.complete();
+
+      expect(() => verification.recordCrossCheck(check)).toThrow(
+        PackageNotUnderWayException,
+      );
+    });
+
+    it("reports a disagreement as a finding against the package", () => {
+      const { verification } = aSubmission("Məmmədov Elçin");
+      verification.recordCrossCheck(
+        aVerdict(verification, CrossCheckVerdict.MISMATCH),
+      );
+
+      verification.complete();
+
+      const found = verification.report?.issues.find(
+        (issue) => issue.kind.value === "FieldMismatch",
+      );
+      expect(found?.checkKey?.value).toBe("applicant_identity");
+      expect(verification.report?.status.value).not.toBe("OK");
+    });
+
+    it("files the finding on the document the profile named first", () => {
+      const { verification, card } = aSubmission("Məmmədov Elçin");
+      verification.recordCrossCheck(
+        aVerdict(verification, CrossCheckVerdict.MISMATCH),
+      );
+
+      verification.complete();
+
+      const found = verification.report?.issues.find(
+        (issue) => issue.kind.value === "FieldMismatch",
+      );
+      expect(found?.documentId?.value).toBe(card.id.value);
+      expect(found?.fieldKey?.value).toBe("last_name");
+    });
+
+    it("reports a check nobody could decide, because the inspector has to", () => {
+      const { verification } = aSubmission();
+      verification.recordCrossCheck(
+        aVerdict(verification, CrossCheckVerdict.UNCLEAR),
+      );
+
+      verification.complete();
+
+      expect(
+        verification.report?.issues.filter(
+          (issue) => issue.kind.value === "FieldMismatch",
+        ),
+      ).toHaveLength(1);
+    });
+
+    it("says nothing about a check that agreed", () => {
+      const { verification } = aSubmission();
+      verification.recordCrossCheck(
+        aVerdict(verification, CrossCheckVerdict.MATCH),
+      );
+
+      verification.complete();
+
+      expect(
+        verification.report?.issues.filter(
+          (issue) => issue.kind.value === "FieldMismatch",
+        ),
+      ).toEqual([]);
+    });
+
+    it("works the findings out afresh, so an answered disagreement drops out", () => {
+      const { verification } = aSubmission();
+      verification.recordCrossCheck(
+        aVerdict(verification, CrossCheckVerdict.MISMATCH),
+      );
+      verification.complete();
+
+      const reread = VerificationPackage.restore({
+        id: verification.id,
+        version: 2,
+        profile: VerificationProfile.CADASTRE,
+        status: PackageStatus.PROCESSING,
+        files: verification.files,
+        documents: verification.documents,
+        crossChecks: verification.crossChecks,
+        report: verification.report,
+      });
+      reread.recordCrossCheck(aVerdict(reread, CrossCheckVerdict.MATCH));
+      reread.complete();
+
+      expect(
+        reread.report?.issues.filter(
+          (issue) => issue.kind.value === "FieldMismatch",
+        ),
+      ).toEqual([]);
     });
   });
 

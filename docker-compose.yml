@@ -58,6 +58,9 @@ services:
       # Reads the sheets as images as well as transcriptions — must take images
       - EXTRACTOR_PROVIDER=openrouter
       - EXTRACTOR_MODEL=qwen/qwen2.5-vl-72b-instruct
+      # Judges names and addresses in two scripts — text only, no images
+      - CROSS_CHECKER_PROVIDER=openrouter
+      - CROSS_CHECKER_MODEL=openai/gpt-4o
 
       # OpenRouter (optional, only needed if switching from mock to openrouter)
       - OPENROUTER_API_KEY=

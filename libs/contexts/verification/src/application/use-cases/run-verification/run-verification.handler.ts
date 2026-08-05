@@ -6,6 +6,8 @@ import { Document, Page, type SourceFile } from "../../../domain/entities/index.
 import { VerificationPackageRepository } from "../../../domain/repositories/index.js";
 import {
   Confidence,
+  CrossCheck,
+  type CrossCheckSpec,
   type DocumentId,
   FailureReason,
   PackageId,
@@ -18,6 +20,7 @@ import {
 } from "../../../domain/value-objects/index.js";
 import { PackageNotFoundException } from "../../exceptions/index.js";
 import {
+  CrossChecker,
   DocumentClassifier,
   DocumentSegmenter,
   FieldExtractor,
@@ -46,6 +49,7 @@ export class RunVerificationHandler
     private readonly segmenter: DocumentSegmenter,
     private readonly classifier: DocumentClassifier,
     private readonly extractor: FieldExtractor,
+    private readonly crossChecker: CrossChecker,
   ) {}
 
   // A stage that cannot do its work does not stop the run: a file that will not
@@ -85,6 +89,15 @@ export class RunVerificationHandler
         );
         await this.despite(packageId, `extracting ${documentId.value}`, () =>
           this.extract(packageId, documentId),
+        );
+      }
+
+      // Every document has said what it says before any of them are held
+      // against each other: a check reads values off two papers, so it cannot
+      // run until both have been read.
+      for (const spec of (await this.load(packageId)).profile.crossChecks) {
+        await this.despite(packageId, `cross-checking ${spec.key.value}`, () =>
+          this.crossCheck(packageId, spec),
         );
       }
 
@@ -323,6 +336,41 @@ export class RunVerificationHandler
 
     verification.recordExtractedFields(documentId, fields);
     await this.packages.save(verification);
+  }
+
+  // A value is only as good as the reading it came from, and a check is only as
+  // good as the values it weighed: the reader's own certainty is capped by the
+  // least confident value on the table. A name read at 0.4 off a faint card
+  // cannot produce a mismatch anyone should act on at 0.95.
+  private async crossCheck(
+    packageId: PackageId,
+    spec: CrossCheckSpec,
+  ): Promise<void> {
+    const verification = await this.load(packageId);
+
+    if (verification.hasMade(spec.key)) return;
+    if (!verification.canMake(spec)) return;
+
+    const values = verification.valuesFor(spec);
+    const answer = await this.crossChecker.check({ spec, values });
+    const read = Math.min(...values.map((value) => value.confidence.value));
+
+    verification.recordCrossCheck(
+      CrossCheck.of({
+        key: spec.key,
+        verdict: answer.verdict,
+        confidence: Confidence.of(Math.min(read, answer.confidence.value)),
+        note: answer.note,
+        values,
+      }),
+    );
+    await this.packages.save(verification);
+
+    this.logger.log(
+      `Package ${packageId.value}: "${spec.key.value}" across ` +
+        `${values.length} value(s) → ${answer.verdict.value} ` +
+        `(${answer.confidence.value.toFixed(2)})`,
+    );
   }
 
   private async change(

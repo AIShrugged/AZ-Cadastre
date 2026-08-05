@@ -1,4 +1,6 @@
 import type { Confidence } from "./confidence.vo.js";
+import { CrossCheckVerdict } from "./cross-check-verdict.vo.js";
+import type { CrossCheck, CrossCheckKey } from "./cross-check.vo.js";
 import { DocumentType as DocumentTypeRef } from "./document-type.vo.js";
 import type { DocumentType } from "./document-type.vo.js";
 import type { FieldKey } from "./field.vo.js";
@@ -14,6 +16,7 @@ type Finding = {
   readonly sourceFileId?: SourceFileId | null;
   readonly documentType?: DocumentType | null;
   readonly fieldKey?: FieldKey | null;
+  readonly checkKey?: CrossCheckKey | null;
   readonly pageNumber?: PageNumber | null;
   readonly confidence?: Confidence | null;
 };
@@ -29,6 +32,7 @@ export class ValidationIssue {
     public readonly sourceFileId: SourceFileId | null,
     public readonly documentType: DocumentType | null,
     public readonly fieldKey: FieldKey | null,
+    public readonly checkKey: CrossCheckKey | null,
     public readonly pageNumber: PageNumber | null,
     public readonly confidence: Confidence | null,
   ) {}
@@ -41,6 +45,7 @@ export class ValidationIssue {
       finding.sourceFileId ?? null,
       finding.documentType ?? null,
       finding.fieldKey ?? null,
+      finding.checkKey ?? null,
       finding.pageNumber ?? null,
       finding.confidence ?? null,
     );
@@ -122,6 +127,27 @@ export class ValidationIssue {
       kind: IssueKind.UNREADABLE_DOCUMENT,
       message: "The file could not be read into the documents it holds.",
       sourceFileId,
+    });
+  }
+
+  // Filed against the first value the check weighed — the document the profile
+  // named first — so the inspector lands on one side of the disagreement and
+  // the message names the other.
+  static crossCheckFailed(check: CrossCheck): ValidationIssue {
+    const anchor = check.anchor;
+    const said = check.verdict.equals(CrossCheckVerdict.MISMATCH)
+      ? `The documents do not agree on "${check.key.value}"`
+      : `Whether the documents agree on "${check.key.value}" could not be decided`;
+
+    return ValidationIssue.of({
+      kind: IssueKind.FIELD_MISMATCH,
+      message: `${said}: ${check.cited}.${check.note ? ` ${check.note}` : ""}`,
+      documentId: anchor?.documentId,
+      documentType: anchor?.documentType,
+      fieldKey: anchor?.fieldKey,
+      checkKey: check.key,
+      pageNumber: anchor?.foundOn,
+      confidence: check.confidence,
     });
   }
 

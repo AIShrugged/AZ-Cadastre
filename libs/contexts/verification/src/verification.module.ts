@@ -11,6 +11,7 @@ import {
 } from "./api/http/index.js";
 import { RunVerificationOnSubmissionHandler } from "./application/event-handlers/index.js";
 import {
+  CrossChecker,
   DocumentClassifier,
   DocumentSegmenter,
   FieldExtractor,
@@ -31,12 +32,14 @@ import {
 } from "./application/use-cases/index.js";
 import { VerificationPackageRepository } from "./domain/repositories/index.js";
 import {
+  CrossCheckerAdapter,
   DocumentClassifierAdapter,
   DocumentSegmenterAdapter,
   FieldExtractorAdapter,
   ObjectStorageAdapter,
   OcrProviderAdapter,
   OpenRouterClassifierAdapter,
+  OpenRouterCrossCheckerAdapter,
   OpenRouterFieldExtractorAdapter,
   OpenRouterOcrAdapter,
   OpenRouterSegmenterAdapter,
@@ -124,6 +127,14 @@ const handlers = [
           ? new OpenRouterFieldExtractorAdapter(config, storage)
           : new FieldExtractorAdapter(),
       inject: [ConfigService, ObjectStorage],
+    },
+    {
+      provide: CrossChecker,
+      useFactory: (config: ConfigService<Environment, true>): CrossChecker =>
+        config.get("crossChecker", { infer: true }).provider === "openrouter"
+          ? new OpenRouterCrossCheckerAdapter(config)
+          : new CrossCheckerAdapter(),
+      inject: [ConfigService],
     },
 
     // Registered by the context that raises them, so its `code → status` table

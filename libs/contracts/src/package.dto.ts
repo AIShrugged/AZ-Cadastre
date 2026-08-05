@@ -23,6 +23,9 @@ export const IssueKindSchema = z.enum([
   "MissingDocument",
   "UnreadableDocument",
   "LowConfidence",
+  // Documents of one submission were asked to agree on a value the profile says
+  // must be one value, and were not shown to agree.
+  "FieldMismatch",
   // Stated for the record rather than against the package: something the run
   // noticed in the envelope that only the inspector can weigh.
   "ExtraDocument",
@@ -112,11 +115,56 @@ export const IssueDtoSchema = z.object({
   sourceFileId: z.string().nullable(),
   documentType: z.string().nullable(),
   fieldName: z.string().nullable(),
+  // The profile cross-check the finding came out of. Set only for
+  // FieldMismatch, where the finding is about a rule rather than one field —
+  // it is what names the finding to a reader in their own language.
+  checkKey: z.string().nullable(),
   pageNumber: z.number().int().positive().nullable(),
   // 0..1.
   confidence: z.number().nullable(),
 });
 export type IssueDto = z.infer<typeof IssueDtoSchema>;
+
+// ─── Cross-document verification ─────────────────────────────────────────────
+// What the papers of one submission were asked to agree on, and whether they
+// did. Reported apart from the findings as well as through them: a check that
+// agreed is evidence too, and it is what the inspector does not have to redo.
+
+export const CrossCheckVerdictSchema = z.enum([
+  "Match",
+  "Mismatch",
+  // Compared, and could not be decided either way. Not an agreement, so it
+  // reaches the inspector as a finding.
+  "Unclear",
+]);
+export type CrossCheckVerdict = z.infer<typeof CrossCheckVerdictSchema>;
+
+export const CheckedValueDtoSchema = z.object({
+  // Null once the document it was read off is gone — the value stands, the jump
+  // into the register does not.
+  documentId: z.string().nullable(),
+  documentType: z.string(),
+  fieldName: z.string(),
+  value: z.string(),
+  pageNumber: z.number().int().positive(),
+  // How well the value itself was read, 0..1. A check is never surer than this.
+  confidence: z.number(),
+});
+export type CheckedValueDto = z.infer<typeof CheckedValueDtoSchema>;
+
+export const CrossCheckDtoSchema = z.object({
+  // Profile cross-check key, e.g. "applicant_identity".
+  key: z.string(),
+  verdict: CrossCheckVerdictSchema,
+  // 0..1.
+  confidence: z.number(),
+  // The audit line, written in English when the check was made. A reader is
+  // shown the check built from the values below.
+  note: z.string(),
+  // In the order the profile names them: the anchor first.
+  values: z.array(CheckedValueDtoSchema),
+});
+export type CrossCheckDto = z.infer<typeof CrossCheckDtoSchema>;
 
 export const ReportDtoSchema = z.object({
   status: ReportStatusSchema,
@@ -128,6 +176,9 @@ export type ReportDto = z.infer<typeof ReportDtoSchema>;
 
 export const PackageDetailDtoSchema = PackageDtoSchema.extend({
   files: z.array(SourceFileDtoSchema),
+  // Empty until the cross-document stage has run, and short of the profile's
+  // full list where a check had only one document to read.
+  crossChecks: z.array(CrossCheckDtoSchema),
   report: ReportDtoSchema.nullable(),
 });
 export type PackageDetailDto = z.infer<typeof PackageDetailDtoSchema>;

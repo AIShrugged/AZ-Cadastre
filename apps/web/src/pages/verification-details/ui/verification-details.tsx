@@ -94,13 +94,7 @@ function StageMarker({ status, n }: { status: StageStatus; n: number }) {
   )
 }
 
-function Pipeline({
-  stages,
-  scores,
-}: {
-  stages: StageStatus[]
-  scores: (number | null)[]
-}) {
+function Pipeline({ stages }: { stages: StageStatus[] }) {
   const { t } = useI18n()
   return (
     <ol className="mt-3 flex flex-col">
@@ -118,12 +112,7 @@ function Pipeline({
               />
             )}
           </div>
-          <div
-            className={cn(
-              "flex min-w-0 flex-1 items-baseline justify-between gap-2",
-              i < stages.length - 1 && "pb-3",
-            )}
-          >
+          <div className={cn("min-w-0 flex-1", i < stages.length - 1 && "pb-3")}>
             <span
               className={cn(
                 "text-[0.8125rem] leading-tight transition-colors duration-300",
@@ -138,18 +127,6 @@ function Pipeline({
             >
               {t(`stage.${i + 1}`)}
             </span>
-            {/* Each implemented step reports its confidence score. */}
-            {scores[i] != null && (
-              <span
-                data-mono
-                className={cn(
-                  "shrink-0 text-[0.6875rem] tabular-nums",
-                  st === "error" ? "text-failed-ink" : "text-muted-foreground",
-                )}
-              >
-                {scores[i]}%
-              </span>
-            )}
           </div>
         </li>
       ))}
@@ -162,13 +139,11 @@ function Pipeline({
 // should not hold rail space ahead of the fact the inspector came for.
 function RunProgress({
   stages,
-  scores,
   running,
   failed,
   stageRunning,
 }: {
   stages: StageStatus[]
-  scores: (number | null)[]
   running: boolean
   failed: boolean
   // Whether any stage is working — more than one can be, so this is a state of
@@ -192,7 +167,7 @@ function RunProgress({
               </span>
             )}
           </div>
-          <Pipeline stages={stages} scores={scores} />
+          <Pipeline stages={stages} />
         </>
       ) : (
         <details className="group">
@@ -208,7 +183,7 @@ function RunProgress({
               {t("detail.stages_done", { n: stages.length })}
             </span>
           </summary>
-          <Pipeline stages={stages} scores={scores} />
+          <Pipeline stages={stages} />
         </details>
       )}
     </section>
@@ -271,37 +246,6 @@ function inSegment(doc: DocumentDto, segment: DocSegment): boolean {
 function isOpenIn(doc: DocumentDto, segment: DocSegment): boolean {
   if (!inSegment(doc, segment)) return false
   return !(segment === "all" && isAside(doc))
-}
-
-/** Confidence score per implemented stage (0–100), or null if it hasn't run.
- *  OCR = mean page confidence; Classification = mean per-document classifier
- *  confidence; Field extraction = mean per-field confidence; Cross-document
- *  check = mean per-check confidence. Document detection reports no score:
- *  where one document ends and the next begins is a boundary, not a reading
- *  with a certainty attached. */
-function stageScores(pkg: PackageDetailDto): (number | null)[] {
-  const mean = (xs: number[]) =>
-    Math.round((xs.reduce((s, x) => s + x, 0) / xs.length) * 100)
-  const scores: (number | null)[] = Array.from({ length: STAGES }, () => null)
-  const documents = documentsOf(pkg)
-
-  const ocr = pkg.files
-    .flatMap((f) => f.pages.map((p) => p.ocr?.confidence))
-    .filter((c): c is number => c != null)
-  if (ocr.length) scores[0] = mean(ocr)
-
-  const cls = documents
-    .map((d) => d.classificationConfidence)
-    .filter((c): c is number => c != null)
-  if (cls.length) scores[2] = mean(cls)
-
-  const fields = documents.flatMap((d) => d.fields.map((f) => f.confidence))
-  if (fields.length) scores[3] = mean(fields)
-
-  const checks = pkg.crossChecks.map((c) => c.confidence)
-  if (checks.length) scores[4] = mean(checks)
-
-  return scores
 }
 
 /** Real per-stage status from pipeline output. A stage that could not do its
@@ -703,8 +647,8 @@ function DocumentEntry({ doc, file }: { doc: DocumentDto; file: SourceFileDto })
   const snippet = fieldless ? text.replace(/\s+/g, " ").slice(0, 160) : ""
   const flagged = doc.fields.filter((f) => f.confidence < CONFIDENCE_FLOOR).length
   // A confidence the engine is sure of is a figure nobody reads. It is kept
-  // where it can be checked — on the fields, and in the rail's stage scores —
-  // and dropped from the heading unless the heading is where the doubt is.
+  // where it can be checked — on the fields — and dropped from the heading
+  // unless the heading is where the doubt is.
   const headline =
     doc.classificationConfidence != null &&
     doc.classificationConfidence < CONFIDENCE_FLOOR
@@ -1706,7 +1650,6 @@ export function VerificationDetails() {
   const view = toViewPackage(pkg)
   const subtitle = `${profileName(t, view.profile)} · ${formatDate(pkg.createdAt, locale)}`
   const stages = stageStatuses(pkg, view.disposition)
-  const scores = stageScores(pkg)
   const stageRunning = stages.some((s) => s === "current")
   const documents = documentsOf(pkg)
   const failed = view.disposition === "failed"
@@ -1779,7 +1722,6 @@ export function VerificationDetails() {
                   that answers whether anything below it is final yet. */}
               <RunProgress
                 stages={stages}
-                scores={scores}
                 running={running}
                 failed={failed}
                 stageRunning={stageRunning}

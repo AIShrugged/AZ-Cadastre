@@ -157,6 +157,62 @@ function Pipeline({
   )
 }
 
+// How far the run got. Live while it works, and folded away into a single line
+// once it is over: a finished run is six green marks reporting history, and it
+// should not hold rail space ahead of the fact the inspector came for.
+function RunProgress({
+  stages,
+  scores,
+  running,
+  failed,
+  currentStage,
+}: {
+  stages: StageStatus[]
+  scores: (number | null)[]
+  running: boolean
+  failed: boolean
+  currentStage: number
+}) {
+  const { t } = useI18n()
+  return (
+    <section>
+      {running ? (
+        <>
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="register-label">{t("detail.process")}</h2>
+            {currentStage >= 0 && (
+              <span className="flex items-center gap-1.5 text-[0.6875rem] font-medium text-primary">
+                <span
+                  aria-hidden
+                  className="size-1.5 rounded-full bg-primary motion-safe:animate-pulse"
+                />
+                {t("detail.stage_running")}
+              </span>
+            )}
+          </div>
+          <Pipeline stages={stages} scores={scores} />
+        </>
+      ) : (
+        <details className="group">
+          <summary className="-mx-2 flex cursor-pointer list-none select-none items-baseline gap-2 rounded-md px-2 py-1 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+            <ChevronRightIcon className="size-3 shrink-0 translate-y-0.5 text-muted-foreground transition-transform duration-200 group-open:rotate-90" />
+            <span className="register-label">
+              {failed ? t("status.failed") : t("detail.process_done")}
+            </span>
+            <span
+              data-mono
+              className="ml-auto shrink-0 text-[0.6875rem] tabular-nums text-muted-foreground/70"
+            >
+              {t("detail.stages_done", { n: stages.length })}
+            </span>
+          </summary>
+          <Pipeline stages={stages} scores={scores} />
+        </details>
+      )}
+    </section>
+  )
+}
+
 /** Every document the engine found, across all uploaded files, in reading
  *  order. */
 function documentsOf(pkg: PackageDetailDto): DocumentDto[] {
@@ -1671,6 +1727,13 @@ export function VerificationDetails() {
   // filter to, so the register opens whole.
   const segment = pickedSegment ?? (counts.review > 0 ? "review" : "all")
 
+  // The first stage has nothing to report but that it started, and the rail's
+  // completeness answer is still "not yet" — so the run stays at the bottom.
+  // From the second stage on it is naming documents as it finds them, which is
+  // the one thing on the surface that changes while the inspector watches, and
+  // it takes the top of the rail until the run is over.
+  const runFirst = running && currentStage >= 1
+
   // A jump out of the worklist or the index into the register. If the segment
   // on screen already shows the target, the browser's own fragment navigation
   // does the work — hash, :target wash, scroll-margin and all. If it does not,
@@ -1711,6 +1774,20 @@ export function VerificationDetails() {
                 documents must not push the end of the index past the fold with
                 no way to reach it. */}
             <div className="flex flex-col gap-7 xl:sticky xl:top-1 xl:-mx-2 xl:max-h-[calc(100dvh-10rem)] xl:overflow-y-auto xl:overscroll-contain xl:px-2 xl:pb-2">
+              {/* Ordered by what the rail can actually answer right now, and
+                  moved in the DOM rather than by CSS so it is read in the order
+                  it is seen. Until the run is past its first stage — and again
+                  once it is over — completeness leads and the run sits last. */}
+              {runFirst && (
+                <RunProgress
+                  stages={stages}
+                  scores={scores}
+                  running={running}
+                  failed={failed}
+                  currentStage={currentStage}
+                />
+              )}
+
               <RequiredDocuments
                 missing={missing}
                 total={expected ?? 0}
@@ -1719,46 +1796,15 @@ export function VerificationDetails() {
 
               {documents.length > 1 && <Contents files={pkg.files} onJump={jump} />}
 
-              {/* Last, and folded once it is over. A run still working is the
-                  most useful thing in the rail; a run that finished is six
-                  green marks reporting history, and it was holding the top of
-                  the rail — and the first screen on a phone — ahead of the one
-                  fact the inspector came for. */}
-              <section>
-                {running ? (
-                  <>
-                    <div className="flex items-baseline justify-between gap-3">
-                      <h2 className="register-label">{t("detail.process")}</h2>
-                      {currentStage >= 0 && (
-                        <span className="flex items-center gap-1.5 text-[0.6875rem] font-medium text-primary">
-                          <span
-                            aria-hidden
-                            className="size-1.5 rounded-full bg-primary motion-safe:animate-pulse"
-                          />
-                          {t("detail.stage_running")}
-                        </span>
-                      )}
-                    </div>
-                    <Pipeline stages={stages} scores={scores} />
-                  </>
-                ) : (
-                  <details className="group">
-                    <summary className="-mx-2 flex cursor-pointer list-none select-none items-baseline gap-2 rounded-md px-2 py-1 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
-                      <ChevronRightIcon className="size-3 shrink-0 translate-y-0.5 text-muted-foreground transition-transform duration-200 group-open:rotate-90" />
-                      <span className="register-label">
-                        {failed ? t("status.failed") : t("detail.process_done")}
-                      </span>
-                      <span
-                        data-mono
-                        className="ml-auto shrink-0 text-[0.6875rem] tabular-nums text-muted-foreground/70"
-                      >
-                        {t("detail.stages_done", { n: stages.length })}
-                      </span>
-                    </summary>
-                    <Pipeline stages={stages} scores={scores} />
-                  </details>
-                )}
-              </section>
+              {!runFirst && (
+                <RunProgress
+                  stages={stages}
+                  scores={scores}
+                  running={running}
+                  failed={failed}
+                  currentStage={currentStage}
+                />
+              )}
             </div>
           </aside>
 

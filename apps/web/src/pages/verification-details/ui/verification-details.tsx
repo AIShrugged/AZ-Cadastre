@@ -165,13 +165,15 @@ function RunProgress({
   scores,
   running,
   failed,
-  currentStage,
+  stageRunning,
 }: {
   stages: StageStatus[]
   scores: (number | null)[]
   running: boolean
   failed: boolean
-  currentStage: number
+  // Whether any stage is working — more than one can be, so this is a state of
+  // the run rather than a position in it.
+  stageRunning: boolean
 }) {
   const { t } = useI18n()
   return (
@@ -180,7 +182,7 @@ function RunProgress({
         <>
           <div className="flex items-baseline justify-between gap-3">
             <h2 className="register-label">{t("detail.process")}</h2>
-            {currentStage >= 0 && (
+            {stageRunning && (
               <span className="flex items-center gap-1.5 text-[0.6875rem] font-medium text-primary">
                 <span
                   aria-hidden
@@ -347,8 +349,13 @@ function stageStatuses(
   stages[0] = ocrDone ? "done" : "current"
   stages[1] = detectDone ? "done" : ocrDone ? "current" : "pending"
   if (!detectDone) return stages
+  // Classification and extraction are one pass, not two: the run takes a
+  // document, places it, and reads its fields before moving to the next. So
+  // while that pass is under way both are genuinely working and both are marked
+  // running — showing extraction as "not started" until the last document is
+  // placed would report a queue the run does not have.
   stages[2] = classifyDone ? "done" : "current"
-  stages[3] = extractDone ? "done" : classifyDone ? "current" : "pending"
+  stages[3] = extractDone ? "done" : "current"
   stages[4] = crossDone ? "done" : extractDone ? "current" : "pending"
   return stages
 }
@@ -1700,7 +1707,7 @@ export function VerificationDetails() {
   const subtitle = `${profileName(t, view.profile)} · ${formatDate(pkg.createdAt, locale)}`
   const stages = stageStatuses(pkg, view.disposition)
   const scores = stageScores(pkg)
-  const currentStage = stages.findIndex((s) => s === "current")
+  const stageRunning = stages.some((s) => s === "current")
   const documents = documentsOf(pkg)
   const failed = view.disposition === "failed"
   const running = !pkg.report && !failed
@@ -1726,13 +1733,6 @@ export function VerificationDetails() {
   // inspector would pick anyway. With nothing flagged there is nothing to
   // filter to, so the register opens whole.
   const segment = pickedSegment ?? (counts.review > 0 ? "review" : "all")
-
-  // The first stage has nothing to report but that it started, and the rail's
-  // completeness answer is still "not yet" — so the run stays at the bottom.
-  // From the second stage on it is naming documents as it finds them, which is
-  // the one thing on the surface that changes while the inspector watches, and
-  // it takes the top of the rail until the run is over.
-  const runFirst = running && currentStage >= 1
 
   // A jump out of the worklist or the index into the register. If the segment
   // on screen already shows the target, the browser's own fragment navigation
@@ -1774,19 +1774,16 @@ export function VerificationDetails() {
                 documents must not push the end of the index past the fold with
                 no way to reach it. */}
             <div className="flex flex-col gap-7 xl:sticky xl:top-1 xl:-mx-2 xl:max-h-[calc(100dvh-10rem)] xl:overflow-y-auto xl:overscroll-contain xl:px-2 xl:pb-2">
-              {/* Ordered by what the rail can actually answer right now, and
-                  moved in the DOM rather than by CSS so it is read in the order
-                  it is seen. Until the run is past its first stage — and again
-                  once it is over — completeness leads and the run sits last. */}
-              {runFirst && (
-                <RunProgress
-                  stages={stages}
-                  scores={scores}
-                  running={running}
-                  failed={failed}
-                  currentStage={currentStage}
-                />
-              )}
+              {/* First at every stage of the run, and first once it is over —
+                  where the rail is looked at, the state of the run is the line
+                  that answers whether anything below it is final yet. */}
+              <RunProgress
+                stages={stages}
+                scores={scores}
+                running={running}
+                failed={failed}
+                stageRunning={stageRunning}
+              />
 
               <RequiredDocuments
                 missing={missing}
@@ -1795,16 +1792,6 @@ export function VerificationDetails() {
               />
 
               {documents.length > 1 && <Contents files={pkg.files} onJump={jump} />}
-
-              {!runFirst && (
-                <RunProgress
-                  stages={stages}
-                  scores={scores}
-                  running={running}
-                  failed={failed}
-                  currentStage={currentStage}
-                />
-              )}
             </div>
           </aside>
 

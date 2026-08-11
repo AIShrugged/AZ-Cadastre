@@ -1707,7 +1707,13 @@ export function VerificationDetails() {
         subtitle={subtitle}
       />
 
-      <SurfaceBody>
+      {/* Fragment jumps are how this surface is read — a finding in the worklist
+          or a line in the index, followed down into the evidence. Animating the
+          scroll keeps the connection between the two visible: the register
+          travels rather than cutting, so the inspector sees where the answer
+          sits relative to what they clicked. Skipped under reduced motion,
+          where the cut is the accessible behaviour. */}
+      <SurfaceBody className="motion-safe:scroll-smooth">
         <div className="mx-auto grid w-full max-w-[88rem] gap-x-10 gap-y-7 px-4 py-7 md:px-8 md:py-9 xl:grid-cols-[minmax(0,1fr)_18rem]">
           {/* ── State of the run: how far it got, what is still expected, and
               what the package turned out to contain. Declared first so it is

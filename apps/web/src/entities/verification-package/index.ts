@@ -21,6 +21,7 @@ export type {
 } from "./model/verification-package"
 export {
   inSegment,
+  packageRef,
   segmentCounts,
   matchesQuery,
   toViewPackage,

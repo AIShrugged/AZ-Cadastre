@@ -81,6 +81,21 @@ export function segmentCounts(pkgs: VerificationPackage[]): Record<Segment, numb
   return c
 }
 
+/**
+ * The package's id as a register reference — the first block of the uuid the
+ * database issues. A uuid is how the system names a package, not how a person
+ * reads one back: thirty-six characters of hexadecimal cannot be compared down
+ * a column, held in the head between two screens, or read aloud over a desk.
+ *
+ * The short form is a reference, never the identity: the full id travels with
+ * it wherever it is shown (the row's title, the details subtitle, the URL), and
+ * search still matches on the whole of it, so an id handed over in full still
+ * finds its package.
+ */
+export function packageRef(id: string): string {
+  return id.split("-")[0] ?? id
+}
+
 export function matchesQuery(p: VerificationPackage, q: string): boolean {
   if (!q.trim()) return true
   const n = q.trim().toLocaleLowerCase()

@@ -54,6 +54,7 @@ import {
 import {
   inSegment,
   matchesQuery,
+  packageRef,
   segmentCounts,
   type Segment,
   type VerificationPackage,
@@ -202,14 +203,16 @@ function RegisterTable({
     <Table className="border-separate border-spacing-0">
       <TableHeader>
         <TableRow className="border-0 hover:bg-transparent">
-          {["col.package", "col.profile", "col.documents", "col.findings", "col.submitted", "col.status"].map(
-            (c, i) => (
+          {/* No Profile column: the entry now leads with the profile's name, and
+              the same string twice in one row is a column that reports nothing. */}
+          {["col.package", "col.documents", "col.findings", "col.submitted", "col.status"].map(
+            (c, i, all) => (
               <TableHead
                 key={c}
                 className={cn(
                   "register-label sticky top-0 z-10 h-auto border-b border-rule-strong bg-background px-4 py-2.5",
                   i === 0 && "pl-6",
-                  i === 5 && "pr-6",
+                  i === all.length - 1 && "pr-6",
                 )}
               >
                 {t(c)}
@@ -244,19 +247,22 @@ function RegisterTable({
                   isSel && "shadow-[inset_2px_0_0_var(--color-primary)]",
                 )}
               >
+                {/* What the entry is, then which entry it is. The uuid led this
+                    column and told the inspector nothing they could read; it
+                    stays as the reference underneath, in full on hover. */}
                 <div className="flex flex-col gap-0.5 leading-tight">
-                  <span data-mono className="text-[0.8125rem] font-medium text-foreground">
-                    {p.id}
+                  <span className="text-[0.8125rem] font-medium text-foreground">
+                    {profileName(t, p.profile)}
                   </span>
-                  <span className="max-w-[22ch] truncate text-[0.8125rem] text-muted-foreground">
-                    {p.applicant || "—"}
+                  <span className="flex items-baseline gap-2 text-[0.8125rem] text-muted-foreground">
+                    <span data-mono title={p.id}>
+                      {packageRef(p.id)}
+                    </span>
+                    {p.applicant && (
+                      <span className="max-w-[22ch] truncate">{p.applicant}</span>
+                    )}
                   </span>
                 </div>
-              </TableCell>
-              <TableCell className={cn("border-b border-rule px-4 align-middle", pad)}>
-                <span className="text-[0.8125rem] text-muted-foreground">
-                  {profileName(t, p.profile)}
-                </span>
               </TableCell>
               <TableCell className={cn("border-b border-rule px-4 align-middle tabular-nums", pad)}>
                 <Documents p={p} expected={documentsExpected(profiles, p.profile)} />
@@ -304,11 +310,12 @@ function RegisterEntries({
           >
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 flex-col gap-0.5">
-                <span data-mono className="text-[0.8125rem] font-medium text-foreground">
-                  {p.id}
+                <span className="text-[0.8125rem] font-medium text-foreground">
+                  {profileName(t, p.profile)}
                 </span>
-                <span className="truncate text-[0.8125rem] text-muted-foreground">
-                  {p.applicant || "—"}
+                <span className="flex items-baseline gap-2 truncate text-[0.8125rem] text-muted-foreground">
+                  <span data-mono>{packageRef(p.id)}</span>
+                  {p.applicant && <span className="truncate">{p.applicant}</span>}
                 </span>
               </div>
               {p.disposition !== "in_progress" && <DispositionMark disposition={p.disposition} />}

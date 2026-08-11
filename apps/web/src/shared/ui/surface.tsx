@@ -61,8 +61,12 @@ export function SurfaceHeading({
 }) {
   return (
     <div className={cn("shrink-0 border-b border-rule px-4 py-3.5 md:px-6", className)}>
-      <div className="flex items-center gap-2.5">
-        <h1 className="truncate text-[1.375rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">
+      {/* The title wraps rather than truncates: a surface named by its subject
+          — a package by the verification it is — must not have that subject cut
+          to an ellipsis on a narrow screen. Short titles are unaffected; a long
+          one balances across its lines and takes the badge onto the first. */}
+      <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+        <h1 className="min-w-0 text-balance text-[1.375rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">
           {title}
         </h1>
         {badge && <span className="shrink-0">{badge}</span>}

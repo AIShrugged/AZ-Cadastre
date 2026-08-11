@@ -1648,7 +1648,6 @@ export function VerificationDetails() {
   }
 
   const view = toViewPackage(pkg)
-  const subtitle = `${profileName(t, view.profile)} · ${formatDate(pkg.createdAt, locale)}`
   const stages = stageStatuses(pkg, view.disposition)
   const stageRunning = stages.some((s) => s === "current")
   const documents = documentsOf(pkg)
@@ -1694,17 +1693,22 @@ export function VerificationDetails() {
 
   return (
     <SurfacePage>
+      {/* Named by what is being verified, not by the uuid the database issued.
+          The id is what the package is called between machines, so it keeps its
+          place — in the subtitle, in full and in mono, where it can be read off
+          and quoted back. */}
       <SurfaceHeading
-        title={
-          <span
-            data-mono
-            className="text-[1.0625rem] font-medium md:text-[1.25rem]"
-          >
-            {pkg.id}
-          </span>
-        }
+        title={profileName(t, view.profile)}
         badge={<DispositionMark disposition={view.disposition} />}
-        subtitle={subtitle}
+        subtitle={
+          <>
+            <span data-mono className="text-foreground/75">
+              {pkg.id}
+            </span>
+            {" · "}
+            {formatDate(pkg.createdAt, locale)}
+          </>
+        }
       />
 
       {/* Fragment jumps are how this surface is read — a finding in the worklist

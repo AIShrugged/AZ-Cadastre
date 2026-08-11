@@ -55,6 +55,26 @@ describe("ListProfilesHandler", () => {
     }
   });
 
+  it("names the fields each type's schema declares, so a caller can say what the document contributes", async () => {
+    const profiles = await new ListProfilesHandler().execute();
+
+    for (const view of profiles) {
+      const profile = VerificationProfile.of(view.key);
+
+      for (const type of view.documentTypes) {
+        expect(type.fields).toEqual(
+          profile
+            .schemaFor(
+              profile.documentTypes.find(
+                (candidate) => candidate.value === type.key,
+              )!,
+            )
+            .specs.map((spec) => spec.key.value),
+        );
+      }
+    }
+  });
+
   it("takes no port: a profile is policy in code, so there is nothing to read", () => {
     expect(ListProfilesHandler.length).toBe(0);
   });

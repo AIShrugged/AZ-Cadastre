@@ -4,6 +4,11 @@ export const ProfileDocumentTypeDtoSchema = z.object({
   key: z.string(),
   // Whether a package under this profile is incomplete without one.
   required: z.boolean(),
+  // The fields the engine reads off a document of this type, in the order the
+  // profile declares them. This is what the type *is* to the system: naming it
+  // is the difference between a policy surface listing seven words and one
+  // stating what each document is asked to contribute.
+  fields: z.array(z.string()),
 });
 export type ProfileDocumentTypeDto = z.infer<
   typeof ProfileDocumentTypeDtoSchema

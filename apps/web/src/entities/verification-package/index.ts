@@ -34,4 +34,5 @@ export {
 export { useGetProfilesQuery } from "./api/profiles-api"
 
 export { DispositionMark } from "./ui/disposition-mark"
+export { ProfileGlyph } from "./ui/profile-glyph"
 export { StageBar } from "./ui/stage-bar"

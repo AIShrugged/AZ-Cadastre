@@ -8,6 +8,7 @@ export function toProfileDto(view: ProfileView): ProfileDto {
     documentTypes: view.documentTypes.map((type) => ({
       key: type.key,
       required: type.required,
+      fields: [...type.fields],
     })),
   };
 }

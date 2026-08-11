@@ -8,9 +8,9 @@ function aProfileView(overrides: Partial<ProfileView> = {}): ProfileView {
   return {
     key: "cadastre",
     documentTypes: [
-      { key: "land_plot_plan", required: true },
-      { key: "identity_card", required: true },
-      { key: "payment_receipt", required: true },
+      { key: "land_plot_plan", required: true, fields: ["cadastral_number"] },
+      { key: "identity_card", required: true, fields: ["document_no"] },
+      { key: "payment_receipt", required: true, fields: [] },
     ],
     ...overrides,
   };
@@ -27,9 +27,9 @@ describe("toProfileDto", () => {
     const dto = toProfileDto(
       aProfileView({
         documentTypes: [
-          { key: "payment_receipt", required: true },
-          { key: "sketch_project", required: true },
-          { key: "archive_certificate", required: false },
+          { key: "payment_receipt", required: true, fields: [] },
+          { key: "sketch_project", required: true, fields: [] },
+          { key: "archive_certificate", required: false, fields: [] },
         ],
       }),
     );
@@ -45,15 +45,15 @@ describe("toProfileDto", () => {
     const dto = toProfileDto(
       aProfileView({
         documentTypes: [
-          { key: "identity_card", required: true },
-          { key: "archive_certificate", required: false },
+          { key: "identity_card", required: true, fields: [] },
+          { key: "archive_certificate", required: false, fields: [] },
         ],
       }),
     );
 
     expect(dto.documentTypes).toEqual([
-      { key: "identity_card", required: true },
-      { key: "archive_certificate", required: false },
+      { key: "identity_card", required: true, fields: [] },
+      { key: "archive_certificate", required: false, fields: [] },
     ]);
   });
 
@@ -61,9 +61,18 @@ describe("toProfileDto", () => {
     const view = aProfileView();
 
     const dto = toProfileDto(view);
-    dto.documentTypes.push({ key: "forged", required: true });
+    dto.documentTypes.push({ key: "forged", required: true, fields: [] });
 
     expect(view.documentTypes).toHaveLength(3);
+  });
+
+  it("copies each type's fields rather than handing out the read model's own array", () => {
+    const view = aProfileView();
+
+    const dto = toProfileDto(view);
+    dto.documentTypes[0]?.fields.push("forged_field");
+
+    expect(view.documentTypes[0]?.fields).toEqual(["cadastral_number"]);
   });
 
   it("renders a profile that expects nothing as an empty list rather than leaving it out", () => {
@@ -72,7 +81,33 @@ describe("toProfileDto", () => {
     expect(dto.documentTypes).toEqual([]);
   });
 
-  it("says nothing about the fields each type declares — a picker does not draw them", () => {
+  it("names the fields each type declares, in the order the profile declared them", () => {
+    const dto = toProfileDto(
+      aProfileView({
+        documentTypes: [
+          {
+            key: "application",
+            required: true,
+            fields: ["applicant_name", "property_address", "cadastral_number"],
+          },
+        ],
+      }),
+    );
+
+    expect(dto.documentTypes[0]?.fields).toEqual([
+      "applicant_name",
+      "property_address",
+      "cadastral_number",
+    ]);
+  });
+
+  it("renders a type the profile extracts nothing from as an empty list, not a missing one", () => {
+    const dto = toProfileDto(aProfileView());
+
+    expect(dto.documentTypes[2]?.fields).toEqual([]);
+  });
+
+  it("says nothing else about a profile than its key and its types", () => {
     const dto = toProfileDto(aProfileView());
 
     expect(Object.keys(dto)).toEqual(["key", "documentTypes"]);

@@ -62,10 +62,20 @@ function Wordmark() {
 
 type NavItem = { key: string; icon: typeof FileStackIcon; to?: string }
 
+/**
+ * Whether a nav destination owns the route on screen. A surface that addresses
+ * its own subject in the path — one profile, one package — must not drop the
+ * item that led there out of its active state. The register is exempt from the
+ * prefix test: it lives at "/" and would otherwise claim every route.
+ */
+function isUnder(pathname: string, to: string): boolean {
+  return pathname === to || (to !== "/" && pathname.startsWith(`${to}/`))
+}
+
 const NAV: NavItem[] = [
   { key: "nav.register", icon: FileStackIcon, to: paths.register },
   { key: "nav.new", icon: PlusIcon, to: paths.new },
-  { key: "nav.profiles", icon: FolderCogIcon },
+  { key: "nav.profiles", icon: FolderCogIcon, to: paths.profiles },
 ]
 
 function InspectorCard() {
@@ -145,7 +155,7 @@ export function AppShell() {
                 {NAV.map((item) => (
                   <SidebarMenuItem key={item.key}>
                     <SidebarMenuButton
-                      isActive={item.to ? item.to === pathname : false}
+                      isActive={item.to ? isUnder(pathname, item.to) : false}
                       tooltip={t(item.key)}
                       onClick={() =>
                         item.to

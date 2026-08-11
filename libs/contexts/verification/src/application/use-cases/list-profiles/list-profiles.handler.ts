@@ -15,6 +15,7 @@ export class ListProfilesHandler
         documentTypes: profile.specs.map((spec) => ({
           key: spec.type.value,
           required: spec.isRequired,
+          fields: spec.schema.specs.map((field) => field.key.value),
         })),
       })),
     );

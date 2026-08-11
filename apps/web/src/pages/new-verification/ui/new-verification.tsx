@@ -16,13 +16,7 @@
  * start action.
  */
 import { useEffect, useRef, useState } from "react"
-import {
-  FileStackIcon,
-  HouseIcon,
-  LightbulbIcon,
-  UploadCloudIcon,
-  type LucideIcon,
-} from "lucide-react"
+import { LightbulbIcon, UploadCloudIcon } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 
@@ -47,6 +41,7 @@ import { translateOr, useI18n } from "@/shared/i18n"
 import { failureCode } from "@/shared/api"
 import { paths } from "@/shared/config"
 import {
+  ProfileGlyph,
   profileName,
   requiredTypes,
   useCreatePackageMutation,
@@ -55,17 +50,6 @@ import {
 } from "@/entities/verification-package"
 import { useAppDispatch, useAppSelector } from "@/shared/lib/store-hooks"
 import { cn } from "@/shared/lib/cn"
-
-/**
- * A glyph per profile the UI has been given one for. A profile the engine has
- * gained and this build has not been drawn for still appears in the picker — with
- * the neutral fallback, rather than being silently absent from the inspector's
- * choices.
- */
-const PROFILE_ICON: Record<string, LucideIcon> = {
-  cadastre: HouseIcon,
-}
-const PROFILE_ICON_FALLBACK: LucideIcon = FileStackIcon
 
 // ─── Profile picker ───────────────────────────────────────────────────────────
 // A segmented radio-card selector — a tactile choice, not a dropdown. Each card
@@ -90,7 +74,6 @@ function ProfilePicker({
     >
       {profiles.map((profile) => {
         const selected = profile.key === value
-        const Icon = PROFILE_ICON[profile.key] ?? PROFILE_ICON_FALLBACK
         // The required ones: an optional type the engine merely recognises is
         // not something the inspector is being asked for.
         const count = requiredTypes(profile).length
@@ -117,7 +100,7 @@ function ProfilePicker({
                   : "border-rule-strong bg-muted/40 text-muted-foreground",
               )}
             >
-              <Icon className="size-[18px]" />
+              <ProfileGlyph profileKey={profile.key} className="size-[18px]" />
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[0.875rem] font-medium text-foreground">

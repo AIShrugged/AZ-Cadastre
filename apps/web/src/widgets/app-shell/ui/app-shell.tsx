@@ -8,12 +8,7 @@
  * future surface (Verification Details, Profiles…) inherits this frame.
  */
 import { useState } from "react"
-import {
-  FileStackIcon,
-  FolderCogIcon,
-  HistoryIcon,
-  PlusIcon,
-} from "lucide-react"
+import { FileStackIcon, FolderCogIcon, PlusIcon } from "lucide-react"
 import { Outlet, ScrollRestoration, useLocation, useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 
@@ -71,7 +66,6 @@ const NAV: NavItem[] = [
   { key: "nav.register", icon: FileStackIcon, to: paths.register },
   { key: "nav.new", icon: PlusIcon, to: paths.new },
   { key: "nav.profiles", icon: FolderCogIcon },
-  { key: "nav.audit", icon: HistoryIcon },
 ]
 
 function InspectorCard() {

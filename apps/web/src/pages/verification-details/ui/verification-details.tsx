@@ -4,7 +4,7 @@
  *
  * The surface is an evidence workbench, not a scroll: a wide register of the
  * documents the engine read (label / value / confidence in aligned columns,
- * each entry disclosing the source text of its own sheets) beside a sticky rail
+ * each entry disclosing the source text of its own sheets) beside a rail
  * that holds the package's state — how far the pipeline got, what the profile
  * still expects, and an index of what is in the package. The rail answers "did
  * it finish, is anything missing, what is in here"; the register answers "is
@@ -1719,10 +1719,13 @@ export function VerificationDetails() {
               what the package turned out to contain. Declared first so it is
               also read first — a summary before the evidence. ── */}
           <aside className="border-b border-rule pb-7 xl:col-start-2 xl:row-start-1 xl:border-b-0 xl:border-l xl:border-rule xl:pb-0 xl:pl-9">
-            {/* Capped and scrollable where it sticks: a package with many
-                documents must not push the end of the index past the fold with
-                no way to reach it. */}
-            <div className="flex flex-col gap-7 xl:sticky xl:top-1 xl:-mx-2 xl:max-h-[calc(100dvh-10rem)] xl:overflow-y-auto xl:overscroll-contain xl:px-2 xl:pb-2">
+            {/* One scrollbar on the surface, not two. The rail used to stick and
+                scroll inside its own capped box, which put a second scrollbar
+                beside the register's — and while the run is live the rail is at
+                its tallest, so that is exactly when it appeared. It flows with
+                the page instead: the whole rail is reachable by the scroll the
+                inspector is already using. */}
+            <div className="flex flex-col gap-7">
               {/* First at every stage of the run, and first once it is over —
                   where the rail is looked at, the state of the run is the line
                   that answers whether anything below it is final yet. */}

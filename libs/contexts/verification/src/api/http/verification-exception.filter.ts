@@ -18,6 +18,8 @@ const DOMAIN_STATUS: Readonly<Record<string, number>> = {
   SOURCE_FILE_NOT_IN_PACKAGE: HttpStatus.NOT_FOUND,
   PAGE_NOT_IN_SOURCE_FILE: HttpStatus.NOT_FOUND,
 
+  FILE_TOO_LARGE: HttpStatus.PAYLOAD_TOO_LARGE,
+
   DOCUMENT_ALREADY_CLASSIFIED: HttpStatus.CONFLICT,
   SOURCE_FILE_ALREADY_SPLIT: HttpStatus.CONFLICT,
   SOURCE_FILE_ALREADY_SEGMENTED: HttpStatus.CONFLICT,
@@ -44,7 +46,10 @@ export class VerificationExceptionFilter implements ExceptionFilter {
     const response = host.switchToHttp().getResponse<Response>();
 
     if (exception instanceof InfrastructureException) {
-      this.logger.error(`${exception.code}: ${exception.message}`, exception.stack);
+      this.logger.error(
+        `${exception.code}: ${exception.message}`,
+        exception.stack,
+      );
     } else {
       this.logger.debug(`${exception.code}: ${exception.message}`);
     }

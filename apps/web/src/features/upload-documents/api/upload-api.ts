@@ -57,7 +57,7 @@ export async function uploadDocument(
 
   const { data } = await http.post<PresignResponse>(
     "/documents/presign",
-    { filename: file.name, contentType },
+    { filename: file.name, contentType, size: file.size },
     { signal },
   )
 

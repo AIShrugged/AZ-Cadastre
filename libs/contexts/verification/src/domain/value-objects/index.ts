@@ -7,6 +7,7 @@ export { DocumentType } from "./document-type.vo.js";
 export { FailureReason } from "./failure-reason.vo.js";
 export { FieldKey, FieldValue } from "./field.vo.js";
 export { FieldSchema, FieldSpec } from "./field-schema.vo.js";
+export { FileSize } from "./file-size.vo.js";
 export { Filename } from "./filename.vo.js";
 export { DocumentId, PackageId, PageId, SourceFileId } from "./ids.vo.js";
 export { IssueKind } from "./issue-kind.vo.js";

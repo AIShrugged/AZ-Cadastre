@@ -5,6 +5,9 @@ import { DocumentContentTypeSchema } from "./content-type.dto.js";
 export const PresignRequestSchema = z.object({
   filename: z.string(),
   contentType: z.string(),
+  // Bytes. What the browser says it is about to PUT — the storage rule is
+  // checked before a URL is signed rather than after the bytes are spent.
+  size: z.number().int().positive(),
 });
 export type PresignRequest = z.infer<typeof PresignRequestSchema>;
 

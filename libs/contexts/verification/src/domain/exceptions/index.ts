@@ -25,6 +25,8 @@ export {
 export {
   DocumentsMustCoverEverySheetException,
   DuplicatePageNumberException,
+  FileTooLargeException,
+  InvalidFileSizeException,
   InvalidFilenameException,
   InvalidPageNumberException,
   InvalidPageRangeException,

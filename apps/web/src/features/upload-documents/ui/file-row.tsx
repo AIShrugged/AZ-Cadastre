@@ -64,7 +64,7 @@ export function FileRow({
           </div>
         ) : isErr ? (
           <span className="text-[0.75rem] text-destructive">
-            {att.error === "size"
+            {att.error === "size" || att.failureCode === "FILE_TOO_LARGE"
               ? t("new.err.size", { max: MAX_MB })
               : att.error === "failed"
                 ? // The service said which rule it refused, when it got that far.

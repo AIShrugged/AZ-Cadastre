@@ -17,7 +17,7 @@ export class DocumentsController {
     @Body({ schema: PresignRequestSchema }) body: PresignRequest,
   ): Promise<PresignResponse> {
     const presigned = await this.commands.execute(
-      new PresignUploadCommand(body.filename, body.contentType),
+      new PresignUploadCommand(body.filename, body.contentType, body.size),
     );
 
     return {

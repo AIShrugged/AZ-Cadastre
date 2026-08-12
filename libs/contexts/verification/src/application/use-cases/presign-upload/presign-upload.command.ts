@@ -6,6 +6,7 @@ export class PresignUploadCommand extends Command<PresignedUpload> {
   constructor(
     public readonly filename: string,
     public readonly contentType: string,
+    public readonly size: number,
   ) {
     super();
   }

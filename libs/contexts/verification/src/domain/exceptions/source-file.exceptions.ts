@@ -16,6 +16,30 @@ export class InvalidStorageKeyException extends DomainException {
   }
 }
 
+export class InvalidFileSizeException extends DomainException {
+  override readonly code = "INVALID_FILE_SIZE";
+
+  constructor(public readonly received: number) {
+    super(
+      `A file size must be a positive whole number of bytes, received ${received}`,
+    );
+  }
+}
+
+export class FileTooLargeException extends DomainException {
+  override readonly code = "FILE_TOO_LARGE";
+
+  constructor(
+    public readonly received: number,
+    public readonly max: number,
+  ) {
+    super(
+      `A file may be at most ${Math.round(max / (1024 * 1024))} MB, received ` +
+        `${(received / (1024 * 1024)).toFixed(1)} MB`,
+    );
+  }
+}
+
 export class UnsupportedContentTypeException extends DomainException {
   override readonly code = "UNSUPPORTED_CONTENT_TYPE";
 

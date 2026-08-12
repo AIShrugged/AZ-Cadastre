@@ -1,6 +1,10 @@
 import type { FileKind } from "../model/types"
 
-export const MAX_MB = 25
+// Kept in step with two rules outside this app: `FileSize.MAX_BYTES` in the
+// verification context, which refuses to sign a presign for anything larger,
+// and `client_max_body_size` in nginx.conf, which is what actually stops the
+// bytes — below it the browser gets a 413 the app never sees coming.
+export const MAX_MB = 50
 export const MAX_BYTES = MAX_MB * 1024 * 1024
 export const ACCEPT = ".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
 

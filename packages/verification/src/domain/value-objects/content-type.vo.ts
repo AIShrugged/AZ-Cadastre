@@ -1,9 +1,9 @@
-import { UnsupportedContentTypeException } from "../exceptions/index.js";
+import { UnsupportedContentTypeException } from '../exceptions/index.js';
 
 export class ContentType {
-  static readonly PDF = new ContentType("application/pdf");
-  static readonly JPEG = new ContentType("image/jpeg");
-  static readonly PNG = new ContentType("image/png");
+  static readonly PDF = new ContentType('application/pdf');
+  static readonly JPEG = new ContentType('image/jpeg');
+  static readonly PNG = new ContentType('image/png');
 
   private constructor(public readonly value: string) {}
 
@@ -13,9 +13,7 @@ export class ContentType {
   }
 
   static of(raw: string): ContentType {
-    const found = ContentType.all.find(
-      (candidate) => candidate.value === raw,
-    );
+    const found = ContentType.all.find(candidate => candidate.value === raw);
 
     if (!found) throw new UnsupportedContentTypeException(raw);
 

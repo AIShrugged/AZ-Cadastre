@@ -1,4 +1,4 @@
-import { FieldKey } from "./field.vo.js";
+import { FieldKey } from './field.vo.js';
 
 export class FieldSpec {
   private constructor(
@@ -27,6 +27,6 @@ export class FieldSchema {
   }
 
   declares(key: FieldKey): boolean {
-    return this.specs.some((spec) => spec.key.equals(key));
+    return this.specs.some(spec => spec.key.equals(key));
   }
 }

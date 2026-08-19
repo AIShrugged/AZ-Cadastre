@@ -10,8 +10,8 @@ export type {
   PageView,
   ReportView,
   SourceFileView,
-} from "./package.read-model.js";
+} from './package.read-model.js';
 export type {
   ProfileDocumentTypeView,
   ProfileView,
-} from "./profile.read-model.js";
+} from './profile.read-model.js';

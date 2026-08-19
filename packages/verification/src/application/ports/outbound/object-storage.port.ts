@@ -2,7 +2,7 @@ import type {
   ContentType,
   Filename,
   StorageKey,
-} from "../../../domain/value-objects/index.js";
+} from '../../../domain/value-objects/index.js';
 
 export type PresignUploadRequest = {
   filename: Filename;

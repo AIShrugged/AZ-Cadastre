@@ -1,9 +1,10 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable } from '@nestjs/common';
 
-import { VerificationApiPort } from "../ports/inbound/index.js";
-import { DocumentsService } from "./documents.service.js";
-import { PackagesService } from "./packages.service.js";
-import { ProfilesService } from "./profiles.service.js";
+import { VerificationApiPort } from '../ports/inbound/index.js';
+
+import { DocumentsService } from './documents.service.js';
+import { PackagesService } from './packages.service.js';
+import { ProfilesService } from './profiles.service.js';
 
 /**
  * The only class in the context that knows the whole API surface. It holds the

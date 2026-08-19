@@ -1,20 +1,20 @@
-import { InvalidIssueKindException } from "../exceptions/index.js";
+import { InvalidIssueKindException } from '../exceptions/index.js';
 
 export class IssueKind {
-  static readonly MISSING_DOCUMENT = new IssueKind("MissingDocument");
-  static readonly UNREADABLE_DOCUMENT = new IssueKind("UnreadableDocument");
-  static readonly LOW_CONFIDENCE = new IssueKind("LowConfidence");
+  static readonly MISSING_DOCUMENT = new IssueKind('MissingDocument');
+  static readonly UNREADABLE_DOCUMENT = new IssueKind('UnreadableDocument');
+  static readonly LOW_CONFIDENCE = new IssueKind('LowConfidence');
   // Two documents of the same submission were asked to agree on a value the
   // profile says must be one value — the name on the identity card against the
   // name the application is made in — and they were not shown to agree.
-  static readonly FIELD_MISMATCH = new IssueKind("FieldMismatch");
+  static readonly FIELD_MISMATCH = new IssueKind('FieldMismatch');
   // A document the package carries that the profile does not ask for, and a
   // required type that two documents answer to at once. Neither is a fault:
   // packages arrive with the registry's own service sheets in them, and a title
   // can rest on a chain of two acts. They are told to the inspector because
   // only the inspector can say whether this one matters.
-  static readonly EXTRA_DOCUMENT = new IssueKind("ExtraDocument");
-  static readonly DUPLICATE_DOCUMENT = new IssueKind("DuplicateDocument");
+  static readonly EXTRA_DOCUMENT = new IssueKind('ExtraDocument');
+  static readonly DUPLICATE_DOCUMENT = new IssueKind('DuplicateDocument');
 
   private constructor(public readonly value: string) {}
 
@@ -40,7 +40,7 @@ export class IssueKind {
   }
 
   static of(raw: string): IssueKind {
-    const found = IssueKind.all.find((candidate) => candidate.value === raw);
+    const found = IssueKind.all.find(candidate => candidate.value === raw);
 
     if (!found) throw new InvalidIssueKindException(raw);
 

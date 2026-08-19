@@ -1,12 +1,13 @@
-import { Injectable } from "@nestjs/common";
-import { CommandBus } from "@nestjs/cqrs";
+import { Injectable } from '@nestjs/common';
+import { CommandBus } from '@nestjs/cqrs';
+
 import type {
   DocumentsApi,
   PresignRequest,
   PresignResponse,
-} from "@cadastre/api-contracts/verification";
+} from '@cadastre/api-contracts/verification';
 
-import { PresignUploadCommand } from "../use-cases/index.js";
+import { PresignUploadCommand } from '../use-cases/index.js';
 
 @Injectable()
 export class DocumentsService implements DocumentsApi {
@@ -27,7 +28,7 @@ export class DocumentsService implements DocumentsApi {
       // `ContentType.of` has already refused anything the contract does not
       // name.
       contentType: presigned.contentType
-        .value as PresignResponse["contentType"],
+        .value as PresignResponse['contentType'],
       expiresIn: presigned.expiresIn,
     };
   }

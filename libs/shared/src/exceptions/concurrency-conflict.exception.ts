@@ -1,7 +1,7 @@
-import { ApplicationException } from "./application.exception.js";
+import { ApplicationException } from './application.exception.js';
 
 export class ConcurrencyConflictException extends ApplicationException {
-  override readonly code = "CONCURRENCY_CONFLICT";
+  override readonly code = 'CONCURRENCY_CONFLICT';
   override readonly status = 409;
 
   constructor(

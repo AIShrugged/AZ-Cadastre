@@ -1,4 +1,4 @@
-import type { ModuleMetadata } from "@nestjs/common";
+import type { ModuleMetadata } from '@nestjs/common';
 
 /**
  * The configuration this context needs, as a shape rather than as environment
@@ -35,30 +35,30 @@ export type VerificationModuleOptions = {
     appTitle: string;
   };
   ocr: {
-    provider: "mock" | "openrouter";
+    provider: 'mock' | 'openrouter';
     model: string;
     concurrency: number;
   };
   segmenter: {
-    provider: "mock" | "openrouter";
+    provider: 'mock' | 'openrouter';
     model: string;
   };
   classifier: {
-    provider: "mock" | "openrouter";
+    provider: 'mock' | 'openrouter';
     model: string;
   };
   extractor: {
-    provider: "mock" | "openrouter";
+    provider: 'mock' | 'openrouter';
     model: string;
   };
   crossChecker: {
-    provider: "mock" | "openrouter";
+    provider: 'mock' | 'openrouter';
     model: string;
   };
 };
 
 /** How `VerificationModule.forRootAsync` is handed that shape. */
-export type VerificationModuleAsyncOptions = Pick<ModuleMetadata, "imports"> & {
+export type VerificationModuleAsyncOptions = Pick<ModuleMetadata, 'imports'> & {
   inject?: unknown[];
   useFactory: (
     ...args: never[]
@@ -66,4 +66,4 @@ export type VerificationModuleAsyncOptions = Pick<ModuleMetadata, "imports"> & {
 };
 
 /** Injection token for the resolved options. */
-export const VERIFICATION_OPTIONS = "VERIFICATION_OPTIONS";
+export const VERIFICATION_OPTIONS = 'VERIFICATION_OPTIONS';

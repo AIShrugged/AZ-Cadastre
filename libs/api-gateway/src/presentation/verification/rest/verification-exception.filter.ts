@@ -1,17 +1,18 @@
 import {
-  type ArgumentsHost,
   Catch,
-  type ExceptionFilter,
   HttpStatus,
   Logger,
-} from "@nestjs/common";
+  type ArgumentsHost,
+  type ExceptionFilter,
+} from '@nestjs/common';
+import type { Response } from 'express';
+
+import type { ErrorBody } from '@cadastre/api-contracts/shared';
 import {
   ApplicationException,
   DomainException,
   InfrastructureException,
-} from "@cadastre/shared";
-import type { ErrorBody } from "@cadastre/api-contracts/shared";
-import type { Response } from "express";
+} from '@cadastre/shared';
 
 const DOMAIN_STATUS: Readonly<Record<string, number>> = {
   DOCUMENT_NOT_IN_PACKAGE: HttpStatus.NOT_FOUND,

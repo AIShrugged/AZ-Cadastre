@@ -1,32 +1,33 @@
-import { randomUUID } from "node:crypto";
-import { Inject, Injectable, Logger, type OnModuleInit } from "@nestjs/common";
+import { randomUUID } from 'node:crypto';
+
 import {
   GetObjectCommand,
-  PutObjectCommand,
   PutBucketCorsCommand,
+  PutObjectCommand,
   S3Client,
-} from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+} from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 
 import {
   ObjectStorage,
-  type PresignUploadRequest,
   type PresignedDownload,
   type PresignedUpload,
+  type PresignUploadRequest,
   type PutObjectRequest,
   type StoredObject,
-} from "../../application/ports/outbound/index.js";
-import { UnsupportedContentTypeException } from "../../domain/exceptions/index.js";
+} from '../../application/ports/outbound/index.js';
+import { UnsupportedContentTypeException } from '../../domain/exceptions/index.js';
 import {
   ContentType,
-  type Filename,
   StorageKey,
-} from "../../domain/value-objects/index.js";
+  type Filename,
+} from '../../domain/value-objects/index.js';
 import {
   VERIFICATION_OPTIONS,
   type VerificationModuleOptions,
-} from "../../verification.module-defs.js";
-import { ObjectBodyMissingException } from "../exceptions/index.js";
+} from '../../verification.module-defs.js';
+import { ObjectBodyMissingException } from '../exceptions/index.js';
 
 @Injectable()
 export class ObjectStorageAdapter
@@ -35,10 +36,12 @@ export class ObjectStorageAdapter
 {
   private readonly logger = new Logger(ObjectStorageAdapter.name);
   private readonly client: S3Client;
-  private readonly storage: VerificationModuleOptions["storage"];
+  private readonly storage: VerificationModuleOptions['storage'];
   private readonly webOrigin: string;
 
-  constructor(@Inject(VERIFICATION_OPTIONS) options: VerificationModuleOptions) {
+  constructor(
+    @Inject(VERIFICATION_OPTIONS) options: VerificationModuleOptions,
+  ) {
     super();
     this.storage = options.storage;
     this.webOrigin = options.web.origin;
@@ -52,8 +55,8 @@ export class ObjectStorageAdapter
       },
       // RustFS rejects the CRC32 checksum the v3 SDK bakes into a presigned URL:
       // the browser's body cannot match the placeholder it signs.
-      requestChecksumCalculation: "WHEN_REQUIRED",
-      responseChecksumValidation: "WHEN_REQUIRED",
+      requestChecksumCalculation: 'WHEN_REQUIRED',
+      responseChecksumValidation: 'WHEN_REQUIRED',
     });
   }
 
@@ -127,11 +130,11 @@ export class ObjectStorageAdapter
 
   private buildKey(filename: Filename): StorageKey {
     const safe = filename.value
-      .normalize("NFKD")
-      .replace(/[^\w.-]+/g, "_")
-      .replace(/^_+|_+$/g, "")
+      .normalize('NFKD')
+      .replace(/[^\w.-]+/g, '_')
+      .replace(/^_+|_+$/g, '')
       .slice(0, 120);
-    return StorageKey.create(`${randomUUID()}/${safe || "file"}`);
+    return StorageKey.create(`${randomUUID()}/${safe || 'file'}`);
   }
 
   private reportedType(raw: string | undefined): ContentType | null {
@@ -157,10 +160,10 @@ export class ObjectStorageAdapter
               {
                 // Wider than `webOrigin` on purpose: the dev proxy and the
                 // deployed app reach the bucket under different names.
-                AllowedOrigins: ["*"],
-                AllowedMethods: ["PUT", "GET", "HEAD"],
-                AllowedHeaders: ["*"],
-                ExposeHeaders: ["ETag", "x-amz-*"],
+                AllowedOrigins: ['*'],
+                AllowedMethods: ['PUT', 'GET', 'HEAD'],
+                AllowedHeaders: ['*'],
+                ExposeHeaders: ['ETag', 'x-amz-*'],
                 MaxAgeSeconds: 3600,
               },
             ],

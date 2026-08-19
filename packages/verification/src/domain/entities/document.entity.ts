@@ -2,14 +2,15 @@ import {
   DocumentAlreadyClassifiedException,
   DocumentNotClassifiedException,
   UnclassifiableDocumentException,
-} from "../exceptions/index.js";
+} from '../exceptions/index.js';
 import type {
   Classification,
   DocumentId,
   PageRange,
   SourceFileId,
-} from "../value-objects/index.js";
-import type { ExtractedField } from "./extracted-field.entity.js";
+} from '../value-objects/index.js';
+
+import type { ExtractedField } from './extracted-field.entity.js';
 
 export class Document {
   readonly #fields: readonly ExtractedField[];

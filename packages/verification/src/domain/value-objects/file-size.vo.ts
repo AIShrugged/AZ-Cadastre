@@ -1,7 +1,7 @@
 import {
   FileTooLargeException,
   InvalidFileSizeException,
-} from "../exceptions/index.js";
+} from '../exceptions/index.js';
 
 export class FileSize {
   static readonly MAX_BYTES = 50 * 1024 * 1024;

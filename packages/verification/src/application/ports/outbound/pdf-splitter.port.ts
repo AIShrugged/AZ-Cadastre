@@ -2,7 +2,7 @@ import type {
   PageImage,
   PageNumber,
   StorageKey,
-} from "../../../domain/value-objects/index.js";
+} from '../../../domain/value-objects/index.js';
 
 export type PdfSplitRequest = {
   storageKey: StorageKey;

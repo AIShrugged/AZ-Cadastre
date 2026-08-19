@@ -1,10 +1,10 @@
-import { InvalidPackageStatusException } from "../exceptions/index.js";
+import { InvalidPackageStatusException } from '../exceptions/index.js';
 
 export class PackageStatus {
-  static readonly PENDING = new PackageStatus("Pending");
-  static readonly PROCESSING = new PackageStatus("Processing");
-  static readonly COMPLETED = new PackageStatus("Completed");
-  static readonly FAILED = new PackageStatus("Failed");
+  static readonly PENDING = new PackageStatus('Pending');
+  static readonly PROCESSING = new PackageStatus('Processing');
+  static readonly COMPLETED = new PackageStatus('Completed');
+  static readonly FAILED = new PackageStatus('Failed');
 
   private constructor(public readonly value: string) {}
 
@@ -18,9 +18,7 @@ export class PackageStatus {
   }
 
   static of(raw: string): PackageStatus {
-    const found = PackageStatus.all.find(
-      (candidate) => candidate.value === raw,
-    );
+    const found = PackageStatus.all.find(candidate => candidate.value === raw);
 
     if (!found) throw new InvalidPackageStatusException(raw);
 
@@ -28,7 +26,9 @@ export class PackageStatus {
   }
 
   get canStart(): boolean {
-    return this.equals(PackageStatus.PENDING) || this.equals(PackageStatus.FAILED);
+    return (
+      this.equals(PackageStatus.PENDING) || this.equals(PackageStatus.FAILED)
+    );
   }
 
   get isUnderWay(): boolean {

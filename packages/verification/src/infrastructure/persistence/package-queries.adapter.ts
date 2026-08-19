@@ -1,20 +1,21 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable } from '@nestjs/common';
 
-import { PackageQueries } from "../../application/ports/outbound/index.js";
+import { PackageQueries } from '../../application/ports/outbound/index.js';
 import type {
   CrossCheckView,
   PackageDetailView,
   PackageSummaryView,
   ReportView,
-} from "../../application/read-models/index.js";
+} from '../../application/read-models/index.js';
 import {
   DocumentType,
   IssueKind,
   type PackageId,
-} from "../../domain/value-objects/index.js";
-import type { Prisma } from "./generated/client.js";
-import { isStoredId } from "./stored-id.js";
-import { VerificationPrismaService } from "./verification-prisma.service.js";
+} from '../../domain/value-objects/index.js';
+
+import type { Prisma } from './generated/client.js';
+import { isStoredId } from './stored-id.js';
+import { VerificationPrismaService } from './verification-prisma.service.js';
 
 const ISSUE_COLUMNS = {
   kind: true,
@@ -29,14 +30,14 @@ const ISSUE_COLUMNS = {
 } as const satisfies Prisma.ValidationIssueSelect;
 
 const CROSS_CHECK_COLUMNS = {
-  orderBy: { key: "asc" },
+  orderBy: { key: 'asc' },
   select: {
     key: true,
     verdict: true,
     confidence: true,
     note: true,
     values: {
-      orderBy: { position: "asc" },
+      orderBy: { position: 'asc' },
       select: {
         documentId: true,
         documentType: true,
@@ -71,7 +72,7 @@ const REPORT_COLUMNS = {
   select: {
     status: true,
     generatedAt: true,
-    issues: { orderBy: { createdAt: "asc" }, select: ISSUE_COLUMNS },
+    issues: { orderBy: { createdAt: 'asc' }, select: ISSUE_COLUMNS },
   },
 } as const satisfies Prisma.VerificationPackage$reportArgs;
 
@@ -133,11 +134,11 @@ export class PrismaPackageQueries extends PackageQueries {
 
   async listSummaries(): Promise<readonly PackageSummaryView[]> {
     const rows = await this.prisma.verificationPackage.findMany({
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: 'desc' },
       select: SUMMARY_COLUMNS,
     });
 
-    return rows.map((row) => PrismaPackageQueries.toSummary(row));
+    return rows.map(row => PrismaPackageQueries.toSummary(row));
   }
 
   async findSummary(id: PackageId): Promise<PackageSummaryView | null> {
@@ -161,13 +162,13 @@ export class PrismaPackageQueries extends PackageQueries {
         report: REPORT_COLUMNS,
         crossChecks: CROSS_CHECK_COLUMNS,
         sourceFiles: {
-          orderBy: { createdAt: "asc" },
+          orderBy: { createdAt: 'asc' },
           select: {
             id: true,
             originalFilename: true,
             contentType: true,
             pages: {
-              orderBy: { pageNumber: "asc" },
+              orderBy: { pageNumber: 'asc' },
               select: {
                 pageNumber: true,
                 imageStorageKey: true,
@@ -175,7 +176,7 @@ export class PrismaPackageQueries extends PackageQueries {
               },
             },
             documents: {
-              orderBy: { firstPage: "asc" },
+              orderBy: { firstPage: 'asc' },
               select: {
                 id: true,
                 firstPage: true,
@@ -183,7 +184,7 @@ export class PrismaPackageQueries extends PackageQueries {
                 type: true,
                 classificationConfidence: true,
                 extractedFields: {
-                  orderBy: { createdAt: "asc" },
+                  orderBy: { createdAt: 'asc' },
                   select: {
                     name: true,
                     value: true,
@@ -203,14 +204,14 @@ export class PrismaPackageQueries extends PackageQueries {
     return {
       ...PrismaPackageQueries.toSummary(row),
       report: PrismaPackageQueries.toReport(row.report),
-      crossChecks: row.crossChecks.map((check) =>
+      crossChecks: row.crossChecks.map(check =>
         PrismaPackageQueries.toCrossCheck(check),
       ),
-      files: row.sourceFiles.map((file) => ({
+      files: row.sourceFiles.map(file => ({
         id: file.id,
         originalFilename: file.originalFilename,
         contentType: file.contentType,
-        pages: file.pages.map((page) => ({
+        pages: file.pages.map(page => ({
           pageNumber: page.pageNumber,
           imageStorageKey: page.imageStorageKey,
           // Signed by the use case, which is where reaching object storage
@@ -220,13 +221,13 @@ export class PrismaPackageQueries extends PackageQueries {
             ? { text: page.ocr.text, confidence: page.ocr.confidence }
             : null,
         })),
-        documents: file.documents.map((document) => ({
+        documents: file.documents.map(document => ({
           id: document.id,
           firstPage: document.firstPage,
           lastPage: document.lastPage,
           type: document.type,
           classificationConfidence: document.classificationConfidence,
-          fields: document.extractedFields.map((field) => ({
+          fields: document.extractedFields.map(field => ({
             name: field.name,
             value: field.value,
             confidence: field.confidence,
@@ -243,7 +244,7 @@ export class PrismaPackageQueries extends PackageQueries {
       verdict: row.verdict,
       confidence: row.confidence,
       note: row.note,
-      values: row.values.map((value) => ({
+      values: row.values.map(value => ({
         documentId: value.documentId,
         documentType: value.documentType,
         fieldName: value.fieldName,
@@ -260,7 +261,7 @@ export class PrismaPackageQueries extends PackageQueries {
     return {
       status: row.status,
       generatedAt: row.generatedAt,
-      issues: row.issues.map((issue) => ({
+      issues: row.issues.map(issue => ({
         kind: issue.kind,
         message: issue.message,
         documentId: issue.documentId,
@@ -286,23 +287,22 @@ export class PrismaPackageQueries extends PackageQueries {
       // documents a package holds is something the pipeline discovers, not
       // something the upload declared.
       documentsCount: row.documents.length,
-      classifiedCount: row.documents.filter(
-        (document) => document.type !== null,
-      ).length,
+      classifiedCount: row.documents.filter(document => document.type !== null)
+        .length,
       unclassifiedCount: row.documents.filter(
-        (document) => document.type === DocumentType.UNKNOWN.value,
+        document => document.type === DocumentType.UNKNOWN.value,
       ).length,
       extractedCount: row.documents.filter(
-        (document) => document._count.extractedFields > 0,
+        document => document._count.extractedFields > 0,
       ).length,
       reportStatus: row.report?.status ?? null,
       // A reading the engine is unsure of is reported apart from a shortfall in
       // the package itself: the register says both, and they do not add up.
       issuesCount: issues.filter(
-        (issue) => issue.kind !== IssueKind.LOW_CONFIDENCE.value,
+        issue => issue.kind !== IssueKind.LOW_CONFIDENCE.value,
       ).length,
       lowConfidenceCount: issues.filter(
-        (issue) => issue.kind === IssueKind.LOW_CONFIDENCE.value,
+        issue => issue.kind === IssueKind.LOW_CONFIDENCE.value,
       ).length,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,

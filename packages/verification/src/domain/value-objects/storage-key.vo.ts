@@ -1,4 +1,4 @@
-import { InvalidStorageKeyException } from "../exceptions/index.js";
+import { InvalidStorageKeyException } from '../exceptions/index.js';
 
 export class StorageKey {
   static readonly MAX_LENGTH = 1024;
@@ -8,9 +8,9 @@ export class StorageKey {
   static create(raw: string): StorageKey {
     const trimmed = raw.trim();
 
-    if (trimmed.length === 0) throw new InvalidStorageKeyException("empty");
+    if (trimmed.length === 0) throw new InvalidStorageKeyException('empty');
     if (trimmed.length > StorageKey.MAX_LENGTH) {
-      throw new InvalidStorageKeyException("too_long");
+      throw new InvalidStorageKeyException('too_long');
     }
 
     return new StorageKey(trimmed);

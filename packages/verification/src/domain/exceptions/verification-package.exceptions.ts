@@ -1,15 +1,15 @@
-import { DomainException } from "@cadastre/shared";
+import { DomainException } from '@cadastre/shared';
 
 export class PackageMustHaveAFileException extends DomainException {
-  override readonly code = "PACKAGE_MUST_HAVE_A_FILE";
+  override readonly code = 'PACKAGE_MUST_HAVE_A_FILE';
 
   constructor() {
-    super("A verification package must contain at least one file");
+    super('A verification package must contain at least one file');
   }
 }
 
 export class DuplicateStorageKeyException extends DomainException {
-  override readonly code = "DUPLICATE_STORAGE_KEY";
+  override readonly code = 'DUPLICATE_STORAGE_KEY';
 
   constructor(public readonly storageKey: string) {
     super(`Two files in the package point at the same object: ${storageKey}`);
@@ -17,7 +17,7 @@ export class DuplicateStorageKeyException extends DomainException {
 }
 
 export class SourceFileNotInPackageException extends DomainException {
-  override readonly code = "SOURCE_FILE_NOT_IN_PACKAGE";
+  override readonly code = 'SOURCE_FILE_NOT_IN_PACKAGE';
 
   constructor(
     public readonly sourceFileId: string,
@@ -28,7 +28,7 @@ export class SourceFileNotInPackageException extends DomainException {
 }
 
 export class DocumentNotInPackageException extends DomainException {
-  override readonly code = "DOCUMENT_NOT_IN_PACKAGE";
+  override readonly code = 'DOCUMENT_NOT_IN_PACKAGE';
 
   constructor(
     public readonly documentId: string,
@@ -39,7 +39,7 @@ export class DocumentNotInPackageException extends DomainException {
 }
 
 export class InvalidPackageStatusException extends DomainException {
-  override readonly code = "INVALID_PACKAGE_STATUS";
+  override readonly code = 'INVALID_PACKAGE_STATUS';
 
   constructor(public readonly received: string) {
     super(`"${received}" is not a verification package status`);
@@ -47,7 +47,7 @@ export class InvalidPackageStatusException extends DomainException {
 }
 
 export class PackageNotStartableException extends DomainException {
-  override readonly code = "PACKAGE_NOT_STARTABLE";
+  override readonly code = 'PACKAGE_NOT_STARTABLE';
 
   constructor(
     public readonly packageId: string,
@@ -60,7 +60,7 @@ export class PackageNotStartableException extends DomainException {
 }
 
 export class PackageAlreadyFinishedException extends DomainException {
-  override readonly code = "PACKAGE_ALREADY_FINISHED";
+  override readonly code = 'PACKAGE_ALREADY_FINISHED';
 
   constructor(
     public readonly packageId: string,
@@ -71,7 +71,7 @@ export class PackageAlreadyFinishedException extends DomainException {
 }
 
 export class PackageNotUnderWayException extends DomainException {
-  override readonly code = "PACKAGE_NOT_UNDER_WAY";
+  override readonly code = 'PACKAGE_NOT_UNDER_WAY';
 
   constructor(
     public readonly packageId: string,

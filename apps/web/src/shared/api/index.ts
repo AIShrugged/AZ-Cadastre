@@ -1,3 +1,3 @@
-export { http } from "./http"
-export { api } from "./api-slice"
-export { apiFailure, failureCode } from "./failure"
+export { http } from './http';
+export { api } from './api-slice';
+export { apiFailure, failureCode } from './failure';

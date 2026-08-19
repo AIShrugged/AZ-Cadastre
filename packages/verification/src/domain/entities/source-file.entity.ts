@@ -3,19 +3,20 @@ import {
   PageNotInSourceFileException,
   SourceFileAlreadySplitException,
   SourceFileMustHaveAPageException,
-} from "../exceptions/index.js";
+} from '../exceptions/index.js';
 import {
+  PageRange,
+  RecognisedText,
   type ContentType,
   type Filename,
   type OcrResult,
   type PageId,
   type PageNumber,
-  PageRange,
-  RecognisedText,
   type SourceFileId,
   type StorageKey,
-} from "../value-objects/index.js";
-import { Page } from "./page.entity.js";
+} from '../value-objects/index.js';
+
+import { Page } from './page.entity.js';
 
 export class SourceFile {
   readonly #pages: readonly Page[];
@@ -76,7 +77,7 @@ export class SourceFile {
   }
 
   get unrecognisedPages(): readonly Page[] {
-    return this.#pages.filter((page) => !page.isRecognised);
+    return this.#pages.filter(page => !page.isRecognised);
   }
 
   get isFullyRecognised(): boolean {
@@ -91,7 +92,7 @@ export class SourceFile {
   }
 
   pageWith(pageId: PageId): Page {
-    const page = this.#pages.find((candidate) => candidate.id.equals(pageId));
+    const page = this.#pages.find(candidate => candidate.id.equals(pageId));
 
     if (!page) {
       throw new PageNotInSourceFileException(pageId.value, this.id.value);
@@ -101,7 +102,7 @@ export class SourceFile {
   }
 
   pagesIn(range: PageRange): readonly Page[] {
-    return this.#pages.filter((page) => range.covers(page.number));
+    return this.#pages.filter(page => range.covers(page.number));
   }
 
   textIn(range: PageRange): RecognisedText {
@@ -121,7 +122,10 @@ export class SourceFile {
     const seen = new Set<number>();
     for (const page of pages) {
       if (seen.has(page.number.value)) {
-        throw new DuplicatePageNumberException(this.id.value, page.number.value);
+        throw new DuplicatePageNumberException(
+          this.id.value,
+          page.number.value,
+        );
       }
       seen.add(page.number.value);
     }
@@ -135,14 +139,14 @@ export class SourceFile {
     const page = this.pageWith(pageId);
 
     return this.with(
-      this.#pages.map((candidate) =>
+      this.#pages.map(candidate =>
         candidate.id.equals(pageId) ? page.recognised(ocr) : candidate,
       ),
     );
   }
 
   transcript(): readonly { number: PageNumber; text: RecognisedText }[] {
-    return this.#pages.map((page) => ({
+    return this.#pages.map(page => ({
       number: page.number,
       text: page.ocr?.text ?? RecognisedText.empty(),
     }));

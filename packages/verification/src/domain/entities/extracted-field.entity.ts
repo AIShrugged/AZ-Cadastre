@@ -3,7 +3,7 @@ import type {
   FieldKey,
   FieldValue,
   PageNumber,
-} from "../value-objects/index.js";
+} from '../value-objects/index.js';
 
 export class ExtractedField {
   private constructor(

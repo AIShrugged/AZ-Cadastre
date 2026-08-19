@@ -1,5 +1,5 @@
-import { ReportStatus } from "./report-status.vo.js";
-import type { ValidationIssue } from "./validation-issue.vo.js";
+import { ReportStatus } from './report-status.vo.js';
+import type { ValidationIssue } from './validation-issue.vo.js';
 
 // What the run hands the inspector: every problem it met, and the one word
 // that sums them up. It states findings and never refuses a package — the
@@ -26,14 +26,14 @@ export class VerificationReport {
   }
 
   private static statusOf(issues: readonly ValidationIssue[]): ReportStatus {
-    if (issues.some((issue) => issue.kind.leavesPackageIncomplete)) {
+    if (issues.some(issue => issue.kind.leavesPackageIncomplete)) {
       return ReportStatus.INCOMPLETE_PACKAGE;
     }
 
     // An observation the run made in passing — a service sheet in the envelope,
     // a second extract answering the same requirement — is not a finding
     // against the package, so a report holding only those still reads OK.
-    const against = issues.filter((issue) => !issue.kind.isInformational);
+    const against = issues.filter(issue => !issue.kind.isInformational);
 
     return against.length === 0 ? ReportStatus.OK : ReportStatus.ISSUES_FOUND;
   }

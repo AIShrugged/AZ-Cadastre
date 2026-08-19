@@ -1,10 +1,10 @@
-import { VerificationPackage } from "../../domain/aggregates/index.js";
+import { VerificationPackage } from '../../domain/aggregates/index.js';
 import {
   Document,
   ExtractedField,
   Page,
   SourceFile,
-} from "../../domain/entities/index.js";
+} from '../../domain/entities/index.js';
 import {
   CheckedValue,
   Classification,
@@ -33,13 +33,14 @@ import {
   ValidationIssue,
   VerificationProfile,
   VerificationReport,
-} from "../../domain/value-objects/index.js";
+} from '../../domain/value-objects/index.js';
+
 import {
   CrossCheckVerdict as CrossCheckVerdictColumn,
   IssueKind as IssueKindColumn,
-  PackageStatus as StatusColumn,
   ReportStatus as ReportStatusColumn,
-} from "./generated/client.js";
+  PackageStatus as StatusColumn,
+} from './generated/client.js';
 
 export type PackageRow = {
   readonly id: string;
@@ -214,13 +215,13 @@ export class VerificationPackageMapper {
       version: row.version,
       profile: VerificationProfile.of(row.profileKey),
       status: PackageStatus.of(row.status),
-      files: row.sourceFiles.map((file) =>
+      files: row.sourceFiles.map(file =>
         VerificationPackageMapper.fileToDomain(file),
       ),
-      documents: row.documents.map((document) =>
+      documents: row.documents.map(document =>
         VerificationPackageMapper.documentToDomain(document),
       ),
-      crossChecks: row.crossChecks.map((check) =>
+      crossChecks: row.crossChecks.map(check =>
         VerificationPackageMapper.crossCheckToDomain(check),
       ),
       report: row.report
@@ -234,12 +235,12 @@ export class VerificationPackageMapper {
       id: aggregate.id.value,
       status: VerificationPackageMapper.statusColumn(aggregate.status),
       profileKey: aggregate.profile.key,
-      sourceFiles: aggregate.files.map((file) => ({
+      sourceFiles: aggregate.files.map(file => ({
         id: file.id.value,
         originalFilename: file.filename.value,
         contentType: file.contentType.value,
         storageKey: file.storageKey.value,
-        pages: file.pages.map((page) => ({
+        pages: file.pages.map(page => ({
           id: page.id.value,
           pageNumber: page.number.value,
           imageStorageKey: page.image.storageKey.value,
@@ -252,7 +253,7 @@ export class VerificationPackageMapper {
             : null,
         })),
       })),
-      documents: aggregate.documents.map((document) => ({
+      documents: aggregate.documents.map(document => ({
         id: document.id.value,
         sourceFileId: document.sourceFileId.value,
         firstPage: document.pages.first.value,
@@ -260,14 +261,14 @@ export class VerificationPackageMapper {
         type: document.classification?.type.value ?? null,
         classificationConfidence:
           document.classification?.confidence.value ?? null,
-        fields: document.fields.map((field) => ({
+        fields: document.fields.map(field => ({
           name: field.key.value,
           value: field.value.value,
           confidence: field.confidence.value,
           pageNumber: field.foundOn.value,
         })),
       })),
-      crossChecks: aggregate.crossChecks.map((check) => ({
+      crossChecks: aggregate.crossChecks.map(check => ({
         key: check.key.value,
         verdict: VerificationPackageMapper.verdictColumn(check.verdict),
         confidence: check.confidence.value,
@@ -295,7 +296,7 @@ export class VerificationPackageMapper {
       // A value whose document a later run removed is dropped rather than
       // guessed at: the check keeps the sides it can still point the inspector
       // to.
-      values: row.values.flatMap((value) =>
+      values: row.values.flatMap(value =>
         value.documentId === null
           ? []
           : [
@@ -319,7 +320,7 @@ export class VerificationPackageMapper {
 
     return {
       status: VerificationPackageMapper.reportStatusColumn(report.status),
-      issues: report.issues.map((issue) => ({
+      issues: report.issues.map(issue => ({
         kind: VerificationPackageMapper.issueKindColumn(issue.kind),
         message: issue.message,
         documentId: issue.documentId?.value ?? null,
@@ -336,7 +337,7 @@ export class VerificationPackageMapper {
   private static reportToDomain(row: ReportRow): VerificationReport {
     return VerificationReport.restore(
       ReportStatus.of(row.status),
-      row.issues.map((issue) =>
+      row.issues.map(issue =>
         ValidationIssue.of({
           kind: IssueKind.of(issue.kind),
           message: issue.message,
@@ -348,7 +349,9 @@ export class VerificationPackageMapper {
             ? DocumentType.create(issue.documentType)
             : null,
           fieldKey: issue.fieldName ? FieldKey.create(issue.fieldName) : null,
-          checkKey: issue.checkKey ? CrossCheckKey.create(issue.checkKey) : null,
+          checkKey: issue.checkKey
+            ? CrossCheckKey.create(issue.checkKey)
+            : null,
           pageNumber:
             issue.pageNumber === null ? null : PageNumber.of(issue.pageNumber),
           confidence:
@@ -364,7 +367,7 @@ export class VerificationPackageMapper {
       filename: Filename.create(row.originalFilename),
       contentType: ContentType.of(row.contentType),
       storageKey: StorageKey.create(row.storageKey),
-      pages: row.pages.map((page) =>
+      pages: row.pages.map(page =>
         VerificationPackageMapper.pageToDomain(page),
       ),
     });
@@ -379,7 +382,7 @@ export class VerificationPackageMapper {
         PageNumber.of(row.lastPage),
       ),
       classification: VerificationPackageMapper.classificationToDomain(row),
-      fields: row.extractedFields.map((field) =>
+      fields: row.extractedFields.map(field =>
         ExtractedField.of(
           FieldKey.create(field.name),
           FieldValue.create(field.value),
@@ -424,7 +427,7 @@ export class VerificationPackageMapper {
 
   private static statusColumn(status: PackageStatus): StatusColumn {
     const column = Object.values(StatusColumn).find(
-      (candidate) => candidate === status.value,
+      candidate => candidate === status.value,
     );
 
     if (!column) {
@@ -436,7 +439,7 @@ export class VerificationPackageMapper {
 
   private static reportStatusColumn(status: ReportStatus): ReportStatusColumn {
     const column = Object.values(ReportStatusColumn).find(
-      (candidate) => candidate === status.value,
+      candidate => candidate === status.value,
     );
 
     if (!column) {
@@ -450,11 +453,13 @@ export class VerificationPackageMapper {
     verdict: CrossCheckVerdict,
   ): CrossCheckVerdictColumn {
     const column = Object.values(CrossCheckVerdictColumn).find(
-      (candidate) => candidate === verdict.value,
+      candidate => candidate === verdict.value,
     );
 
     if (!column) {
-      throw new RangeError(`No cross-check verdict column for ${verdict.value}`);
+      throw new RangeError(
+        `No cross-check verdict column for ${verdict.value}`,
+      );
     }
 
     return column;
@@ -462,7 +467,7 @@ export class VerificationPackageMapper {
 
   private static issueKindColumn(kind: IssueKind): IssueKindColumn {
     const column = Object.values(IssueKindColumn).find(
-      (candidate) => candidate === kind.value,
+      candidate => candidate === kind.value,
     );
 
     if (!column) {

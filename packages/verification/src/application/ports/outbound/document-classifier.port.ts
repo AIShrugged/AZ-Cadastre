@@ -2,7 +2,7 @@ import type {
   Classification,
   DocumentTypeSpec,
   RecognisedText,
-} from "../../../domain/value-objects/index.js";
+} from '../../../domain/value-objects/index.js';
 
 export type ClassificationRequest = {
   text: RecognisedText;

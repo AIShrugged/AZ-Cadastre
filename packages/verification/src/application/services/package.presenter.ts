@@ -5,7 +5,7 @@ import type {
   PackageDto,
   ReportDto,
   SourceFileDto,
-} from "@cadastre/api-contracts/verification";
+} from '@cadastre/api-contracts/verification';
 
 import type {
   CrossCheckView,
@@ -14,21 +14,21 @@ import type {
   PackageSummaryView,
   ReportView,
   SourceFileView,
-} from "../read-models/index.js";
+} from '../read-models/index.js';
 
 export function toSummaryDto(view: PackageSummaryView): PackageDto {
   return {
     id: view.id,
     // The read model speaks the storage's strings; the contract's enum is the
     // narrower promise.
-    status: view.status as PackageDto["status"],
+    status: view.status as PackageDto['status'],
     profileKey: view.profileKey,
     filesCount: view.filesCount,
     documentsCount: view.documentsCount,
     classifiedCount: view.classifiedCount,
     unclassifiedCount: view.unclassifiedCount,
     extractedCount: view.extractedCount,
-    reportStatus: view.reportStatus as PackageDto["reportStatus"],
+    reportStatus: view.reportStatus as PackageDto['reportStatus'],
     issuesCount: view.issuesCount,
     lowConfidenceCount: view.lowConfidenceCount,
     createdAt: view.createdAt.toISOString(),
@@ -50,10 +50,10 @@ function toCrossCheckDto(view: CrossCheckView): CrossCheckDto {
     key: view.key,
     // Only ever written through the domain's own enumeration, so the stored
     // string is one the contract names.
-    verdict: view.verdict as CrossCheckDto["verdict"],
+    verdict: view.verdict as CrossCheckDto['verdict'],
     confidence: view.confidence,
     note: view.note,
-    values: view.values.map((value) => ({
+    values: view.values.map(value => ({
       documentId: value.documentId,
       documentType: value.documentType,
       fieldName: value.fieldName,
@@ -68,10 +68,10 @@ function toReportDto(view: ReportView): ReportDto {
   return {
     // Only ever written through the domain's own enumerations, so the stored
     // strings are ones the contract names.
-    status: view.status as ReportDto["status"],
+    status: view.status as ReportDto['status'],
     generatedAt: view.generatedAt.toISOString(),
-    issues: view.issues.map((issue) => ({
-      kind: issue.kind as ReportDto["issues"][number]["kind"],
+    issues: view.issues.map(issue => ({
+      kind: issue.kind as ReportDto['issues'][number]['kind'],
       message: issue.message,
       documentId: issue.documentId,
       sourceFileId: issue.sourceFileId,
@@ -90,8 +90,8 @@ function toSourceFileDto(view: SourceFileView): SourceFileDto {
     originalFilename: view.originalFilename,
     // Only ever written through the validated presign flow, so the stored type
     // is one the contract names.
-    contentType: view.contentType as SourceFileDto["contentType"],
-    pages: view.pages.map((page) => ({
+    contentType: view.contentType as SourceFileDto['contentType'],
+    pages: view.pages.map(page => ({
       pageNumber: page.pageNumber,
       imageUrl: page.imageUrl,
       ocr: page.ocr
@@ -109,7 +109,7 @@ function toDocumentDto(view: DocumentView): DocumentDto {
     lastPage: view.lastPage,
     type: view.type,
     classificationConfidence: view.classificationConfidence,
-    fields: view.fields.map((field) => ({
+    fields: view.fields.map(field => ({
       name: field.name,
       value: field.value,
       confidence: field.confidence,

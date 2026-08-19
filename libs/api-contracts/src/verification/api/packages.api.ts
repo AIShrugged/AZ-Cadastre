@@ -2,7 +2,7 @@ import type {
   CreatePackageRequest,
   PackageDetailDto,
   PackageDto,
-} from "../dto/index.js";
+} from '../dto/index.js';
 
 /**
  * What the verification context offers callers about submissions. Both sides of

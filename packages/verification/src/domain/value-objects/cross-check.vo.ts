@@ -1,13 +1,14 @@
 import {
   CrossCheckMustCompareTwoDocumentsException,
   InvalidCrossCheckKeyException,
-} from "../exceptions/index.js";
-import type { Confidence } from "./confidence.vo.js";
-import type { CrossCheckVerdict } from "./cross-check-verdict.vo.js";
-import type { DocumentType } from "./document-type.vo.js";
-import type { FieldKey, FieldValue } from "./field.vo.js";
-import type { DocumentId } from "./ids.vo.js";
-import type { PageNumber } from "./page-number.vo.js";
+} from '../exceptions/index.js';
+
+import type { Confidence } from './confidence.vo.js';
+import type { CrossCheckVerdict } from './cross-check-verdict.vo.js';
+import type { DocumentType } from './document-type.vo.js';
+import type { FieldKey, FieldValue } from './field.vo.js';
+import type { DocumentId } from './ids.vo.js';
+import type { PageNumber } from './page-number.vo.js';
 
 export class CrossCheckKey {
   static readonly MAX_LENGTH = 64;
@@ -17,9 +18,9 @@ export class CrossCheckKey {
   static create(raw: string): CrossCheckKey {
     const trimmed = raw.trim();
 
-    if (trimmed.length === 0) throw new InvalidCrossCheckKeyException("empty");
+    if (trimmed.length === 0) throw new InvalidCrossCheckKeyException('empty');
     if (trimmed.length > CrossCheckKey.MAX_LENGTH) {
-      throw new InvalidCrossCheckKeyException("too_long");
+      throw new InvalidCrossCheckKeyException('too_long');
     }
 
     return new CrossCheckKey(trimmed);
@@ -130,7 +131,7 @@ export class CrossCheck {
   }
 
   private static documentsIn(values: readonly CheckedValue[]): number {
-    return new Set(values.map((value) => value.documentId.value)).size;
+    return new Set(values.map(value => value.documentId.value)).size;
   }
 
   get values(): readonly CheckedValue[] {
@@ -153,6 +154,6 @@ export class CrossCheck {
   }
 
   get cited(): string {
-    return this.#values.map((value) => value.cited).join(", ");
+    return this.#values.map(value => value.cited).join(', ');
   }
 }

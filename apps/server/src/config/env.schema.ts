@@ -1,5 +1,6 @@
-import { z } from "zod";
-import type { VerificationModuleOptions } from "@cadastre/verification";
+import { z } from 'zod';
+
+import type { VerificationModuleOptions } from '@cadastre/verification';
 
 /**
  * The whole environment, validated once at startup and typed thereafter. This
@@ -10,27 +11,27 @@ import type { VerificationModuleOptions } from "@cadastre/verification";
 export const EnvironmentSchema = z
   .object({
     SERVICE_PORT: z.coerce.number().int().positive().default(3000),
-    SERVICE_HOST: z.string().nonempty().default("0.0.0.0"),
+    SERVICE_HOST: z.string().nonempty().default('0.0.0.0'),
 
     DATABASE_URL: z
       .url()
       .default(
-        "postgresql://postgres:postgres@localhost:5432/cadastre-db?schema=public",
+        'postgresql://postgres:postgres@localhost:5432/cadastre-db?schema=public',
       ),
 
-    WEB_ORIGIN: z.string().nonempty().default("http://localhost:5173"),
+    WEB_ORIGIN: z.string().nonempty().default('http://localhost:5173'),
 
     // Reachable from both this service and the browser: the presigned URL points
     // straight at it.
-    S3_ENDPOINT: z.string().nonempty().default("http://localhost:9000"),
-    S3_REGION: z.string().nonempty().default("rustfs"),
-    S3_BUCKET: z.string().nonempty().default("documents"),
+    S3_ENDPOINT: z.string().nonempty().default('http://localhost:9000'),
+    S3_REGION: z.string().nonempty().default('rustfs'),
+    S3_BUCKET: z.string().nonempty().default('documents'),
     S3_ACCESS_KEY: z.string().nonempty(),
     S3_SECRET_KEY: z.string().nonempty(),
     S3_FORCE_PATH_STYLE: z
-      .enum(["true", "false"])
-      .default("true")
-      .transform((v) => v === "true"),
+      .enum(['true', 'false'])
+      .default('true')
+      .transform(v => v === 'true'),
     // Seconds.
     S3_PRESIGN_TTL: z.coerce.number().int().positive().default(600),
 
@@ -47,15 +48,15 @@ export const EnvironmentSchema = z
     // Required only when a provider below is set to "openrouter", which is where
     // its absence is refused.
     OPENROUTER_API_KEY: z.string().optional(),
-    OPENROUTER_BASE_URL: z.string().default("https://openrouter.ai/api/v1"),
-    OPENROUTER_APP_TITLE: z.string().default("AZ-Cadastre"),
+    OPENROUTER_BASE_URL: z.string().default('https://openrouter.ai/api/v1'),
+    OPENROUTER_APP_TITLE: z.string().default('AZ-Cadastre'),
 
     // Every default below is a model observed to return usable token logprobs
     // through OpenRouter, because a confidence the engine cannot obtain is a
     // confidence it would otherwise invent. docs/MODELS.md records what each
     // candidate actually answered and how to check a new one.
-    OCR_PROVIDER: z.enum(["mock", "openrouter"]).default("mock"),
-    OCR_MODEL: z.string().default("qwen/qwen2.5-vl-72b-instruct"),
+    OCR_PROVIDER: z.enum(['mock', 'openrouter']).default('mock'),
+    OCR_MODEL: z.string().default('qwen/qwen2.5-vl-72b-instruct'),
     // Pages read at once. Raise it to get through a long PDF faster, lower it if
     // the provider starts answering with rate limits.
     OCR_CONCURRENCY: z.coerce.number().int().positive().default(4),
@@ -63,26 +64,26 @@ export const EnvironmentSchema = z
     // Reads an uploaded file into the documents it holds. A container PDF is
     // only as good as this boundary call, so it is worth pointing at a real
     // model even when the rest of the pipeline is mocked.
-    SEGMENTER_PROVIDER: z.enum(["mock", "openrouter"]).default("mock"),
-    SEGMENTER_MODEL: z.string().default("openai/gpt-4o"),
+    SEGMENTER_PROVIDER: z.enum(['mock', 'openrouter']).default('mock'),
+    SEGMENTER_MODEL: z.string().default('openai/gpt-4o'),
 
-    CLASSIFIER_PROVIDER: z.enum(["mock", "openrouter"]).default("mock"),
-    CLASSIFIER_MODEL: z.string().default("openai/gpt-4o"),
+    CLASSIFIER_PROVIDER: z.enum(['mock', 'openrouter']).default('mock'),
+    CLASSIFIER_MODEL: z.string().default('openai/gpt-4o'),
 
     // Reads the sheets as pictures as well as transcriptions, so it wants a
     // model that takes images.
-    EXTRACTOR_PROVIDER: z.enum(["mock", "openrouter"]).default("mock"),
-    EXTRACTOR_MODEL: z.string().default("qwen/qwen2.5-vl-72b-instruct"),
+    EXTRACTOR_PROVIDER: z.enum(['mock', 'openrouter']).default('mock'),
+    EXTRACTOR_MODEL: z.string().default('qwen/qwen2.5-vl-72b-instruct'),
 
     // Holds the documents against each other: whether the name on the identity
     // card is the name the application is made in. It sees only the values the
     // extractor already read, so it is a text model and a cheap call — but it
     // is a judgement about names and addresses in two scripts, so it wants a
     // model that reads Azerbaijani rather than the smallest one available.
-    CROSS_CHECKER_PROVIDER: z.enum(["mock", "openrouter"]).default("mock"),
-    CROSS_CHECKER_MODEL: z.string().default("openai/gpt-4o"),
+    CROSS_CHECKER_PROVIDER: z.enum(['mock', 'openrouter']).default('mock'),
+    CROSS_CHECKER_MODEL: z.string().default('openai/gpt-4o'),
   })
-  .transform((env) => ({
+  .transform(env => ({
     service: {
       host: env.SERVICE_HOST,
       port: env.SERVICE_PORT,

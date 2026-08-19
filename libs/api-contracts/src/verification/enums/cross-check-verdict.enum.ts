@@ -1,10 +1,10 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 export const CrossCheckVerdictSchema = z.enum([
-  "Match",
-  "Mismatch",
+  'Match',
+  'Mismatch',
   // Compared, and could not be decided either way. Not an agreement, so it
   // reaches the inspector as a finding.
-  "Unclear",
+  'Unclear',
 ]);
 export type CrossCheckVerdict = z.infer<typeof CrossCheckVerdictSchema>;

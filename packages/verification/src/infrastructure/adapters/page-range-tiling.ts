@@ -1,7 +1,4 @@
-import {
-  PageNumber,
-  PageRange,
-} from "../../domain/value-objects/index.js";
+import { PageNumber, PageRange } from '../../domain/value-objects/index.js';
 
 // A segmentation is fully described by the sheets a new document starts on. Any
 // set of those — a model's sloppy answer included — becomes ranges that tile the
@@ -18,7 +15,7 @@ export function tileIntoRanges(
     ...new Set([
       1,
       ...starts.filter(
-        (start) => Number.isInteger(start) && start > 1 && start <= pageCount,
+        start => Number.isInteger(start) && start > 1 && start <= pageCount,
       ),
     ]),
   ].sort((left, right) => left - right);

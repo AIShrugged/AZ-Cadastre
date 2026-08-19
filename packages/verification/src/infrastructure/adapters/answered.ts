@@ -1,4 +1,4 @@
-import type OpenAI from "openai";
+import type OpenAI from 'openai';
 
 // OpenRouter does not always report a failure as one. A provider that refused
 // the request can come back as HTTP 200 carrying `{"error": …}` and no
@@ -10,10 +10,8 @@ import type OpenAI from "openai";
 // is turned into an error that names itself.
 export class ProviderAnsweredNothingException extends Error {
   constructor(model: string, completion: unknown) {
-    super(
-      `${model} returned no choice: ${describe(completion)}`,
-    );
-    this.name = "ProviderAnsweredNothingException";
+    super(`${model} returned no choice: ${describe(completion)}`);
+    this.name = 'ProviderAnsweredNothingException';
   }
 }
 

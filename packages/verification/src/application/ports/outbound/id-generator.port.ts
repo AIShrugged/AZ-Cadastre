@@ -3,7 +3,7 @@ import type {
   PackageId,
   PageId,
   SourceFileId,
-} from "../../../domain/value-objects/index.js";
+} from '../../../domain/value-objects/index.js';
 
 export abstract class IdGenerator {
   abstract packageId(): PackageId;

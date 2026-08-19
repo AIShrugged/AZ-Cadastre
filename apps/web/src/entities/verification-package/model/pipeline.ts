@@ -8,4 +8,4 @@
  *  report are compiled together when the run finishes, and a run always
  *  finishes: a document that could not be read is a finding in the report, not
  *  a stop. */
-export const STAGES = 7
+export const STAGES = 7;

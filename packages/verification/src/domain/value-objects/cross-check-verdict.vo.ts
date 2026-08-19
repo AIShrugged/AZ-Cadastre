@@ -1,14 +1,14 @@
-import { InvalidCrossCheckVerdictException } from "../exceptions/index.js";
+import { InvalidCrossCheckVerdictException } from '../exceptions/index.js';
 
 // What the cross-document stage made of one check. It never says the package is
 // wrong — it says whether the values that have to agree were shown to agree.
 export class CrossCheckVerdict {
-  static readonly MATCH = new CrossCheckVerdict("Match");
-  static readonly MISMATCH = new CrossCheckVerdict("Mismatch");
+  static readonly MATCH = new CrossCheckVerdict('Match');
+  static readonly MISMATCH = new CrossCheckVerdict('Mismatch');
   // The values were read and compared, and the reader could not say either way:
   // a name half lost to a faint scan, an address written two ways that may or
   // may not be one place. Not an agreement, so it goes to the inspector.
-  static readonly UNCLEAR = new CrossCheckVerdict("Unclear");
+  static readonly UNCLEAR = new CrossCheckVerdict('Unclear');
 
   private constructor(public readonly value: string) {}
 
@@ -22,7 +22,7 @@ export class CrossCheckVerdict {
 
   static of(raw: string): CrossCheckVerdict {
     const found = CrossCheckVerdict.all.find(
-      (candidate) => candidate.value === raw,
+      candidate => candidate.value === raw,
     );
 
     if (!found) throw new InvalidCrossCheckVerdictException(raw);

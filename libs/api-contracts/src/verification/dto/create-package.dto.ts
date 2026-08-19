@@ -1,6 +1,6 @@
-import { z } from "zod";
+import { z } from 'zod';
 
-import { PackageDtoSchema } from "./package.dto.js";
+import { PackageDtoSchema } from './package.dto.js';
 
 export const FileInputSchema = z.object({
   originalFilename: z.string(),

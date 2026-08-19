@@ -1,11 +1,11 @@
-import { AggregateRoot } from "@cadastre/shared";
+import { AggregateRoot } from '@cadastre/shared';
 
 import {
   type Document,
   type ExtractedField,
   type Page,
   type SourceFile,
-} from "../entities/index.js";
+} from '../entities/index.js';
 import {
   CrossCheckMade,
   DocumentClassified,
@@ -18,7 +18,7 @@ import {
   VerificationCompleted,
   VerificationFailed,
   VerificationStarted,
-} from "../events/index.js";
+} from '../events/index.js';
 import {
   CrossCheckNotInProfileException,
   DocumentNotInPackageException,
@@ -34,26 +34,26 @@ import {
   SourceFileMustHaveADocumentException,
   SourceFileNotInPackageException,
   SourceFileNotSplitException,
-} from "../exceptions/index.js";
+} from '../exceptions/index.js';
 import {
   CheckedValue,
-  type Classification,
   Confidence,
+  FailureReason,
+  PackageId,
+  PackageStatus,
+  ValidationIssue,
+  VerificationReport,
+  type Classification,
   type CrossCheck,
   type CrossCheckKey,
   type CrossCheckSpec,
   type DocumentId,
-  FailureReason,
   type OcrResult,
-  PackageId,
-  PackageStatus,
   type PageId,
   type RecognisedText,
   type SourceFileId,
-  ValidationIssue,
   type VerificationProfile,
-  VerificationReport,
-} from "../value-objects/index.js";
+} from '../value-objects/index.js';
 
 export type VerificationPackageState = {
   readonly id: PackageId;
@@ -144,7 +144,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   }
 
   fileWith(sourceFileId: SourceFileId): SourceFile {
-    const file = this.#files.find((candidate) =>
+    const file = this.#files.find(candidate =>
       candidate.id.equals(sourceFileId),
     );
 
@@ -159,7 +159,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   }
 
   documentWith(documentId: DocumentId): Document {
-    const document = this.#documents.find((candidate) =>
+    const document = this.#documents.find(candidate =>
       candidate.id.equals(documentId),
     );
 
@@ -171,7 +171,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   }
 
   documentsIn(sourceFileId: SourceFileId): readonly Document[] {
-    return this.#documents.filter((document) => document.isFrom(sourceFileId));
+    return this.#documents.filter(document => document.isFrom(sourceFileId));
   }
 
   isSegmented(sourceFileId: SourceFileId): boolean {
@@ -198,16 +198,16 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   // two documents answer to contributes both of them — a package carrying two
   // identity cards has two names to reconcile, not one.
   valuesFor(spec: CrossCheckSpec): readonly CheckedValue[] {
-    return spec.references.flatMap((reference) =>
-      this.#documents.flatMap((document) => {
+    return spec.references.flatMap(reference =>
+      this.#documents.flatMap(document => {
         const classification = document.classification;
 
         if (!classification?.isPlaced) return [];
         if (!classification.type.equals(reference.type)) return [];
 
         return document.fields
-          .filter((field) => field.key.equals(reference.key))
-          .map((field) =>
+          .filter(field => field.key.equals(reference.key))
+          .map(field =>
             CheckedValue.of({
               documentId: document.id,
               documentType: classification.type,
@@ -228,11 +228,11 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   canMake(spec: CrossCheckSpec): boolean {
     const values = this.valuesFor(spec);
 
-    return new Set(values.map((value) => value.documentId.value)).size >= 2;
+    return new Set(values.map(value => value.documentId.value)).size >= 2;
   }
 
   hasMade(key: CrossCheckKey): boolean {
-    return this.#crossChecks.some((check) => check.key.equals(key));
+    return this.#crossChecks.some(check => check.key.equals(key));
   }
 
   recordCrossCheck(check: CrossCheck): void {
@@ -248,7 +248,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     // Replaced rather than added: a re-run reads the same papers again, and the
     // package holds one answer per check, not a history of them.
     this.#crossChecks = [
-      ...this.#crossChecks.filter((made) => !made.key.equals(check.key)),
+      ...this.#crossChecks.filter(made => !made.key.equals(check.key)),
       check,
     ];
     this.apply(new CrossCheckMade(this.id, check.key, check.verdict));
@@ -256,18 +256,18 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
 
   get isFullyProcessed(): boolean {
     const filesRead = this.#files.every(
-      (file) => file.isFullyRecognised && this.isSegmented(file.id),
+      file => file.isFullyRecognised && this.isSegmented(file.id),
     );
 
     return (
       filesRead &&
       this.#documents.every(
-        (document) =>
+        document =>
           document.isClassified &&
           (document.hasFields || !this.expectsFieldsOf(document)),
       ) &&
       this.#profile.crossChecks.every(
-        (spec) => this.hasMade(spec.key) || !this.canMake(spec),
+        spec => this.hasMade(spec.key) || !this.canMake(spec),
       )
     );
   }
@@ -314,7 +314,8 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     this.guardUnderWay();
     const file = this.fileWith(sourceFileId);
 
-    if (!file.isSplit) throw new SourceFileNotSplitException(sourceFileId.value);
+    if (!file.isSplit)
+      throw new SourceFileNotSplitException(sourceFileId.value);
     if (this.isSegmented(sourceFileId)) {
       throw new SourceFileAlreadySegmentedException(sourceFileId.value);
     }
@@ -325,7 +326,9 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     this.guardCoverOf(file, documents);
 
     this.#documents = [...this.#documents, ...documents];
-    this.apply(new SourceFileSegmented(this.id, sourceFileId, documents.length));
+    this.apply(
+      new SourceFileSegmented(this.id, sourceFileId, documents.length),
+    );
   }
 
   classify(documentId: DocumentId, classification: Classification): void {
@@ -382,7 +385,10 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
 
   fail(reason: FailureReason): void {
     if (this.#status.isTerminal) {
-      throw new PackageAlreadyFinishedException(this.id.value, this.#status.value);
+      throw new PackageAlreadyFinishedException(
+        this.id.value,
+        this.#status.value,
+      );
     }
 
     this.#status = PackageStatus.FAILED;
@@ -408,15 +414,15 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   }
 
   private missingDocuments(): readonly ValidationIssue[] {
-    const placed = this.#documents.flatMap((document) => {
+    const placed = this.#documents.flatMap(document => {
       const classification = document.classification;
 
       return classification?.isPlaced ? [classification.type] : [];
     });
 
     return this.#profile.requiredTypes
-      .filter((required) => !placed.some((type) => type.equals(required)))
-      .map((required) => ValidationIssue.missingDocument(required));
+      .filter(required => !placed.some(type => type.equals(required)))
+      .map(required => ValidationIssue.missingDocument(required));
   }
 
   // What the papers of one submission were asked to agree on and did not. A
@@ -424,30 +430,32 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   // it, and they can only do that if they are told.
   private disagreements(): readonly ValidationIssue[] {
     return this.#crossChecks
-      .filter((check) => check.needsInspector)
-      .map((check) => ValidationIssue.crossCheckFailed(check));
+      .filter(check => check.needsInspector)
+      .map(check => ValidationIssue.crossCheckFailed(check));
   }
 
   private unreadable(): readonly ValidationIssue[] {
-    const sheets = this.#files.flatMap((file) => [
-      ...file.unrecognisedPages.map((page) =>
+    const sheets = this.#files.flatMap(file => [
+      ...file.unrecognisedPages.map(page =>
         ValidationIssue.unreadableSheet(file.id, page.number),
       ),
       // Nothing was carved out of it, so whatever it holds is in no document
       // and reaches no classifier.
-      ...(this.isSegmented(file.id) ? [] : [ValidationIssue.unreadableFile(file.id)]),
+      ...(this.isSegmented(file.id)
+        ? []
+        : [ValidationIssue.unreadableFile(file.id)]),
     ]);
 
     // Only the documents nothing could be made of. One the classifier read and
     // placed outside the profile was not unreadable, and is reported as what it
     // is a few lines below.
     const documents = this.#documents
-      .filter((document) => {
+      .filter(document => {
         const classification = document.classification;
 
         return !classification?.isPlaced && !classification?.isOutOfProfile;
       })
-      .map((document) =>
+      .map(document =>
         ValidationIssue.unplacedDocument(
           document.id,
           document.sourceFileId,
@@ -465,7 +473,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   private alsoInThePackage(): readonly ValidationIssue[] {
     const answered = new Set<string>();
 
-    return this.#documents.flatMap((document) => {
+    return this.#documents.flatMap(document => {
       const classification = document.classification;
 
       if (classification?.isOutOfProfile) {
@@ -498,7 +506,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   }
 
   private lowConfidence(): readonly ValidationIssue[] {
-    return this.#documents.flatMap((document) => {
+    return this.#documents.flatMap(document => {
       const classification = document.classification;
       const type = classification?.isPlaced ? classification.type : null;
 
@@ -516,8 +524,8 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
           : [];
 
       const fields = document.fields
-        .filter((field) => field.isBelow(Confidence.FLOOR))
-        .map((field) =>
+        .filter(field => field.isBelow(Confidence.FLOOR))
+        .map(field =>
           ValidationIssue.lowConfidenceField(
             document.id,
             document.sourceFileId,
@@ -573,13 +581,13 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   }
 
   private replaceFile(file: SourceFile): void {
-    this.#files = this.#files.map((candidate) =>
+    this.#files = this.#files.map(candidate =>
       candidate.id.equals(file.id) ? file : candidate,
     );
   }
 
   private replaceDocument(document: Document): void {
-    this.#documents = this.#documents.map((candidate) =>
+    this.#documents = this.#documents.map(candidate =>
       candidate.id.equals(document.id) ? document : candidate,
     );
   }

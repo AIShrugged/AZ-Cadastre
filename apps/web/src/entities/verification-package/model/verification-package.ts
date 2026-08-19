@@ -18,57 +18,56 @@ import type {
   PackageDto,
   PackageStatus,
   ReportStatus,
-} from "@cadastre/api-contracts/verification"
+} from '@cadastre/api-contracts/verification';
 
 export type Disposition =
-  | "in_progress"
-  | "ok"
-  | "issues"
-  | "incomplete"
-  | "failed"
+  'in_progress' | 'ok' | 'issues' | 'incomplete' | 'failed';
 
 export type VerificationPackage = {
   /** Register number — the identity an inspector cites. */
-  id: string
+  id: string;
   /** Applicant on the package (extracted downstream; empty until then). */
-  applicant: string
+  applicant: string;
   /** Key of the Verification Profile governing this package, as the server named it. */
-  profile: string
-  disposition: Disposition
+  profile: string;
+  disposition: Disposition;
   /** ISO timestamp the package was submitted. */
-  submittedAt: string
+  submittedAt: string;
   /** ISO timestamp of the last pipeline event (drives "updated Xm ago"). */
-  updatedAt: string
+  updatedAt: string;
   /** Documents the classifier has placed so far. */
-  docsClassified: number
+  docsClassified: number;
   /**
    * Documents the pipeline found inside the uploaded files. A file is a
    * container — one PDF may hold several documents — so this is 0 until
    * detection has run and can exceed `filesAttached`.
    */
-  docsFound: number
+  docsFound: number;
   /** Files the inspector uploaded. Known from the moment the package exists. */
-  filesAttached: number
+  filesAttached: number;
   /** Validation issues raised (mismatch / expired / missing). */
-  issues: number
+  issues: number;
   /** Fields flagged below the confidence threshold. */
-  lowConfidence: number
+  lowConfidence: number;
   /** Lowest field confidence seen, 0–100 (undefined until extraction runs). */
-  minConfidence?: number
+  minConfidence?: number;
   /** For in_progress packages: current stage 1..6. */
-  stage?: number
+  stage?: number;
   /** Optional internal reference the inspector set at creation. */
-  reference?: string
-}
+  reference?: string;
+};
 
-export type Segment = "all" | "in_progress" | "issues" | "incomplete" | "ok" | "failed"
+export type Segment =
+  'all' | 'in_progress' | 'issues' | 'incomplete' | 'ok' | 'failed';
 
 export function inSegment(p: VerificationPackage, seg: Segment): boolean {
-  if (seg === "all") return true
-  return p.disposition === seg
+  if (seg === 'all') return true;
+  return p.disposition === seg;
 }
 
-export function segmentCounts(pkgs: VerificationPackage[]): Record<Segment, number> {
+export function segmentCounts(
+  pkgs: VerificationPackage[],
+): Record<Segment, number> {
   const c: Record<Segment, number> = {
     all: pkgs.length,
     in_progress: 0,
@@ -76,9 +75,9 @@ export function segmentCounts(pkgs: VerificationPackage[]): Record<Segment, numb
     incomplete: 0,
     ok: 0,
     failed: 0,
-  }
-  for (const p of pkgs) c[p.disposition] += 1
-  return c
+  };
+  for (const p of pkgs) c[p.disposition] += 1;
+  return c;
 }
 
 /**
@@ -93,16 +92,16 @@ export function segmentCounts(pkgs: VerificationPackage[]): Record<Segment, numb
  * finds its package.
  */
 export function packageRef(id: string): string {
-  return id.split("-")[0] ?? id
+  return id.split('-')[0] ?? id;
 }
 
 export function matchesQuery(p: VerificationPackage, q: string): boolean {
-  if (!q.trim()) return true
-  const n = q.trim().toLocaleLowerCase()
+  if (!q.trim()) return true;
+  const n = q.trim().toLocaleLowerCase();
   return (
     p.id.toLocaleLowerCase().includes(n) ||
     p.applicant.toLocaleLowerCase().includes(n)
-  )
+  );
 }
 
 // ─── Wire DTO ⇄ view model ────────────────────────────────────────────────────
@@ -120,15 +119,15 @@ function dispositionOf(
   reportStatus: ReportStatus | null,
 ): Disposition {
   switch (status) {
-    case "Pending":
-    case "Processing":
-      return "in_progress"
-    case "Completed":
-      if (reportStatus === "IncompletePackage") return "incomplete"
-      if (reportStatus === "IssuesFound") return "issues"
-      return "ok"
-    case "Failed":
-      return "failed"
+    case 'Pending':
+    case 'Processing':
+      return 'in_progress';
+    case 'Completed':
+      if (reportStatus === 'IncompletePackage') return 'incomplete';
+      if (reportStatus === 'IssuesFound') return 'issues';
+      return 'ok';
+    case 'Failed':
+      return 'failed';
   }
 }
 
@@ -137,10 +136,10 @@ function dispositionOf(
  * fields are defaulted until their stages produce real values.
  */
 export function toViewPackage(dto: PackageDto): VerificationPackage {
-  const disposition = dispositionOf(dto.status, dto.reportStatus)
+  const disposition = dispositionOf(dto.status, dto.reportStatus);
   return {
     id: dto.id,
-    applicant: "",
+    applicant: '',
     profile: dto.profileKey,
     disposition,
     submittedAt: dto.createdAt,
@@ -152,8 +151,8 @@ export function toViewPackage(dto: PackageDto): VerificationPackage {
     filesAttached: dto.filesCount,
     issues: dto.issuesCount,
     lowConfidence: dto.lowConfidenceCount,
-    stage: disposition === "in_progress" ? pipelineStage(dto) : undefined,
-  }
+    stage: disposition === 'in_progress' ? pipelineStage(dto) : undefined,
+  };
 }
 
 /**
@@ -169,8 +168,8 @@ export function toViewPackage(dto: PackageDto): VerificationPackage {
  * the files themselves and reports the two apart.
  */
 function pipelineStage(dto: PackageDto): number {
-  if (dto.documentsCount === 0) return 1 // reading the files
-  if (dto.classifiedCount < dto.documentsCount) return 3 // classifying
-  if (dto.extractedCount > 0) return 4 // extraction reached
-  return 3
+  if (dto.documentsCount === 0) return 1; // reading the files
+  if (dto.classifiedCount < dto.documentsCount) return 3; // classifying
+  if (dto.extractedCount > 0) return 4; // extraction reached
+  return 3;
 }

@@ -3,17 +3,17 @@ import {
   type DynamicModule,
   type ModuleMetadata,
   type Provider,
-} from "@nestjs/common";
-import { APP_FILTER } from "@nestjs/core";
+} from '@nestjs/common';
+import { APP_FILTER } from '@nestjs/core';
 
 import {
   DocumentsController,
   PackagesController,
   ProfilesController,
   VerificationExceptionFilter,
-} from "./presentation/verification/rest/index.js";
+} from './presentation/verification/rest/index.js';
 
-export type ApiGatewayModuleOptions = Pick<ModuleMetadata, "imports"> & {
+export type ApiGatewayModuleOptions = Pick<ModuleMetadata, 'imports'> & {
   /**
    * The client-port bindings, handed in by the composition root. The gateway
    * declares what it needs and never names who satisfies it.

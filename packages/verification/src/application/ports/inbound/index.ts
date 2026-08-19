@@ -1,1 +1,1 @@
-export { VerificationApiPort } from "./verification.port.js";
+export { VerificationApiPort } from './verification.port.js';

@@ -1,7 +1,8 @@
-import { defineConfig } from "vite";
-import path from "node:path";
-import tailwindcss from "@tailwindcss/vite";
-import react from "@vitejs/plugin-react";
+import path from 'node:path';
+
+import tailwindcss from '@tailwindcss/vite';
+import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite';
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -9,26 +10,26 @@ export default defineConfig({
   server: {
     proxy: {
       // Core (NestJS) API — presigned uploads, etc.
-      "/api": {
-        target: process.env.VITE_CORE_URL ?? "http://localhost:3000",
+      '/api': {
+        target: process.env.VITE_CORE_URL ?? 'http://localhost:3000',
         changeOrigin: true,
       },
       // S3-compatible storage (RustFS) — presigned upload URLs. Proxying through
       // Vite keeps the browser on one origin (localhost:5173) and eliminates CORS
       // issues since the dev server automatically adds CORS headers.
-      "/documents": {
-        target: process.env.VITE_S3_URL ?? "http://localhost:9000",
+      '/documents': {
+        target: process.env.VITE_S3_URL ?? 'http://localhost:9000',
         changeOrigin: true,
-        rewrite: (path) => path, // Keep the path as-is
+        rewrite: path => path, // Keep the path as-is
       },
     },
   },
   build: {
-    outDir: "build",
+    outDir: 'build',
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "src"),
+      '@': path.resolve(__dirname, 'src'),
     },
   },
 });

@@ -1,6 +1,7 @@
-import type { Provider } from "@nestjs/common";
-import { VerificationClientPort } from "@cadastre/api-gateway";
-import { VerificationApiPort } from "@cadastre/verification";
+import type { Provider } from '@nestjs/common';
+
+import { VerificationClientPort } from '@cadastre/api-gateway';
+import { VerificationApiPort } from '@cadastre/verification';
 
 /**
  * Every cross-boundary port binding in the system, and the only place any of

@@ -29,14 +29,14 @@ const MIN_QUOTE = 4;
 
 function flatten(text: string): string {
   return text
-    .replace(WRAPPED, "$1")
-    .replace(MARKS, " ")
-    .replace(DOUBTFUL, "$1")
-    .replace(DASHES, "-")
+    .replace(WRAPPED, '$1')
+    .replace(MARKS, ' ')
+    .replace(DOUBTFUL, '$1')
+    .replace(DASHES, '-')
     .replace(QUOTES, "'")
-    .replace(/\s+/g, " ")
+    .replace(/\s+/g, ' ')
     .trim()
-    .toLocaleLowerCase("az-AZ");
+    .toLocaleLowerCase('az-AZ');
 }
 
 export function quotedIn(source: string, quote: string): boolean {

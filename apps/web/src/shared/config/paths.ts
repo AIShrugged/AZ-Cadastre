@@ -4,12 +4,12 @@
  * an import cycle (routes.tsx → app-shell.tsx → paths).
  */
 export const paths = {
-  register: "/",
-  new: "/new",
+  register: '/',
+  new: '/new',
   /** The policy surface: which document types each profile expects. */
-  profiles: "/profiles",
+  profiles: '/profiles',
   /** One profile's policy sheet, addressable so it can be linked and returned to. */
   profile: (key: string) => `/profiles/${encodeURIComponent(key)}`,
   /** Verification details for a package. */
   package: (id: string) => `/package/${encodeURIComponent(id)}`,
-}
+};

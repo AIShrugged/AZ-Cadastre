@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 import {
   CrossCheckVerdictSchema,
@@ -6,7 +6,7 @@ import {
   IssueKindSchema,
   PackageStatusSchema,
   ReportStatusSchema,
-} from "../enums/index.js";
+} from '../enums/index.js';
 
 export const PackageDtoSchema = z.object({
   id: z.string(),

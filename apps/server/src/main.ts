@@ -1,22 +1,21 @@
-import { NestFactory } from "@nestjs/core";
-import { StandardSchemaValidationPipe } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
+import { StandardSchemaValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { NestFactory } from '@nestjs/core';
 
-import { ServerModule } from "./server.module.js";
-import type { Environment } from "./config/index.js";
+import type { Environment } from './config/index.js';
+import { ServerModule } from './server.module.js';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(ServerModule);
   const config = app.get<ConfigService<Environment, true>>(ConfigService);
 
   app.useGlobalPipes(new StandardSchemaValidationPipe());
-  app.enableCors({ origin: config.get("web", { infer: true }).origin });
+  app.enableCors({ origin: config.get('web', { infer: true }).origin });
 
-  app.setGlobalPrefix("api");
+  app.setGlobalPrefix('api');
 
-  const service = config.get("service", { infer: true });
+  const service = config.get('service', { infer: true });
   await app.listen(service.port, service.host);
 }
 
 void bootstrap();
-

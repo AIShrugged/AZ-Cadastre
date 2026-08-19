@@ -1,9 +1,9 @@
-import { ApplicationException } from "@cadastre/shared";
+import { ApplicationException } from '@cadastre/shared';
 
-import type { PackageId } from "../../domain/value-objects/index.js";
+import type { PackageId } from '../../domain/value-objects/index.js';
 
 export class PackageNotFoundException extends ApplicationException {
-  override readonly code = "PACKAGE_NOT_FOUND";
+  override readonly code = 'PACKAGE_NOT_FOUND';
   override readonly status = 404;
 
   constructor(public readonly packageId: PackageId) {

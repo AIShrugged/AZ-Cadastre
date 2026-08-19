@@ -1,4 +1,4 @@
-import { InvalidFilenameException } from "../exceptions/index.js";
+import { InvalidFilenameException } from '../exceptions/index.js';
 
 export class Filename {
   static readonly MAX_LENGTH = 255;
@@ -8,9 +8,9 @@ export class Filename {
   static create(raw: string): Filename {
     const trimmed = raw.trim();
 
-    if (trimmed.length === 0) throw new InvalidFilenameException("empty");
+    if (trimmed.length === 0) throw new InvalidFilenameException('empty');
     if (trimmed.length > Filename.MAX_LENGTH) {
-      throw new InvalidFilenameException("too_long");
+      throw new InvalidFilenameException('too_long');
     }
 
     return new Filename(trimmed);

@@ -10,4 +10,4 @@ export {
   VerificationCompleted,
   VerificationFailed,
   VerificationStarted,
-} from "./verification-package.events.js";
+} from './verification-package.events.js';

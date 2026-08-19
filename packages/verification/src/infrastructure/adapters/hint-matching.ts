@@ -1,4 +1,4 @@
-import type { DocumentTypeSpec } from "../../domain/value-objects/index.js";
+import type { DocumentTypeSpec } from '../../domain/value-objects/index.js';
 
 // What a profile's own headings can tell you about a page, with no model
 // involved: the type whose heading appears earliest wins, because a document
@@ -9,7 +9,8 @@ export function looksLike(
   candidates: readonly DocumentTypeSpec[],
 ): DocumentTypeSpec | null {
   const hay = fold(text);
-  let best: { spec: DocumentTypeSpec; at: number; length: number } | null = null;
+  let best: { spec: DocumentTypeSpec; at: number; length: number } | null =
+    null;
 
   for (const spec of candidates) {
     for (const hint of spec.hints) {
@@ -21,7 +22,9 @@ export function looksLike(
       // Two headings starting at the same place is "Lisenziyaya əlavə" matching
       // both the annex and the licence. The longer one is what the sheet is.
       const beats =
-        !best || at < best.at || (at === best.at && needle.length > best.length);
+        !best ||
+        at < best.at ||
+        (at === best.at && needle.length > best.length);
 
       if (beats) best = { spec, at, length: needle.length };
     }
@@ -38,8 +41,8 @@ export function looksLike(
 function fold(text: string): string {
   return text
     .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .replace(/ə/g, "e")
-    .replace(/ı/g, "i");
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/ə/g, 'e')
+    .replace(/ı/g, 'i');
 }

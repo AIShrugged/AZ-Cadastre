@@ -1,4 +1,4 @@
-import axios from "axios"
+import axios from 'axios';
 
 /**
  * App-wide client for the core (NestJS) API. In dev, `/api` is proxied to the
@@ -6,5 +6,5 @@ import axios from "axios"
  * origin. Direct-to-storage PUTs use a bare axios call, not this instance.
  */
 export const http = axios.create({
-  baseURL: "/api",
-})
+  baseURL: '/api',
+});

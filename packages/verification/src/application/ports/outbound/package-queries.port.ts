@@ -1,8 +1,8 @@
-import type { PackageId } from "../../../domain/value-objects/index.js";
+import type { PackageId } from '../../../domain/value-objects/index.js';
 import type {
   PackageDetailView,
   PackageSummaryView,
-} from "../../read-models/index.js";
+} from '../../read-models/index.js';
 
 export abstract class PackageQueries {
   abstract listSummaries(): Promise<readonly PackageSummaryView[]>;

@@ -1,12 +1,14 @@
-import { Injectable } from "@nestjs/common";
-import { QueryBus } from "@nestjs/cqrs";
+import { Injectable } from '@nestjs/common';
+import { QueryBus } from '@nestjs/cqrs';
+
 import type {
   ProfileDto,
   ProfilesApi,
-} from "@cadastre/api-contracts/verification";
+} from '@cadastre/api-contracts/verification';
 
-import { ListProfilesQuery } from "../use-cases/index.js";
-import { toProfileDto } from "./profile.presenter.js";
+import { ListProfilesQuery } from '../use-cases/index.js';
+
+import { toProfileDto } from './profile.presenter.js';
 
 @Injectable()
 export class ProfilesService implements ProfilesApi {

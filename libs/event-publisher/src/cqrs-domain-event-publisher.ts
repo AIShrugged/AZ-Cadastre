@@ -1,11 +1,12 @@
-import { Injectable } from "@nestjs/common";
-import { EventBus } from "@nestjs/cqrs";
+import { Injectable } from '@nestjs/common';
+import { EventBus } from '@nestjs/cqrs';
+
 import {
   DomainEventPublisher,
   type AggregateRoot,
   type DomainEvent,
   type EntityId,
-} from "@cadastre/shared";
+} from '@cadastre/shared';
 
 /**
  * The in-process implementation of the kernel's publisher port: an aggregate's

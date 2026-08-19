@@ -1,13 +1,14 @@
-import { randomUUID } from "node:crypto";
-import { Injectable } from "@nestjs/common";
+import { randomUUID } from 'node:crypto';
 
-import { IdGenerator } from "../../application/ports/outbound/index.js";
+import { Injectable } from '@nestjs/common';
+
+import { IdGenerator } from '../../application/ports/outbound/index.js';
 import {
   DocumentId,
   PackageId,
   PageId,
   SourceFileId,
-} from "../../domain/value-objects/index.js";
+} from '../../domain/value-objects/index.js';
 
 @Injectable()
 export class UuidIdGenerator extends IdGenerator {

@@ -1,1 +1,1 @@
-export { VerificationDetails } from "./ui/verification-details"
+export { VerificationDetails } from './ui/verification-details';

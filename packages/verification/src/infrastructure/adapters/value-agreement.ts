@@ -8,8 +8,8 @@
 // letter with a mark on it: decomposing gets ş, ç, ğ, ö and ü for nothing, and
 // leaves these two.
 const FOLDED: Readonly<Record<string, string>> = {
-  ə: "e",
-  ı: "i",
+  ə: 'e',
+  ı: 'i',
 };
 
 // Below this a word is too short to be recognised by its beginning: "ev" and
@@ -19,22 +19,19 @@ const SHORTEST_STEM = 3;
 // Lowercased first, because "İ" lowercases to an i with a combining dot that
 // the decomposition then takes off.
 function fold(raw: string): string {
-  const bare = raw
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "");
+  const bare = raw.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
 
-  return [...bare].map((character) => FOLDED[character] ?? character).join("");
+  return [...bare].map(character => FOLDED[character] ?? character).join('');
 }
 
 export function tokensOf(raw: string): readonly string[] {
   return fold(raw)
     .split(/[^\p{L}\p{N}]+/u)
-    .filter((token) => token.length > 0);
+    .filter(token => token.length > 0);
 }
 
 function digitsIn(token: string): string {
-  return token.replace(/\D/gu, "");
+  return token.replace(/\D/gu, '');
 }
 
 // A number is the same number or it is not: nothing about it is spelling, so
@@ -48,11 +45,11 @@ function tokenMatches(token: string, against: readonly string[]): boolean {
     const digits = digitsIn(token);
 
     return against.some(
-      (candidate) => isNumeric(candidate) && digitsIn(candidate) === digits,
+      candidate => isNumeric(candidate) && digitsIn(candidate) === digits,
     );
   }
 
-  return against.some((candidate) => continuesTheOther(token, candidate));
+  return against.some(candidate => continuesTheOther(token, candidate));
 }
 
 // One word is the other with an ending on it: "Əliyev" and "Əliyeva",
@@ -77,7 +74,8 @@ export function looksLikeTheSameValue(left: string, right: string): boolean {
 
   if (ours.length === 0 || theirs.length === 0) return false;
 
-  const [fewer, more] = ours.length <= theirs.length ? [ours, theirs] : [theirs, ours];
+  const [fewer, more] =
+    ours.length <= theirs.length ? [ours, theirs] : [theirs, ours];
 
-  return fewer.every((token) => tokenMatches(token, more));
+  return fewer.every(token => tokenMatches(token, more));
 }

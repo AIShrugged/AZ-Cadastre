@@ -1,13 +1,11 @@
-import { Logger } from "@nestjs/common";
-import { CommandBus, EventsHandler, type IEventHandler } from "@nestjs/cqrs";
+import { Logger } from '@nestjs/common';
+import { CommandBus, EventsHandler, type IEventHandler } from '@nestjs/cqrs';
 
-import { PackageSubmitted } from "../../domain/events/index.js";
-import { RunVerificationCommand } from "../use-cases/index.js";
+import { PackageSubmitted } from '../../domain/events/index.js';
+import { RunVerificationCommand } from '../use-cases/index.js';
 
 @EventsHandler(PackageSubmitted)
-export class RunVerificationOnSubmissionHandler
-  implements IEventHandler<PackageSubmitted>
-{
+export class RunVerificationOnSubmissionHandler implements IEventHandler<PackageSubmitted> {
   private readonly logger = new Logger(RunVerificationOnSubmissionHandler.name);
 
   constructor(private readonly commands: CommandBus) {}

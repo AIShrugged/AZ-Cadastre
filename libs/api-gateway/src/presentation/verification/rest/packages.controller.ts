@@ -1,14 +1,15 @@
-import { Body, Controller, Get, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+
 import {
   CreatePackageRequestSchema,
   type CreatePackageRequest,
   type PackageDetailDto,
   type PackageDto,
-} from "@cadastre/api-contracts/verification";
+} from '@cadastre/api-contracts/verification';
 
-import { VerificationClientPort } from "../../../application/ports/index.js";
+import { VerificationClientPort } from '../../../application/ports/index.js';
 
-@Controller("packages")
+@Controller('packages')
 export class PackagesController {
   constructor(private readonly verification: VerificationClientPort) {}
 
@@ -24,8 +25,8 @@ export class PackagesController {
     return this.verification.packages.list();
   }
 
-  @Get(":id")
-  async detail(@Param("id") id: string): Promise<PackageDetailDto> {
+  @Get(':id')
+  async detail(@Param('id') id: string): Promise<PackageDetailDto> {
     return this.verification.packages.findOne(id);
   }
 }

@@ -6,7 +6,10 @@
  */
 
 /** The `t` from `useI18n`, which answers with the key it was given when it has no word for it. */
-type Translate = (key: string, params?: Record<string, string | number>) => string
+type Translate = (
+  key: string,
+  params?: Record<string, string | number>,
+) => string;
 
 /**
  * The word for `key`, or `fallback` when no dictionary has one.
@@ -21,6 +24,6 @@ export function translateOr(
   key: string,
   fallback: string,
 ): string {
-  const word = t(key)
-  return word === key ? fallback : word
+  const word = t(key);
+  return word === key ? fallback : word;
 }

@@ -15,31 +15,11 @@
  * `upload-documents` feature; this surface owns only the profile choice and the
  * start action.
  */
-import { useEffect, useRef, useState } from "react"
-import { LightbulbIcon, UploadCloudIcon } from "lucide-react"
-import { useNavigate } from "react-router-dom"
-import { toast } from "sonner"
+import { LightbulbIcon, UploadCloudIcon } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
-import { Button } from "@/shared/ui/button"
-import {
-  SurfaceBody,
-  SurfaceFooter,
-  SurfaceHeading,
-  SurfacePage,
-} from "@/shared/ui/surface"
-import {
-  ACCEPT,
-  Dropzone,
-  UploadedList,
-  clearDocuments,
-  enqueueDocuments,
-  selectDocuments,
-  selectReadyCount,
-  selectValidCount,
-} from "@/features/upload-documents"
-import { translateOr, useI18n } from "@/shared/i18n"
-import { failureCode } from "@/shared/api"
-import { paths } from "@/shared/config"
 import {
   ProfileGlyph,
   profileName,
@@ -47,9 +27,29 @@ import {
   useCreatePackageMutation,
   useGetProfilesQuery,
   type ProfileDto,
-} from "@/entities/verification-package"
-import { useAppDispatch, useAppSelector } from "@/shared/lib/store-hooks"
-import { cn } from "@/shared/lib/cn"
+} from '@/entities/verification-package';
+import {
+  ACCEPT,
+  clearDocuments,
+  Dropzone,
+  enqueueDocuments,
+  selectDocuments,
+  selectReadyCount,
+  selectValidCount,
+  UploadedList,
+} from '@/features/upload-documents';
+import { failureCode } from '@/shared/api';
+import { paths } from '@/shared/config';
+import { translateOr, useI18n } from '@/shared/i18n';
+import { cn } from '@/shared/lib/cn';
+import { useAppDispatch, useAppSelector } from '@/shared/lib/store-hooks';
+import { Button } from '@/shared/ui/button';
+import {
+  SurfaceBody,
+  SurfaceFooter,
+  SurfaceHeading,
+  SurfacePage,
+} from '@/shared/ui/surface';
 
 // ─── Profile picker ───────────────────────────────────────────────────────────
 // A segmented radio-card selector — a tactile choice, not a dropdown. Each card
@@ -60,218 +60,225 @@ function ProfilePicker({
   value,
   onChange,
 }: {
-  profiles: readonly ProfileDto[]
-  value: string | null
-  onChange: (key: string) => void
+  profiles: readonly ProfileDto[];
+  value: string | null;
+  onChange: (key: string) => void;
 }) {
-  const { t } = useI18n()
+  const { t } = useI18n();
 
   return (
     <div
-      role="radiogroup"
-      aria-label={t("new.field.profile")}
-      className="grid gap-3 sm:grid-cols-2"
+      role='radiogroup'
+      aria-label={t('new.field.profile')}
+      className='grid gap-3 sm:grid-cols-2'
     >
-      {profiles.map((profile) => {
-        const selected = profile.key === value
+      {profiles.map(profile => {
+        const selected = profile.key === value;
         // The required ones: an optional type the engine merely recognises is
         // not something the inspector is being asked for.
-        const count = requiredTypes(profile).length
+        const count = requiredTypes(profile).length;
         return (
           <button
             key={profile.key}
-            type="button"
-            role="radio"
+            type='button'
+            role='radio'
             aria-checked={selected}
             onClick={() => onChange(profile.key)}
             className={cn(
-              "group flex items-center gap-3 rounded-xl border p-3.5 text-left outline-none transition-all",
-              "focus-visible:ring-2 focus-visible:ring-ring/50",
+              'group flex items-center gap-3 rounded-xl border p-3.5 text-left outline-none transition-all',
+              'focus-visible:ring-2 focus-visible:ring-ring/50',
               selected
-                ? "border-primary bg-accent/50 shadow-[var(--shadow-sm)] ring-1 ring-primary"
-                : "border-input bg-card hover:border-rule-strong hover:bg-muted/40",
+                ? 'border-primary bg-accent/50 shadow-[var(--shadow-sm)] ring-1 ring-primary'
+                : 'border-input bg-card hover:border-rule-strong hover:bg-muted/40',
             )}
           >
             <span
               className={cn(
-                "grid size-9 shrink-0 place-items-center rounded-lg border transition-colors",
+                'grid size-9 shrink-0 place-items-center rounded-lg border transition-colors',
                 selected
-                  ? "border-primary/30 bg-primary/10 text-primary"
-                  : "border-rule-strong bg-muted/40 text-muted-foreground",
+                  ? 'border-primary/30 bg-primary/10 text-primary'
+                  : 'border-rule-strong bg-muted/40 text-muted-foreground',
               )}
             >
-              <ProfileGlyph profileKey={profile.key} className="size-[18px]" />
+              <ProfileGlyph profileKey={profile.key} className='size-[18px]' />
             </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-[0.875rem] font-medium text-foreground">
+            <span className='min-w-0 flex-1'>
+              <span className='block truncate text-[0.875rem] font-medium text-foreground'>
                 {profileName(t, profile.key)}
               </span>
-              <span className="block text-[0.75rem] text-muted-foreground">
-                {t("new.profile.docs", { n: count })}
+              <span className='block text-[0.75rem] text-muted-foreground'>
+                {t('new.profile.docs', { n: count })}
               </span>
             </span>
             {/* Radio bullet — a ring that fills with an indigo dot when chosen */}
             <span
               aria-hidden
               className={cn(
-                "grid size-[18px] shrink-0 place-items-center rounded-full border-2 transition-colors",
-                selected ? "border-primary" : "border-rule-strong",
+                'grid size-[18px] shrink-0 place-items-center rounded-full border-2 transition-colors',
+                selected ? 'border-primary' : 'border-rule-strong',
               )}
             >
               <span
                 className={cn(
-                  "size-2 rounded-full bg-primary transition-transform duration-200",
-                  selected ? "scale-100" : "scale-0",
+                  'size-2 rounded-full bg-primary transition-transform duration-200',
+                  selected ? 'scale-100' : 'scale-0',
                 )}
               />
             </span>
           </button>
-        )
+        );
       })}
     </div>
-  )
+  );
 }
 
 // ─── System tip ───────────────────────────────────────────────────────────────
 // A small, warm reminder of what the system does for the inspector — a splash of
 // the teal accent, one useful line.
 function SystemTip() {
-  const { t } = useI18n()
+  const { t } = useI18n();
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-rule bg-muted/30 px-4 py-3">
-      <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-accent-2-tint text-accent-2-ink">
-        <LightbulbIcon className="size-4" />
+    <div className='flex items-start gap-3 rounded-xl border border-rule bg-muted/30 px-4 py-3'>
+      <span className='grid size-7 shrink-0 place-items-center rounded-lg bg-accent-2-tint text-accent-2-ink'>
+        <LightbulbIcon className='size-4' />
       </span>
-      <p className="text-[0.8125rem] leading-relaxed text-muted-foreground">
-        <span className="font-medium text-foreground">{t("new.tip")}</span> {t("new.tip.text")}
+      <p className='text-[0.8125rem] leading-relaxed text-muted-foreground'>
+        <span className='font-medium text-foreground'>{t('new.tip')}</span>{' '}
+        {t('new.tip.text')}
       </p>
     </div>
-  )
+  );
 }
 
 // ─── Page ──────────────────────────────────────────────────────────────────────
 export function NewVerification() {
-  const { t } = useI18n()
-  const navigate = useNavigate()
-  const dispatch = useAppDispatch()
-  const [createPackage, { isLoading: submitting }] = useCreatePackageMutation()
+  const { t } = useI18n();
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const [createPackage, { isLoading: submitting }] = useCreatePackageMutation();
 
-  const files = useAppSelector(selectDocuments)
-  const total = useAppSelector(selectValidCount)
-  const readyCount = useAppSelector(selectReadyCount)
+  const files = useAppSelector(selectDocuments);
+  const total = useAppSelector(selectValidCount);
+  const readyCount = useAppSelector(selectReadyCount);
 
   // Which profiles exist is the engine's to say, so the choice cannot be seeded
   // with a key this file made up: it stays null until the inspector picks one, and
   // reads as the first profile on offer meanwhile.
-  const { data: profiles = [] } = useGetProfilesQuery()
-  const [picked, setPicked] = useState<string | null>(null)
-  const profile = picked ?? profiles[0]?.key ?? null
-  const [dragging, setDragging] = useState(false)
+  const { data: profiles = [] } = useGetProfilesQuery();
+  const [picked, setPicked] = useState<string | null>(null);
+  const profile = picked ?? profiles[0]?.key ?? null;
+  const [dragging, setDragging] = useState(false);
 
-  const inputRef = useRef<HTMLInputElement>(null)
-  const dragDepth = useRef(0)
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dragDepth = useRef(0);
 
   // A fresh visit starts with an empty list; leaving cancels any in-flight
   // transfers so nothing lingers in the store between packages.
   useEffect(() => {
     return () => {
-      dispatch(clearDocuments())
-    }
-  }, [dispatch])
+      dispatch(clearDocuments());
+    };
+  }, [dispatch]);
 
   function openPicker() {
-    inputRef.current?.click()
+    inputRef.current?.click();
   }
 
   // Nothing to open a package under until the profiles have arrived — the engine
   // refuses a key it does not know, and guessing one here is what that refusal is
   // for.
-  const canStart = readyCount > 0 && !submitting && profile !== null
+  const canStart = readyCount > 0 && !submitting && profile !== null;
 
   async function onStart() {
-    if (!canStart || profile === null) return
+    if (!canStart || profile === null) return;
     // Only fully-transferred files carry a storage key to attach. Each is a
     // container the engine reads into the documents it holds — how many that
     // turns out to be is not known here.
     const attached = files
-      .filter((f) => f.status === "ready" && f.key && f.contentType)
-      .map((f) => ({
+      .filter(f => f.status === 'ready' && f.key && f.contentType)
+      .map(f => ({
         originalFilename: f.name,
         contentType: f.contentType!,
         storageKey: f.key!,
-      }))
-    if (attached.length === 0) return
+      }));
+    if (attached.length === 0) return;
 
     try {
       const pkg = await createPackage({
         profileKey: profile,
         files: attached,
-      }).unwrap()
-      toast(t("toast.started", { id: pkg.id }))
-      navigate(paths.register)
+      }).unwrap();
+      toast(t('toast.started', { id: pkg.id }));
+      navigate(paths.register);
     } catch (error) {
       // The service names the rule it refused with a stable code; say which one
       // rather than "please try again", which tells the inspector nothing they
       // can act on. An unrecognised code — or no code at all — falls back.
-      const code = failureCode(error)
-      const generic = t("toast.create_failed")
-      toast.error(code ? translateOr(t, `error.${code}`, generic) : generic)
+      const code = failureCode(error);
+      const generic = t('toast.create_failed');
+      toast.error(code ? translateOr(t, `error.${code}`, generic) : generic);
     }
   }
 
-  const hasFiles = (e: React.DragEvent) => Array.from(e.dataTransfer.types).includes("Files")
+  const hasFiles = (e: React.DragEvent) =>
+    Array.from(e.dataTransfer.types).includes('Files');
 
   return (
     <SurfacePage
-      onDragEnter={(e) => {
+      onDragEnter={e => {
         if (hasFiles(e)) {
-          e.preventDefault()
-          dragDepth.current += 1
-          setDragging(true)
+          e.preventDefault();
+          dragDepth.current += 1;
+          setDragging(true);
         }
       }}
-      onDragOver={(e) => {
-        if (hasFiles(e)) e.preventDefault()
+      onDragOver={e => {
+        if (hasFiles(e)) e.preventDefault();
       }}
       onDragLeave={() => {
-        dragDepth.current -= 1
+        dragDepth.current -= 1;
         if (dragDepth.current <= 0) {
-          dragDepth.current = 0
-          setDragging(false)
+          dragDepth.current = 0;
+          setDragging(false);
         }
       }}
-      onDrop={(e) => {
-        e.preventDefault()
-        dragDepth.current = 0
-        setDragging(false)
-        if (e.dataTransfer.files.length) dispatch(enqueueDocuments(e.dataTransfer.files))
+      onDrop={e => {
+        e.preventDefault();
+        dragDepth.current = 0;
+        setDragging(false);
+        if (e.dataTransfer.files.length)
+          dispatch(enqueueDocuments(e.dataTransfer.files));
       }}
     >
       <input
         ref={inputRef}
-        type="file"
+        type='file'
         multiple
         accept={ACCEPT}
-        className="sr-only"
-        onChange={(e) => {
-          if (e.target.files?.length) dispatch(enqueueDocuments(e.target.files))
-          e.target.value = ""
+        className='sr-only'
+        onChange={e => {
+          if (e.target.files?.length)
+            dispatch(enqueueDocuments(e.target.files));
+          e.target.value = '';
         }}
       />
 
       {/* ── Page heading ── the surface names itself; back is the footer's
           Cancel and the sidebar's Register item, never a header breadcrumb. */}
-      <SurfaceHeading title={t("page.new.title")} subtitle={t("page.new.subtitle")} />
+      <SurfaceHeading
+        title={t('page.new.title')}
+        subtitle={t('page.new.subtitle')}
+      />
 
       {/* ── Body ── one clean centered column that fills the surface height:
           profile picker, a space-filling dropzone, the uploaded list, and a
           quiet preview of what the pipeline does once the inspector starts. */}
       <SurfaceBody>
-        <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-6 px-4 py-8 md:py-10">
+        <div className='mx-auto flex min-h-full w-full max-w-2xl flex-col gap-6 px-4 py-8 md:py-10'>
           {/* Profile — a tactile card picker */}
-          <div className="flex flex-col gap-2.5">
-            <span className="text-[0.8125rem] font-medium text-foreground">
-              {t("new.field.profile")}
+          <div className='flex flex-col gap-2.5'>
+            <span className='text-[0.8125rem] font-medium text-foreground'>
+              {t('new.field.profile')}
             </span>
             <ProfilePicker
               profiles={profiles}
@@ -286,7 +293,7 @@ export function NewVerification() {
           {/* The dropzone — grows to fill the empty state so there is no void */}
           <Dropzone
             onBrowse={openPicker}
-            className={files.length === 0 ? "flex-1 min-h-[13rem]" : undefined}
+            className={files.length === 0 ? 'flex-1 min-h-[13rem]' : undefined}
           />
 
           {/* Uploaded files — store-connected */}
@@ -296,40 +303,48 @@ export function NewVerification() {
 
       {/* ── Footer action bar ── an h-16 bookend with the sidebar (desktop);
           stacks to auto height on mobile where the sidebar is a sheet. */}
-      <SurfaceFooter className="max-md:flex-col max-md:items-stretch max-md:gap-2">
-        <span className="text-[0.8125rem]">
+      <SurfaceFooter className='max-md:flex-col max-md:items-stretch max-md:gap-2'>
+        <span className='text-[0.8125rem]'>
           {total === 0 ? (
-            <span className="text-muted-foreground">{t("new.files.none")}</span>
+            <span className='text-muted-foreground'>{t('new.files.none')}</span>
           ) : (
             <>
-              <span data-mono className="tabular-nums text-foreground/80">
+              <span data-mono className='tabular-nums text-foreground/80'>
                 {readyCount < total ? `${readyCount}/${total}` : total}
-              </span>{" "}
-              <span className="text-muted-foreground">
-                {readyCount < total ? t("new.files.uploading_label") : t("new.files.all_label")}
+              </span>{' '}
+              <span className='text-muted-foreground'>
+                {readyCount < total
+                  ? t('new.files.uploading_label')
+                  : t('new.files.all_label')}
               </span>
             </>
           )}
         </span>
-        <div className="flex shrink-0 items-center gap-2 max-md:justify-end">
-          <Button variant="outline" onClick={() => navigate(paths.register)}>
-            {t("new.cancel")}
+        <div className='flex shrink-0 items-center gap-2 max-md:justify-end'>
+          <Button variant='outline' onClick={() => navigate(paths.register)}>
+            {t('new.cancel')}
           </Button>
-          <Button onClick={onStart} disabled={!canStart} aria-disabled={!canStart}>
-            {submitting ? t("new.starting") : t("new.start")}
+          <Button
+            onClick={onStart}
+            disabled={!canStart}
+            aria-disabled={!canStart}
+          >
+            {submitting ? t('new.starting') : t('new.start')}
           </Button>
         </div>
       </SurfaceFooter>
 
       {/* ── Whole-page drop overlay ── a state wash, not a floating card ── */}
       {dragging && (
-        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-primary/8 p-6 backdrop-blur-[1px]">
-          <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-primary/70 bg-background/80 px-10 py-8 text-primary">
-            <UploadCloudIcon className="size-7" />
-            <span className="text-[0.9375rem] font-medium">{t("new.drop_overlay")}</span>
+        <div className='pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-primary/8 p-6 backdrop-blur-[1px]'>
+          <div className='flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-primary/70 bg-background/80 px-10 py-8 text-primary'>
+            <UploadCloudIcon className='size-7' />
+            <span className='text-[0.9375rem] font-medium'>
+              {t('new.drop_overlay')}
+            </span>
           </div>
         </div>
       )}
     </SurfacePage>
-  )
+  );
 }

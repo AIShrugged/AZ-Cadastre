@@ -1,24 +1,28 @@
-import { Logger } from "@nestjs/common";
-import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
+import { Logger } from '@nestjs/common';
+import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 
-import type { VerificationPackage } from "../../../domain/aggregates/index.js";
-import { Document, Page, type SourceFile } from "../../../domain/entities/index.js";
-import { VerificationPackageRepository } from "../../../domain/repositories/index.js";
+import type { VerificationPackage } from '../../../domain/aggregates/index.js';
+import {
+  Document,
+  Page,
+  type SourceFile,
+} from '../../../domain/entities/index.js';
+import { VerificationPackageRepository } from '../../../domain/repositories/index.js';
 import {
   Confidence,
   CrossCheck,
-  type CrossCheckSpec,
-  type DocumentId,
   FailureReason,
   PackageId,
   PageImage,
   PageNumber,
-  type PageRange,
   RecognisedText,
+  type CrossCheckSpec,
+  type DocumentId,
+  type PageRange,
   type SourceFileId,
   type VerificationProfile,
-} from "../../../domain/value-objects/index.js";
-import { PackageNotFoundException } from "../../exceptions/index.js";
+} from '../../../domain/value-objects/index.js';
+import { PackageNotFoundException } from '../../exceptions/index.js';
 import {
   CrossChecker,
   DocumentClassifier,
@@ -27,8 +31,9 @@ import {
   IdGenerator,
   OcrProvider,
   PdfSplitter,
-} from "../../ports/outbound/index.js";
-import { RunVerificationCommand } from "./run-verification.command.js";
+} from '../../ports/outbound/index.js';
+
+import { RunVerificationCommand } from './run-verification.command.js';
 
 // How many times one sheet is offered to the reader before the report says it
 // could not be read. Providers rate-limit and time out for reasons that have
@@ -36,9 +41,10 @@ import { RunVerificationCommand } from "./run-verification.command.js";
 const ATTEMPTS_PER_SHEET = 3;
 
 @CommandHandler(RunVerificationCommand)
-export class RunVerificationHandler
-  implements ICommandHandler<RunVerificationCommand, void>
-{
+export class RunVerificationHandler implements ICommandHandler<
+  RunVerificationCommand,
+  void
+> {
   private readonly logger = new Logger(RunVerificationHandler.name);
 
   constructor(
@@ -59,10 +65,10 @@ export class RunVerificationHandler
   async execute(command: RunVerificationCommand): Promise<void> {
     const packageId = PackageId.of(command.packageId);
 
-    await this.change(packageId, (verification) => verification.start());
+    await this.change(packageId, verification => verification.start());
 
     try {
-      const fileIds = (await this.load(packageId)).files.map((file) => file.id);
+      const fileIds = (await this.load(packageId)).files.map(file => file.id);
 
       // Every file is read to the end before any of it is classified: what one
       // sheet says is how the sheet after it is told to be part of the same
@@ -80,7 +86,7 @@ export class RunVerificationHandler
       }
 
       const documentIds = (await this.load(packageId)).documents.map(
-        (document) => document.id,
+        document => document.id,
       );
 
       for (const documentId of documentIds) {
@@ -103,7 +109,7 @@ export class RunVerificationHandler
 
       // Completing is what compiles the report, so a run that read almost
       // nothing still ends with one.
-      await this.change(packageId, (verification) => verification.complete());
+      await this.change(packageId, verification => verification.complete());
 
       const report = (await this.load(packageId)).report;
       this.logger.log(
@@ -127,7 +133,7 @@ export class RunVerificationHandler
     } catch (error) {
       this.logger.warn(
         `Package ${packageId.value}: ${what} failed — ${String(error)}. ` +
-          "The run continues and the report will say so.",
+          'The run continues and the report will say so.',
       );
     }
   }
@@ -167,7 +173,7 @@ export class RunVerificationHandler
 
     const split = await this.pdf.split({ storageKey: file.storageKey });
 
-    return split.map((page) =>
+    return split.map(page =>
       Page.create(this.ids.pageId(), page.number, page.image),
     );
   }
@@ -193,13 +199,13 @@ export class RunVerificationHandler
       const verification = await this.load(packageId);
       const file = verification.fileWith(sourceFileId);
       const batch = file.unrecognisedPages
-        .filter((page) => !spent(page.id.value))
+        .filter(page => !spent(page.id.value))
         .slice(0, this.ocr.pagesAtOnce);
 
       if (batch.length === 0) return;
 
       const readings = await Promise.allSettled(
-        batch.map((page) => this.ocr.recognise(page.image)),
+        batch.map(page => this.ocr.recognise(page.image)),
       );
 
       let recognised = 0;
@@ -207,7 +213,7 @@ export class RunVerificationHandler
         const page = batch[index];
         if (!page) continue;
 
-        if (reading.status !== "fulfilled") {
+        if (reading.status !== 'fulfilled') {
           const tries = (refusals.get(page.id.value) ?? 0) + 1;
           refusals.set(page.id.value, tries);
           this.logger.warn(
@@ -240,7 +246,7 @@ export class RunVerificationHandler
     const ranges = await this.rangesIn(file, verification.profile);
     if (ranges.length === 0) return;
 
-    const documents = ranges.map((range) =>
+    const documents = ranges.map(range =>
       Document.create(this.ids.documentId(), sourceFileId, range),
     );
 
@@ -249,7 +255,7 @@ export class RunVerificationHandler
 
     this.logger.log(
       `Package ${packageId.value}: "${file.filename.value}" holds ` +
-        `${documents.length} document(s) — ${ranges.map(describe).join(", ")}`,
+        `${documents.length} document(s) — ${ranges.map(describe).join(', ')}`,
     );
   }
 
@@ -323,7 +329,7 @@ export class RunVerificationHandler
 
     const fields = await this.extractor.extract({
       text: verification.textOf(documentId),
-      sheets: verification.sheetsOf(documentId).map((page) => ({
+      sheets: verification.sheetsOf(documentId).map(page => ({
         number: page.number,
         image: page.image,
         text: page.ocr?.text ?? RecognisedText.empty(),
@@ -353,7 +359,7 @@ export class RunVerificationHandler
 
     const values = verification.valuesFor(spec);
     const answer = await this.crossChecker.check({ spec, values });
-    const read = Math.min(...values.map((value) => value.confidence.value));
+    const read = Math.min(...values.map(value => value.confidence.value));
 
     verification.recordCrossCheck(
       CrossCheck.of({
@@ -395,7 +401,7 @@ export class RunVerificationHandler
     cause: unknown,
   ): Promise<void> {
     try {
-      await this.change(packageId, (verification) =>
+      await this.change(packageId, verification =>
         verification.fail(FailureReason.create(String(cause))),
       );
     } catch (error) {

@@ -1,5 +1,5 @@
-import type { ContentType } from "./content-type.vo.js";
-import type { StorageKey } from "./storage-key.vo.js";
+import type { ContentType } from './content-type.vo.js';
+import type { StorageKey } from './storage-key.vo.js';
 
 export class PageImage {
   private constructor(

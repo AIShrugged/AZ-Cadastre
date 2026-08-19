@@ -1,1 +1,1 @@
-export { ErrorBodySchema, type ErrorBody } from "./error.dto.js";
+export { ErrorBodySchema, type ErrorBody } from './error.dto.js';

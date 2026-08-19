@@ -18,25 +18,30 @@
  * FORM: Grounded direction #5 of 7 (Swiss administrative system); assigned by
  *   concept-seed key bb6f553a, corroborated by the dealt Swiss-grid challenger.
  * ────────────────────────────────────────────────────────────────────────── */
-import { ThemeProvider } from "next-themes"
-import { createBrowserRouter, RouterProvider } from "react-router-dom"
+import { ThemeProvider } from 'next-themes';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 
-import { TooltipProvider } from "@/shared/ui/tooltip"
-import { Toaster } from "@/shared/ui/sonner"
-import { I18nProvider } from "@/shared/i18n"
-import { routeObjects } from "@/app/routes"
+import { routeObjects } from '@/app/routes';
+import { I18nProvider } from '@/shared/i18n';
+import { Toaster } from '@/shared/ui/sonner';
+import { TooltipProvider } from '@/shared/ui/tooltip';
 
-const router = createBrowserRouter(routeObjects)
+const router = createBrowserRouter(routeObjects);
 
 export function App() {
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    <ThemeProvider
+      attribute='class'
+      defaultTheme='system'
+      enableSystem
+      disableTransitionOnChange
+    >
       <I18nProvider>
         <TooltipProvider>
           <RouterProvider router={router} />
-          <Toaster position="bottom-right" />
+          <Toaster position='bottom-right' />
         </TooltipProvider>
       </I18nProvider>
     </ThemeProvider>
-  )
+  );
 }

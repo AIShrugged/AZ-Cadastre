@@ -1,11 +1,12 @@
 import {
   CrossCheckNotInProfileException,
   UnknownProfileException,
-} from "../exceptions/index.js";
-import { CrossCheckKey } from "./cross-check.vo.js";
-import { DocumentType } from "./document-type.vo.js";
-import { FieldKey } from "./field.vo.js";
-import { FieldSchema, FieldSpec } from "./field-schema.vo.js";
+} from '../exceptions/index.js';
+
+import { CrossCheckKey } from './cross-check.vo.js';
+import { DocumentType } from './document-type.vo.js';
+import { FieldSchema, FieldSpec } from './field-schema.vo.js';
+import { FieldKey } from './field.vo.js';
 
 type Declaration = {
   readonly key: string;
@@ -84,7 +85,7 @@ export class CrossCheckSpec {
   }
 
   wants(type: DocumentType, key: FieldKey): boolean {
-    return this.#references.some((reference) => reference.matches(type, key));
+    return this.#references.some(reference => reference.matches(type, key));
   }
 }
 
@@ -114,7 +115,7 @@ export class DocumentTypeSpec {
   // since changed. It declares no fields, so nothing is extracted from it and
   // nothing counts it as missing.
   static unrecognised(type: DocumentType): DocumentTypeSpec {
-    return new DocumentTypeSpec(type, "", [], FieldSchema.none(), false);
+    return new DocumentTypeSpec(type, '', [], FieldSchema.none(), false);
   }
 }
 
@@ -126,245 +127,243 @@ export class VerificationProfile {
   //
   // Every type here is required: the profile is the mandatory set, and the
   // additional documents a submission may carry are out of scope for now.
-  static readonly CADASTRE = new VerificationProfile("cadastre", [
-    {
-      key: "land_plot_plan",
-      description:
-        "Plan-scheme of the land parcel: the surveyed drawing of the plot " +
-        "with its boundaries, area and cadastral number. It depicts the land " +
-        "itself, not the building proposed on it.",
-      hints: [
-        "torpaq sahəsinin plan-sxemi",
-        "plan-sxem",
-        "план-схема земельного участка",
-        "план-схема",
-      ],
-      required: true,
-      fields: [
-        ["property_address", "Property address"],
-        ["cadastral_number", "Cadastral number"],
-        ["plot_area", "Plot area"],
-        ["owner_name", "Owner name"],
-        ["plan_date", "Plan date"],
-      ],
-    },
-    {
-      key: "disposal_order",
-      description:
-        "Order of the executive authority allotting the land parcel, or an " +
-        "extract from that order. It is issued by an authority and carries an " +
-        "order number and date — an extract states the same order in short.",
-      hints: [
-        "sərəncamdan çıxarış",
-        "sərəncam",
-        "выписка из распоряжения",
-        "распоряжение",
-      ],
-      required: true,
-      fields: [
-        ["order_no", "Order number"],
-        ["issuing_authority", "Issuing authority"],
-        ["issue_date", "Issue date"],
-        ["applicant_name", "Applicant name"],
-        ["property_address", "Property address"],
-        ["plot_area", "Plot area"],
-      ],
-    },
-    {
-      key: "payment_receipt",
-      description:
-        "Receipt for the state duty paid for the registration. Carries a " +
-        "receipt number, the payer, an amount and the date it was paid.",
-      hints: [
-        "ödəniş qəbzi",
-        "qəbz",
-        "квитанция об оплате",
-        "квитанция",
-      ],
-      required: true,
-      fields: [
-        ["receipt_no", "Receipt number"],
-        ["payer_name", "Payer name"],
-        ["amount", "Amount paid"],
-        ["payment_date", "Payment date"],
-        ["payment_purpose", "Payment purpose"],
-      ],
-    },
-    {
-      key: "sketch_project",
-      description:
-        "Sketch design of the house, produced by a design organisation. " +
-        "Carries drawings, the designer's name and the areas and storeys of " +
-        "what is proposed — the building, not the plot it stands on.",
-      hints: [
-        "eskiz layihəsi",
-        "eskiz layihə",
-        "эскизный проект",
-        "эскизного проекта",
-      ],
-      required: true,
-      fields: [
-        ["project_name", "Project name"],
-        ["designer_name", "Design organisation"],
-        ["property_address", "Property address"],
-        ["total_area", "Total area"],
-        ["storeys", "Storeys"],
-        ["approval_date", "Approval date"],
-      ],
-    },
-    {
-      key: "archive_certificate",
-      description:
-        "Archival certificate: the statement an archive issues about the " +
-        "history of the plot or the building — what is on record about it, " +
-        "under a certificate number and a date of issue.",
-      hints: [
-        "arxiv arayışı",
-        "arxiv arayış",
-        "архивная справка",
-        "архивной справки",
-      ],
-      required: true,
-      fields: [
-        ["certificate_no", "Certificate number"],
-        ["issuing_authority", "Issuing authority"],
-        ["issue_date", "Issue date"],
-        ["property_address", "Property address"],
-        ["owner_name", "Owner name"],
-      ],
-    },
-    {
-      key: "application",
-      description:
-        "The applicant's own application for state registration, addressed " +
-        "to the registration authority. Names the applicant, their identity " +
-        "document and the property the registration concerns.",
-      hints: [
-        "dövlət qeydiyyatı haqqında ərizə",
-        "ərizə",
-        "заявление о государственной регистрации",
-        "заявление",
-      ],
-      required: true,
-      fields: [
-        ["applicant_name", "Applicant name"],
-        ["applicant_document_no", "Applicant identity document number"],
-        ["property_address", "Property address"],
-        ["cadastral_number", "Cadastral number"],
-        ["application_date", "Application date"],
-      ],
-    },
-    {
-      key: "identity_card",
-      description:
-        "State-issued identity document of a natural person — an identity " +
-        "card or a passport. Carries a photograph, a surname and given name, " +
-        "a document number and validity dates.",
-      hints: [
-        "şəxsiyyət vəsiqəsi",
-        "удостоверение личности",
-        "identity card",
-        "паспорт",
-        "passport",
-      ],
-      required: true,
-      fields: [
-        ["first_name", "First name"],
-        ["last_name", "Last name"],
-        ["document_no", "Document number"],
-        ["issue_date", "Issue date"],
-        ["expiry_date", "Expiration date"],
-      ],
-    },
-  ],
-  // What has to be the same across the papers. Each of these is a question an
-  // inspector asks by holding two sheets side by side, and the one the operator
-  // named first: is the person on the identity document the person the
-  // application is for.
-  [
-    {
-      key: "applicant_identity",
-      description:
-        "The person the registration is for. The identity document prints a " +
-        "surname and a given name in fields of their own; the application " +
-        "prints one full name, usually surname first and often with a " +
-        "patronymic.",
-      agreesWhen:
-        "the names denote the same person. Word order, a patronymic present " +
-        "on one document and absent from the other, capitalisation, an " +
-        "Azerbaijani case ending on a form (Əliyeva Rübabə Kavı qızına is the " +
-        "same name as Əliyeva Rübabə Kavı qızı), and transliteration between " +
-        "Latin and Cyrillic script are all the same name. A different surname, " +
-        "or a given name that is a different name rather than a spelling of " +
-        "the same one, is not.",
-      fields: [
-        ["identity_card", "last_name"],
-        ["identity_card", "first_name"],
-        ["application", "applicant_name"],
-      ],
-    },
-    {
-      key: "identity_document_no",
-      description:
-        "The identity document number: the one printed on the card itself, " +
-        "and the one the applicant wrote on the application as theirs.",
-      agreesWhen:
-        "the two numbers are the same document number. Spacing, hyphens and " +
-        "a series prefix written apart from the digits are formatting; a " +
-        "different digit is a different document.",
-      fields: [
-        ["identity_card", "document_no"],
-        ["application", "applicant_document_no"],
-      ],
-    },
-    {
-      key: "property_address",
-      description:
-        "The address of the property being registered, as each document in " +
-        "the submission states it.",
-      agreesWhen:
-        "the addresses denote the same place. Abbreviations (küç. / küçəsi, " +
-        "ул. / улица), an administrative level one document spells out and " +
-        "another omits, word order and script are formatting. A different " +
-        "house or plot number, street or settlement is a different address.",
-      fields: [
-        ["application", "property_address"],
-        ["land_plot_plan", "property_address"],
-        ["disposal_order", "property_address"],
-        ["sketch_project", "property_address"],
-        ["archive_certificate", "property_address"],
-      ],
-    },
-    {
-      key: "cadastral_number",
-      description:
-        "The cadastral number of the parcel: the one surveyed on the " +
-        "plan-scheme, and the one the application is made under.",
-      agreesWhen:
-        "the numbers are the same cadastral number. Separators and spacing " +
-        "are formatting; a different group of digits is a different parcel.",
-      fields: [
-        ["land_plot_plan", "cadastral_number"],
-        ["application", "cadastral_number"],
-      ],
-    },
-    {
-      key: "plot_area",
-      description:
-        "The area of the land parcel: the surveyed figure on the plan-scheme " +
-        "and the figure the order allotted.",
-      agreesWhen:
-        "the two figures are the same area. Units written differently (m², " +
-        "kv.m, sot, hektar) and decimal comma against decimal point are " +
-        "formatting, and so is a figure given to more places than the other — " +
-        "convert before judging. A genuinely different area is a finding, " +
-        "however small the difference.",
-      fields: [
-        ["land_plot_plan", "plot_area"],
-        ["disposal_order", "plot_area"],
-      ],
-    },
-  ]);
+  static readonly CADASTRE = new VerificationProfile(
+    'cadastre',
+    [
+      {
+        key: 'land_plot_plan',
+        description:
+          'Plan-scheme of the land parcel: the surveyed drawing of the plot ' +
+          'with its boundaries, area and cadastral number. It depicts the land ' +
+          'itself, not the building proposed on it.',
+        hints: [
+          'torpaq sahəsinin plan-sxemi',
+          'plan-sxem',
+          'план-схема земельного участка',
+          'план-схема',
+        ],
+        required: true,
+        fields: [
+          ['property_address', 'Property address'],
+          ['cadastral_number', 'Cadastral number'],
+          ['plot_area', 'Plot area'],
+          ['owner_name', 'Owner name'],
+          ['plan_date', 'Plan date'],
+        ],
+      },
+      {
+        key: 'disposal_order',
+        description:
+          'Order of the executive authority allotting the land parcel, or an ' +
+          'extract from that order. It is issued by an authority and carries an ' +
+          'order number and date — an extract states the same order in short.',
+        hints: [
+          'sərəncamdan çıxarış',
+          'sərəncam',
+          'выписка из распоряжения',
+          'распоряжение',
+        ],
+        required: true,
+        fields: [
+          ['order_no', 'Order number'],
+          ['issuing_authority', 'Issuing authority'],
+          ['issue_date', 'Issue date'],
+          ['applicant_name', 'Applicant name'],
+          ['property_address', 'Property address'],
+          ['plot_area', 'Plot area'],
+        ],
+      },
+      {
+        key: 'payment_receipt',
+        description:
+          'Receipt for the state duty paid for the registration. Carries a ' +
+          'receipt number, the payer, an amount and the date it was paid.',
+        hints: ['ödəniş qəbzi', 'qəbz', 'квитанция об оплате', 'квитанция'],
+        required: true,
+        fields: [
+          ['receipt_no', 'Receipt number'],
+          ['payer_name', 'Payer name'],
+          ['amount', 'Amount paid'],
+          ['payment_date', 'Payment date'],
+          ['payment_purpose', 'Payment purpose'],
+        ],
+      },
+      {
+        key: 'sketch_project',
+        description:
+          'Sketch design of the house, produced by a design organisation. ' +
+          "Carries drawings, the designer's name and the areas and storeys of " +
+          'what is proposed — the building, not the plot it stands on.',
+        hints: [
+          'eskiz layihəsi',
+          'eskiz layihə',
+          'эскизный проект',
+          'эскизного проекта',
+        ],
+        required: true,
+        fields: [
+          ['project_name', 'Project name'],
+          ['designer_name', 'Design organisation'],
+          ['property_address', 'Property address'],
+          ['total_area', 'Total area'],
+          ['storeys', 'Storeys'],
+          ['approval_date', 'Approval date'],
+        ],
+      },
+      {
+        key: 'archive_certificate',
+        description:
+          'Archival certificate: the statement an archive issues about the ' +
+          'history of the plot or the building — what is on record about it, ' +
+          'under a certificate number and a date of issue.',
+        hints: [
+          'arxiv arayışı',
+          'arxiv arayış',
+          'архивная справка',
+          'архивной справки',
+        ],
+        required: true,
+        fields: [
+          ['certificate_no', 'Certificate number'],
+          ['issuing_authority', 'Issuing authority'],
+          ['issue_date', 'Issue date'],
+          ['property_address', 'Property address'],
+          ['owner_name', 'Owner name'],
+        ],
+      },
+      {
+        key: 'application',
+        description:
+          "The applicant's own application for state registration, addressed " +
+          'to the registration authority. Names the applicant, their identity ' +
+          'document and the property the registration concerns.',
+        hints: [
+          'dövlət qeydiyyatı haqqında ərizə',
+          'ərizə',
+          'заявление о государственной регистрации',
+          'заявление',
+        ],
+        required: true,
+        fields: [
+          ['applicant_name', 'Applicant name'],
+          ['applicant_document_no', 'Applicant identity document number'],
+          ['property_address', 'Property address'],
+          ['cadastral_number', 'Cadastral number'],
+          ['application_date', 'Application date'],
+        ],
+      },
+      {
+        key: 'identity_card',
+        description:
+          'State-issued identity document of a natural person — an identity ' +
+          'card or a passport. Carries a photograph, a surname and given name, ' +
+          'a document number and validity dates.',
+        hints: [
+          'şəxsiyyət vəsiqəsi',
+          'удостоверение личности',
+          'identity card',
+          'паспорт',
+          'passport',
+        ],
+        required: true,
+        fields: [
+          ['first_name', 'First name'],
+          ['last_name', 'Last name'],
+          ['document_no', 'Document number'],
+          ['issue_date', 'Issue date'],
+          ['expiry_date', 'Expiration date'],
+        ],
+      },
+    ],
+    // What has to be the same across the papers. Each of these is a question an
+    // inspector asks by holding two sheets side by side, and the one the operator
+    // named first: is the person on the identity document the person the
+    // application is for.
+    [
+      {
+        key: 'applicant_identity',
+        description:
+          'The person the registration is for. The identity document prints a ' +
+          'surname and a given name in fields of their own; the application ' +
+          'prints one full name, usually surname first and often with a ' +
+          'patronymic.',
+        agreesWhen:
+          'the names denote the same person. Word order, a patronymic present ' +
+          'on one document and absent from the other, capitalisation, an ' +
+          'Azerbaijani case ending on a form (Əliyeva Rübabə Kavı qızına is the ' +
+          'same name as Əliyeva Rübabə Kavı qızı), and transliteration between ' +
+          'Latin and Cyrillic script are all the same name. A different surname, ' +
+          'or a given name that is a different name rather than a spelling of ' +
+          'the same one, is not.',
+        fields: [
+          ['identity_card', 'last_name'],
+          ['identity_card', 'first_name'],
+          ['application', 'applicant_name'],
+        ],
+      },
+      {
+        key: 'identity_document_no',
+        description:
+          'The identity document number: the one printed on the card itself, ' +
+          'and the one the applicant wrote on the application as theirs.',
+        agreesWhen:
+          'the two numbers are the same document number. Spacing, hyphens and ' +
+          'a series prefix written apart from the digits are formatting; a ' +
+          'different digit is a different document.',
+        fields: [
+          ['identity_card', 'document_no'],
+          ['application', 'applicant_document_no'],
+        ],
+      },
+      {
+        key: 'property_address',
+        description:
+          'The address of the property being registered, as each document in ' +
+          'the submission states it.',
+        agreesWhen:
+          'the addresses denote the same place. Abbreviations (küç. / küçəsi, ' +
+          'ул. / улица), an administrative level one document spells out and ' +
+          'another omits, word order and script are formatting. A different ' +
+          'house or plot number, street or settlement is a different address.',
+        fields: [
+          ['application', 'property_address'],
+          ['land_plot_plan', 'property_address'],
+          ['disposal_order', 'property_address'],
+          ['sketch_project', 'property_address'],
+          ['archive_certificate', 'property_address'],
+        ],
+      },
+      {
+        key: 'cadastral_number',
+        description:
+          'The cadastral number of the parcel: the one surveyed on the ' +
+          'plan-scheme, and the one the application is made under.',
+        agreesWhen:
+          'the numbers are the same cadastral number. Separators and spacing ' +
+          'are formatting; a different group of digits is a different parcel.',
+        fields: [
+          ['land_plot_plan', 'cadastral_number'],
+          ['application', 'cadastral_number'],
+        ],
+      },
+      {
+        key: 'plot_area',
+        description:
+          'The area of the land parcel: the surveyed figure on the plan-scheme ' +
+          'and the figure the order allotted.',
+        agreesWhen:
+          'the two figures are the same area. Units written differently (m², ' +
+          'kv.m, sot, hektar) and decimal comma against decimal point are ' +
+          'formatting, and so is a figure given to more places than the other — ' +
+          'convert before judging. A genuinely different area is a finding, ' +
+          'however small the difference.',
+        fields: [
+          ['land_plot_plan', 'plot_area'],
+          ['disposal_order', 'plot_area'],
+        ],
+      },
+    ],
+  );
 
   readonly #specs: readonly DocumentTypeSpec[];
   readonly #crossChecks: readonly CrossCheckSpec[];
@@ -374,10 +373,10 @@ export class VerificationProfile {
     declarations: readonly Declaration[],
     crossChecks: readonly CrossCheckDeclaration[],
   ) {
-    this.#specs = declarations.map((declaration) =>
+    this.#specs = declarations.map(declaration =>
       DocumentTypeSpec.of(declaration),
     );
-    this.#crossChecks = crossChecks.map((declaration) =>
+    this.#crossChecks = crossChecks.map(declaration =>
       CrossCheckSpec.of(declaration),
     );
   }
@@ -390,7 +389,7 @@ export class VerificationProfile {
 
   static of(rawKey: string): VerificationProfile {
     const found = VerificationProfile.all.find(
-      (candidate) => candidate.key === rawKey,
+      candidate => candidate.key === rawKey,
     );
 
     if (!found) throw new UnknownProfileException(rawKey);
@@ -407,11 +406,11 @@ export class VerificationProfile {
   }
 
   declaresCheck(key: CrossCheckKey): boolean {
-    return this.#crossChecks.some((spec) => spec.key.equals(key));
+    return this.#crossChecks.some(spec => spec.key.equals(key));
   }
 
   checkFor(key: CrossCheckKey): CrossCheckSpec {
-    const found = this.#crossChecks.find((spec) => spec.key.equals(key));
+    const found = this.#crossChecks.find(spec => spec.key.equals(key));
 
     if (!found) throw new CrossCheckNotInProfileException(key.value, this.key);
 
@@ -419,22 +418,20 @@ export class VerificationProfile {
   }
 
   get documentTypes(): readonly DocumentType[] {
-    return this.#specs.map((spec) => spec.type);
+    return this.#specs.map(spec => spec.type);
   }
 
   get requiredTypes(): readonly DocumentType[] {
-    return this.#specs
-      .filter((spec) => spec.isRequired)
-      .map((spec) => spec.type);
+    return this.#specs.filter(spec => spec.isRequired).map(spec => spec.type);
   }
 
   recognises(type: DocumentType): boolean {
-    return this.#specs.some((spec) => spec.type.equals(type));
+    return this.#specs.some(spec => spec.type.equals(type));
   }
 
   specFor(type: DocumentType): DocumentTypeSpec {
     return (
-      this.#specs.find((spec) => spec.type.equals(type)) ??
+      this.#specs.find(spec => spec.type.equals(type)) ??
       DocumentTypeSpec.unrecognised(type)
     );
   }

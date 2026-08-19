@@ -1,9 +1,10 @@
-import { Controller, Get } from "@nestjs/common";
-import type { ProfileDto } from "@cadastre/api-contracts/verification";
+import { Controller, Get } from '@nestjs/common';
 
-import { VerificationClientPort } from "../../../application/ports/index.js";
+import type { ProfileDto } from '@cadastre/api-contracts/verification';
 
-@Controller("profiles")
+import { VerificationClientPort } from '../../../application/ports/index.js';
+
+@Controller('profiles')
 export class ProfilesController {
   constructor(private readonly verification: VerificationClientPort) {}
 

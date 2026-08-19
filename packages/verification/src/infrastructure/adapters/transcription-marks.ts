@@ -6,7 +6,7 @@
 // A sheet the reader found nothing on. It is not an unreadable sheet: the back
 // of a stapled document is blank on purpose, and saying so lets the segmenter
 // keep it with the sheet it belongs to instead of opening a document over it.
-export const BLANK_PAGE = "[blank page]";
+export const BLANK_PAGE = '[blank page]';
 
 // A fragment the reader would not vouch for, e.g. `<?Rübabə>`.
 const DOUBTFUL = /<\?([^>]*)>/g;
@@ -48,7 +48,7 @@ export type Transcription = {
 // hundred were the document. The repetition is cut, and the page is marked so
 // the score can be taken away from it.
 export function readAsFarAsItGot(raw: string): Transcription {
-  const lines = raw.split("\n");
+  const lines = raw.split('\n');
   const kept: string[] = [];
   let previous: string | null = null;
   let running = 0;
@@ -82,7 +82,7 @@ export function readAsFarAsItGot(raw: string): Transcription {
     dropped >= RUNAWAY_LINES &&
     dropped / Math.max(lines.length, 1) >= RUNAWAY_SHARE;
 
-  return { text: kept.join("\n").trim(), looped: overLines || wentRound };
+  return { text: kept.join('\n').trim(), looped: overLines || wentRound };
 }
 
 // One line saying the same two words three thousand times.
@@ -107,7 +107,8 @@ export function legibilityOf(text: string): number {
   if (total === 0) return 0;
 
   let doubtful = 0;
-  for (const match of text.matchAll(DOUBTFUL)) doubtful += match[1]?.length ?? 0;
+  for (const match of text.matchAll(DOUBTFUL))
+    doubtful += match[1]?.length ?? 0;
 
   return Math.max(0, Math.min(1, (total - doubtful) / total));
 }

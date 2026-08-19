@@ -1,1 +1,1 @@
-export { CqrsDomainEventPublisher } from "./cqrs-domain-event-publisher.js";
+export { CqrsDomainEventPublisher } from './cqrs-domain-event-publisher.js';

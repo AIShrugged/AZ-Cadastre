@@ -1,1 +1,1 @@
-export { UuidIdGenerator } from "./uuid-id-generator.adapter.js";
+export { UuidIdGenerator } from './uuid-id-generator.adapter.js';

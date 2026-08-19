@@ -1,17 +1,18 @@
-import { createRequire } from "node:module";
-import path from "node:path";
-import { createCanvas, DOMMatrix, Path2D } from "@napi-rs/canvas";
+import { createRequire } from 'node:module';
+import path from 'node:path';
+
+import { createCanvas, DOMMatrix, Path2D } from '@napi-rs/canvas';
 import {
   getDocument,
   type PDFDocumentProxy,
-} from "pdfjs-dist/legacy/build/pdf.mjs";
+} from 'pdfjs-dist/legacy/build/pdf.mjs';
 
-import type { StorageKey } from "../../domain/value-objects/index.js";
+import type { StorageKey } from '../../domain/value-objects/index.js';
 import {
   EmptyPdfException,
   PdfTooLongException,
   UnreadablePdfException,
-} from "../exceptions/index.js";
+} from '../exceptions/index.js';
 
 const PDF_UNIT_DPI = 72;
 
@@ -32,7 +33,7 @@ globals.DOMMatrix ??= DOMMatrix;
 // cmaps a document that embeds neither renders as blank glyphs; without the wasm
 // the scanned images most of these documents consist of do not decode at all.
 const require = createRequire(import.meta.url);
-const pdfjs = path.dirname(require.resolve("pdfjs-dist/package.json"));
+const pdfjs = path.dirname(require.resolve('pdfjs-dist/package.json'));
 const asset = (folder: string): string =>
   `${path.join(pdfjs, folder)}${path.sep}`;
 
@@ -53,11 +54,11 @@ export async function* renderPdfPages(
 ): AsyncGenerator<PageRendering> {
   const loading = getDocument({
     data: pdf,
-    standardFontDataUrl: asset("standard_fonts"),
-    cMapUrl: asset("cmaps"),
+    standardFontDataUrl: asset('standard_fonts'),
+    cMapUrl: asset('cmaps'),
     cMapPacked: true,
-    iccUrl: asset("iccs"),
-    wasmUrl: asset("wasm"),
+    iccUrl: asset('iccs'),
+    wasmUrl: asset('wasm'),
   });
 
   let document: PDFDocumentProxy;
@@ -94,11 +95,11 @@ async function renderPage(
       Math.ceil(viewport.width),
       Math.ceil(viewport.height),
     );
-    const context = canvas.getContext("2d");
+    const context = canvas.getContext('2d');
 
     // A PDF page is transparent where nothing is drawn, and OCR reads dark text
     // off a light page — not off whatever the image is composited onto later.
-    context.fillStyle = "#ffffff";
+    context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
 
     await page.render({
@@ -109,7 +110,7 @@ async function renderPage(
       viewport,
     }).promise;
 
-    return canvas.encode("png");
+    return canvas.encode('png');
   } finally {
     page.cleanup();
   }

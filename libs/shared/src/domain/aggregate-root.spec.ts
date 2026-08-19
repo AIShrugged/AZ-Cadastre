@@ -1,18 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from 'vitest';
 
-import { AggregateRoot } from "./aggregate-root.js";
-import { DomainEvent } from "./domain-event.js";
-import { EntityId } from "./entity-id.js";
+import { AggregateRoot } from './aggregate-root.js';
+import { DomainEvent } from './domain-event.js';
+import { EntityId } from './entity-id.js';
 
 let sequence = 0;
 
 function anId(): string {
   sequence += 1;
-  return `0190a1b2-c3d4-7e5f-8a9b-${sequence.toString(16).padStart(12, "0")}`;
+  return `0190a1b2-c3d4-7e5f-8a9b-${sequence.toString(16).padStart(12, '0')}`;
 }
 
 class ThingId extends EntityId {
-  declare private readonly __type: "ThingId";
+  declare private readonly __type: 'ThingId';
 
   static of(value: string): ThingId {
     return new ThingId(value);
@@ -20,7 +20,7 @@ class ThingId extends EntityId {
 }
 
 class ThingCreated extends DomainEvent {
-  override readonly type = "test.ThingCreated";
+  override readonly type = 'test.ThingCreated';
 
   constructor(public readonly thingId: ThingId) {
     super();
@@ -28,7 +28,7 @@ class ThingCreated extends DomainEvent {
 }
 
 class ThingRenamed extends DomainEvent {
-  override readonly type = "test.ThingRenamed";
+  override readonly type = 'test.ThingRenamed';
 
   constructor(
     public readonly thingId: ThingId,
@@ -68,43 +68,45 @@ class Thing extends AggregateRoot<ThingId> {
 }
 
 function aThing(): Thing {
-  return Thing.create(ThingId.of(anId()), "Original");
+  return Thing.create(ThingId.of(anId()), 'Original');
 }
 
-describe("AggregateRoot", () => {
-  it("carries the id and version it was built with", () => {
+describe('AggregateRoot', () => {
+  it('carries the id and version it was built with', () => {
     const id = ThingId.of(anId());
 
-    const restored = Thing.restore(id, 7, "Restored");
+    const restored = Thing.restore(id, 7, 'Restored');
 
     expect(restored.id.equals(id)).toBe(true);
     expect(restored.version).toBe(7);
   });
 
-  it("records the event a creation applies", () => {
+  it('records the event a creation applies', () => {
     const thing = aThing();
 
     expect(thing.getUncommittedEvents()).toHaveLength(1);
     expect(thing.getUncommittedEvents()[0]).toBeInstanceOf(ThingCreated);
   });
 
-  it("records nothing when restored from storage", () => {
-    const restored = Thing.restore(ThingId.of(anId()), 3, "Restored");
+  it('records nothing when restored from storage', () => {
+    const restored = Thing.restore(ThingId.of(anId()), 3, 'Restored');
 
     expect(restored.getUncommittedEvents()).toEqual([]);
   });
 
-  it("keeps events in the order they were applied", () => {
+  it('keeps events in the order they were applied', () => {
     const thing = aThing();
-    thing.rename("Second");
-    thing.rename("Third");
+    thing.rename('Second');
+    thing.rename('Third');
 
-    expect(
-      thing.getUncommittedEvents().map((event) => event.type),
-    ).toEqual(["test.ThingCreated", "test.ThingRenamed", "test.ThingRenamed"]);
+    expect(thing.getUncommittedEvents().map(event => event.type)).toEqual([
+      'test.ThingCreated',
+      'test.ThingRenamed',
+      'test.ThingRenamed',
+    ]);
   });
 
-  it("reads the uncommitted events without clearing them", () => {
+  it('reads the uncommitted events without clearing them', () => {
     const thing = aThing();
 
     expect(thing.getUncommittedEvents()).toHaveLength(1);
@@ -112,16 +114,16 @@ describe("AggregateRoot", () => {
     expect(thing.getUncommittedEvents()).toHaveLength(1);
   });
 
-  it("forgets the events when they are committed", () => {
+  it('forgets the events when they are committed', () => {
     const thing = aThing();
-    thing.rename("Second");
+    thing.rename('Second');
 
     thing.commit();
 
     expect(thing.getUncommittedEvents()).toEqual([]);
   });
 
-  it("leaves the events already handed over alone when it commits", () => {
+  it('leaves the events already handed over alone when it commits', () => {
     const thing = aThing();
     const handedOver = thing.getUncommittedEvents();
 
@@ -130,19 +132,19 @@ describe("AggregateRoot", () => {
     expect(handedOver).toHaveLength(1);
   });
 
-  it("records again after a commit", () => {
+  it('records again after a commit', () => {
     const thing = aThing();
     thing.commit();
 
-    thing.rename("Second");
+    thing.rename('Second');
 
     expect(thing.getUncommittedEvents()).toHaveLength(1);
     expect(thing.getUncommittedEvents()[0]).toBeInstanceOf(ThingRenamed);
   });
 
-  it("cannot publish: handing events over belongs to the repository", () => {
+  it('cannot publish: handing events over belongs to the repository', () => {
     const thing = aThing();
 
-    expect("publish" in thing).toBe(false);
+    expect('publish' in thing).toBe(false);
   });
 });

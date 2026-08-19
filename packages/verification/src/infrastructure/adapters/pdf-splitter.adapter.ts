@@ -1,27 +1,28 @@
-import { Inject, Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import {
   ObjectStorage,
   PdfSplitter,
   type PdfSplitRequest,
   type SplitPage,
-} from "../../application/ports/outbound/index.js";
+} from '../../application/ports/outbound/index.js';
 import {
   ContentType,
   PageImage,
   PageNumber,
   StorageKey,
-} from "../../domain/value-objects/index.js";
+} from '../../domain/value-objects/index.js';
 import {
   VERIFICATION_OPTIONS,
   type VerificationModuleOptions,
-} from "../../verification.module-defs.js";
-import { renderPdfPages } from "./pdf-page-renderer.js";
+} from '../../verification.module-defs.js';
+
+import { renderPdfPages } from './pdf-page-renderer.js';
 
 @Injectable()
 export class PdfSplitterAdapter extends PdfSplitter {
   private readonly logger = new Logger(PdfSplitterAdapter.name);
-  private readonly limits: VerificationModuleOptions["pdf"];
+  private readonly limits: VerificationModuleOptions['pdf'];
 
   constructor(
     @Inject(VERIFICATION_OPTIONS) options: VerificationModuleOptions,
@@ -69,7 +70,7 @@ export class PdfSplitterAdapter extends PdfSplitter {
   // instead of orphaning them. Padded, so a listing sorts the way pages read.
   private pageKey(source: StorageKey, number: number): StorageKey {
     return StorageKey.create(
-      `${source.value}/pages/page_${String(number).padStart(3, "0")}.png`,
+      `${source.value}/pages/page_${String(number).padStart(3, '0')}.png`,
     );
   }
 }

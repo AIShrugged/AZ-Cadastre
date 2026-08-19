@@ -1,4 +1,4 @@
-import { InvalidConfidenceException } from "../exceptions/index.js";
+import { InvalidConfidenceException } from '../exceptions/index.js';
 
 export class Confidence {
   // Below this a reading goes to the inspector as a finding rather than as a

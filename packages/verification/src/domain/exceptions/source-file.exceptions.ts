@@ -1,23 +1,23 @@
-import { DomainException } from "@cadastre/shared";
+import { DomainException } from '@cadastre/shared';
 
 export class InvalidFilenameException extends DomainException {
-  override readonly code = "INVALID_FILENAME";
+  override readonly code = 'INVALID_FILENAME';
 
-  constructor(public readonly reason: "empty" | "too_long") {
-    super(`A file name must not be ${reason.replace("_", " ")}`);
+  constructor(public readonly reason: 'empty' | 'too_long') {
+    super(`A file name must not be ${reason.replace('_', ' ')}`);
   }
 }
 
 export class InvalidStorageKeyException extends DomainException {
-  override readonly code = "INVALID_STORAGE_KEY";
+  override readonly code = 'INVALID_STORAGE_KEY';
 
-  constructor(public readonly reason: "empty" | "too_long") {
-    super(`A storage key must not be ${reason.replace("_", " ")}`);
+  constructor(public readonly reason: 'empty' | 'too_long') {
+    super(`A storage key must not be ${reason.replace('_', ' ')}`);
   }
 }
 
 export class InvalidFileSizeException extends DomainException {
-  override readonly code = "INVALID_FILE_SIZE";
+  override readonly code = 'INVALID_FILE_SIZE';
 
   constructor(public readonly received: number) {
     super(
@@ -27,7 +27,7 @@ export class InvalidFileSizeException extends DomainException {
 }
 
 export class FileTooLargeException extends DomainException {
-  override readonly code = "FILE_TOO_LARGE";
+  override readonly code = 'FILE_TOO_LARGE';
 
   constructor(
     public readonly received: number,
@@ -41,7 +41,7 @@ export class FileTooLargeException extends DomainException {
 }
 
 export class UnsupportedContentTypeException extends DomainException {
-  override readonly code = "UNSUPPORTED_CONTENT_TYPE";
+  override readonly code = 'UNSUPPORTED_CONTENT_TYPE';
 
   constructor(public readonly received: string) {
     super(`"${received}" is not a file format this system accepts`);
@@ -49,7 +49,7 @@ export class UnsupportedContentTypeException extends DomainException {
 }
 
 export class InvalidPageNumberException extends DomainException {
-  override readonly code = "INVALID_PAGE_NUMBER";
+  override readonly code = 'INVALID_PAGE_NUMBER';
 
   constructor(public readonly received: number) {
     super(`A page number must be a positive integer, received ${received}`);
@@ -57,7 +57,7 @@ export class InvalidPageNumberException extends DomainException {
 }
 
 export class InvalidPageRangeException extends DomainException {
-  override readonly code = "INVALID_PAGE_RANGE";
+  override readonly code = 'INVALID_PAGE_RANGE';
 
   constructor(
     public readonly first: number,
@@ -68,7 +68,7 @@ export class InvalidPageRangeException extends DomainException {
 }
 
 export class PageNotInSourceFileException extends DomainException {
-  override readonly code = "PAGE_NOT_IN_SOURCE_FILE";
+  override readonly code = 'PAGE_NOT_IN_SOURCE_FILE';
 
   constructor(
     public readonly pageId: string,
@@ -79,7 +79,7 @@ export class PageNotInSourceFileException extends DomainException {
 }
 
 export class DuplicatePageNumberException extends DomainException {
-  override readonly code = "DUPLICATE_PAGE_NUMBER";
+  override readonly code = 'DUPLICATE_PAGE_NUMBER';
 
   constructor(
     public readonly sourceFileId: string,
@@ -90,7 +90,7 @@ export class DuplicatePageNumberException extends DomainException {
 }
 
 export class SourceFileMustHaveAPageException extends DomainException {
-  override readonly code = "SOURCE_FILE_MUST_HAVE_A_PAGE";
+  override readonly code = 'SOURCE_FILE_MUST_HAVE_A_PAGE';
 
   constructor(public readonly sourceFileId: string) {
     super(`Source file ${sourceFileId} cannot be split into no pages at all`);
@@ -98,7 +98,7 @@ export class SourceFileMustHaveAPageException extends DomainException {
 }
 
 export class SourceFileAlreadySplitException extends DomainException {
-  override readonly code = "SOURCE_FILE_ALREADY_SPLIT";
+  override readonly code = 'SOURCE_FILE_ALREADY_SPLIT';
 
   constructor(public readonly sourceFileId: string) {
     super(`Source file ${sourceFileId} has already been split into pages`);
@@ -106,7 +106,7 @@ export class SourceFileAlreadySplitException extends DomainException {
 }
 
 export class SourceFileNotSplitException extends DomainException {
-  override readonly code = "SOURCE_FILE_NOT_SPLIT";
+  override readonly code = 'SOURCE_FILE_NOT_SPLIT';
 
   constructor(public readonly sourceFileId: string) {
     super(
@@ -116,7 +116,7 @@ export class SourceFileNotSplitException extends DomainException {
 }
 
 export class PageAlreadyRecognisedException extends DomainException {
-  override readonly code = "PAGE_ALREADY_RECOGNISED";
+  override readonly code = 'PAGE_ALREADY_RECOGNISED';
 
   constructor(public readonly pageId: string) {
     super(`Page ${pageId} has already been recognised`);
@@ -124,7 +124,7 @@ export class PageAlreadyRecognisedException extends DomainException {
 }
 
 export class SourceFileAlreadySegmentedException extends DomainException {
-  override readonly code = "SOURCE_FILE_ALREADY_SEGMENTED";
+  override readonly code = 'SOURCE_FILE_ALREADY_SEGMENTED';
 
   constructor(public readonly sourceFileId: string) {
     super(
@@ -134,7 +134,7 @@ export class SourceFileAlreadySegmentedException extends DomainException {
 }
 
 export class SourceFileMustHaveADocumentException extends DomainException {
-  override readonly code = "SOURCE_FILE_MUST_HAVE_A_DOCUMENT";
+  override readonly code = 'SOURCE_FILE_MUST_HAVE_A_DOCUMENT';
 
   constructor(public readonly sourceFileId: string) {
     super(`Source file ${sourceFileId} must hold at least one document`);
@@ -142,7 +142,7 @@ export class SourceFileMustHaveADocumentException extends DomainException {
 }
 
 export class DocumentsMustCoverEverySheetException extends DomainException {
-  override readonly code = "DOCUMENTS_MUST_COVER_EVERY_SHEET";
+  override readonly code = 'DOCUMENTS_MUST_COVER_EVERY_SHEET';
 
   constructor(
     public readonly sourceFileId: string,

@@ -1,13 +1,13 @@
-import type { Confidence } from "./confidence.vo.js";
-import { CrossCheckVerdict } from "./cross-check-verdict.vo.js";
-import type { CrossCheck, CrossCheckKey } from "./cross-check.vo.js";
-import { DocumentType as DocumentTypeRef } from "./document-type.vo.js";
-import type { DocumentType } from "./document-type.vo.js";
-import type { FieldKey } from "./field.vo.js";
-import type { DocumentId, SourceFileId } from "./ids.vo.js";
-import { IssueKind } from "./issue-kind.vo.js";
-import type { PageNumber } from "./page-number.vo.js";
-import type { PageRange } from "./page-range.vo.js";
+import type { Confidence } from './confidence.vo.js';
+import { CrossCheckVerdict } from './cross-check-verdict.vo.js';
+import type { CrossCheck, CrossCheckKey } from './cross-check.vo.js';
+import { DocumentType as DocumentTypeRef } from './document-type.vo.js';
+import type { DocumentType } from './document-type.vo.js';
+import type { FieldKey } from './field.vo.js';
+import type { DocumentId, SourceFileId } from './ids.vo.js';
+import { IssueKind } from './issue-kind.vo.js';
+import type { PageNumber } from './page-number.vo.js';
+import type { PageRange } from './page-range.vo.js';
 
 type Finding = {
   readonly kind: IssueKind;
@@ -125,7 +125,7 @@ export class ValidationIssue {
   static unreadableFile(sourceFileId: SourceFileId): ValidationIssue {
     return ValidationIssue.of({
       kind: IssueKind.UNREADABLE_DOCUMENT,
-      message: "The file could not be read into the documents it holds.",
+      message: 'The file could not be read into the documents it holds.',
       sourceFileId,
     });
   }
@@ -141,7 +141,7 @@ export class ValidationIssue {
 
     return ValidationIssue.of({
       kind: IssueKind.FIELD_MISMATCH,
-      message: `${said}: ${check.cited}.${check.note ? ` ${check.note}` : ""}`,
+      message: `${said}: ${check.cited}.${check.note ? ` ${check.note}` : ''}`,
       documentId: anchor?.documentId,
       documentType: anchor?.documentType,
       fieldKey: anchor?.fieldKey,

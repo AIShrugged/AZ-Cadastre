@@ -1,29 +1,31 @@
-import { Inject, Injectable, Logger } from "@nestjs/common";
-import { DomainException } from "@cadastre/shared";
-import OpenAI from "openai";
-import { z } from "zod";
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import OpenAI from 'openai';
+import { z } from 'zod';
+
+import { DomainException } from '@cadastre/shared';
 
 import {
   FieldExtractor,
   ObjectStorage,
   type ExtractionRequest,
   type ExtractionSheet,
-} from "../../application/ports/outbound/index.js";
-import { ExtractedField } from "../../domain/entities/index.js";
+} from '../../application/ports/outbound/index.js';
+import { ExtractedField } from '../../domain/entities/index.js';
 import {
   Confidence,
-  type DocumentTypeSpec,
   FieldValue,
   PageNumber,
-} from "../../domain/value-objects/index.js";
+  type DocumentTypeSpec,
+} from '../../domain/value-objects/index.js';
 import {
   VERIFICATION_OPTIONS,
   type VerificationModuleOptions,
-} from "../../verification.module-defs.js";
-import { MissingOpenRouterApiKeyException } from "../exceptions/index.js";
-import { answerOf } from "./answered.js";
-import { confidenceFromLogprobs } from "./logprob-confidence.js";
-import { quotedIn } from "./evidence.js";
+} from '../../verification.module-defs.js';
+import { MissingOpenRouterApiKeyException } from '../exceptions/index.js';
+
+import { answerOf } from './answered.js';
+import { quotedIn } from './evidence.js';
+import { confidenceFromLogprobs } from './logprob-confidence.js';
 
 const MAX_TEXT = 12000;
 
@@ -71,13 +73,13 @@ export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
     super();
     const openrouter = options.openrouter;
     if (!openrouter.apiKey) {
-      throw new MissingOpenRouterApiKeyException("EXTRACTOR_PROVIDER");
+      throw new MissingOpenRouterApiKeyException('EXTRACTOR_PROVIDER');
     }
     this.model = options.extractor.model;
     this.client = new OpenAI({
       apiKey: openrouter.apiKey,
       baseURL: openrouter.baseUrl,
-      defaultHeaders: { "X-Title": openrouter.appTitle },
+      defaultHeaders: { 'X-Title': openrouter.appTitle },
       // A page the provider never answers about must not hold the pipeline
       // open: without these the SDK waits ten minutes and then retries twice,
       // so one stuck sheet can cost half an hour of a run that has already read
@@ -98,20 +100,20 @@ export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
       model: this.model,
       temperature: 0,
       logprobs: true,
-      response_format: { type: "json_object" },
+      response_format: { type: 'json_object' },
       messages: [
-        { role: "system", content: this.instructions(request.spec) },
-        { role: "user", content: await this.evidenceParts(request) },
+        { role: 'system', content: this.instructions(request.spec) },
+        { role: 'user', content: await this.evidenceParts(request) },
       ],
     });
 
-    const raw = answerOf(this.model, completion).message?.content ?? "{}";
+    const raw = answerOf(this.model, completion).message?.content ?? '{}';
     const answered = this.parse(raw);
     const scored = confidenceFromLogprobs(completion);
 
     const first = request.sheets[0]?.number ?? PageNumber.first();
     const read = new Map(
-      request.sheets.map((sheet) => [sheet.number.value, sheet.read.value]),
+      request.sheets.map(sheet => [sheet.number.value, sheet.read.value]),
     );
 
     const fields: ExtractedField[] = [];
@@ -132,7 +134,7 @@ export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
       // The cheap hallucination check that pays for itself: the model has to
       // quote the transcript, and a quote that is not in the transcript does
       // not stand as evidence for the value it was offered for.
-      const quoted = quotedIn(transcript, answer.evidence ?? "");
+      const quoted = quotedIn(transcript, answer.evidence ?? '');
       if (!quoted) unverified += 1;
 
       // A value is never surer than the reading it was taken from. The identity
@@ -171,7 +173,7 @@ export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
     this.logger.log(
       `Extracted ${fields.length}/${specs.length} fields from ` +
         `${request.spec.type.value} (${unverified} unquoted, logprobs ` +
-        `${scored === null ? "unavailable" : scored.toFixed(3)})`,
+        `${scored === null ? 'unavailable' : scored.toFixed(3)})`,
     );
 
     return fields;
@@ -189,7 +191,7 @@ export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
 
     for (const sheet of request.sheets) {
       parts.push({
-        type: "text",
+        type: 'text',
         text:
           `--- SHEET ${sheet.number.value} (transcription) ---\n` +
           sheet.text.value.slice(0, MAX_TEXT),
@@ -200,7 +202,7 @@ export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
       const url = await this.imageUrl(sheet);
       if (!url) continue;
 
-      parts.push({ type: "image_url", image_url: { url } });
+      parts.push({ type: 'image_url', image_url: { url } });
       images += 1;
     }
 
@@ -210,7 +212,7 @@ export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
   private async imageUrl(sheet: ExtractionSheet): Promise<string | null> {
     try {
       const object = await this.storage.getObject(sheet.image.storageKey);
-      const base64 = Buffer.from(object.body).toString("base64");
+      const base64 = Buffer.from(object.body).toString('base64');
 
       return `data:${sheet.image.contentType.value};base64,${base64}`;
     } catch (error) {
@@ -226,57 +228,59 @@ export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
 
   private instructions(spec: DocumentTypeSpec): string {
     const schema = spec.schema.specs
-      .map((field) => `- ${field.key.value}: ${field.label}`)
-      .join("\n");
+      .map(field => `- ${field.key.value}: ${field.label}`)
+      .join('\n');
 
     return [
-      "You read structured values off one scanned document submitted to the",
-      "Azerbaijani real estate registration authority. The applicant handed it",
-      "in over the counter; an inspector is checking the values you return",
-      "against the sheets themselves.",
-      "",
+      'You read structured values off one scanned document submitted to the',
+      'Azerbaijani real estate registration authority. The applicant handed it',
+      'in over the counter; an inspector is checking the values you return',
+      'against the sheets themselves.',
+      '',
       `The document is a ${spec.type.value}. ${spec.description}`,
-      "",
-      "You are given each of its sheets twice: as a transcription and as the",
-      "scan the transcription was made from. Where they disagree, the scan is",
-      "the document and the transcription is one reading of it. Transcription",
-      "marks: [hw: ...] handwritten, [stamp: ...] a stamp, <?text> a doubtful",
-      "reading, [blank page] an empty sheet.",
-      "",
-      "Its text is usually Azerbaijani (Latin or Cyrillic script), sometimes",
-      "Russian or English.",
-      "",
-      "Return JSON. For each key below give an object, or null when the document",
-      "does not carry that value. Use ONLY these keys:",
+      '',
+      'You are given each of its sheets twice: as a transcription and as the',
+      'scan the transcription was made from. Where they disagree, the scan is',
+      'the document and the transcription is one reading of it. Transcription',
+      'marks: [hw: ...] handwritten, [stamp: ...] a stamp, <?text> a doubtful',
+      'reading, [blank page] an empty sheet.',
+      '',
+      'Its text is usually Azerbaijani (Latin or Cyrillic script), sometimes',
+      'Russian or English.',
+      '',
+      'Return JSON. For each key below give an object, or null when the document',
+      'does not carry that value. Use ONLY these keys:',
       schema,
-      "",
+      '',
       'Shape: {"fields":{"<key>":{"value":"<as printed>","sheet":<the sheet',
       'number you read it on>,"evidence":"<a short literal quote from that',
       'sheet\'s transcription containing the value>","confidence":<0..1>}}}',
-      "",
-      "Rules:",
-      "- Transcribe values exactly as printed, in their own script. Do not",
-      "  translate, transliterate or expand names and addresses.",
-      "- Give a name in its base form. Azerbaijani prints names in oblique cases",
+      '',
+      'Rules:',
+      '- Transcribe values exactly as printed, in their own script. Do not',
+      '  translate, transliterate or expand names and addresses.',
+      '- Give a name in its base form. Azerbaijani prints names in oblique cases',
       '  on forms — "Əliyeva Rübabə Kavı qızına" is the same name as "Əliyeva',
       '  Rübabə Kavı qızı"; return the base form, without the case ending.',
-      "- Write every date as DD.MM.YYYY, whatever form it appears in. Never",
-      "  adjust a year to make it look plausible: copy the year that is printed.",
-      "- A surname printed in capitals stays in capitals.",
-      "- Give the value alone, without its printed label.",
+      '- Write every date as DD.MM.YYYY, whatever form it appears in. Never',
+      '  adjust a year to make it look plausible: copy the year that is printed.',
+      '- A surname printed in capitals stays in capitals.',
+      '- Give the value alone, without its printed label.',
       "- `evidence` must be text that actually appears in that sheet's",
-      "  transcription. If you read the value off the scan and the transcription",
-      "  does not contain it, give the nearest text that does appear, or an",
-      "  empty string — never invent a quote.",
-      "- `confidence` is your own: how sure you are of this value, on this",
-      "  document. Say 0.3 when you are guessing at faint handwriting.",
-      "- Never infer, compute or invent a value that is not on the document.",
-      "  A null is worth more to the inspector than a plausible guess: they",
-      "  check the ones we return.",
-    ].join("\n");
+      '  transcription. If you read the value off the scan and the transcription',
+      '  does not contain it, give the nearest text that does appear, or an',
+      '  empty string — never invent a quote.',
+      '- `confidence` is your own: how sure you are of this value, on this',
+      '  document. Say 0.3 when you are guessing at faint handwriting.',
+      '- Never infer, compute or invent a value that is not on the document.',
+      '  A null is worth more to the inspector than a plausible guess: they',
+      '  check the ones we return.',
+    ].join('\n');
   }
 
-  private parse(raw: string): Record<string, z.infer<typeof AnswerSchema>["fields"][string]> {
+  private parse(
+    raw: string,
+  ): Record<string, z.infer<typeof AnswerSchema>['fields'][string]> {
     const json = raw.match(/\{[\s\S]*\}/)?.[0] ?? raw;
 
     try {
@@ -292,7 +296,9 @@ export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
 }
 
 function leastOf(left: number | null, right: number | null): number {
-  const offered = [left, right].filter((value): value is number => value !== null);
+  const offered = [left, right].filter(
+    (value): value is number => value !== null,
+  );
 
   return offered.length === 0 ? 0 : Math.min(...offered);
 }

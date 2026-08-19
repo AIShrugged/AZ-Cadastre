@@ -1,6 +1,6 @@
-import { Command } from "@nestjs/cqrs";
+import { Command } from '@nestjs/cqrs';
 
-import type { PackageId } from "../../../domain/value-objects/index.js";
+import type { PackageId } from '../../../domain/value-objects/index.js';
 
 export type SubmittedFile = {
   originalFilename: string;

@@ -1,9 +1,9 @@
-import { InfrastructureException } from "@cadastre/shared";
+import { InfrastructureException } from '@cadastre/shared';
 
-import type { StorageKey } from "../../domain/value-objects/index.js";
+import type { StorageKey } from '../../domain/value-objects/index.js';
 
 export class UnreadablePdfException extends InfrastructureException {
-  override readonly code = "PDF_UNREADABLE";
+  override readonly code = 'PDF_UNREADABLE';
   override readonly status = 422;
 
   constructor(
@@ -17,7 +17,7 @@ export class UnreadablePdfException extends InfrastructureException {
 }
 
 export class EmptyPdfException extends InfrastructureException {
-  override readonly code = "PDF_HAS_NO_PAGES";
+  override readonly code = 'PDF_HAS_NO_PAGES';
   override readonly status = 422;
 
   constructor(public readonly key: StorageKey) {
@@ -26,7 +26,7 @@ export class EmptyPdfException extends InfrastructureException {
 }
 
 export class PdfTooLongException extends InfrastructureException {
-  override readonly code = "PDF_TOO_LONG";
+  override readonly code = 'PDF_TOO_LONG';
   override readonly status = 413;
 
   constructor(

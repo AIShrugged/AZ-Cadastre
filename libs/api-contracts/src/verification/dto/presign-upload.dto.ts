@@ -1,6 +1,6 @@
-import { z } from "zod";
+import { z } from 'zod';
 
-import { DocumentContentTypeSchema } from "../enums/index.js";
+import { DocumentContentTypeSchema } from '../enums/index.js';
 
 export const PresignRequestSchema = z.object({
   filename: z.string(),

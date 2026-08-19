@@ -1,8 +1,9 @@
-import { Module, type DynamicModule, type Provider } from "@nestjs/common";
-import { CqrsDomainEventPublisher } from "@cadastre/event-publisher";
-import { DomainEventPublisher } from "@cadastre/shared";
+import { Module, type DynamicModule, type Provider } from '@nestjs/common';
 
-import { RunVerificationOnSubmissionHandler } from "./application/event-handlers/index.js";
+import { CqrsDomainEventPublisher } from '@cadastre/event-publisher';
+import { DomainEventPublisher } from '@cadastre/shared';
+
+import { RunVerificationOnSubmissionHandler } from './application/event-handlers/index.js';
 import {
   CrossChecker,
   DocumentClassifier,
@@ -14,13 +15,13 @@ import {
   PackageQueries,
   PdfSplitter,
   VerificationApiPort,
-} from "./application/ports/index.js";
+} from './application/ports/index.js';
 import {
   DocumentsService,
   PackagesService,
   ProfilesService,
   VerificationService,
-} from "./application/services/index.js";
+} from './application/services/index.js';
 import {
   CreatePackageHandler,
   GetPackageHandler,
@@ -29,8 +30,8 @@ import {
   ListProfilesHandler,
   PresignUploadHandler,
   RunVerificationHandler,
-} from "./application/use-cases/index.js";
-import { VerificationPackageRepository } from "./domain/repositories/index.js";
+} from './application/use-cases/index.js';
+import { VerificationPackageRepository } from './domain/repositories/index.js';
 import {
   CrossCheckerAdapter,
   DocumentClassifierAdapter,
@@ -44,18 +45,18 @@ import {
   OpenRouterOcrAdapter,
   OpenRouterSegmenterAdapter,
   PdfSplitterAdapter,
-} from "./infrastructure/adapters/index.js";
-import { UuidIdGenerator } from "./infrastructure/identity/index.js";
+} from './infrastructure/adapters/index.js';
+import { UuidIdGenerator } from './infrastructure/identity/index.js';
 import {
   PrismaPackageQueries,
   PrismaVerificationPackageRepository,
   VerificationPrismaService,
-} from "./infrastructure/persistence/index.js";
+} from './infrastructure/persistence/index.js';
 import {
   VERIFICATION_OPTIONS,
   type VerificationModuleAsyncOptions,
   type VerificationModuleOptions,
-} from "./verification.module-defs.js";
+} from './verification.module-defs.js';
 
 const handlers = [
   CreatePackageHandler,
@@ -94,7 +95,7 @@ const providers: Provider[] = [
       options: VerificationModuleOptions,
       storage: ObjectStorage,
     ): OcrProvider =>
-      options.ocr.provider === "openrouter"
+      options.ocr.provider === 'openrouter'
         ? new OpenRouterOcrAdapter(options, storage)
         : new OcrProviderAdapter(),
     inject: [VERIFICATION_OPTIONS, ObjectStorage],
@@ -102,7 +103,7 @@ const providers: Provider[] = [
   {
     provide: DocumentSegmenter,
     useFactory: (options: VerificationModuleOptions): DocumentSegmenter =>
-      options.segmenter.provider === "openrouter"
+      options.segmenter.provider === 'openrouter'
         ? new OpenRouterSegmenterAdapter(options)
         : new DocumentSegmenterAdapter(),
     inject: [VERIFICATION_OPTIONS],
@@ -110,7 +111,7 @@ const providers: Provider[] = [
   {
     provide: DocumentClassifier,
     useFactory: (options: VerificationModuleOptions): DocumentClassifier =>
-      options.classifier.provider === "openrouter"
+      options.classifier.provider === 'openrouter'
         ? new OpenRouterClassifierAdapter(options)
         : new DocumentClassifierAdapter(),
     inject: [VERIFICATION_OPTIONS],
@@ -121,7 +122,7 @@ const providers: Provider[] = [
       options: VerificationModuleOptions,
       storage: ObjectStorage,
     ): FieldExtractor =>
-      options.extractor.provider === "openrouter"
+      options.extractor.provider === 'openrouter'
         ? new OpenRouterFieldExtractorAdapter(options, storage)
         : new FieldExtractorAdapter(),
     inject: [VERIFICATION_OPTIONS, ObjectStorage],
@@ -129,7 +130,7 @@ const providers: Provider[] = [
   {
     provide: CrossChecker,
     useFactory: (options: VerificationModuleOptions): CrossChecker =>
-      options.crossChecker.provider === "openrouter"
+      options.crossChecker.provider === 'openrouter'
         ? new OpenRouterCrossCheckerAdapter(options)
         : new CrossCheckerAdapter(),
     inject: [VERIFICATION_OPTIONS],

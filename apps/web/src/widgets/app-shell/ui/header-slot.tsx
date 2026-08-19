@@ -5,13 +5,13 @@
  * <HeaderActions> anywhere in its tree and its children portal into that slot.
  * A route that renders nothing simply leaves the bar chrome-only.
  */
-import { createContext, useContext, type ReactNode } from "react"
-import { createPortal } from "react-dom"
+import { createContext, useContext, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 // eslint-disable-next-line react-refresh/only-export-components
-export const HeaderSlotContext = createContext<HTMLElement | null>(null)
+export const HeaderSlotContext = createContext<HTMLElement | null>(null);
 
 export function HeaderActions({ children }: { children: ReactNode }) {
-  const slot = useContext(HeaderSlotContext)
-  return slot ? createPortal(children, slot) : null
+  const slot = useContext(HeaderSlotContext);
+  return slot ? createPortal(children, slot) : null;
 }

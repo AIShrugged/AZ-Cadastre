@@ -1,4 +1,4 @@
-import { DomainEvent } from "@cadastre/shared";
+import { DomainEvent } from '@cadastre/shared';
 
 import type {
   Classification,
@@ -11,10 +11,10 @@ import type {
   ReportStatus,
   SourceFileId,
   VerificationProfile,
-} from "../value-objects/index.js";
+} from '../value-objects/index.js';
 
 export class PackageSubmitted extends DomainEvent {
-  override readonly type = "verification.PackageSubmitted";
+  override readonly type = 'verification.PackageSubmitted';
 
   constructor(
     public readonly packageId: PackageId,
@@ -26,7 +26,7 @@ export class PackageSubmitted extends DomainEvent {
 }
 
 export class VerificationStarted extends DomainEvent {
-  override readonly type = "verification.VerificationStarted";
+  override readonly type = 'verification.VerificationStarted';
 
   constructor(public readonly packageId: PackageId) {
     super();
@@ -34,7 +34,7 @@ export class VerificationStarted extends DomainEvent {
 }
 
 export class SourceFileSplitIntoPages extends DomainEvent {
-  override readonly type = "verification.SourceFileSplitIntoPages";
+  override readonly type = 'verification.SourceFileSplitIntoPages';
 
   constructor(
     public readonly packageId: PackageId,
@@ -46,7 +46,7 @@ export class SourceFileSplitIntoPages extends DomainEvent {
 }
 
 export class PageRecognised extends DomainEvent {
-  override readonly type = "verification.PageRecognised";
+  override readonly type = 'verification.PageRecognised';
 
   constructor(
     public readonly packageId: PackageId,
@@ -58,7 +58,7 @@ export class PageRecognised extends DomainEvent {
 }
 
 export class SourceFileSegmented extends DomainEvent {
-  override readonly type = "verification.SourceFileSegmented";
+  override readonly type = 'verification.SourceFileSegmented';
 
   constructor(
     public readonly packageId: PackageId,
@@ -70,7 +70,7 @@ export class SourceFileSegmented extends DomainEvent {
 }
 
 export class DocumentClassified extends DomainEvent {
-  override readonly type = "verification.DocumentClassified";
+  override readonly type = 'verification.DocumentClassified';
 
   constructor(
     public readonly packageId: PackageId,
@@ -82,7 +82,7 @@ export class DocumentClassified extends DomainEvent {
 }
 
 export class FieldsExtracted extends DomainEvent {
-  override readonly type = "verification.FieldsExtracted";
+  override readonly type = 'verification.FieldsExtracted';
 
   constructor(
     public readonly packageId: PackageId,
@@ -94,7 +94,7 @@ export class FieldsExtracted extends DomainEvent {
 }
 
 export class CrossCheckMade extends DomainEvent {
-  override readonly type = "verification.CrossCheckMade";
+  override readonly type = 'verification.CrossCheckMade';
 
   constructor(
     public readonly packageId: PackageId,
@@ -106,7 +106,7 @@ export class CrossCheckMade extends DomainEvent {
 }
 
 export class ReportCompiled extends DomainEvent {
-  override readonly type = "verification.ReportCompiled";
+  override readonly type = 'verification.ReportCompiled';
 
   constructor(
     public readonly packageId: PackageId,
@@ -118,7 +118,7 @@ export class ReportCompiled extends DomainEvent {
 }
 
 export class VerificationCompleted extends DomainEvent {
-  override readonly type = "verification.VerificationCompleted";
+  override readonly type = 'verification.VerificationCompleted';
 
   constructor(public readonly packageId: PackageId) {
     super();
@@ -126,7 +126,7 @@ export class VerificationCompleted extends DomainEvent {
 }
 
 export class VerificationFailed extends DomainEvent {
-  override readonly type = "verification.VerificationFailed";
+  override readonly type = 'verification.VerificationFailed';
 
   constructor(
     public readonly packageId: PackageId,

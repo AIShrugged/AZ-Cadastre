@@ -8,14 +8,14 @@
  * opens on the first entry, and the addressed one, so a particular package or
  * profile can be linked to and returned to.
  */
-import { type RouteObject } from "react-router-dom"
+import { type RouteObject } from 'react-router-dom';
 
-import { AppShell } from "@/widgets/app-shell"
-import { Dashboard } from "@/pages/dashboard"
-import { NewVerification } from "@/pages/new-verification"
-import { Profiles } from "@/pages/profiles"
-import { VerificationDetails } from "@/pages/verification-details"
-import { paths } from "@/shared/config"
+import { Dashboard } from '@/pages/dashboard';
+import { NewVerification } from '@/pages/new-verification';
+import { Profiles } from '@/pages/profiles';
+import { VerificationDetails } from '@/pages/verification-details';
+import { paths } from '@/shared/config';
+import { AppShell } from '@/widgets/app-shell';
 
 export const routeObjects: RouteObject[] = [
   {
@@ -23,10 +23,10 @@ export const routeObjects: RouteObject[] = [
     element: <AppShell />,
     children: [
       { index: true, element: <Dashboard /> },
-      { path: "new", element: <NewVerification /> },
-      { path: "profiles", element: <Profiles /> },
-      { path: "profiles/:profileKey", element: <Profiles /> },
-      { path: "package/:id", element: <VerificationDetails /> },
+      { path: 'new', element: <NewVerification /> },
+      { path: 'profiles', element: <Profiles /> },
+      { path: 'profiles/:profileKey', element: <Profiles /> },
+      { path: 'package/:id', element: <VerificationDetails /> },
     ],
   },
-]
+];

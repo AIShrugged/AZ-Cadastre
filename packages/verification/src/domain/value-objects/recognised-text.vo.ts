@@ -6,7 +6,7 @@ export class RecognisedText {
   }
 
   static empty(): RecognisedText {
-    return new RecognisedText("");
+    return new RecognisedText('');
   }
 
   get isEmpty(): boolean {

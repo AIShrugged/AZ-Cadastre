@@ -12,14 +12,16 @@
  * would be the same claim in a different shape — that this file knows which
  * profiles exist — and it would go stale the same way the moment one is added.
  */
-import type { ProfileDto } from "@cadastre/api-contracts/verification"
+import { translateOr } from '@/shared/i18n';
+import type { ProfileDto } from '@cadastre/api-contracts/verification';
 
-import { translateOr } from "@/shared/i18n"
-
-export type { ProfileDto }
+export type { ProfileDto };
 
 /** The `t` from `useI18n`. */
-type Translate = (key: string, params?: Record<string, string | number>) => string
+type Translate = (
+  key: string,
+  params?: Record<string, string | number>,
+) => string;
 
 /**
  * The profile's name in the reader's language, or its bare key when the
@@ -31,7 +33,7 @@ type Translate = (key: string, params?: Record<string, string | number>) => stri
  * one it had.
  */
 export function profileName(t: Translate, key: string): string {
-  return translateOr(t, `profile.${key}`, key)
+  return translateOr(t, `profile.${key}`, key);
 }
 
 /**
@@ -47,15 +49,15 @@ export function documentsExpected(
   profiles: readonly ProfileDto[],
   key: string,
 ): number | null {
-  const profile = profiles.find((candidate) => candidate.key === key)
-  return profile ? requiredTypes(profile).length : null
+  const profile = profiles.find(candidate => candidate.key === key);
+  return profile ? requiredTypes(profile).length : null;
 }
 
 /** The document types a package under this profile must carry, in profile order. */
 export function requiredTypes(profile: ProfileDto): readonly string[] {
   return profile.documentTypes
-    .filter((type) => type.required)
-    .map((type) => type.key)
+    .filter(type => type.required)
+    .map(type => type.key);
 }
 
 /**
@@ -68,9 +70,11 @@ export function missingTypes(
   key: string,
   found: readonly (string | null)[],
 ): readonly string[] {
-  const profile = profiles.find((candidate) => candidate.key === key)
-  if (!profile) return []
+  const profile = profiles.find(candidate => candidate.key === key);
+  if (!profile) return [];
 
-  const present = new Set(found.filter((type): type is string => type !== null))
-  return requiredTypes(profile).filter((type) => !present.has(type))
+  const present = new Set(
+    found.filter((type): type is string => type !== null),
+  );
+  return requiredTypes(profile).filter(type => !present.has(type));
 }

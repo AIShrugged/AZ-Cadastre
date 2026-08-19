@@ -3,7 +3,7 @@ import type {
   Confidence,
   CrossCheckSpec,
   CrossCheckVerdict,
-} from "../../../domain/value-objects/index.js";
+} from '../../../domain/value-objects/index.js';
 
 export type CrossCheckRequest = {
   // What is being compared and what counts as agreement. The rule is the

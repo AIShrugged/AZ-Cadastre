@@ -1,7 +1,7 @@
-import { DomainException } from "@cadastre/shared";
+import { DomainException } from '@cadastre/shared';
 
 export class UnknownProfileException extends DomainException {
-  override readonly code = "UNKNOWN_PROFILE";
+  override readonly code = 'UNKNOWN_PROFILE';
 
   constructor(public readonly profileKey: string) {
     super(`No verification profile "${profileKey}"`);
@@ -9,7 +9,7 @@ export class UnknownProfileException extends DomainException {
 }
 
 export class DocumentTypeNotInProfileException extends DomainException {
-  override readonly code = "DOCUMENT_TYPE_NOT_IN_PROFILE";
+  override readonly code = 'DOCUMENT_TYPE_NOT_IN_PROFILE';
 
   constructor(
     public readonly type: string,
@@ -20,7 +20,7 @@ export class DocumentTypeNotInProfileException extends DomainException {
 }
 
 export class FieldNotInSchemaException extends DomainException {
-  override readonly code = "FIELD_NOT_IN_SCHEMA";
+  override readonly code = 'FIELD_NOT_IN_SCHEMA';
 
   constructor(
     public readonly fieldKey: string,

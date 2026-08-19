@@ -1,7 +1,7 @@
 import type {
   OcrResult,
   PageImage,
-} from "../../../domain/value-objects/index.js";
+} from '../../../domain/value-objects/index.js';
 
 export abstract class OcrProvider {
   // How many pages this provider will read at once. The pipeline reads a

@@ -1,4 +1,4 @@
-import type { AggregateRoot, EntityId } from "../domain/index.js";
+import type { AggregateRoot, EntityId } from '../domain/index.js';
 
 /**
  * How a use case gets an aggregate's pending domain events out of it.

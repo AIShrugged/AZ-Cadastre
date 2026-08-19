@@ -1,5 +1,5 @@
-export { PrismaPackageQueries } from "./package-queries.adapter.js";
-export { PrismaVerificationPackageRepository } from "./verification-package.repository.js";
+export { PrismaPackageQueries } from './package-queries.adapter.js';
+export { PrismaVerificationPackageRepository } from './verification-package.repository.js';
 export {
   VerificationPackageMapper,
   type DocumentRow,
@@ -12,5 +12,5 @@ export {
   type PackageWrite,
   type PageRow,
   type PageWrite,
-} from "./verification-package.mapper.js";
-export { VerificationPrismaService } from "./verification-prisma.service.js";
+} from './verification-package.mapper.js';
+export { VerificationPrismaService } from './verification-prisma.service.js';

@@ -6,9 +6,9 @@
  * something outside needs a shape from in here, it belongs in
  * `@cadastre/api-contracts` as a DTO.
  */
-export { VerificationApiPort } from "./application/ports/index.js";
-export { VerificationModule } from "./verification.module.js";
+export { VerificationApiPort } from './application/ports/index.js';
+export { VerificationModule } from './verification.module.js';
 export type {
   VerificationModuleAsyncOptions,
   VerificationModuleOptions,
-} from "./verification.module-defs.js";
+} from './verification.module-defs.js';

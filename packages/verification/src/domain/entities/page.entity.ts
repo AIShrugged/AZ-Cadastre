@@ -1,10 +1,10 @@
-import { PageAlreadyRecognisedException } from "../exceptions/index.js";
+import { PageAlreadyRecognisedException } from '../exceptions/index.js';
 import {
-  type OcrResult,
   PageId,
+  type OcrResult,
   type PageImage,
   type PageNumber,
-} from "../value-objects/index.js";
+} from '../value-objects/index.js';
 
 export class Page {
   private constructor(

@@ -1,4 +1,4 @@
-import type { VerificationApi } from "@cadastre/api-contracts/verification";
+import type { VerificationApi } from '@cadastre/api-contracts/verification';
 
 /**
  * How the edge reaches the verification context: the slices it actually calls,
@@ -7,7 +7,7 @@ import type { VerificationApi } from "@cadastre/api-contracts/verification";
  * and nothing here.
  */
 export abstract class VerificationClientPort {
-  abstract readonly packages: VerificationApi["packages"];
-  abstract readonly documents: VerificationApi["documents"];
-  abstract readonly profiles: VerificationApi["profiles"];
+  abstract readonly packages: VerificationApi['packages'];
+  abstract readonly documents: VerificationApi['documents'];
+  abstract readonly profiles: VerificationApi['profiles'];
 }

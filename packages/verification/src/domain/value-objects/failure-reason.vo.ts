@@ -12,7 +12,7 @@ export class FailureReason {
   }
 
   static unknown(): FailureReason {
-    return new FailureReason("unknown");
+    return new FailureReason('unknown');
   }
 
   equals(other: FailureReason): boolean {

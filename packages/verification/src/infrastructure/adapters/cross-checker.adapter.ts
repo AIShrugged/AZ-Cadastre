@@ -1,16 +1,17 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable } from '@nestjs/common';
 
 import {
   CrossChecker,
   type CrossCheckAnswer,
   type CrossCheckRequest,
-} from "../../application/ports/outbound/index.js";
+} from '../../application/ports/outbound/index.js';
 import {
-  type CheckedValue,
   Confidence,
   CrossCheckVerdict,
-} from "../../domain/value-objects/index.js";
-import { looksLikeTheSameValue } from "./value-agreement.js";
+  type CheckedValue,
+} from '../../domain/value-objects/index.js';
+
+import { looksLikeTheSameValue } from './value-agreement.js';
 
 const AGREED_CONFIDENCE = 0.9;
 const DISAGREED_CONFIDENCE = 0.85;
@@ -23,9 +24,7 @@ export class CrossCheckerAdapter extends CrossChecker {
   async check(request: CrossCheckRequest): Promise<CrossCheckAnswer> {
     const sides = CrossCheckerAdapter.perDocument(request.values);
     const agrees = sides.every((side, index) =>
-      sides
-        .slice(index + 1)
-        .every((other) => looksLikeTheSameValue(side, other)),
+      sides.slice(index + 1).every(other => looksLikeTheSameValue(side, other)),
     );
 
     return {
@@ -34,8 +33,8 @@ export class CrossCheckerAdapter extends CrossChecker {
         agrees ? AGREED_CONFIDENCE : DISAGREED_CONFIDENCE,
       ),
       note: agrees
-        ? "Every document states the same value."
-        : `The documents state: ${sides.map((side) => `"${side}"`).join(" against ")}.`,
+        ? 'Every document states the same value.'
+        : `The documents state: ${sides.map(side => `"${side}"`).join(' against ')}.`,
     };
   }
 
@@ -43,7 +42,9 @@ export class CrossCheckerAdapter extends CrossChecker {
   // the identity card's surname and given name are two fields of a single
   // statement about a single person, not two statements to hold against each
   // other.
-  private static perDocument(values: readonly CheckedValue[]): readonly string[] {
+  private static perDocument(
+    values: readonly CheckedValue[],
+  ): readonly string[] {
     const sides = new Map<string, string[]>();
 
     for (const value of values) {
@@ -52,6 +53,6 @@ export class CrossCheckerAdapter extends CrossChecker {
       sides.set(value.documentId.value, said);
     }
 
-    return [...sides.values()].map((said) => said.join(" "));
+    return [...sides.values()].map(said => said.join(' '));
   }
 }

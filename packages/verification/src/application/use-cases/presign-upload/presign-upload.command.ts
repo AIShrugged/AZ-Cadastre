@@ -1,6 +1,6 @@
-import { Command } from "@nestjs/cqrs";
+import { Command } from '@nestjs/cqrs';
 
-import type { PresignedUpload } from "../../ports/outbound/index.js";
+import type { PresignedUpload } from '../../ports/outbound/index.js';
 
 export class PresignUploadCommand extends Command<PresignedUpload> {
   constructor(

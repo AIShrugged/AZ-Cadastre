@@ -1,4 +1,4 @@
-import { InvalidPageNumberException } from "../exceptions/index.js";
+import { InvalidPageNumberException } from '../exceptions/index.js';
 
 export class PageNumber {
   private constructor(public readonly value: number) {}

@@ -1,17 +1,18 @@
-import { Body, Controller, Post } from "@nestjs/common";
+import { Body, Controller, Post } from '@nestjs/common';
+
 import {
   PresignRequestSchema,
   type PresignRequest,
   type PresignResponse,
-} from "@cadastre/api-contracts/verification";
+} from '@cadastre/api-contracts/verification';
 
-import { VerificationClientPort } from "../../../application/ports/index.js";
+import { VerificationClientPort } from '../../../application/ports/index.js';
 
-@Controller("documents")
+@Controller('documents')
 export class DocumentsController {
   constructor(private readonly verification: VerificationClientPort) {}
 
-  @Post("presign")
+  @Post('presign')
   async presign(
     @Body({ schema: PresignRequestSchema }) body: PresignRequest,
   ): Promise<PresignResponse> {

@@ -1,6 +1,6 @@
-import type { DocumentsApi } from "./documents.api.js";
-import type { PackagesApi } from "./packages.api.js";
-import type { ProfilesApi } from "./profiles.api.js";
+import type { DocumentsApi } from './documents.api.js';
+import type { PackagesApi } from './packages.api.js';
+import type { ProfilesApi } from './profiles.api.js';
 
 /**
  * The whole published surface of the verification context, by area. A caller

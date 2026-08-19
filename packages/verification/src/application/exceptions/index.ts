@@ -1,1 +1,1 @@
-export { PackageNotFoundException } from "./aggregate-not-found.exceptions.js";
+export { PackageNotFoundException } from './aggregate-not-found.exceptions.js';

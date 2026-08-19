@@ -1,5 +1,5 @@
-import { Confidence } from "./confidence.vo.js";
-import { RecognisedText } from "./recognised-text.vo.js";
+import { Confidence } from './confidence.vo.js';
+import { RecognisedText } from './recognised-text.vo.js';
 
 export class OcrResult {
   private constructor(

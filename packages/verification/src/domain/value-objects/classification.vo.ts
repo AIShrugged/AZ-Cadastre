@@ -1,5 +1,5 @@
-import type { Confidence } from "./confidence.vo.js";
-import { DocumentType } from "./document-type.vo.js";
+import type { Confidence } from './confidence.vo.js';
+import { DocumentType } from './document-type.vo.js';
 
 export class Classification {
   private constructor(
@@ -32,8 +32,7 @@ export class Classification {
 
   equals(other: Classification): boolean {
     return (
-      this.type.equals(other.type) &&
-      this.confidence.equals(other.confidence)
+      this.type.equals(other.type) && this.confidence.equals(other.confidence)
     );
   }
 }

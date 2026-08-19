@@ -1,11 +1,11 @@
-import type { ExtractedField } from "../../../domain/entities/index.js";
+import type { ExtractedField } from '../../../domain/entities/index.js';
 import type {
   Confidence,
   DocumentTypeSpec,
   PageImage,
   PageNumber,
   RecognisedText,
-} from "../../../domain/value-objects/index.js";
+} from '../../../domain/value-objects/index.js';
 
 // One sheet of the document, as both of the things it is: the picture the
 // reader was handed and what the reader made of it. An extractor worth the name

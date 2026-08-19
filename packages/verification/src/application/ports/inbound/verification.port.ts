@@ -1,4 +1,4 @@
-import type { VerificationApi } from "@cadastre/api-contracts/verification";
+import type { VerificationApi } from '@cadastre/api-contracts/verification';
 
 /**
  * What this context offers, as a DI token. An abstract class rather than an
@@ -6,7 +6,7 @@ import type { VerificationApi } from "@cadastre/api-contracts/verification";
  * mirrors the contract interface so the compiler keeps the two honest.
  */
 export abstract class VerificationApiPort implements VerificationApi {
-  abstract readonly packages: VerificationApi["packages"];
-  abstract readonly documents: VerificationApi["documents"];
-  abstract readonly profiles: VerificationApi["profiles"];
+  abstract readonly packages: VerificationApi['packages'];
+  abstract readonly documents: VerificationApi['documents'];
+  abstract readonly profiles: VerificationApi['profiles'];
 }

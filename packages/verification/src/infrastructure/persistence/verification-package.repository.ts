@@ -1,43 +1,45 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable } from '@nestjs/common';
+
 import {
   ConcurrencyConflictException,
   DomainEventPublisher,
-} from "@cadastre/shared";
+} from '@cadastre/shared';
 
-import type { VerificationPackage } from "../../domain/aggregates/index.js";
-import { VerificationPackageRepository } from "../../domain/repositories/index.js";
-import type { PackageId } from "../../domain/value-objects/index.js";
-import type { Prisma } from "./generated/client.js";
-import { isStoredId } from "./stored-id.js";
+import type { VerificationPackage } from '../../domain/aggregates/index.js';
+import { VerificationPackageRepository } from '../../domain/repositories/index.js';
+import type { PackageId } from '../../domain/value-objects/index.js';
+
+import type { Prisma } from './generated/client.js';
+import { isStoredId } from './stored-id.js';
 import {
+  VerificationPackageMapper,
   type CrossCheckWrite,
   type DocumentWrite,
   type PackageWrite,
   type PageWrite,
   type ReportWrite,
   type SourceFileWrite,
-  VerificationPackageMapper,
-} from "./verification-package.mapper.js";
-import { VerificationPrismaService } from "./verification-prisma.service.js";
+} from './verification-package.mapper.js';
+import { VerificationPrismaService } from './verification-prisma.service.js';
 
 const FIRST_STORED_VERSION = 1;
 
 const WHOLE_AGGREGATE = {
   sourceFiles: {
-    orderBy: { createdAt: "asc" },
+    orderBy: { createdAt: 'asc' },
     include: {
-      pages: { orderBy: { pageNumber: "asc" }, include: { ocr: true } },
+      pages: { orderBy: { pageNumber: 'asc' }, include: { ocr: true } },
     },
   },
   documents: {
-    orderBy: { firstPage: "asc" },
-    include: { extractedFields: { orderBy: { createdAt: "asc" } } },
+    orderBy: { firstPage: 'asc' },
+    include: { extractedFields: { orderBy: { createdAt: 'asc' } } },
   },
   crossChecks: {
-    orderBy: { key: "asc" },
-    include: { values: { orderBy: { position: "asc" } } },
+    orderBy: { key: 'asc' },
+    include: { values: { orderBy: { position: 'asc' } } },
   },
-  report: { include: { issues: { orderBy: { createdAt: "asc" } } } },
+  report: { include: { issues: { orderBy: { createdAt: 'asc' } } } },
 } as const satisfies Prisma.VerificationPackageInclude;
 
 @Injectable()
@@ -66,7 +68,7 @@ export class PrismaVerificationPackageRepository extends VerificationPackageRepo
     const row = VerificationPackageMapper.toRow(verificationPackage);
     const loadedAt = verificationPackage.version;
 
-    await this.prisma.$transaction(async (tx) => {
+    await this.prisma.$transaction(async tx => {
       if (loadedAt === 0) {
         await this.insert(tx, row);
       } else {
@@ -104,7 +106,7 @@ export class PrismaVerificationPackageRepository extends VerificationPackageRepo
         profileKey: row.profileKey,
         version: FIRST_STORED_VERSION,
         sourceFiles: {
-          create: row.sourceFiles.map((file) => ({
+          create: row.sourceFiles.map(file => ({
             id: file.id,
             originalFilename: file.originalFilename,
             contentType: file.contentType,
@@ -133,7 +135,7 @@ export class PrismaVerificationPackageRepository extends VerificationPackageRepo
     // at all — the same answer to the caller either way.
     if (count === 0) {
       throw new ConcurrencyConflictException(
-        "VerificationPackage",
+        'VerificationPackage',
         row.id,
         loadedAt,
       );
@@ -228,7 +230,7 @@ export class PrismaVerificationPackageRepository extends VerificationPackageRepo
 
     await tx.crossCheckValue.deleteMany({ where: { crossCheckId: stored.id } });
     await tx.crossCheckValue.createMany({
-      data: check.values.map((value) => ({
+      data: check.values.map(value => ({
         ...value,
         crossCheckId: stored.id,
       })),
@@ -253,7 +255,7 @@ export class PrismaVerificationPackageRepository extends VerificationPackageRepo
     // must not survive it.
     await tx.validationIssue.deleteMany({ where: { reportId: stored.id } });
     await tx.validationIssue.createMany({
-      data: report.issues.map((issue) => ({ ...issue, reportId: stored.id })),
+      data: report.issues.map(issue => ({ ...issue, reportId: stored.id })),
     });
   }
 

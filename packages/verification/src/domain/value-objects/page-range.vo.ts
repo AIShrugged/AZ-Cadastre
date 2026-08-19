@@ -1,5 +1,6 @@
-import { InvalidPageRangeException } from "../exceptions/index.js";
-import type { PageNumber } from "./page-number.vo.js";
+import { InvalidPageRangeException } from '../exceptions/index.js';
+
+import type { PageNumber } from './page-number.vo.js';
 
 export class PageRange {
   private constructor(

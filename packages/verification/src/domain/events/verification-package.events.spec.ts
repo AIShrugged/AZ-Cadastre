@@ -1,5 +1,6 @@
-import { DomainEvent } from "@cadastre/shared";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from 'vitest';
+
+import { DomainEvent } from '@cadastre/shared';
 
 import {
   Classification,
@@ -11,7 +12,8 @@ import {
   PageId,
   SourceFileId,
   VerificationProfile,
-} from "../value-objects/index.js";
+} from '../value-objects/index.js';
+
 import {
   DocumentClassified,
   FieldsExtracted,
@@ -22,17 +24,17 @@ import {
   VerificationCompleted,
   VerificationFailed,
   VerificationStarted,
-} from "./verification-package.events.js";
+} from './verification-package.events.js';
 
 let sequence = 0;
 
 function anId(): string {
   sequence += 1;
-  return `0190a1b2-c3d4-7e5f-8a9b-${sequence.toString(16).padStart(12, "0")}`;
+  return `0190a1b2-c3d4-7e5f-8a9b-${sequence.toString(16).padStart(12, '0')}`;
 }
 
-describe("the events a verification package applies", () => {
-  it("names every one of them for this context and for what was decided", () => {
+describe('the events a verification package applies', () => {
+  it('names every one of them for this context and for what was decided', () => {
     const packageId = PackageId.of(anId());
     const sourceFileId = SourceFileId.of(anId());
     const documentId = DocumentId.of(anId());
@@ -50,36 +52,39 @@ describe("the events a verification package applies", () => {
       ),
       new FieldsExtracted(packageId, documentId, 5),
       new VerificationCompleted(packageId),
-      new VerificationFailed(packageId, FailureReason.create("the provider gave up")),
+      new VerificationFailed(
+        packageId,
+        FailureReason.create('the provider gave up'),
+      ),
     ];
 
-    expect(events.map((event) => event.type)).toEqual([
-      "verification.PackageSubmitted",
-      "verification.VerificationStarted",
-      "verification.SourceFileSplitIntoPages",
-      "verification.PageRecognised",
-      "verification.SourceFileSegmented",
-      "verification.DocumentClassified",
-      "verification.FieldsExtracted",
-      "verification.VerificationCompleted",
-      "verification.VerificationFailed",
+    expect(events.map(event => event.type)).toEqual([
+      'verification.PackageSubmitted',
+      'verification.VerificationStarted',
+      'verification.SourceFileSplitIntoPages',
+      'verification.PageRecognised',
+      'verification.SourceFileSegmented',
+      'verification.DocumentClassified',
+      'verification.FieldsExtracted',
+      'verification.VerificationCompleted',
+      'verification.VerificationFailed',
     ]);
   });
 
-  it("makes every one of them something the domain decided", () => {
+  it('makes every one of them something the domain decided', () => {
     expect(new VerificationStarted(PackageId.of(anId()))).toBeInstanceOf(
       DomainEvent,
     );
   });
 
-  it("stamps no time on them: infrastructure does that when they are written", () => {
+  it('stamps no time on them: infrastructure does that when they are written', () => {
     const event = new VerificationStarted(PackageId.of(anId()));
 
-    expect(Object.keys(event).sort()).toEqual(["packageId", "type"]);
+    expect(Object.keys(event).sort()).toEqual(['packageId', 'type']);
   });
 
-  describe("PackageSubmitted", () => {
-    it("says which profile the package is governed by and how many files arrived", () => {
+  describe('PackageSubmitted', () => {
+    it('says which profile the package is governed by and how many files arrived', () => {
       const packageId = PackageId.of(anId());
 
       const event = new PackageSubmitted(
@@ -94,8 +99,8 @@ describe("the events a verification package applies", () => {
     });
   });
 
-  describe("SourceFileSplitIntoPages", () => {
-    it("says which file was rendered and into how many sheets", () => {
+  describe('SourceFileSplitIntoPages', () => {
+    it('says which file was rendered and into how many sheets', () => {
       const sourceFileId = SourceFileId.of(anId());
 
       const event = new SourceFileSplitIntoPages(
@@ -109,8 +114,8 @@ describe("the events a verification package applies", () => {
     });
   });
 
-  describe("PageRecognised", () => {
-    it("says which page of which file was read", () => {
+  describe('PageRecognised', () => {
+    it('says which page of which file was read', () => {
       const sourceFileId = SourceFileId.of(anId());
       const pageId = PageId.of(anId());
 
@@ -125,8 +130,8 @@ describe("the events a verification package applies", () => {
     });
   });
 
-  describe("SourceFileSegmented", () => {
-    it("says how many documents the file turned out to hold", () => {
+  describe('SourceFileSegmented', () => {
+    it('says how many documents the file turned out to hold', () => {
       const sourceFileId = SourceFileId.of(anId());
 
       const event = new SourceFileSegmented(
@@ -140,10 +145,10 @@ describe("the events a verification package applies", () => {
     });
   });
 
-  describe("DocumentClassified", () => {
-    it("carries the whole decision, because it is internal to this context", () => {
+  describe('DocumentClassified', () => {
+    it('carries the whole decision, because it is internal to this context', () => {
       const classification = Classification.of(
-        DocumentType.create("title_deed"),
+        DocumentType.create('title_deed'),
         Confidence.of(0.91),
       );
 
@@ -157,8 +162,8 @@ describe("the events a verification package applies", () => {
     });
   });
 
-  describe("FieldsExtracted", () => {
-    it("says how many values were pulled from the document", () => {
+  describe('FieldsExtracted', () => {
+    it('says how many values were pulled from the document', () => {
       const event = new FieldsExtracted(
         PackageId.of(anId()),
         DocumentId.of(anId()),
@@ -169,14 +174,14 @@ describe("the events a verification package applies", () => {
     });
   });
 
-  describe("VerificationFailed", () => {
-    it("says why the package stopped", () => {
+  describe('VerificationFailed', () => {
+    it('says why the package stopped', () => {
       const event = new VerificationFailed(
         PackageId.of(anId()),
-        FailureReason.create("the OCR provider gave up"),
+        FailureReason.create('the OCR provider gave up'),
       );
 
-      expect(event.reason.value).toBe("the OCR provider gave up");
+      expect(event.reason.value).toBe('the OCR provider gave up');
     });
   });
 });

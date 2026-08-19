@@ -1,16 +1,18 @@
-import { Logger } from "@nestjs/common";
-import { type IQueryHandler, QueryHandler } from "@nestjs/cqrs";
+import { Logger } from '@nestjs/common';
+import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
 
-import { PackageId, StorageKey } from "../../../domain/value-objects/index.js";
-import { PackageNotFoundException } from "../../exceptions/index.js";
-import { ObjectStorage, PackageQueries } from "../../ports/outbound/index.js";
-import type { PackageDetailView } from "../../read-models/index.js";
-import { GetPackageQuery } from "./get-package.query.js";
+import { PackageId, StorageKey } from '../../../domain/value-objects/index.js';
+import { PackageNotFoundException } from '../../exceptions/index.js';
+import { ObjectStorage, PackageQueries } from '../../ports/outbound/index.js';
+import type { PackageDetailView } from '../../read-models/index.js';
+
+import { GetPackageQuery } from './get-package.query.js';
 
 @QueryHandler(GetPackageQuery)
-export class GetPackageHandler
-  implements IQueryHandler<GetPackageQuery, PackageDetailView>
-{
+export class GetPackageHandler implements IQueryHandler<
+  GetPackageQuery,
+  PackageDetailView
+> {
   private readonly logger = new Logger(GetPackageHandler.name);
 
   constructor(
@@ -32,13 +34,13 @@ export class GetPackageHandler
   // rather than stored: a URL that opens a scan of somebody's identity card has
   // no business outliving the page that showed it.
   private async withSheetLinks(
-    files: PackageDetailView["files"],
-  ): Promise<PackageDetailView["files"]> {
+    files: PackageDetailView['files'],
+  ): Promise<PackageDetailView['files']> {
     return Promise.all(
-      files.map(async (file) => ({
+      files.map(async file => ({
         ...file,
         pages: await Promise.all(
-          file.pages.map(async (page) => ({
+          file.pages.map(async page => ({
             ...page,
             imageUrl: await this.link(page.imageStorageKey),
           })),

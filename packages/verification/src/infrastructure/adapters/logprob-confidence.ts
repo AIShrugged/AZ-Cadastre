@@ -1,4 +1,4 @@
-import type OpenAI from "openai";
+import type OpenAI from 'openai';
 
 // OpenRouter fans one model id out over several upstream providers, and they do
 // not all mean the same thing by `logprobs: true`. Three answers come back:
@@ -36,7 +36,7 @@ export function confidenceFromLogprobs(
   const answered = choice?.message?.content?.length ?? 0;
   if (answered > content.length * MAX_CHARACTERS_PER_TOKEN) return null;
 
-  const saturated = content.every((token) => token.logprob === 0);
+  const saturated = content.every(token => token.logprob === 0);
   if (saturated && content.length >= SATURATION_FLOOR) return null;
 
   const meanLogprob =

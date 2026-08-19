@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from 'vitest';
 
-import { VerificationPackage } from "../../domain/aggregates/index.js";
-import { Document, SourceFile } from "../../domain/entities/index.js";
+import { VerificationPackage } from '../../domain/aggregates/index.js';
+import { Document, SourceFile } from '../../domain/entities/index.js';
 import {
   InvalidConfidenceException,
   InvalidPackageStatusException,
@@ -9,7 +9,7 @@ import {
   InvalidPageRangeException,
   UnknownProfileException,
   UnsupportedContentTypeException,
-} from "../../domain/exceptions/index.js";
+} from '../../domain/exceptions/index.js';
 import {
   ContentType,
   DocumentId,
@@ -22,31 +22,32 @@ import {
   SourceFileId,
   StorageKey,
   VerificationProfile,
-} from "../../domain/value-objects/index.js";
+} from '../../domain/value-objects/index.js';
+
 import {
   VerificationPackageMapper,
   type DocumentRow,
   type PackageRow,
   type PageRow,
   type SourceFileRow,
-} from "./verification-package.mapper.js";
+} from './verification-package.mapper.js';
 
 let sequence = 0;
 
 function anId(): string {
   sequence += 1;
-  return `0190a1b2-c3d4-7e5f-8a9b-${sequence.toString(16).padStart(12, "0")}`;
+  return `0190a1b2-c3d4-7e5f-8a9b-${sequence.toString(16).padStart(12, '0')}`;
 }
 
-const FILE_ID = "0190a1b2-c3d4-7e5f-8a9b-00000000f11e";
+const FILE_ID = '0190a1b2-c3d4-7e5f-8a9b-00000000f11e';
 
 function aPageRow(overrides: Partial<PageRow> = {}): PageRow {
   return {
     id: anId(),
     pageNumber: 1,
     imageStorageKey: `pages/${anId()}.png`,
-    imageContentType: "image/png",
-    ocr: { text: "REPUBLIC OF AZERBAIJAN\nPASSPORT", confidence: 0.91 },
+    imageContentType: 'image/png',
+    ocr: { text: 'REPUBLIC OF AZERBAIJAN\nPASSPORT', confidence: 0.91 },
     ...overrides,
   };
 }
@@ -54,8 +55,8 @@ function aPageRow(overrides: Partial<PageRow> = {}): PageRow {
 function aSourceFileRow(overrides: Partial<SourceFileRow> = {}): SourceFileRow {
   return {
     id: FILE_ID,
-    originalFilename: "submission.pdf",
-    contentType: "application/pdf",
+    originalFilename: 'submission.pdf',
+    contentType: 'application/pdf',
     storageKey: `uploads/${anId()}/submission.pdf`,
     pages: [aPageRow()],
     ...overrides,
@@ -68,10 +69,10 @@ function aDocumentRow(overrides: Partial<DocumentRow> = {}): DocumentRow {
     sourceFileId: FILE_ID,
     firstPage: 1,
     lastPage: 1,
-    type: "passport",
+    type: 'passport',
     classificationConfidence: 0.94,
     extractedFields: [
-      { name: "first_name", value: "ELCHIN", confidence: 0.92, pageNumber: 1 },
+      { name: 'first_name', value: 'ELCHIN', confidence: 0.92, pageNumber: 1 },
     ],
     ...overrides,
   };
@@ -80,8 +81,8 @@ function aDocumentRow(overrides: Partial<DocumentRow> = {}): DocumentRow {
 function aPackageRow(overrides: Partial<PackageRow> = {}): PackageRow {
   return {
     id: anId(),
-    status: "Processing",
-    profileKey: "cadastre",
+    status: 'Processing',
+    profileKey: 'cadastre',
     version: 3,
     sourceFiles: [aSourceFileRow()],
     documents: [aDocumentRow()],
@@ -91,10 +92,10 @@ function aPackageRow(overrides: Partial<PackageRow> = {}): PackageRow {
   };
 }
 
-describe("VerificationPackageMapper", () => {
-  describe("toDomain", () => {
+describe('VerificationPackageMapper', () => {
+  describe('toDomain', () => {
     it("rebuilds the package's identity, profile, status and version from the row", () => {
-      const row = aPackageRow({ status: "Completed", profileKey: "cadastre" });
+      const row = aPackageRow({ status: 'Completed', profileKey: 'cadastre' });
 
       const aggregate = VerificationPackageMapper.toDomain(row);
 
@@ -107,17 +108,17 @@ describe("VerificationPackageMapper", () => {
     it("rebuilds a file's own values through their constructors, so a padded column comes back trimmed", () => {
       const row = aPackageRow({
         sourceFiles: [
-          aSourceFileRow({ originalFilename: "  submission.pdf  " }),
+          aSourceFileRow({ originalFilename: '  submission.pdf  ' }),
         ],
       });
 
       const [file] = VerificationPackageMapper.toDomain(row).files;
 
-      expect(file?.filename.value).toBe("submission.pdf");
+      expect(file?.filename.value).toBe('submission.pdf');
       expect(file?.contentType.equals(ContentType.PDF)).toBe(true);
     });
 
-    it("hangs a document off the file it was found in, over the sheets it occupies", () => {
+    it('hangs a document off the file it was found in, over the sheets it occupies', () => {
       const row = aPackageRow({
         sourceFiles: [
           aSourceFileRow({
@@ -134,7 +135,7 @@ describe("VerificationPackageMapper", () => {
       expect(document?.pages.last.value).toBe(2);
     });
 
-    it("rebuilds several documents of one file", () => {
+    it('rebuilds several documents of one file', () => {
       const row = aPackageRow({
         sourceFiles: [
           aSourceFileRow({
@@ -147,23 +148,21 @@ describe("VerificationPackageMapper", () => {
         ],
         documents: [
           aDocumentRow({ firstPage: 1, lastPage: 1 }),
-          aDocumentRow({ firstPage: 2, lastPage: 3, type: "title_deed" }),
+          aDocumentRow({ firstPage: 2, lastPage: 3, type: 'title_deed' }),
         ],
       });
 
       const aggregate = VerificationPackageMapper.toDomain(row);
 
       expect(aggregate.documents).toHaveLength(2);
-      expect(
-        aggregate.documentsIn(SourceFileId.of(FILE_ID)),
-      ).toHaveLength(2);
+      expect(aggregate.documentsIn(SourceFileId.of(FILE_ID))).toHaveLength(2);
     });
 
     it("rebuilds a page's OCR as the domain's own result", () => {
       const row = aPackageRow({
         sourceFiles: [
           aSourceFileRow({
-            pages: [aPageRow({ ocr: { text: "PASSPORT", confidence: 0.77 } })],
+            pages: [aPageRow({ ocr: { text: 'PASSPORT', confidence: 0.77 } })],
           }),
         ],
       });
@@ -171,7 +170,7 @@ describe("VerificationPackageMapper", () => {
       const [file] = VerificationPackageMapper.toDomain(row).files;
       const ocr = file?.pages[0]?.ocr;
 
-      expect(ocr?.text.value).toBe("PASSPORT");
+      expect(ocr?.text.value).toBe('PASSPORT');
       expect(ocr?.confidence.value).toBe(0.77);
     });
 
@@ -181,26 +180,26 @@ describe("VerificationPackageMapper", () => {
           aSourceFileRow({
             pages: [
               aPageRow({
-                imageStorageKey: "pages/sheet.png",
-                imageContentType: "image/png",
+                imageStorageKey: 'pages/sheet.png',
+                imageContentType: 'image/png',
               }),
             ],
           }),
         ],
       });
 
-      const image = VerificationPackageMapper.toDomain(row).files[0]?.pages[0]
-        ?.image;
+      const image =
+        VerificationPackageMapper.toDomain(row).files[0]?.pages[0]?.image;
 
-      expect(image?.storageKey.value).toBe("pages/sheet.png");
+      expect(image?.storageKey.value).toBe('pages/sheet.png');
       expect(image?.contentType.equals(ContentType.PNG)).toBe(true);
     });
 
-    it("refuses a row whose page image is in a format nothing here can read", () => {
+    it('refuses a row whose page image is in a format nothing here can read', () => {
       const row = aPackageRow({
         sourceFiles: [
           aSourceFileRow({
-            pages: [aPageRow({ imageContentType: "image/tiff" })],
+            pages: [aPageRow({ imageContentType: 'image/tiff' })],
           }),
         ],
       });
@@ -210,9 +209,11 @@ describe("VerificationPackageMapper", () => {
       );
     });
 
-    it("brings a document back unclassified when the row carries no type", () => {
+    it('brings a document back unclassified when the row carries no type', () => {
       const row = aPackageRow({
-        documents: [aDocumentRow({ type: null, classificationConfidence: null })],
+        documents: [
+          aDocumentRow({ type: null, classificationConfidence: null }),
+        ],
       });
 
       const [document] = VerificationPackageMapper.toDomain(row).documents;
@@ -220,10 +221,10 @@ describe("VerificationPackageMapper", () => {
       expect(document?.isClassified).toBe(false);
     });
 
-    it("brings a typed document back as unsure rather than unclassified when the confidence column is empty", () => {
+    it('brings a typed document back as unsure rather than unclassified when the confidence column is empty', () => {
       const row = aPackageRow({
         documents: [
-          aDocumentRow({ type: "passport", classificationConfidence: null }),
+          aDocumentRow({ type: 'passport', classificationConfidence: null }),
         ],
       });
 
@@ -233,7 +234,7 @@ describe("VerificationPackageMapper", () => {
       expect(document?.classification?.confidence.value).toBe(0);
     });
 
-    it("brings a page back unrecognised when the row carries no OCR", () => {
+    it('brings a page back unrecognised when the row carries no OCR', () => {
       const row = aPackageRow({
         sourceFiles: [aSourceFileRow({ pages: [aPageRow({ ocr: null })] })],
       });
@@ -243,7 +244,7 @@ describe("VerificationPackageMapper", () => {
       expect(file?.pages[0]?.isRecognised).toBe(false);
     });
 
-    it("puts the pages back into reading order when the rows arrive shuffled", () => {
+    it('puts the pages back into reading order when the rows arrive shuffled', () => {
       const row = aPackageRow({
         sourceFiles: [
           aSourceFileRow({
@@ -258,30 +259,30 @@ describe("VerificationPackageMapper", () => {
 
       const [file] = VerificationPackageMapper.toDomain(row).files;
 
-      expect(file?.pages.map((page) => page.number.value)).toEqual([1, 2, 3]);
+      expect(file?.pages.map(page => page.number.value)).toEqual([1, 2, 3]);
     });
 
-    it("records nothing, because a package read from storage has not just done anything", () => {
+    it('records nothing, because a package read from storage has not just done anything', () => {
       const aggregate = VerificationPackageMapper.toDomain(aPackageRow());
 
       expect(aggregate.getUncommittedEvents()).toEqual([]);
     });
 
-    it("refuses a row whose profile key no profile answers to", () => {
+    it('refuses a row whose profile key no profile answers to', () => {
       expect(() =>
-        VerificationPackageMapper.toDomain(aPackageRow({ profileKey: "none" })),
+        VerificationPackageMapper.toDomain(aPackageRow({ profileKey: 'none' })),
       ).toThrow(UnknownProfileException);
     });
 
-    it("refuses a row whose status is not one the pipeline knows", () => {
+    it('refuses a row whose status is not one the pipeline knows', () => {
       expect(() =>
-        VerificationPackageMapper.toDomain(aPackageRow({ status: "Paused" })),
+        VerificationPackageMapper.toDomain(aPackageRow({ status: 'Paused' })),
       ).toThrow(InvalidPackageStatusException);
     });
 
-    it("refuses a row whose content type is not a format the system accepts", () => {
+    it('refuses a row whose content type is not a format the system accepts', () => {
       const row = aPackageRow({
-        sourceFiles: [aSourceFileRow({ contentType: "application/msword" })],
+        sourceFiles: [aSourceFileRow({ contentType: 'application/msword' })],
       });
 
       expect(() => VerificationPackageMapper.toDomain(row)).toThrow(
@@ -289,11 +290,11 @@ describe("VerificationPackageMapper", () => {
       );
     });
 
-    it("refuses a row whose OCR confidence is outside 0..1", () => {
+    it('refuses a row whose OCR confidence is outside 0..1', () => {
       const row = aPackageRow({
         sourceFiles: [
           aSourceFileRow({
-            pages: [aPageRow({ ocr: { text: "PASSPORT", confidence: 1.4 } })],
+            pages: [aPageRow({ ocr: { text: 'PASSPORT', confidence: 1.4 } })],
           }),
         ],
       });
@@ -303,7 +304,7 @@ describe("VerificationPackageMapper", () => {
       );
     });
 
-    it("refuses a row whose page number is not a sheet of a file", () => {
+    it('refuses a row whose page number is not a sheet of a file', () => {
       const row = aPackageRow({
         sourceFiles: [aSourceFileRow({ pages: [aPageRow({ pageNumber: 0 })] })],
       });
@@ -313,7 +314,7 @@ describe("VerificationPackageMapper", () => {
       );
     });
 
-    it("refuses a document row that ends before it starts", () => {
+    it('refuses a document row that ends before it starts', () => {
       const row = aPackageRow({
         documents: [aDocumentRow({ firstPage: 4, lastPage: 2 })],
       });
@@ -324,8 +325,8 @@ describe("VerificationPackageMapper", () => {
     });
   });
 
-  describe("toRow", () => {
-    it("writes a freshly created package as a pending row with its files and no documents", () => {
+  describe('toRow', () => {
+    it('writes a freshly created package as a pending row with its files and no documents', () => {
       const storageKey = `uploads/${anId()}/submission.pdf`;
       const aggregate = VerificationPackage.create(
         PackageId.of(anId()),
@@ -333,7 +334,7 @@ describe("VerificationPackageMapper", () => {
         [
           SourceFile.create(
             SourceFileId.of(anId()),
-            Filename.create("submission.pdf"),
+            Filename.create('submission.pdf'),
             ContentType.PDF,
             StorageKey.create(storageKey),
           ),
@@ -342,29 +343,29 @@ describe("VerificationPackageMapper", () => {
 
       const row = VerificationPackageMapper.toRow(aggregate);
 
-      expect(row.status).toBe("Pending");
-      expect(row.profileKey).toBe("cadastre");
+      expect(row.status).toBe('Pending');
+      expect(row.profileKey).toBe('cadastre');
       expect(row.documents).toEqual([]);
       expect(row.sourceFiles).toEqual([
         {
           id: aggregate.files[0]!.id.value,
-          originalFilename: "submission.pdf",
-          contentType: "application/pdf",
+          originalFilename: 'submission.pdf',
+          contentType: 'application/pdf',
           storageKey,
           pages: [],
         },
       ]);
     });
 
-    it("writes no version, because the version belongs to the write and not to the state", () => {
+    it('writes no version, because the version belongs to the write and not to the state', () => {
       const row = VerificationPackageMapper.toRow(
         VerificationPackageMapper.toDomain(aPackageRow({ version: 9 })),
       );
 
-      expect(row).not.toHaveProperty("version");
+      expect(row).not.toHaveProperty('version');
     });
 
-    it("writes a document under the file it was found in, with the sheets it spans", () => {
+    it('writes a document under the file it was found in, with the sheets it spans', () => {
       const aggregate = VerificationPackageMapper.toDomain(
         aPackageRow({
           sourceFiles: [
@@ -383,7 +384,7 @@ describe("VerificationPackageMapper", () => {
       expect(document?.lastPage).toBe(2);
     });
 
-    it("writes the type and its confidence together, or neither of them", () => {
+    it('writes the type and its confidence together, or neither of them', () => {
       const typed = VerificationPackageMapper.toRow(
         VerificationPackageMapper.toDomain(aPackageRow()),
       );
@@ -397,17 +398,17 @@ describe("VerificationPackageMapper", () => {
         ),
       );
 
-      expect(typed.documents[0]?.type).toBe("passport");
+      expect(typed.documents[0]?.type).toBe('passport');
       expect(typed.documents[0]?.classificationConfidence).toBe(0.94);
       expect(untyped.documents[0]?.type).toBeNull();
       expect(untyped.documents[0]?.classificationConfidence).toBeNull();
     });
 
-    it("writes the missing confidence of an older typed row back as nothing-was-known, not as absent", () => {
+    it('writes the missing confidence of an older typed row back as nothing-was-known, not as absent', () => {
       const aggregate = VerificationPackageMapper.toDomain(
         aPackageRow({
           documents: [
-            aDocumentRow({ type: "passport", classificationConfidence: null }),
+            aDocumentRow({ type: 'passport', classificationConfidence: null }),
           ],
         }),
       );
@@ -417,7 +418,7 @@ describe("VerificationPackageMapper", () => {
       expect(row.documents[0]?.classificationConfidence).toBe(0);
     });
 
-    it("writes an unrecognised page with no OCR of its own", () => {
+    it('writes an unrecognised page with no OCR of its own', () => {
       const aggregate = VerificationPackageMapper.toDomain(
         aPackageRow({
           sourceFiles: [aSourceFileRow({ pages: [aPageRow({ ocr: null })] })],
@@ -430,8 +431,8 @@ describe("VerificationPackageMapper", () => {
     });
   });
 
-  describe("a full round trip", () => {
-    it("gives back every file, page, OCR result, document, classification and extracted field unchanged", () => {
+  describe('a full round trip', () => {
+    it('gives back every file, page, OCR result, document, classification and extracted field unchanged', () => {
       const original = aPackageRow({
         sourceFiles: [
           aSourceFileRow({
@@ -446,12 +447,12 @@ describe("VerificationPackageMapper", () => {
           aDocumentRow({
             firstPage: 2,
             lastPage: 2,
-            type: "application",
+            type: 'application',
             classificationConfidence: 0.7,
             extractedFields: [
               {
-                name: "applicant_name",
-                value: "ELCHIN",
+                name: 'applicant_name',
+                value: 'ELCHIN',
                 confidence: 0.8,
                 pageNumber: 2,
               },
@@ -465,23 +466,23 @@ describe("VerificationPackageMapper", () => {
       );
 
       expect(written.sourceFiles).toEqual(
-        original.sourceFiles.map((file) => ({
+        original.sourceFiles.map(file => ({
           id: file.id,
           originalFilename: file.originalFilename,
           contentType: file.contentType,
           storageKey: file.storageKey,
-          pages: file.pages.map((page) => ({ ...page })),
+          pages: file.pages.map(page => ({ ...page })),
         })),
       );
       expect(written.documents).toEqual(
         original.documents.map(({ extractedFields, ...rest }) => ({
           ...rest,
-          fields: extractedFields.map((field) => ({ ...field })),
+          fields: extractedFields.map(field => ({ ...field })),
         })),
       );
     });
 
-    it("writes the pages in reading order even when they were read back shuffled", () => {
+    it('writes the pages in reading order even when they were read back shuffled', () => {
       const shuffled = aPackageRow({
         sourceFiles: [
           aSourceFileRow({
@@ -499,14 +500,14 @@ describe("VerificationPackageMapper", () => {
       );
 
       expect(
-        written.sourceFiles[0]?.pages.map((page) => page.pageNumber),
+        written.sourceFiles[0]?.pages.map(page => page.pageNumber),
       ).toEqual([1, 2, 3]);
     });
 
-    it("keeps a document the domain built through the pipeline", () => {
+    it('keeps a document the domain built through the pipeline', () => {
       const file = SourceFile.create(
         SourceFileId.of(anId()),
-        Filename.create("submission.pdf"),
+        Filename.create('submission.pdf'),
         ContentType.PDF,
         StorageKey.create(`uploads/${anId()}/submission.pdf`),
       );
@@ -533,28 +534,30 @@ describe("VerificationPackageMapper", () => {
 
       const row = VerificationPackageMapper.toRow(aggregate);
 
-      expect(row.documents[0]?.type).toBe(DocumentType.create("passport").value);
+      expect(row.documents[0]?.type).toBe(
+        DocumentType.create('passport').value,
+      );
       expect(row.documents[0]?.firstPage).toBe(1);
       expect(row.documents[0]?.lastPage).toBe(2);
     });
   });
 
-  describe("the report a run finished with", () => {
+  describe('the report a run finished with', () => {
     // The pipeline's own way to a report: run a package with nothing in it
     // through to the end, so every required type comes back missing.
     function aReportedPackage(): VerificationPackage {
       const aggregate = VerificationPackageMapper.toDomain(
-        aPackageRow({ status: "Processing", documents: [] }),
+        aPackageRow({ status: 'Processing', documents: [] }),
       );
       aggregate.complete();
 
       return aggregate;
     }
 
-    it("writes the outcome and every finding under it", () => {
+    it('writes the outcome and every finding under it', () => {
       const row = VerificationPackageMapper.toRow(aReportedPackage());
 
-      expect(row.report?.status).toBe("IncompletePackage");
+      expect(row.report?.status).toBe('IncompletePackage');
       expect(row.report?.issues).toHaveLength(
         VerificationProfile.CADASTRE.requiredTypes.length +
           // the file itself, which no document was carved out of
@@ -562,15 +565,15 @@ describe("VerificationPackageMapper", () => {
       );
     });
 
-    it("writes a kind the database has a column value for", () => {
+    it('writes a kind the database has a column value for', () => {
       const row = VerificationPackageMapper.toRow(aReportedPackage());
 
-      expect(row.report?.issues.map((issue) => issue.kind)).toContain(
-        "MissingDocument",
+      expect(row.report?.issues.map(issue => issue.kind)).toContain(
+        'MissingDocument',
       );
     });
 
-    it("reads a stored report back as the one that was written", () => {
+    it('reads a stored report back as the one that was written', () => {
       const written = VerificationPackageMapper.toRow(aReportedPackage());
 
       const restored = VerificationPackageMapper.toDomain(
@@ -578,15 +581,15 @@ describe("VerificationPackageMapper", () => {
       );
 
       expect(restored.report?.status.value).toBe(written.report?.status);
-      expect(restored.report?.issues.map((issue) => issue.kind.value)).toEqual(
-        written.report?.issues.map((issue) => issue.kind),
+      expect(restored.report?.issues.map(issue => issue.kind.value)).toEqual(
+        written.report?.issues.map(issue => issue.kind),
       );
       expect(
-        restored.report?.issues.map((issue) => issue.documentType?.value ?? null),
-      ).toEqual(written.report?.issues.map((issue) => issue.documentType));
+        restored.report?.issues.map(issue => issue.documentType?.value ?? null),
+      ).toEqual(written.report?.issues.map(issue => issue.documentType));
     });
 
-    it("writes no report for a package no run has finished", () => {
+    it('writes no report for a package no run has finished', () => {
       const row = VerificationPackageMapper.toRow(
         VerificationPackageMapper.toDomain(aPackageRow()),
       );

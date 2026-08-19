@@ -10,44 +10,43 @@
  * by a compiler that never sees the server. A mismatch then surfaces here, named,
  * instead of as an `undefined` three components away.
  */
+import { api } from '@/shared/api';
 import {
   GetPackageResponseSchema,
   ListPackagesResponseSchema,
   type CreatePackageRequest,
   type CreatePackageResponse,
   type GetPackageResponse,
-} from "@cadastre/api-contracts/verification"
-
-import { api } from "@/shared/api"
+} from '@cadastre/api-contracts/verification';
 
 import {
   toViewPackage,
   type VerificationPackage,
-} from "../model/verification-package"
+} from '../model/verification-package';
 
 export const packagesApi = api.injectEndpoints({
-  endpoints: (build) => ({
+  endpoints: build => ({
     getPackages: build.query<VerificationPackage[], void>({
-      query: () => "/packages",
+      query: () => '/packages',
       transformResponse: (response: unknown) =>
         ListPackagesResponseSchema.parse(response).map(toViewPackage),
-      providesTags: ["Package"],
+      providesTags: ['Package'],
     }),
     getPackage: build.query<GetPackageResponse, string>({
-      query: (id) => `/packages/${id}`,
+      query: id => `/packages/${id}`,
       transformResponse: (response: unknown) =>
         GetPackageResponseSchema.parse(response),
-      providesTags: (_result, _error, id) => [{ type: "Package", id }],
+      providesTags: (_result, _error, id) => [{ type: 'Package', id }],
     }),
     createPackage: build.mutation<CreatePackageResponse, CreatePackageRequest>({
-      query: (body) => ({ url: "/packages", method: "POST", body }),
-      invalidatesTags: ["Package"],
+      query: body => ({ url: '/packages', method: 'POST', body }),
+      invalidatesTags: ['Package'],
     }),
   }),
-})
+});
 
 export const {
   useGetPackagesQuery,
   useGetPackageQuery,
   useCreatePackageMutation,
-} = packagesApi
+} = packagesApi;

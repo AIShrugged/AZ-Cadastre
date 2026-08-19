@@ -1,0 +1,135 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "ignorePatterns": [
+    "**/build/**",
+    "node_modules/**",
+    "**/generated/**",
+    "**/*.generated.ts"
+  ],
+  "plugins": [
+    "import",
+    "typescript",
+    "oxc",
+    "unicorn"
+  ],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "import/newline-after-import": "error",
+    "typescript/no-empty-object-type": "off",
+    "typescript/ban-ts-comment": "off",
+    "no-unused-vars": "warn",
+    "typescript/no-explicit-any": "warn",
+    "no-console": "warn",
+    "unicorn/no-empty-file": "warn",
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": [
+              "**/packages/**",
+              "**/libs/**",
+              "**/apps/**"
+            ],
+            "message": "Import across projects by package name (@cadastre/x), never by a relative path. The tag rules match on package names, so a relative import escaping its project would be invisible to them."
+          }
+        ]
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "packages/*/**/*.ts",
+        "libs/api-gateway/**/*.ts"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@cadastre/*",
+                  "!@cadastre/api-contracts",
+                  "!@cadastre/api-contracts/*",
+                  "!@cadastre/shared",
+                  "!@cadastre/event-publisher"
+                ],
+                "message": "type:context and type:edge may only depend on type:contracts, type:kernel and type:adapter. Route cross-context traffic through @cadastre/api-contracts."
+              },
+              {
+                "group": [
+                  "**/packages/**",
+                  "**/libs/**",
+                  "**/apps/**"
+                ],
+                "message": "Import across projects by package name (@cadastre/x), never by a relative path. The tag rules match on package names, so a relative import escaping its project would be invisible to them."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "libs/api-contracts/**/*.ts",
+        "libs/event-publisher/**/*.ts"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@cadastre/*",
+                  "!@cadastre/shared"
+                ],
+                "message": "type:contracts and type:adapter may only depend on type:kernel (@cadastre/shared)."
+              },
+              {
+                "group": [
+                  "**/packages/**",
+                  "**/libs/**",
+                  "**/apps/**"
+                ],
+                "message": "Import across projects by package name (@cadastre/x), never by a relative path. The tag rules match on package names, so a relative import escaping its project would be invisible to them."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "libs/shared/**/*.ts"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@cadastre/*"
+                ],
+                "message": "type:kernel is the bottom of the stack and depends on nothing in the workspace."
+              },
+              {
+                "group": [
+                  "**/packages/**",
+                  "**/libs/**",
+                  "**/apps/**"
+                ],
+                "message": "Import across projects by package name (@cadastre/x), never by a relative path. The tag rules match on package names, so a relative import escaping its project would be invisible to them."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

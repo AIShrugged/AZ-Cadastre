@@ -8,7 +8,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
 # Copy packages needed for build
 COPY apps/web ./apps/web
-COPY libs/contracts ./libs/contracts
+COPY libs/api-contracts ./libs/api-contracts
 
 # Install pnpm and dependencies
 RUN npm install -g pnpm

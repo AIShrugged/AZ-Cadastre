@@ -6,7 +6,7 @@
  * wire DTO and the mapping into this view model live here. Findings come from
  * the report the run finished with, so they are absent until it has; the
  * applicant is still ahead of the pipeline. Ubiquitous language follows
- * docs/CONTEXT.md.
+ * packages/verification/CONTEXT.md.
  *
  * What a profile expects is deliberately *not* here. That is policy the engine
  * owns and publishes (`GET /api/profiles`), and a mapper that reached for it
@@ -18,7 +18,7 @@ import type {
   PackageDto,
   PackageStatus,
   ReportStatus,
-} from "@cadastre/contracts"
+} from "@cadastre/api-contracts/verification"
 
 export type Disposition =
   | "in_progress"
@@ -106,7 +106,7 @@ export function matchesQuery(p: VerificationPackage, q: string): boolean {
 }
 
 // ─── Wire DTO ⇄ view model ────────────────────────────────────────────────────
-// PackageDto / PackageStatus are the shared contracts (@cadastre/contracts);
+// PackageDto / PackageStatus are the shared contracts (@cadastre/api-contracts);
 // this maps them into the register's richer view model.
 
 /**

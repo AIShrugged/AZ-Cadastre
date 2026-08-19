@@ -1,0 +1,61 @@
+{
+  "name": "@cadastre/verification",
+  "version": "1.0.0",
+  "description": "The verification bounded context: packages, documents, the OCR/classify/extract pipeline and the profiles that govern them.",
+  "type": "module",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/index.d.ts",
+      "import": "./build/index.js"
+    }
+  },
+  "files": [
+    "build"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "watch": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:reset": "prisma migrate reset --force",
+    "db:studio": "prisma studio",
+    "postinstall": "prisma generate"
+  },
+  "license": "ISC",
+  "nx": {
+    "tags": [
+      "type:context",
+      "deployment:monolith"
+    ]
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1093.0",
+    "@aws-sdk/s3-request-presigner": "^3.1093.0",
+    "@cadastre/api-contracts": "workspace:*",
+    "@cadastre/event-publisher": "workspace:*",
+    "@cadastre/shared": "workspace:*",
+    "@napi-rs/canvas": "^1.0.3",
+    "@nestjs/common": "12.0.0-alpha.5",
+    "@nestjs/core": "12.0.0-alpha.5",
+    "@nestjs/cqrs": "^11.0.3",
+    "@prisma/adapter-pg": "^7.9.0",
+    "@prisma/client": "^7.9.0",
+    "openai": "^6.49.0",
+    "pdfjs-dist": "^6.2.108",
+    "pg": "^8.22.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.20.0",
+    "@vitest/coverage-v8": "^3.2.4",
+    "prisma": "^7.9.0",
+    "vitest": "^3.2.4"
+  }
+}

@@ -451,6 +451,6 @@ User[Inspector]
 
 ### Related Decisions
 
-- [ADR-0001](./adr/0001-in-process-pipeline-before-temporal.md): In-process pipeline first, Temporal-shaped
-- [ADR-0002](./adr/0002-profile-driven-validation.md): Verification Profiles instead of hardcoded rules
-- [ADR-0003](./adr/0003-external-capabilities-behind-ports.md): External capabilities behind abstract-class ports
+- [ADR-0001](../packages/verification/docs/adr/0001-in-process-pipeline-before-temporal.md): In-process pipeline first, Temporal-shaped
+- [ADR-0002](../packages/verification/docs/adr/0002-profile-driven-validation.md): Verification Profiles instead of hardcoded rules
+- [ADR-0003](../packages/verification/docs/adr/0003-external-capabilities-behind-ports.md): External capabilities behind abstract-class ports

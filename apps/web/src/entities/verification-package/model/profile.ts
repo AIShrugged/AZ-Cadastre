@@ -12,7 +12,7 @@
  * would be the same claim in a different shape — that this file knows which
  * profiles exist — and it would go stale the same way the moment one is added.
  */
-import type { ProfileDto } from "@cadastre/contracts"
+import type { ProfileDto } from "@cadastre/api-contracts/verification"
 
 import { translateOr } from "@/shared/i18n"
 

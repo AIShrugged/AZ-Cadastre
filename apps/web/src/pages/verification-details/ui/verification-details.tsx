@@ -39,7 +39,7 @@ import type {
   ReportDto,
   ReportStatus,
   SourceFileDto,
-} from "@cadastre/contracts"
+} from "@cadastre/api-contracts/verification"
 
 import { Button } from "@/shared/ui/button"
 import {

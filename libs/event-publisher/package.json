@@ -1,0 +1,35 @@
+{
+  "name": "@cadastre/event-publisher",
+  "version": "1.0.0",
+  "description": "The DomainEventPublisher port, implemented over the Nest CQRS event bus. Swapping the bus for a broker touches this package and nothing else.",
+  "type": "module",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/index.d.ts",
+      "import": "./build/index.js"
+    }
+  },
+  "files": [
+    "build"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "watch": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "license": "ISC",
+  "nx": {
+    "tags": [
+      "type:adapter",
+      "deployment:monolith"
+    ]
+  },
+  "dependencies": {
+    "@cadastre/shared": "workspace:*",
+    "@nestjs/common": "12.0.0-alpha.5",
+    "@nestjs/core": "12.0.0-alpha.5",
+    "@nestjs/cqrs": "^11.0.3"
+  }
+}

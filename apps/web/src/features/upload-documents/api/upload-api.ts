@@ -2,7 +2,7 @@ import axios from "axios"
 import type {
   DocumentContentType,
   PresignResponse,
-} from "@cadastre/contracts"
+} from "@cadastre/api-contracts/verification"
 
 import { http } from "@/shared/api"
 

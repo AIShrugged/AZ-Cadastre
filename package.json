@@ -5,21 +5,26 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "dev": "nx run-many -t watch dev -p tag:deployment:monolith",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "lint": "oxlint apps/ libs/ packages/",
+    "test": "nx run-many -t test",
+    "test:watch": "nx run-many -t test:watch",
+    "test:coverage": "nx run-many -t test:coverage",
+    "prettier": "prettier --write \"{apps,libs,packages}/**/*.{ts,tsx,json}\"",
+    "prettier:check": "prettier --check \"{apps,libs,packages}/**/*.{ts,tsx,json}\""
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
     "@types/node": "^26.1.1",
-    "eslint": "^10.7.0",
+    "@vitest/coverage-v8": "^3.2.4",
+    "nx": "^23.1.1",
+    "oxlint": "^1.78.0",
     "prettier": "^3.9.6",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.65.0",
     "vitest": "^3.2.4"
   }
 }

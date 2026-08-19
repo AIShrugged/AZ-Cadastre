@@ -10,3 +10,9 @@ generated
 .agents
 .claude
 skills-lock.json
+
+# nx cache
+.nx
+
+# coverage reports
+coverage

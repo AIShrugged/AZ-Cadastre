@@ -10,7 +10,7 @@
 import {
   ListProfilesResponseSchema,
   type ListProfilesResponse,
-} from "@cadastre/contracts"
+} from "@cadastre/api-contracts/verification"
 
 import { api } from "@/shared/api"
 

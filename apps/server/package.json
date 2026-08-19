@@ -1,0 +1,33 @@
+{
+  "name": "@cadastre/server",
+  "version": "1.0.0",
+  "description": "Composition root: validates the environment, mounts every bounded context and the edge, and binds the ports between them.",
+  "type": "module",
+  "main": "./build/main.js",
+  "scripts": {
+    "dev": "nest start --watch",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node build/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "license": "ISC",
+  "nx": {
+    "tags": [
+      "type:app",
+      "deployment:monolith"
+    ]
+  },
+  "dependencies": {
+    "@cadastre/api-gateway": "workspace:*",
+    "@cadastre/verification": "workspace:*",
+    "@nestjs/common": "12.0.0-alpha.5",
+    "@nestjs/config": "12.0.0-next.0",
+    "@nestjs/core": "12.0.0-alpha.5",
+    "@nestjs/cqrs": "^11.0.3",
+    "@nestjs/platform-express": "12.0.0-alpha.5",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "12.0.0-alpha.6"
+  }
+}

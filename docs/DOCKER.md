@@ -47,10 +47,10 @@ The backend (NestJS) is containerized with a multi-stage build using Node.js for
 **Build the backend image:**
 
 ```bash
-docker build -f apps/core/Dockerfile -t core-app .
+docker build -f apps/server/Dockerfile -t server-app .
 ```
 
-**Important:** Always build from the **monorepo root directory**, not from `apps/core/`.
+**Important:** Always build from the **monorepo root directory**, not from `apps/server/`.
 
 ### Running the Container
 
@@ -180,7 +180,7 @@ From the repository root:
 docker build -f apps/web/Dockerfile -t ekalkutin/cadastre-web:latest .
 
 # Build backend
-docker build -f apps/core/Dockerfile -t ekalkutin/cadastre-core:latest .
+docker build -f apps/server/Dockerfile -t ekalkutin/cadastre-core:latest .
 ```
 
 ### Push to Docker Hub
@@ -209,7 +209,7 @@ docker push ekalkutin/cadastre-web:latest
 
 **"COPY failed: file not found"**
 
-- Ensure you're running `docker build` from the **monorepo root**, not from `apps/web/` or `apps/core/`
+- Ensure you're running `docker build` from the **monorepo root**, not from `apps/web/` or `apps/server/`
 
 **Large image size**
 

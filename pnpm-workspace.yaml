@@ -1,11 +1,12 @@
 packages:
   - apps/*
   - libs/*
-  - libs/contexts/*
-  - libs/shared/*
+  - packages/*
 allowBuilds:
   "@nestjs/core": true
   "@prisma/engines": true
   "@prisma/client": true
   prisma: true
   esbuild: true
+  nx: true
+  oxlint: true

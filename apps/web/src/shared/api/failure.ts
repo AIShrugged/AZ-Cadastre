@@ -11,7 +11,7 @@
  * back `{ status, data }` and axios an error with `response.data`. Both carry the
  * same body, and neither shape is worth teaching a caller.
  */
-import { ErrorBodySchema, type ErrorBody } from "@cadastre/contracts"
+import { ErrorBodySchema, type ErrorBody } from "@cadastre/api-contracts/shared"
 
 /** The refusal the server described, or null when it never got to describe one. */
 export function apiFailure(error: unknown): ErrorBody | null {

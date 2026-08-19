@@ -1,4 +1,4 @@
-import type { DocumentContentType } from "@cadastre/contracts"
+import type { DocumentContentType } from "@cadastre/api-contracts/verification"
 
 export type FileKind = "pdf" | "image"
 export type UploadStatus = "uploading" | "ready" | "error"

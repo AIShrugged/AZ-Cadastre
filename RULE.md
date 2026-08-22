@@ -86,7 +86,30 @@ layer: ban the whole `@org/*` scope and re-allow by negation what the layer may 
 ```
 
 Caveat to state out loud in the config: this checks _package names_, so it only works if
-rule #1 (no cross-project relative imports) holds.
+rule #1 (no cross-project relative imports) holds. So write that guard too, in every override:
+
+```jsonc
+{
+  // A literal `..` segment immediately before a workspace root is what an escaping
+  // path looks like. Do NOT write `**/packages/**`: it matches any path containing
+  // the word, and one of your own folders will eventually be called that — an API
+  // section named `packages`, a `libs` folder inside a package. Ours was, and the
+  // rule flagged legitimate sibling imports until it was narrowed.
+  "group": [
+    "**/../packages/**",
+    "**/../libs/**",
+    "**/../apps/**",
+    "../packages/**",
+    "../libs/**",
+    "../apps/**",
+  ],
+  "message": "Import across projects by package name (@org/x): a relative path escaping its project is invisible to the rules above, which match on package names.",
+}
+```
+
+Verify both directions before believing it: introduce a real escape and watch it fail,
+then check that a legitimate sibling import still passes. A boundary rule nobody has seen
+fire is a boundary rule nobody knows the shape of.
 
 ---
 
@@ -124,14 +147,33 @@ ADR, including that it is handler-level only, sharing one database and one set o
 with no read models and no event sourcing, if that is what you mean. Otherwise someone will
 build an event store.
 
+**Put the layers under the linter too**, with the same `no-restricted-imports` mechanism and
+one override per layer — otherwise they are a convention, and a convention is what the
+dependency rule was before you wrote rule #2:
+
+| Layer            | May not import                                                                               |
+| ---------------- | -------------------------------------------------------------------------------------------- |
+| `domain/**`      | `application/`, `infrastructure/`, `presentation/`, the framework, the ORM, any provider SDK |
+| `application/**` | `infrastructure/`, `presentation/`                                                           |
+
+The commonest thing this catches on the first run is a port left in `domain/`, and a folder
+of "adapters" holding pure rules that import nothing but value objects. Both belong to the
+other layer, and neither is visible without the rule.
+
+**Inject by explicit token, always.** An abstract class used as a DI token resolves through
+`design:paramtypes`, which exists only when the compiler emits decorator metadata. Write
+`@Inject(Port) private readonly x: Port` — otherwise the container silently injects
+`undefined` under any toolchain that does not emit it (esbuild never has), the module builds,
+and the failure surfaces much later as a method call on nothing.
+
 ### Public surface
 
 `src/index.ts` exports **exactly three things**:
 
 ```ts
-export { InboundPort, OutboundPort } from "./application/ports/index.js"; // DI tokens
-export { ContextModule } from "./context.module.js"; // wiring
-export type { ContextModuleOptions } from "./context.module-defs.js"; // config shape
+export { InboundPort, OutboundPort } from './application/ports/index.js'; // DI tokens
+export { ContextModule } from './context.module.js'; // wiring
+export type { ContextModuleOptions } from './context.module-defs.js'; // config shape
 ```
 
 Entities, use cases, repositories, ORM types: never exported. If another project needs a
@@ -145,13 +187,13 @@ mirror the contract interface so the compiler keeps them honest:
 ```ts
 // application/ports/inbound/organization.port.ts
 export abstract class OrganizationApiPort implements OrganizationApi {
-  abstract readonly projects: OrganizationApi["projects"];
-  abstract readonly tasks: OrganizationApi["tasks"];
+  abstract readonly projects: OrganizationApi['projects'];
+  abstract readonly tasks: OrganizationApi['tasks'];
 }
 
 // application/ports/outbound/iam.port.ts — only the slices this context actually needs
 export abstract class IamPort {
-  abstract readonly memberships: IamApi["memberships"];
+  abstract readonly memberships: IamApi['memberships'];
 }
 ```
 

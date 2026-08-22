@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "nx run-many -t watch dev -p tag:deployment:monolith",
     "build": "pnpm -r build",
-    "typecheck": "pnpm -r typecheck",
+    "typecheck": "nx run-many -t typecheck",
     "lint": "oxlint apps/ libs/ packages/",
     "test": "nx run-many -t test",
     "test:watch": "nx run-many -t test:watch",

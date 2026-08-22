@@ -1,34 +1,24 @@
 {
-  "compilerOptions": {
-    // Type Checking
-    "strict": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "noUncheckedIndexedAccess": true,
-    "strictPropertyInitialization": false,
-    "noImplicitOverride": true,
-
-    // Modules
-    "esModuleInterop": true,
-    "moduleResolution": "nodenext",
-    "module": "NodeNext",
-
-    // Emit
-    "declaration": false,
-    "declarationMap": false,
-    "skipLibCheck": true,
-    "stripInternal": true,
-    "inlineSources": true,
-
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-
-    // Interop Constraints
-    "forceConsistentCasingInFileNames": true,
-    "isolatedModules": true,
-
-    "sourceMap": true,
-    "target": "esnext",
-    "types": ["node"]
-  }
+  "extends": "./tsconfig.base.json",
+  "files": [],
+  "references": [
+    {
+      "path": "./libs/shared/tsconfig.build.json"
+    },
+    {
+      "path": "./libs/api-contracts/tsconfig.build.json"
+    },
+    {
+      "path": "./libs/event-publisher/tsconfig.build.json"
+    },
+    {
+      "path": "./libs/api-gateway/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/verification/tsconfig.build.json"
+    },
+    {
+      "path": "./apps/server/tsconfig.build.json"
+    }
+  ]
 }

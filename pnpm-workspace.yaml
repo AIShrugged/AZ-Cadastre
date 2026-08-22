@@ -30,7 +30,11 @@ catalogs:
     '@nestjs/testing': 12.0.0-alpha.5
     '@nestjs/cli': 12.0.0-alpha.6
     '@nestjs/config': 12.0.0-next.0
-    '@nestjs/cqrs': ^11.0.3
+    # No 12 line exists for cqrs — 11.0.3 is its latest, and it is built
+    # against Nest 11, which is what the peer rules below are about. Pinned
+    # exactly like the rest: a caret here could float onto a build made for a
+    # different core.
+    '@nestjs/cqrs': 11.0.3
 
   # The compiler and the test runner. Two packages on two compiler versions
   # produce two different `build/` trees from the same source, and the one that

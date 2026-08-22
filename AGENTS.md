@@ -82,6 +82,13 @@ the request that asked for it. A test that reads the package straight after
 creating it is racing the context. Use `waitForTerminalStatus` from
 `packages/verification/test/context-harness.ts`.
 
+**`pnpm typecheck` fails on a fresh clone with "Cannot find module
+@cadastre/shared".** _2026-08-22._ Typecheck is not a standalone check here:
+applications import the `build/` of a package, not its source (ADR-0006), so
+checking types needs the `.d.ts` of everything below. It is an nx target with
+`dependsOn: ["^build"]` for exactly this reason — run `pnpm typecheck`, not
+`pnpm -r typecheck`, and nx builds what it needs first.
+
 **A gateway change does not take effect.** Applications import the `build/` of a
 package, not its source (ADR-0006). Until `tsc --watch` has run — that is what
 `pnpm dev` starts — an edit in `libs/` is invisible. If something makes no sense,

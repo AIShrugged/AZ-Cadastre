@@ -9,6 +9,10 @@
         "{projectRoot}/tsconfig.build.tsbuildinfo"
       ]
     },
+    "typecheck": {
+      "cache": true,
+      "dependsOn": ["^build"]
+    },
     "test": {
       "cache": true,
       "dependsOn": ["^build"]

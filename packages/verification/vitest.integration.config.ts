@@ -23,7 +23,13 @@ export default defineConfig({
       // What only a real database can answer for. The domain's own ratio is
       // measured by the unit set and the two are not added up.
       include: ['src/infrastructure/persistence/**/*.ts'],
-      exclude: ['src/infrastructure/persistence/generated/**'],
+      exclude: [
+        'src/infrastructure/persistence/generated/**',
+        // Unit specs live beside the code they cover; this run does not execute
+        // them, so counting them would report the set as half as thorough as it
+        // is.
+        'src/**/*.spec.ts',
+      ],
     },
   },
 });

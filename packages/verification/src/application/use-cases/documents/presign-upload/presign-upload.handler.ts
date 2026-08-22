@@ -20,7 +20,15 @@ export class PresignUploadHandler implements ICommandHandler<
 > {
   constructor(@Inject(ObjectStorage) private readonly storage: ObjectStorage) {}
 
-  execute(command: PresignUploadCommand): Promise<PresignedUpload> {
+  /*
+   * `async`, though nothing here is awaited: the two value objects below reject
+   * the request by throwing, and a non-async handler throws them out of
+   * `commandBus.execute()` synchronously rather than as a rejected promise. The
+   * signature already promises otherwise, and a caller written as
+   * `execute(...).catch(...)` — which is how the submission event handler calls
+   * its command — would not catch it at all.
+   */
+  async execute(command: PresignUploadCommand): Promise<PresignedUpload> {
     FileSize.of(command.size);
 
     return this.storage.presignUpload({

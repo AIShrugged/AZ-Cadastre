@@ -114,6 +114,17 @@ export type Harness = {
   readonly storage: InMemoryObjectStorage;
 };
 
+/**
+ * What a spec may swap out. Only the ports that would leave the process are
+ * offered: everything else — the buses, the handlers, the repository, Prisma —
+ * stays the real thing, which is the point of the set.
+ */
+export type Overrides = {
+  readonly ocr?: OcrProvider;
+  readonly splitter?: PdfSplitter;
+  readonly storage?: InMemoryObjectStorage;
+};
+
 export function testOptions(databaseUrl: string): VerificationModuleOptions {
   return {
     web: { origin: 'http://localhost:5173' },
@@ -145,8 +156,11 @@ export function testOptions(databaseUrl: string): VerificationModuleOptions {
  * handlers, the repository, Prisma — is the real thing against the real
  * database.
  */
-export async function startContext(databaseUrl: string): Promise<Harness> {
-  const storage = new InMemoryObjectStorage();
+export async function startContext(
+  databaseUrl: string,
+  overrides: Overrides = {},
+): Promise<Harness> {
+  const storage = overrides.storage ?? new InMemoryObjectStorage();
 
   const module = await Test.createTestingModule({
     imports: [
@@ -159,9 +173,9 @@ export async function startContext(databaseUrl: string): Promise<Harness> {
     .overrideProvider(ObjectStorage)
     .useValue(storage)
     .overrideProvider(PdfSplitter)
-    .useValue(new FixedPageSplitter())
+    .useValue(overrides.splitter ?? new FixedPageSplitter())
     .overrideProvider(OcrProvider)
-    .useValue(new InstantOcr())
+    .useValue(overrides.ocr ?? new InstantOcr())
     .compile();
 
   await module.init();
@@ -201,5 +215,28 @@ export async function waitForTerminalStatus(
     }
 
     await new Promise(resolve => setTimeout(resolve, 50));
+  }
+}
+
+/**
+ * A reader that never manages to read, and counts how many times it was asked.
+ *
+ * The recognise stage retries a refused sheet up to ATTEMPTS_PER_SHEET times
+ * and then gives up on it, so the count is the budget: it is what stops a
+ * provider having a bad minute from costing a run, and what stops a provider
+ * that is simply down from costing it forever.
+ */
+export class UnreadableOcr extends OcrProvider {
+  override readonly pagesAtOnce = 8;
+
+  #attempts = 0;
+
+  get attempts(): number {
+    return this.#attempts;
+  }
+
+  async recognise(image: PageImage): Promise<OcrResult> {
+    this.#attempts += 1;
+    throw new Error(`the reader is down (asked for ${image.storageKey.value})`);
   }
 }

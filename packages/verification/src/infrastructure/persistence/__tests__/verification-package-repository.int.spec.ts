@@ -2,6 +2,8 @@ import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import type { TestingModule } from '@nestjs/testing';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 
+import { ConcurrencyConflictException } from '@cadastre/shared';
+
 import {
   startContext,
   waitForTerminalStatus,
@@ -121,5 +123,47 @@ describe('VerificationPackageRepositoryAdapter', () => {
       pagesBefore,
     );
     expect(reread!.documents.length).toBe(loaded!.documents.length);
+  });
+
+  /*
+   * Optimistic locking is the one thing here that a unit test cannot see and
+   * that fails silently when it is wrong: the update is `WHERE id AND version`,
+   * so a second writer that loaded the same row must be refused rather than
+   * overwrite what the first one wrote.
+   */
+  it('refuses the second writer when two use cases loaded the same package', async () => {
+    // arrange — two loads of one row, as two requests would get
+    const id = await submitAndSettle();
+    const first = await repository.findById(id);
+    const second = await repository.findById(id);
+    expect(first!.version).toBe(second!.version);
+
+    // act
+    await repository.save(first!);
+
+    // assert
+    await expect(repository.save(second!)).rejects.toBeInstanceOf(
+      ConcurrencyConflictException,
+    );
+  });
+
+  it('moves the version exactly once when a conflicting write is refused', async () => {
+    // arrange
+    const id = await submitAndSettle();
+    const first = await repository.findById(id);
+    const second = await repository.findById(id);
+    const before = first!.version;
+
+    // act
+    await repository.save(first!);
+    await expect(repository.save(second!)).rejects.toThrow(
+      ConcurrencyConflictException,
+    );
+
+    // assert — the refused write left nothing behind
+    const reread = await repository.findById(id);
+    expect(reread!.version).toBe(before + 1);
+    expect(reread!.files).toHaveLength(2);
+    expect(reread!.documents.length).toBe(first!.documents.length);
   });
 });

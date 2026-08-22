@@ -1,52 +1,40 @@
-export {
-  DocumentAlreadyClassifiedException,
-  DocumentNotClassifiedException,
-  InvalidConfidenceException,
-  InvalidDocumentTypeException,
-  InvalidFieldKeyException,
-  InvalidFieldValueException,
-  UnclassifiableDocumentException,
-} from './document.exceptions.js';
-export {
-  CrossCheckMustCompareTwoDocumentsException,
-  CrossCheckNotInProfileException,
-  InvalidCrossCheckKeyException,
-  InvalidCrossCheckVerdictException,
-} from './cross-check.exceptions.js';
-export {
-  DocumentTypeNotInProfileException,
-  FieldNotInSchemaException,
-  UnknownProfileException,
-} from './profile.exceptions.js';
-export {
-  InvalidIssueKindException,
-  InvalidReportStatusException,
-} from './report.exceptions.js';
-export {
-  DocumentsMustCoverEverySheetException,
-  DuplicatePageNumberException,
-  FileTooLargeException,
-  InvalidFileSizeException,
-  InvalidFilenameException,
-  InvalidPageNumberException,
-  InvalidPageRangeException,
-  InvalidStorageKeyException,
-  PageAlreadyRecognisedException,
-  PageNotInSourceFileException,
-  SourceFileAlreadySegmentedException,
-  SourceFileAlreadySplitException,
-  SourceFileMustHaveADocumentException,
-  SourceFileMustHaveAPageException,
-  SourceFileNotSplitException,
-  UnsupportedContentTypeException,
-} from './source-file.exceptions.js';
-export {
-  DocumentNotInPackageException,
-  DuplicateStorageKeyException,
-  InvalidPackageStatusException,
-  PackageAlreadyFinishedException,
-  PackageMustHaveAFileException,
-  PackageNotStartableException,
-  PackageNotUnderWayException,
-  SourceFileNotInPackageException,
-} from './verification-package.exceptions.js';
+export { CrossCheckMustCompareTwoDocumentsException } from './cross-check-must-compare-two-documents.exception.js';
+export { CrossCheckNotInProfileException } from './cross-check-not-in-profile.exception.js';
+export { DocumentAlreadyClassifiedException } from './document-already-classified.exception.js';
+export { DocumentNotClassifiedException } from './document-not-classified.exception.js';
+export { DocumentNotInPackageException } from './document-not-in-package.exception.js';
+export { DocumentTypeNotInProfileException } from './document-type-not-in-profile.exception.js';
+export { DocumentsMustCoverEverySheetException } from './documents-must-cover-every-sheet.exception.js';
+export { DuplicatePageNumberException } from './duplicate-page-number.exception.js';
+export { DuplicateStorageKeyException } from './duplicate-storage-key.exception.js';
+export { FieldNotInSchemaException } from './field-not-in-schema.exception.js';
+export { FileTooLargeException } from './file-too-large.exception.js';
+export { InvalidConfidenceException } from './invalid-confidence.exception.js';
+export { InvalidCrossCheckKeyException } from './invalid-cross-check-key.exception.js';
+export { InvalidCrossCheckVerdictException } from './invalid-cross-check-verdict.exception.js';
+export { InvalidDocumentTypeException } from './invalid-document-type.exception.js';
+export { InvalidFieldKeyException } from './invalid-field-key.exception.js';
+export { InvalidFieldValueException } from './invalid-field-value.exception.js';
+export { InvalidFileSizeException } from './invalid-file-size.exception.js';
+export { InvalidFilenameException } from './invalid-filename.exception.js';
+export { InvalidIssueKindException } from './invalid-issue-kind.exception.js';
+export { InvalidPackageStatusException } from './invalid-package-status.exception.js';
+export { InvalidPageNumberException } from './invalid-page-number.exception.js';
+export { InvalidPageRangeException } from './invalid-page-range.exception.js';
+export { InvalidReportStatusException } from './invalid-report-status.exception.js';
+export { InvalidStorageKeyException } from './invalid-storage-key.exception.js';
+export { PackageAlreadyFinishedException } from './package-already-finished.exception.js';
+export { PackageMustHaveAFileException } from './package-must-have-a-file.exception.js';
+export { PackageNotStartableException } from './package-not-startable.exception.js';
+export { PackageNotUnderWayException } from './package-not-under-way.exception.js';
+export { PageAlreadyRecognisedException } from './page-already-recognised.exception.js';
+export { PageNotInSourceFileException } from './page-not-in-source-file.exception.js';
+export { SourceFileAlreadySegmentedException } from './source-file-already-segmented.exception.js';
+export { SourceFileAlreadySplitException } from './source-file-already-split.exception.js';
+export { SourceFileMustHaveADocumentException } from './source-file-must-have-a-document.exception.js';
+export { SourceFileMustHaveAPageException } from './source-file-must-have-a-page.exception.js';
+export { SourceFileNotInPackageException } from './source-file-not-in-package.exception.js';
+export { SourceFileNotSplitException } from './source-file-not-split.exception.js';
+export { UnclassifiableDocumentException } from './unclassifiable-document.exception.js';
+export { UnknownProfileException } from './unknown-profile.exception.js';
+export { UnsupportedContentTypeException } from './unsupported-content-type.exception.js';

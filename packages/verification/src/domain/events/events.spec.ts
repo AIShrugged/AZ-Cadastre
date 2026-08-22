@@ -24,7 +24,7 @@ import {
   VerificationCompleted,
   VerificationFailed,
   VerificationStarted,
-} from './verification-package.events.js';
+} from './index.js';
 
 let sequence = 0;
 

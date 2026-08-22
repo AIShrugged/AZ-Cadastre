@@ -9,7 +9,12 @@ export { FieldKey, FieldValue } from './field.vo.js';
 export { FieldSchema, FieldSpec } from './field-schema.vo.js';
 export { FileSize } from './file-size.vo.js';
 export { Filename } from './filename.vo.js';
-export { DocumentId, PackageId, PageId, SourceFileId } from './ids.vo.js';
+export {
+  DocumentId,
+  PackageId,
+  PageId,
+  SourceFileId,
+} from './entity-ids/index.js';
 export { IssueKind } from './issue-kind.vo.js';
 export { OcrResult } from './ocr-result.vo.js';
 export { PackageStatus } from './package-status.vo.js';

@@ -6,8 +6,8 @@ import {
 import type { Confidence } from './confidence.vo.js';
 import type { CrossCheckVerdict } from './cross-check-verdict.vo.js';
 import type { DocumentType } from './document-type.vo.js';
+import type { DocumentId } from './entity-ids/index.js';
 import type { FieldKey, FieldValue } from './field.vo.js';
-import type { DocumentId } from './ids.vo.js';
 import type { PageNumber } from './page-number.vo.js';
 
 export class CrossCheckKey {

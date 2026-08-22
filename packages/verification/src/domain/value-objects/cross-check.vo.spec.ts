@@ -9,8 +9,8 @@ import { Confidence } from './confidence.vo.js';
 import { CrossCheckVerdict } from './cross-check-verdict.vo.js';
 import { CheckedValue, CrossCheck, CrossCheckKey } from './cross-check.vo.js';
 import { DocumentType } from './document-type.vo.js';
+import { DocumentId } from './entity-ids/index.js';
 import { FieldKey, FieldValue } from './field.vo.js';
-import { DocumentId } from './ids.vo.js';
 import { PageNumber } from './page-number.vo.js';
 
 const CARD = '0190a1b2-c3d4-7e5f-8a9b-000000000001';

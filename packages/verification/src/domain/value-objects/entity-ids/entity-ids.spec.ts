@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { EntityId } from '@cadastre/shared';
 
-import { DocumentId, PackageId, PageId } from './ids.vo.js';
+import { DocumentId, PackageId, PageId } from './index.js';
 
 let sequence = 0;
 

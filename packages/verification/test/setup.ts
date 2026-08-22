@@ -1,14 +1,14 @@
 /*
- * First, before anything imports a decorated class.
+ * Loaded before any spec, so that reflect-metadata is in place before the first
+ * decorated class is defined.
  *
- * TypeScript's emitted `__metadata` helper checks
- * `typeof Reflect.metadata === 'function'` and SILENTLY does nothing when it is
- * not. A class defined before reflect-metadata loads therefore carries no
- * `design:paramtypes` at all, and Nest injects `undefined` for every constructor
- * parameter that has no explicit `@Inject`. Nothing in the container's output
- * says so: the handler builds, and the dependency is undefined at call time.
- *
- * The application gets this for free — `main.ts` is the first thing loaded and
- * pulls @nestjs/core, which imports reflect-metadata. A test file does not.
+ * It is not strictly required today — every integration spec reaches @nestjs/*
+ * through the harness, and Nest imports reflect-metadata itself — but that is an
+ * accident of import order, not a guarantee. TypeScript's emitted `__metadata`
+ * helper checks `typeof Reflect.metadata === 'function'` and SILENTLY does
+ * nothing when it is not there yet: a spec that imports a decorated class before
+ * anything pulls Nest would leave that class with no `design:paramtypes`, and
+ * the container would inject `undefined` without a word. One line here makes the
+ * order irrelevant.
  */
 import 'reflect-metadata';

@@ -40,8 +40,8 @@ catalogs:
   # is wrong is whichever you did not run last.
   tooling:
     typescript: 7.0.2
-    vitest: ^3.2.4
-    '@vitest/coverage-v8': ^3.2.4
+    vitest: ^4.1.10
+    '@vitest/coverage-v8': ^4.1.10
 
 # Nest 12 is not out, so its own packages and every package built for Nest 11
 # still declare `^11.0.0` peers that `12.0.0-alpha.5` cannot satisfy. The
@@ -73,6 +73,7 @@ allowBuilds:
   esbuild: true
   nx: true
   oxlint: true
+  # nx's own optional native parser, not ours.
   '@swc/core': true
   # testcontainers pulls these in for its docker transport. Their build scripts
   # compile native speed-ups we never reach: the integration set talks to a

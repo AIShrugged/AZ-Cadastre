@@ -1,4 +1,3 @@
-import swc from 'unplugin-swc';
 import { defineConfig } from 'vitest/config';
 
 /**
@@ -7,16 +6,6 @@ import { defineConfig } from 'vitest/config';
  * would make every run pay for docker.
  */
 export default defineConfig({
-  /*
-   * The context is wired by Nest, and Nest reads `design:paramtypes` — which
-   * vitest's own esbuild transform does not emit, because esbuild has never
-   * implemented emitDecoratorMetadata. Under esbuild every constructor
-   * parameter without an explicit @Inject resolves to `undefined`, the module
-   * still builds, and the failure only shows up as a dependency that is missing
-   * at call time. swc emits the metadata, so the container here behaves as it
-   * does in the running application.
-   */
-  plugins: [swc.vite({ module: { type: 'es6' } })],
   test: {
     environment: 'node',
     // See test/setup.ts — it must load before any decorated class.

@@ -56,14 +56,12 @@
   },
   "devDependencies": {
     "@nestjs/testing": "catalog:nestjs12",
-    "@swc/core": "^1.16.1",
     "@testcontainers/postgresql": "^12.1.0",
     "@types/pg": "^8.20.0",
     "@vitest/coverage-v8": "catalog:tooling",
     "prisma": "^7.9.0",
     "reflect-metadata": "^0.2.2",
     "testcontainers": "^12.1.0",
-    "unplugin-swc": "^1.5.11",
     "vitest": "catalog:tooling"
   }
 }

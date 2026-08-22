@@ -75,6 +75,14 @@ and it is the right price.
 drives a browser — the third and fourth sets of `reference/testing.md` do not
 exist. `TECH_DEBT.md` entry 3 says how that fires.
 
+**A trap the test runner set.** Nest resolves constructor parameters from
+`design:paramtypes`, and vitest 3 transformed TypeScript with esbuild, which does
+not emit it — so under the test runner every implicit injection was `undefined`
+while the module still built. It was worked around with a swc transform, and
+removed again when vitest 4 arrived on rolldown, which emits the metadata. The
+decision that outlives both is point 4: an explicit `@Inject` does not care which
+transform is in use.
+
 **A trap this created.** Composite builds mean `tsc` trusts
 `tsconfig.build.tsbuildinfo`. Deleting `build/` without it produces a silent
 no-emit. nx caches the two together; a hand-clean must remove both. Written up in

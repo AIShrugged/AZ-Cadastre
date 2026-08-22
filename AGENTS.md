@@ -58,33 +58,38 @@ neither of which is in git.
 Each of these cost real time. The symptom is what you will see; the cause is why.
 
 **A Nest dependency is `undefined` at call time, and the container said nothing.**
-_2026-08-22._ vitest transforms TypeScript with esbuild, and esbuild has never
-implemented `emitDecoratorMetadata`. Under the test runner no class carries
-`design:paramtypes`, so Nest resolves every constructor parameter without an
-explicit `@Inject` to `undefined` — and the module still builds. The failure
-surfaces much later, as a handler calling a method on nothing. Two defences, and
-both are in place: the integration set transforms with swc
-(`vitest.integration.config.ts`), and every parameter typed by an abstract port
-carries `@Inject(Port)`. Add the decorator on new ports too; it is not optional
-(application.md), and it is what makes the wiring independent of a compiler flag.
-The same helper is why `test/setup.ts` imports `reflect-metadata` first:
-TypeScript's `__metadata` checks `typeof Reflect.metadata === 'function'` and
-_silently does nothing_ when it is not there yet.
+_2026-08-22._ Nest resolves constructor parameters from `design:paramtypes`,
+which the compiler only emits under `emitDecoratorMetadata` — and a test runner
+that transforms TypeScript itself may not honour it. vitest 3 transformed with
+esbuild, which has never implemented it: every parameter without an explicit
+`@Inject` resolved to `undefined`, the module still built, and the failure
+surfaced much later as a handler calling a method on nothing.
 
-**`Cannot find module '@cadastre/shared'` right after a clean.** _2026-08-22._
-The packages build in `composite` mode, so `tsc` trusts
-`tsconfig.build.tsbuildinfo` for its up-to-date check. Delete `build/` and leave
-the fingerprint and `tsc` concludes there is nothing to emit — the next package
-then cannot find the `.d.ts` and nothing says why. They are one artefact. If you
-clean by hand, remove both; nx caches them together (`nx.json`), so
-`pnpm build` after a cache restore is safe.
+vitest 4 transforms with rolldown, whose oxc transform does emit it, so the trap
+is closed for now — but the defence that does not depend on the toolchain is the
+decorator: every parameter typed by an abstract port carries `@Inject(Port)`.
+application.md calls it mandatory. Write it on new ports too. If you ever change
+the test transform, the check is one spec asserting
+`Reflect.getMetadata('design:paramtypes', SomeHandler)` is defined.
 
-**A test asserts on a fresh package and passes only sometimes.** _2026-08-22._
-Submitting a package raises `PackageSubmitted`, and the context reacts by
-starting the verification run — fire and forget, because the pipeline outlives
-the request that asked for it. A test that reads the package straight after
-creating it is racing the context. Use `waitForTerminalStatus` from
-`packages/verification/test/context-harness.ts`.
+**`Nest can't resolve dependencies of X (?)` — and the missing argument is a
+Nest class that plainly exists.** _2026-08-22._ Two copies of a @nestjs package
+in the store. pnpm keys a package directory by its resolved peer set, so one
+workspace package can end up on a different physical copy of @nestjs/cqrs than
+its neighbour — same version, same class name, different class identity — and
+Nest cannot match a token against a class from the other copy. The error names
+the class, which is what makes it confusing: the metadata is fine, the identity
+is not.
+
+Diagnose it in one line:
+
+```bash
+readlink -f {packages,libs,apps}/*/node_modules/@nestjs/cqrs | sort -u
+```
+
+More than one answer is the bug. `pnpm dedupe` collapses them and writes the
+result to the lockfile, where it survives a clean install. Check it after any
+dependency change that touches a package depending on Nest.
 
 **`pnpm typecheck` fails on a fresh clone with "Cannot find module
 @cadastre/shared".** _2026-08-22._ Typecheck is not a standalone check here:

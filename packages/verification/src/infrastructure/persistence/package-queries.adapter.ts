@@ -127,7 +127,7 @@ type DetailReportRow = {
 };
 
 @Injectable()
-export class PrismaPackageQueries extends PackageQueries {
+export class PackageQueriesAdapter extends PackageQueries {
   constructor(private readonly prisma: VerificationPrismaService) {
     super();
   }
@@ -138,7 +138,7 @@ export class PrismaPackageQueries extends PackageQueries {
       select: SUMMARY_COLUMNS,
     });
 
-    return rows.map(row => PrismaPackageQueries.toSummary(row));
+    return rows.map(row => PackageQueriesAdapter.toSummary(row));
   }
 
   async findSummary(id: PackageId): Promise<PackageSummaryView | null> {
@@ -149,7 +149,7 @@ export class PrismaPackageQueries extends PackageQueries {
       select: SUMMARY_COLUMNS,
     });
 
-    return row ? PrismaPackageQueries.toSummary(row) : null;
+    return row ? PackageQueriesAdapter.toSummary(row) : null;
   }
 
   async findDetail(id: PackageId): Promise<PackageDetailView | null> {
@@ -202,10 +202,10 @@ export class PrismaPackageQueries extends PackageQueries {
     if (!row) return null;
 
     return {
-      ...PrismaPackageQueries.toSummary(row),
-      report: PrismaPackageQueries.toReport(row.report),
+      ...PackageQueriesAdapter.toSummary(row),
+      report: PackageQueriesAdapter.toReport(row.report),
       crossChecks: row.crossChecks.map(check =>
-        PrismaPackageQueries.toCrossCheck(check),
+        PackageQueriesAdapter.toCrossCheck(check),
       ),
       files: row.sourceFiles.map(file => ({
         id: file.id,

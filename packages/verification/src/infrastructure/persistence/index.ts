@@ -1,5 +1,5 @@
-export { PrismaPackageQueries } from './package-queries.adapter.js';
-export { PrismaVerificationPackageRepository } from './verification-package.repository.js';
+export { PackageQueriesAdapter } from './package-queries.adapter.js';
+export { VerificationPackageRepositoryAdapter } from './verification-package-repository.adapter.js';
 export {
   VerificationPackageMapper,
   type DocumentRow,

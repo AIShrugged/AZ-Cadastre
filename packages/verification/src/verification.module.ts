@@ -48,8 +48,8 @@ import {
 } from './infrastructure/adapters/index.js';
 import { UuidIdGenerator } from './infrastructure/identity/index.js';
 import {
-  PrismaPackageQueries,
-  PrismaVerificationPackageRepository,
+  PackageQueriesAdapter,
+  VerificationPackageRepositoryAdapter,
   VerificationPrismaService,
 } from './infrastructure/persistence/index.js';
 import {
@@ -82,9 +82,9 @@ const providers: Provider[] = [
   { provide: DomainEventPublisher, useClass: CqrsDomainEventPublisher },
   {
     provide: VerificationPackageRepository,
-    useClass: PrismaVerificationPackageRepository,
+    useClass: VerificationPackageRepositoryAdapter,
   },
-  { provide: PackageQueries, useClass: PrismaPackageQueries },
+  { provide: PackageQueries, useClass: PackageQueriesAdapter },
   { provide: IdGenerator, useClass: UuidIdGenerator },
   { provide: ObjectStorage, useClass: ObjectStorageAdapter },
   { provide: PdfSplitter, useClass: PdfSplitterAdapter },

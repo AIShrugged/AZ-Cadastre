@@ -43,7 +43,7 @@ const WHOLE_AGGREGATE = {
 } as const satisfies Prisma.VerificationPackageInclude;
 
 @Injectable()
-export class PrismaVerificationPackageRepository extends VerificationPackageRepository {
+export class VerificationPackageRepositoryAdapter extends VerificationPackageRepository {
   constructor(
     private readonly prisma: VerificationPrismaService,
     private readonly events: DomainEventPublisher,

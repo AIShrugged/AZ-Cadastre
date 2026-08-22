@@ -11,6 +11,6 @@ import type {
  */
 export interface PackagesApi {
   create(request: CreatePackageRequest): Promise<PackageDto>;
-  list(): Promise<PackageDto[]>;
+  findMany(): Promise<PackageDto[]>;
   findOne(id: string): Promise<PackageDetailDto>;
 }

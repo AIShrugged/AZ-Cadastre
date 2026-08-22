@@ -22,7 +22,7 @@ export class PackagesController {
 
   @Get()
   async list(): Promise<PackageDto[]> {
-    return this.verification.packages.list();
+    return this.verification.packages.findMany();
   }
 
   @Get(':id')

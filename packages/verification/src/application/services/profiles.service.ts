@@ -13,7 +13,7 @@ import { toProfileDto } from '../use-cases/profiles/index.js';
 export class ProfilesService implements ProfilesApi {
   constructor(private readonly queries: QueryBus) {}
 
-  async list(): Promise<ProfileDto[]> {
+  async findMany(): Promise<ProfileDto[]> {
     const profiles = await this.queries.execute(new ListProfilesQuery());
 
     return profiles.map(toProfileDto);

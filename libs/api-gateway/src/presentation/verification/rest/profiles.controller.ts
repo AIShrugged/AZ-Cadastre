@@ -10,6 +10,6 @@ export class ProfilesController {
 
   @Get()
   async list(): Promise<ProfileDto[]> {
-    return this.verification.profiles.list();
+    return this.verification.profiles.findMany();
   }
 }

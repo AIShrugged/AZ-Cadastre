@@ -37,7 +37,7 @@ export class PackagesService implements PackagesApi {
     );
   }
 
-  async list(): Promise<PackageDto[]> {
+  async findMany(): Promise<PackageDto[]> {
     const summaries = await this.queries.execute(new ListPackagesQuery());
 
     return summaries.map(toSummaryDto);

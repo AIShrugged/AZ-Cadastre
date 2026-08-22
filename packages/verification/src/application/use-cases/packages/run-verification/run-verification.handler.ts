@@ -1,12 +1,12 @@
 import { Logger } from '@nestjs/common';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 
-import type { VerificationPackage } from '../../../domain/aggregates/index.js';
+import type { VerificationPackage } from '../../../../domain/aggregates/index.js';
 import {
   Document,
   Page,
   type SourceFile,
-} from '../../../domain/entities/index.js';
+} from '../../../../domain/entities/index.js';
 import {
   Confidence,
   CrossCheck,
@@ -20,8 +20,8 @@ import {
   type PageRange,
   type SourceFileId,
   type VerificationProfile,
-} from '../../../domain/value-objects/index.js';
-import { PackageNotFoundException } from '../../exceptions/index.js';
+} from '../../../../domain/value-objects/index.js';
+import { PackageNotFoundException } from '../../../exceptions/index.js';
 import {
   CrossChecker,
   DocumentClassifier,
@@ -31,7 +31,7 @@ import {
   OcrProvider,
   PdfSplitter,
   VerificationPackageRepository,
-} from '../../ports/outbound/index.js';
+} from '../../../ports/outbound/index.js';
 
 import { RunVerificationCommand } from './run-verification.command.js';
 

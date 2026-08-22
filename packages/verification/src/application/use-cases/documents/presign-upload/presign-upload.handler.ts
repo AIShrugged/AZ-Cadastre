@@ -4,11 +4,11 @@ import {
   ContentType,
   Filename,
   FileSize,
-} from '../../../domain/value-objects/index.js';
+} from '../../../../domain/value-objects/index.js';
 import {
   ObjectStorage,
   type PresignedUpload,
-} from '../../ports/outbound/index.js';
+} from '../../../ports/outbound/index.js';
 
 import { PresignUploadCommand } from './presign-upload.command.js';
 

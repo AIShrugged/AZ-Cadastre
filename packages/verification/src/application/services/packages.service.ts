@@ -14,12 +14,11 @@ import {
   GetPackageSummaryQuery,
   ListPackagesQuery,
 } from '../use-cases/index.js';
-
-import { toDetailDto, toSummaryDto } from './package.presenter.js';
+import { toDetailDto, toSummaryDto } from '../use-cases/packages/index.js';
 
 /**
  * Implements the contract's packages slice and does nothing else: one dispatch
- * to a use case, one presenter call. No rule lives here.
+ * to a use case, one mapper call. No rule lives here.
  */
 @Injectable()
 export class PackagesService implements PackagesApi {

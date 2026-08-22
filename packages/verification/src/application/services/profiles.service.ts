@@ -7,8 +7,7 @@ import type {
 } from '@cadastre/api-contracts/verification';
 
 import { ListProfilesQuery } from '../use-cases/index.js';
-
-import { toProfileDto } from './profile.presenter.js';
+import { toProfileDto } from '../use-cases/profiles/index.js';
 
 @Injectable()
 export class ProfilesService implements ProfilesApi {

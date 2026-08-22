@@ -1,7 +1,7 @@
 import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
 
-import { VerificationProfile } from '../../../domain/value-objects/index.js';
-import type { ProfileView } from '../../read-models/index.js';
+import { VerificationProfile } from '../../../../domain/value-objects/index.js';
+import type { ProfileView } from '../../../read-models/index.js';
 
 import { ListProfilesQuery } from './list-profiles.query.js';
 

@@ -1,10 +1,16 @@
 import { Logger } from '@nestjs/common';
 import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
 
-import { PackageId, StorageKey } from '../../../domain/value-objects/index.js';
-import { PackageNotFoundException } from '../../exceptions/index.js';
-import { ObjectStorage, PackageQueries } from '../../ports/outbound/index.js';
-import type { PackageDetailView } from '../../read-models/index.js';
+import {
+  PackageId,
+  StorageKey,
+} from '../../../../domain/value-objects/index.js';
+import { PackageNotFoundException } from '../../../exceptions/index.js';
+import {
+  ObjectStorage,
+  PackageQueries,
+} from '../../../ports/outbound/index.js';
+import type { PackageDetailView } from '../../../read-models/index.js';
 
 import { GetPackageQuery } from './get-package.query.js';
 

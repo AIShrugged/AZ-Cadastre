@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import { ProfileDtoSchema } from '@cadastre/api-contracts/verification';
 
-import type { ProfileView } from '../read-models/index.js';
+import type { ProfileView } from '../../read-models/index.js';
 
-import { toProfileDto } from './profile.presenter.js';
+import { toProfileDto } from './profile.mapper.js';
 
 function aProfileView(overrides: Partial<ProfileView> = {}): ProfileView {
   return {

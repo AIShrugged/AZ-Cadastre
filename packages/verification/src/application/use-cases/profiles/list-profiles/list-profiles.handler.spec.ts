@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { VerificationProfile } from '../../../domain/value-objects/index.js';
+import { VerificationProfile } from '../../../../domain/value-objects/index.js';
 
 import { ListProfilesHandler } from './list-profiles.handler.js';
 

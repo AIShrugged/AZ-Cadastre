@@ -23,7 +23,14 @@
       {
         "patterns": [
           {
-            "group": ["**/packages/**", "**/libs/**", "**/apps/**"],
+            "group": [
+              "**/../packages/**",
+              "**/../libs/**",
+              "**/../apps/**",
+              "../packages/**",
+              "../libs/**",
+              "../apps/**"
+            ],
             "message": "Import across projects by package name (@cadastre/x), never by a relative path: a relative path escaping its project is invisible to the boundary rules below, which match on package names (ADR-0006)."
           }
         ]
@@ -49,7 +56,14 @@
                 "message": "A context (type:context) and the edge (type:edge) may depend only on the published language (@cadastre/api-contracts), the shared kernel (@cadastre/shared) and technical adapters (@cadastre/event-publisher). The way out is the contracts package: route cross-context traffic through it, never through another context's internals (ADR-0006)."
               },
               {
-                "group": ["**/packages/**", "**/libs/**", "**/apps/**"],
+                "group": [
+                  "**/../packages/**",
+                  "**/../libs/**",
+                  "**/../apps/**",
+                  "../packages/**",
+                  "../libs/**",
+                  "../apps/**"
+                ],
                 "message": "Import across projects by package name (@cadastre/x), never by a relative path: a relative path escaping its project is invisible to the boundary rules below, which match on package names (ADR-0006)."
               }
             ]
@@ -69,7 +83,14 @@
                 "message": "Contracts (type:contracts) and technical adapters (type:adapter) may depend only on the shared kernel (@cadastre/shared). The way out is to move what you need into the kernel if its meaning is identical everywhere, or to leave it with its owner if it is not (ADR-0006)."
               },
               {
-                "group": ["**/packages/**", "**/libs/**", "**/apps/**"],
+                "group": [
+                  "**/../packages/**",
+                  "**/../libs/**",
+                  "**/../apps/**",
+                  "../packages/**",
+                  "../libs/**",
+                  "../apps/**"
+                ],
                 "message": "Import across projects by package name (@cadastre/x), never by a relative path: a relative path escaping its project is invisible to the boundary rules below, which match on package names (ADR-0006)."
               }
             ]
@@ -89,7 +110,14 @@
                 "message": "The shared kernel (type:kernel) is the bottom of the stack and depends on nothing in the workspace. The way out is to leave the concept with the context that owns it: if only one context needs it, it is not kernel (ADR-0006)."
               },
               {
-                "group": ["**/packages/**", "**/libs/**", "**/apps/**"],
+                "group": [
+                  "**/../packages/**",
+                  "**/../libs/**",
+                  "**/../apps/**",
+                  "../packages/**",
+                  "../libs/**",
+                  "../apps/**"
+                ],
                 "message": "Import across projects by package name (@cadastre/x), never by a relative path: a relative path escaping its project is invisible to the boundary rules below, which match on package names (ADR-0006)."
               }
             ]
@@ -127,7 +155,14 @@
                 "message": "A context (type:context) may depend only on the published language (@cadastre/api-contracts) and the shared kernel (@cadastre/shared); the domain layer normally needs neither (ADR-0006)."
               },
               {
-                "group": ["**/packages/**", "**/libs/**", "**/apps/**"],
+                "group": [
+                  "**/../packages/**",
+                  "**/../libs/**",
+                  "**/../apps/**",
+                  "../packages/**",
+                  "../libs/**",
+                  "../apps/**"
+                ],
                 "message": "Import across projects by package name (@cadastre/x), never by a relative path: a relative path escaping its project is invisible to the boundary rules below, which match on package names (ADR-0006)."
               }
             ]
@@ -157,7 +192,14 @@
                 "message": "A context (type:context) may depend only on the published language (@cadastre/api-contracts), the shared kernel (@cadastre/shared) and technical adapters (@cadastre/event-publisher) (ADR-0006)."
               },
               {
-                "group": ["**/packages/**", "**/libs/**", "**/apps/**"],
+                "group": [
+                  "**/../packages/**",
+                  "**/../libs/**",
+                  "**/../apps/**",
+                  "../packages/**",
+                  "../libs/**",
+                  "../apps/**"
+                ],
                 "message": "Import across projects by package name (@cadastre/x), never by a relative path: a relative path escaping its project is invisible to the boundary rules below, which match on package names (ADR-0006)."
               }
             ]

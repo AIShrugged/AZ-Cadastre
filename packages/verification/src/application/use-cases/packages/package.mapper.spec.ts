@@ -12,9 +12,9 @@ import type {
   PackageSummaryView,
   ReportView,
   SourceFileView,
-} from '../read-models/index.js';
+} from '../../read-models/index.js';
 
-import { toDetailDto, toSummaryDto } from './package.presenter.js';
+import { toDetailDto, toSummaryDto } from './package.mapper.js';
 
 let sequence = 0;
 

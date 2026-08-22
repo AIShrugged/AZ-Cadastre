@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { VerificationPackage } from '../../../domain/aggregates/index.js';
+import { VerificationPackage } from '../../../../domain/aggregates/index.js';
 import {
   ExtractedField,
   SourceFile,
   type Document,
-} from '../../../domain/entities/index.js';
-import { PackageNotStartableException } from '../../../domain/exceptions/index.js';
+} from '../../../../domain/entities/index.js';
+import { PackageNotStartableException } from '../../../../domain/exceptions/index.js';
 import {
   Classification,
   Confidence,
@@ -27,7 +27,7 @@ import {
   SourceFileId,
   StorageKey,
   VerificationProfile,
-} from '../../../domain/value-objects/index.js';
+} from '../../../../domain/value-objects/index.js';
 import {
   CrossChecker,
   DocumentClassifier,
@@ -44,7 +44,7 @@ import {
   type PdfSplitRequest,
   type SegmentationRequest,
   type SplitPage,
-} from '../../ports/outbound/index.js';
+} from '../../../ports/outbound/index.js';
 
 import { RunVerificationCommand } from './run-verification.command.js';
 import { RunVerificationHandler } from './run-verification.handler.js';

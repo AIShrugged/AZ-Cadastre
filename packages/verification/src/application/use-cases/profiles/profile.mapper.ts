@@ -1,6 +1,6 @@
 import type { ProfileDto } from '@cadastre/api-contracts/verification';
 
-import type { ProfileView } from '../read-models/index.js';
+import type { ProfileView } from '../../read-models/index.js';
 
 export function toProfileDto(view: ProfileView): ProfileDto {
   return {

@@ -14,7 +14,7 @@ import type {
   PackageSummaryView,
   ReportView,
   SourceFileView,
-} from '../read-models/index.js';
+} from '../../read-models/index.js';
 
 export function toSummaryDto(view: PackageSummaryView): PackageDto {
   return {

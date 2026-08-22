@@ -1,4 +1,15 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": ["build", "node_modules", "src/**/*.spec.ts"]
+  "exclude": ["build", "node_modules", "src/**/*.spec.ts"],
+  "compilerOptions": {
+    "composite": true
+  },
+  "references": [
+    {
+      "path": "../../libs/api-gateway/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/verification/tsconfig.build.json"
+    }
+  ]
 }

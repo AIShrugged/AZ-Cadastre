@@ -1,0 +1,24 @@
+{
+  "$comment": "Solution file: it builds nothing itself, it declares the graph. The base compiler options stay in tsconfig.json, which every project extends \u2014 a `references` key there would be inherited by each of them.",
+  "files": [],
+  "references": [
+    {
+      "path": "./libs/shared/tsconfig.build.json"
+    },
+    {
+      "path": "./libs/api-contracts/tsconfig.build.json"
+    },
+    {
+      "path": "./libs/event-publisher/tsconfig.build.json"
+    },
+    {
+      "path": "./libs/api-gateway/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/verification/tsconfig.build.json"
+    },
+    {
+      "path": "./apps/server/tsconfig.build.json"
+    }
+  ]
+}

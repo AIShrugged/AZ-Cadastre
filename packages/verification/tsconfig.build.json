@@ -1,4 +1,18 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": ["build", "node_modules", "src/**/*.spec.ts"]
+  "exclude": ["build", "node_modules", "src/**/*.spec.ts"],
+  "compilerOptions": {
+    "composite": true
+  },
+  "references": [
+    {
+      "path": "../../libs/api-contracts/tsconfig.build.json"
+    },
+    {
+      "path": "../../libs/event-publisher/tsconfig.build.json"
+    },
+    {
+      "path": "../../libs/shared/tsconfig.build.json"
+    }
+  ]
 }

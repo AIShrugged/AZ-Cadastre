@@ -16,3 +16,6 @@ skills-lock.json
 
 # coverage reports
 coverage
+
+# tsc --build fingerprints; they belong with build/, and nx caches them together
+*.tsbuildinfo

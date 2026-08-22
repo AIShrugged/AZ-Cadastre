@@ -1,8 +1,9 @@
 {
   "name": "@cadastre/api-contracts",
   "version": "1.0.0",
-  "description": "The published language: the API interfaces, zod DTO schemas and enums the contexts, the gateway and the web client agree on. Zod and plain TypeScript only \u2014 the browser imports it.",
+  "description": "The published language: the API interfaces, zod DTO schemas and enums the contexts, the gateway and the web client agree on. Zod and plain TypeScript only — the browser imports it.",
   "type": "module",
+  "sideEffects": false,
   "main": "./build/index.js",
   "types": "./build/index.d.ts",
   "exports": {

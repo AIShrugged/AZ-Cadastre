@@ -7,7 +7,6 @@ import {
   type Document,
 } from '../../../domain/entities/index.js';
 import { PackageNotStartableException } from '../../../domain/exceptions/index.js';
-import { VerificationPackageRepository } from '../../../domain/repositories/index.js';
 import {
   Classification,
   Confidence,
@@ -37,6 +36,7 @@ import {
   IdGenerator,
   OcrProvider,
   PdfSplitter,
+  VerificationPackageRepository,
   type ClassificationRequest,
   type CrossCheckAnswer,
   type CrossCheckRequest,

@@ -2,7 +2,6 @@ import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 
 import { VerificationPackage } from '../../../domain/aggregates/index.js';
 import { SourceFile } from '../../../domain/entities/index.js';
-import { VerificationPackageRepository } from '../../../domain/repositories/index.js';
 import {
   ContentType,
   Filename,
@@ -10,7 +9,10 @@ import {
   VerificationProfile,
   type PackageId,
 } from '../../../domain/value-objects/index.js';
-import { IdGenerator } from '../../ports/outbound/index.js';
+import {
+  IdGenerator,
+  VerificationPackageRepository,
+} from '../../ports/outbound/index.js';
 
 import { CreatePackageCommand } from './create-package.command.js';
 

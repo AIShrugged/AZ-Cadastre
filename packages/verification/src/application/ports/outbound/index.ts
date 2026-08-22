@@ -33,3 +33,4 @@ export {
   type PdfSplitRequest,
   type SplitPage,
 } from './pdf-splitter.port.js';
+export { VerificationPackageRepository } from './verification-package-repository.port.js';

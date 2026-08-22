@@ -5,8 +5,8 @@ import {
   DomainEventPublisher,
 } from '@cadastre/shared';
 
+import { VerificationPackageRepository } from '../../application/ports/outbound/index.js';
 import type { VerificationPackage } from '../../domain/aggregates/index.js';
-import { VerificationPackageRepository } from '../../domain/repositories/index.js';
 import type { PackageId } from '../../domain/value-objects/index.js';
 
 import type { Prisma } from './generated/client.js';

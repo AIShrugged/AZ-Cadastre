@@ -7,7 +7,6 @@ import {
   Page,
   type SourceFile,
 } from '../../../domain/entities/index.js';
-import { VerificationPackageRepository } from '../../../domain/repositories/index.js';
 import {
   Confidence,
   CrossCheck,
@@ -31,6 +30,7 @@ import {
   IdGenerator,
   OcrProvider,
   PdfSplitter,
+  VerificationPackageRepository,
 } from '../../ports/outbound/index.js';
 
 import { RunVerificationCommand } from './run-verification.command.js';

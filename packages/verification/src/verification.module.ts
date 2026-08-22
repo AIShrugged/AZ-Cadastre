@@ -15,6 +15,7 @@ import {
   PackageQueries,
   PdfSplitter,
   VerificationApiPort,
+  VerificationPackageRepository,
 } from './application/ports/index.js';
 import {
   DocumentsService,
@@ -31,7 +32,6 @@ import {
   PresignUploadHandler,
   RunVerificationHandler,
 } from './application/use-cases/index.js';
-import { VerificationPackageRepository } from './domain/repositories/index.js';
 import {
   CrossCheckerAdapter,
   DocumentClassifierAdapter,

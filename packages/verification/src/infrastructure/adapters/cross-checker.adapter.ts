@@ -5,13 +5,12 @@ import {
   type CrossCheckAnswer,
   type CrossCheckRequest,
 } from '../../application/ports/outbound/index.js';
+import { looksLikeTheSameValue } from '../../domain/services/index.js';
 import {
   Confidence,
   CrossCheckVerdict,
   type CheckedValue,
 } from '../../domain/value-objects/index.js';
-
-import { looksLikeTheSameValue } from './value-agreement.js';
 
 const AGREED_CONFIDENCE = 0.9;
 const DISAGREED_CONFIDENCE = 0.85;

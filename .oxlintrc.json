@@ -96,6 +96,74 @@
           }
         ]
       }
+    },
+    {
+      "files": ["packages/*/src/domain/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "**/application/**",
+                  "**/infrastructure/**",
+                  "**/presentation/**",
+                  "@nestjs/*",
+                  "@prisma/*",
+                  "openai",
+                  "pdfjs-dist",
+                  "@aws-sdk/*"
+                ],
+                "message": "The domain layer reads without knowing the framework or the ORM: no Nest, no Prisma, and no import from application/, infrastructure/ or presentation/. The way out is to invert it — declare what you need as a port in application/ports and let the use case pass the answer in (ADR-0004)."
+              },
+              {
+                "group": [
+                  "@cadastre/*",
+                  "!@cadastre/api-contracts",
+                  "!@cadastre/api-contracts/*",
+                  "!@cadastre/shared"
+                ],
+                "message": "A context (type:context) may depend only on the published language (@cadastre/api-contracts) and the shared kernel (@cadastre/shared); the domain layer normally needs neither (ADR-0006)."
+              },
+              {
+                "group": ["**/packages/**", "**/libs/**", "**/apps/**"],
+                "message": "Import across projects by package name (@cadastre/x), never by a relative path: a relative path escaping its project is invisible to the boundary rules below, which match on package names (ADR-0006)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["packages/*/src/application/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["**/infrastructure/**", "**/presentation/**"],
+                "message": "The application layer names ports, not adapters: it may not import infrastructure/ or presentation/. The way out is an abstract class in application/ports bound to its adapter in the module (ADR-0004)."
+              },
+              {
+                "group": [
+                  "@cadastre/*",
+                  "!@cadastre/api-contracts",
+                  "!@cadastre/api-contracts/*",
+                  "!@cadastre/shared",
+                  "!@cadastre/event-publisher"
+                ],
+                "message": "A context (type:context) may depend only on the published language (@cadastre/api-contracts), the shared kernel (@cadastre/shared) and technical adapters (@cadastre/event-publisher) (ADR-0006)."
+              },
+              {
+                "group": ["**/packages/**", "**/libs/**", "**/apps/**"],
+                "message": "Import across projects by package name (@cadastre/x), never by a relative path: a relative path escaping its project is invisible to the boundary rules below, which match on package names (ADR-0006)."
+              }
+            ]
+          }
+        ]
+      }
     }
   ]
 }

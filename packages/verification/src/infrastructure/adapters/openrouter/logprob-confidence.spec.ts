@@ -1,7 +1,7 @@
 import type OpenAI from 'openai';
 import { describe, expect, it } from 'vitest';
 
-import { Confidence } from '../../domain/value-objects/index.js';
+import { Confidence } from '../../../domain/value-objects/index.js';
 
 import { confidenceFromLogprobs } from './logprob-confidence.js';
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { looksLikeTheSameValue, tokensOf } from './value-agreement.js';
+import { looksLikeTheSameValue, tokensOf } from './value-agreement.service.js';
 
 describe('tokensOf', () => {
   it('folds the diacritics a scan drops', () => {

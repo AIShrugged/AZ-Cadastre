@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import type { PageRange } from '../../domain/value-objects/index.js';
+import type { PageRange } from '../value-objects/index.js';
 
-import { tileIntoRanges } from './page-range-tiling.js';
+import { tileIntoRanges } from './page-tiling.service.js';
 
 function spans(ranges: readonly PageRange[]): [number, number][] {
   return ranges.map(range => [range.first.value, range.last.value]);

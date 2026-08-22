@@ -4,26 +4,26 @@ import OpenAI from 'openai';
 import {
   ObjectStorage,
   OcrProvider,
-} from '../../application/ports/outbound/index.js';
+} from '../../../application/ports/outbound/index.js';
+import {
+  BLANK_PAGE,
+  legibilityOf,
+  readAsFarAsItGot,
+} from '../../../domain/services/index.js';
 import {
   Confidence,
   OcrResult,
   RecognisedText,
   type PageImage,
-} from '../../domain/value-objects/index.js';
+} from '../../../domain/value-objects/index.js';
 import {
   VERIFICATION_OPTIONS,
   type VerificationModuleOptions,
-} from '../../verification.module-defs.js';
-import { MissingOpenRouterApiKeyException } from '../exceptions/index.js';
+} from '../../../verification.module-defs.js';
+import { MissingOpenRouterApiKeyException } from '../../exceptions/index.js';
 
 import { answerOf } from './answered.js';
 import { confidenceFromLogprobs } from './logprob-confidence.js';
-import {
-  BLANK_PAGE,
-  legibilityOf,
-  readAsFarAsItGot,
-} from './transcription-marks.js';
 
 // A dense A4 sheet of an application form runs to a few thousand tokens once
 // its table is written out; the default cap cuts such a page off mid-row, and a

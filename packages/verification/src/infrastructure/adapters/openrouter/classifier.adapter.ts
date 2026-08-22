@@ -5,18 +5,18 @@ import { z } from 'zod';
 import {
   DocumentClassifier,
   type ClassificationRequest,
-} from '../../application/ports/outbound/index.js';
+} from '../../../application/ports/outbound/index.js';
 import {
   Classification,
   Confidence,
   DocumentType,
   type DocumentTypeSpec,
-} from '../../domain/value-objects/index.js';
+} from '../../../domain/value-objects/index.js';
 import {
   VERIFICATION_OPTIONS,
   type VerificationModuleOptions,
-} from '../../verification.module-defs.js';
-import { MissingOpenRouterApiKeyException } from '../exceptions/index.js';
+} from '../../../verification.module-defs.js';
+import { MissingOpenRouterApiKeyException } from '../../exceptions/index.js';
 
 import { answerOf } from './answered.js';
 import { confidenceFromLogprobs } from './logprob-confidence.js';

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { quotedIn } from './evidence.js';
+import { quotedIn } from './quotation-evidence.service.js';
 
 const CERTIFICATE = [
   'AZƏRBAYCAN RESPUBLİKASI PREZİDENTİNİN İŞLƏR İDARƏSİ',

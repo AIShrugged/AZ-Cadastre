@@ -6,20 +6,19 @@ import {
   DocumentSegmenter,
   type ReadPage,
   type SegmentationRequest,
-} from '../../application/ports/outbound/index.js';
+} from '../../../application/ports/outbound/index.js';
+import { BLANK_PAGE, tileIntoRanges } from '../../../domain/services/index.js';
 import type {
   DocumentTypeSpec,
   PageRange,
-} from '../../domain/value-objects/index.js';
+} from '../../../domain/value-objects/index.js';
 import {
   VERIFICATION_OPTIONS,
   type VerificationModuleOptions,
-} from '../../verification.module-defs.js';
-import { MissingOpenRouterApiKeyException } from '../exceptions/index.js';
+} from '../../../verification.module-defs.js';
+import { MissingOpenRouterApiKeyException } from '../../exceptions/index.js';
 
 import { answerOf } from './answered.js';
-import { tileIntoRanges } from './page-range-tiling.js';
-import { BLANK_PAGE } from './transcription-marks.js';
 
 // Enough of a sheet to tell a title page from a continuation, without paying
 // for the body of a long file twice over.

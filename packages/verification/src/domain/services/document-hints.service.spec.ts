@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   DocumentTypeSpec,
   VerificationProfile,
-} from '../../domain/value-objects/index.js';
+} from '../value-objects/index.js';
 
-import { looksLike } from './hint-matching.js';
+import { looksLike } from './document-hints.service.js';
 
 const CADASTRE = VerificationProfile.CADASTRE.specs;
 

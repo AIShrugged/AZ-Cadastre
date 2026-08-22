@@ -4,12 +4,11 @@ import {
   DocumentClassifier,
   type ClassificationRequest,
 } from '../../application/ports/outbound/index.js';
+import { looksLike } from '../../domain/services/index.js';
 import {
   Classification,
   Confidence,
 } from '../../domain/value-objects/index.js';
-
-import { looksLike } from './hint-matching.js';
 
 const MATCHED_CONFIDENCE = 0.94;
 const UNPLACED_CONFIDENCE = 0.3;

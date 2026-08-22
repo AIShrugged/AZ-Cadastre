@@ -5,7 +5,7 @@ import {
   isBlank,
   legibilityOf,
   readAsFarAsItGot,
-} from './transcription-marks.js';
+} from './transcription-marks.service.js';
 
 describe('isBlank', () => {
   it('recognises the back of a stapled document for what it is', () => {

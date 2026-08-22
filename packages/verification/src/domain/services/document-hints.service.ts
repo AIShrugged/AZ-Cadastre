@@ -1,4 +1,4 @@
-import type { DocumentTypeSpec } from '../../domain/value-objects/index.js';
+import type { DocumentTypeSpec } from '../value-objects/index.js';
 
 // What a profile's own headings can tell you about a page, with no model
 // involved: the type whose heading appears earliest wins, because a document

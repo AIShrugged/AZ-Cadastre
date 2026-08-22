@@ -4,13 +4,11 @@ import {
   DocumentSegmenter,
   type SegmentationRequest,
 } from '../../application/ports/outbound/index.js';
+import { looksLike, tileIntoRanges } from '../../domain/services/index.js';
 import type {
   DocumentTypeSpec,
   PageRange,
 } from '../../domain/value-objects/index.js';
-
-import { looksLike } from './hint-matching.js';
-import { tileIntoRanges } from './page-range-tiling.js';
 
 @Injectable()
 export class DocumentSegmenterAdapter extends DocumentSegmenter {

@@ -33,6 +33,10 @@ pnpm --filter @cadastre/verification db:migrate
 pnpm dev                     # watches every package and starts the server
 ```
 
+`pnpm dev` is `tsc --watch` per package plus `node --watch build/main.js`, wired
+by nx (`dev` depends on `watch`, `watch` depends on `build` and `^watch`). There
+is no Nest CLI: it cannot load TypeScript 7 — see the rakes below.
+
 | Service  | Where                 | Credentials                                 |
 | -------- | --------------------- | ------------------------------------------- |
 | API      | http://localhost:3000 | —                                           |
@@ -88,6 +92,14 @@ applications import the `build/` of a package, not its source (ADR-0006), so
 checking types needs the `.d.ts` of everything below. It is an nx target with
 `dependsOn: ["^build"]` for exactly this reason — run `pnpm typecheck`, not
 `pnpm -r typecheck`, and nx builds what it needs first.
+
+**`nest` anything fails with `tsBinary.getParsedCommandLineOfConfigFile is not a
+function`.** _2026-08-22._ @nestjs/cli builds by calling into the TypeScript
+compiler API, and TypeScript 7 — the native port — does not expose the part it
+reaches for. The CLI is gone and so is `nest-cli.json`; dev is `tsc --watch`
+plus `node --watch`, which is what x-lance-backend does and what nx's `watch`/
+`dev` targets were already shaped for. Do not reintroduce @nestjs/cli to get a
+schematic: it will take the dev loop down with it.
 
 **A gateway change does not take effect.** Applications import the `build/` of a
 package, not its source (ADR-0006). Until `tsc --watch` has run — that is what

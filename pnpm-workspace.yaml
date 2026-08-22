@@ -28,7 +28,6 @@ catalogs:
     '@nestjs/core': 12.0.0-alpha.5
     '@nestjs/platform-express': 12.0.0-alpha.5
     '@nestjs/testing': 12.0.0-alpha.5
-    '@nestjs/cli': 12.0.0-alpha.6
     '@nestjs/config': 12.0.0-next.0
     # No 12 line exists for cqrs — 11.0.3 is its latest, and it is built
     # against Nest 11, which is what the peer rules below are about. Pinned

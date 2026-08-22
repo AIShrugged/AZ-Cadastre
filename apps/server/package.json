@@ -5,7 +5,8 @@
   "type": "module",
   "main": "./build/main.js",
   "scripts": {
-    "dev": "nest start --watch",
+    "dev": "node --watch build/main.js",
+    "watch": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
     "build": "tsc -p tsconfig.build.json",
     "start": "node build/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"
@@ -26,8 +27,5 @@
     "@nestjs/cqrs": "catalog:nestjs12",
     "@nestjs/platform-express": "catalog:nestjs12",
     "zod": "catalog:"
-  },
-  "devDependencies": {
-    "@nestjs/cli": "catalog:nestjs12"
   }
 }

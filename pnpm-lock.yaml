@@ -257,6 +257,44 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+catalogs:
+  default:
+    zod:
+      specifier: ^4.4.3
+      version: 4.4.3
+  nestjs12:
+    '@nestjs/cli':
+      specifier: 12.0.0-alpha.6
+      version: 12.0.0-alpha.6
+    '@nestjs/common':
+      specifier: 12.0.0-alpha.5
+      version: 12.0.0-alpha.5
+    '@nestjs/config':
+      specifier: 12.0.0-next.0
+      version: 12.0.0-next.0
+    '@nestjs/core':
+      specifier: 12.0.0-alpha.5
+      version: 12.0.0-alpha.5
+    '@nestjs/cqrs':
+      specifier: ^11.0.3
+      version: 11.0.3
+    '@nestjs/platform-express':
+      specifier: 12.0.0-alpha.5
+      version: 12.0.0-alpha.5
+    '@nestjs/testing':
+      specifier: 12.0.0-alpha.5
+      version: 12.0.0-alpha.5
+  tooling:
+    '@vitest/coverage-v8':
+      specifier: ^3.2.4
+      version: 3.2.7
+    typescript:
+      specifier: ^6.0.3
+      version: 6.0.3
+    vitest:
+      specifier: ^3.2.4
+      version: 3.2.7
+
 importers:
 
   .:
@@ -268,7 +306,7 @@ importers:
         specifier: ^26.1.1
         version: 26.1.1
       '@vitest/coverage-v8':
-        specifier: ^3.2.4
+        specifier: catalog:tooling
         version: 3.2.7(supports-color@7.2.0)(vitest@3.2.7(@types/node@26.1.1)(jiti@2.7.0)(lightningcss@1.33.0)(supports-color@7.2.0)(yaml@2.9.0))
       husky:
         specifier: ^9.1.7
@@ -286,10 +324,10 @@ importers:
         specifier: ^3.9.6
         version: 3.9.6
       typescript:
-        specifier: ^6.0.3
+        specifier: catalog:tooling
         version: 6.0.3
       vitest:
-        specifier: ^3.2.4
+        specifier: catalog:tooling
         version: 3.2.7(@types/node@26.1.1)(jiti@2.7.0)(lightningcss@1.33.0)(supports-color@7.2.0)(yaml@2.9.0)
 
   apps/server:
@@ -301,26 +339,26 @@ importers:
         specifier: workspace:*
         version: link:../../packages/verification
       '@nestjs/common':
-        specifier: 12.0.0-alpha.5
+        specifier: catalog:nestjs12
         version: 12.0.0-alpha.5(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0)
       '@nestjs/config':
-        specifier: 12.0.0-next.0
+        specifier: catalog:nestjs12
         version: 12.0.0-next.0(@nestjs/common@12.0.0-alpha.5(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(rxjs@7.8.2)
       '@nestjs/core':
-        specifier: 12.0.0-alpha.5
+        specifier: catalog:nestjs12
         version: 12.0.0-alpha.5(@nestjs/common@12.0.0-alpha.5(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@nestjs/platform-express@12.0.0-alpha.5)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/cqrs':
-        specifier: ^11.0.3
+        specifier: catalog:nestjs12
         version: 11.0.3(@nestjs/common@12.0.0-alpha.5(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@nestjs/core@12.0.0-alpha.5)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/platform-express':
-        specifier: 12.0.0-alpha.5
+        specifier: catalog:nestjs12
         version: 12.0.0-alpha.5(@nestjs/common@12.0.0-alpha.5(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@nestjs/core@12.0.0-alpha.5)(supports-color@7.2.0)
       zod:
-        specifier: ^4.4.3
+        specifier: 'catalog:'
         version: 4.4.3
     devDependencies:
       '@nestjs/cli':
-        specifier: 12.0.0-alpha.6
+        specifier: catalog:nestjs12
         version: 12.0.0-alpha.6(@swc/core@1.16.1)(@types/node@26.1.1)(prettier@3.9.6)
 
   apps/web:
@@ -402,7 +440,7 @@ importers:
   libs/api-contracts:
     dependencies:
       zod:
-        specifier: ^4.4.3
+        specifier: 'catalog:'
         version: 4.4.3
 
   libs/api-gateway:
@@ -414,10 +452,10 @@ importers:
         specifier: workspace:*
         version: link:../shared
       '@nestjs/common':
-        specifier: 12.0.0-alpha.5
+        specifier: catalog:nestjs12
         version: 12.0.0-alpha.5(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0)
       '@nestjs/core':
-        specifier: 12.0.0-alpha.5
+        specifier: catalog:nestjs12
         version: 12.0.0-alpha.5(@nestjs/common@12.0.0-alpha.5(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@nestjs/platform-express@12.0.0-alpha.5)(reflect-metadata@0.2.2)(rxjs@7.8.2)
     devDependencies:
       '@types/express':
@@ -430,22 +468,22 @@ importers:
         specifier: workspace:*
         version: link:../shared
       '@nestjs/common':
-        specifier: 12.0.0-alpha.5
+        specifier: catalog:nestjs12
         version: 12.0.0-alpha.5(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0)
       '@nestjs/core':
-        specifier: 12.0.0-alpha.5
+        specifier: catalog:nestjs12
         version: 12.0.0-alpha.5(@nestjs/common@12.0.0-alpha.5(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@nestjs/platform-express@12.0.0-alpha.5)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/cqrs':
-        specifier: ^11.0.3
+        specifier: catalog:nestjs12
         version: 11.0.3(@nestjs/common@12.0.0-alpha.5(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@nestjs/core@12.0.0-alpha.5)(reflect-metadata@0.2.2)(rxjs@7.8.2)
 
   libs/shared:
     devDependencies:
       '@vitest/coverage-v8':
-        specifier: ^3.2.4
+        specifier: catalog:tooling
         version: 3.2.7(supports-color@7.2.0)(vitest@3.2.7(@types/node@26.1.1)(jiti@2.7.0)(lightningcss@1.33.0)(supports-color@7.2.0)(yaml@2.9.0))
       vitest:
-        specifier: ^3.2.4
+        specifier: catalog:tooling
         version: 3.2.7(@types/node@26.1.1)(jiti@2.7.0)(lightningcss@1.33.0)(supports-color@7.2.0)(yaml@2.9.0)
 
   packages/verification:
@@ -469,13 +507,13 @@ importers:
         specifier: ^1.0.3
         version: 1.0.3
       '@nestjs/common':
-        specifier: 12.0.0-alpha.5
+        specifier: catalog:nestjs12
         version: 12.0.0-alpha.5(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0)
       '@nestjs/core':
-        specifier: 12.0.0-alpha.5
+        specifier: catalog:nestjs12
         version: 12.0.0-alpha.5(@nestjs/common@12.0.0-alpha.5(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@nestjs/platform-express@12.0.0-alpha.5)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/cqrs':
-        specifier: ^11.0.3
+        specifier: catalog:nestjs12
         version: 11.0.3(@nestjs/common@12.0.0-alpha.5(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@nestjs/core@12.0.0-alpha.5)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@prisma/adapter-pg':
         specifier: ^7.9.0
@@ -493,11 +531,11 @@ importers:
         specifier: ^8.22.0
         version: 8.22.0
       zod:
-        specifier: ^4.4.3
+        specifier: 'catalog:'
         version: 4.4.3
     devDependencies:
       '@nestjs/testing':
-        specifier: 12.0.0-alpha.5
+        specifier: catalog:nestjs12
         version: 12.0.0-alpha.5(@nestjs/common@12.0.0-alpha.5(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(@nestjs/core@12.0.0-alpha.5(@nestjs/common@12.0.0-alpha.5(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0))(reflect-metadata@0.2.2)(rxjs@7.8.2))
       '@swc/core':
         specifier: ^1.16.1
@@ -509,7 +547,7 @@ importers:
         specifier: ^8.20.0
         version: 8.20.0
       '@vitest/coverage-v8':
-        specifier: ^3.2.4
+        specifier: catalog:tooling
         version: 3.2.7(supports-color@7.2.0)(vitest@3.2.7(@types/node@26.1.1)(jiti@2.7.0)(lightningcss@1.33.0)(supports-color@7.2.0)(yaml@2.9.0))
       prisma:
         specifier: ^7.9.0
@@ -522,9 +560,9 @@ importers:
         version: 12.1.0(supports-color@7.2.0)
       unplugin-swc:
         specifier: ^1.5.11
-        version: 1.5.11(@swc/core@1.16.1)(esbuild@0.28.1)(rolldown@1.1.5)(rollup@4.62.3)(vite@7.3.6(@types/node@26.1.1)(jiti@2.7.0)(lightningcss@1.33.0)(yaml@2.9.0))
+        version: 1.5.11(@swc/core@1.16.1)(esbuild@0.28.1)(rolldown@1.1.5)(rollup@4.62.3)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
       vitest:
-        specifier: ^3.2.4
+        specifier: catalog:tooling
         version: 3.2.7(@types/node@26.1.1)(jiti@2.7.0)(lightningcss@1.33.0)(supports-color@7.2.0)(yaml@2.9.0)
 
 packages:
@@ -9990,12 +10028,12 @@ snapshots:
 
   unpipe@1.0.0: {}
 
-  unplugin-swc@1.5.11(@swc/core@1.16.1)(esbuild@0.28.1)(rolldown@1.1.5)(rollup@4.62.3)(vite@7.3.6(@types/node@26.1.1)(jiti@2.7.0)(lightningcss@1.33.0)(yaml@2.9.0)):
+  unplugin-swc@1.5.11(@swc/core@1.16.1)(esbuild@0.28.1)(rolldown@1.1.5)(rollup@4.62.3)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)):
     dependencies:
       '@rollup/pluginutils': 5.4.0(rollup@4.62.3)
       '@swc/core': 1.16.1
       load-tsconfig: 0.2.5
-      unplugin: 3.3.0(esbuild@0.28.1)(rolldown@1.1.5)(rollup@4.62.3)(vite@7.3.6(@types/node@26.1.1)(jiti@2.7.0)(lightningcss@1.33.0)(yaml@2.9.0))
+      unplugin: 3.3.0(esbuild@0.28.1)(rolldown@1.1.5)(rollup@4.62.3)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
     transitivePeerDependencies:
       - '@farmfe/core'
       - '@rspack/core'
@@ -10007,7 +10045,7 @@ snapshots:
       - vite
       - webpack
 
-  unplugin@3.3.0(esbuild@0.28.1)(rolldown@1.1.5)(rollup@4.62.3)(vite@7.3.6(@types/node@26.1.1)(jiti@2.7.0)(lightningcss@1.33.0)(yaml@2.9.0)):
+  unplugin@3.3.0(esbuild@0.28.1)(rolldown@1.1.5)(rollup@4.62.3)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)):
     dependencies:
       '@jridgewell/remapping': 2.3.5
       picomatch: 4.0.5
@@ -10016,7 +10054,7 @@ snapshots:
       esbuild: 0.28.1
       rolldown: 1.1.5
       rollup: 4.62.3
-      vite: 7.3.6(@types/node@26.1.1)(jiti@2.7.0)(lightningcss@1.33.0)(yaml@2.9.0)
+      vite: 8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)
 
   update-browserslist-db@1.2.3(browserslist@4.28.7):
     dependencies:

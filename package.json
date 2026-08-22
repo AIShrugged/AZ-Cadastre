@@ -24,14 +24,14 @@
   "devDependencies": {
     "@ianvs/prettier-plugin-sort-imports": "^4.7.1",
     "@types/node": "^26.1.1",
-    "@vitest/coverage-v8": "^3.2.4",
+    "@vitest/coverage-v8": "catalog:tooling",
     "husky": "^9.1.7",
     "lint-staged": "^17.3.0",
     "nx": "^23.1.1",
     "oxlint": "^1.78.0",
     "prettier": "^3.9.6",
-    "typescript": "^6.0.3",
-    "vitest": "^3.2.4"
+    "typescript": "catalog:tooling",
+    "vitest": "catalog:tooling"
   },
   "lint-staged": {
     "**/!(*.generated).{ts,tsx}": [

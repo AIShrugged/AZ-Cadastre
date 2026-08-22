@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { Inject, Logger } from '@nestjs/common';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 
 import type { VerificationPackage } from '../../../../domain/aggregates/index.js';
@@ -48,14 +48,15 @@ export class RunVerificationHandler implements ICommandHandler<
   private readonly logger = new Logger(RunVerificationHandler.name);
 
   constructor(
+    @Inject(VerificationPackageRepository)
     private readonly packages: VerificationPackageRepository,
-    private readonly ids: IdGenerator,
-    private readonly pdf: PdfSplitter,
-    private readonly ocr: OcrProvider,
-    private readonly segmenter: DocumentSegmenter,
-    private readonly classifier: DocumentClassifier,
-    private readonly extractor: FieldExtractor,
-    private readonly crossChecker: CrossChecker,
+    @Inject(IdGenerator) private readonly ids: IdGenerator,
+    @Inject(PdfSplitter) private readonly pdf: PdfSplitter,
+    @Inject(OcrProvider) private readonly ocr: OcrProvider,
+    @Inject(DocumentSegmenter) private readonly segmenter: DocumentSegmenter,
+    @Inject(DocumentClassifier) private readonly classifier: DocumentClassifier,
+    @Inject(FieldExtractor) private readonly extractor: FieldExtractor,
+    @Inject(CrossChecker) private readonly crossChecker: CrossChecker,
   ) {}
 
   // A stage that cannot do its work does not stop the run: a file that will not

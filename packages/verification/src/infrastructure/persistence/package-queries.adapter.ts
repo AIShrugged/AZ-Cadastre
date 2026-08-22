@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 
 import { PackageQueries } from '../../application/ports/outbound/index.js';
 import type {
@@ -128,7 +128,10 @@ type DetailReportRow = {
 
 @Injectable()
 export class PackageQueriesAdapter extends PackageQueries {
-  constructor(private readonly prisma: VerificationPrismaService) {
+  constructor(
+    @Inject(VerificationPrismaService)
+    private readonly prisma: VerificationPrismaService,
+  ) {
     super();
   }
 

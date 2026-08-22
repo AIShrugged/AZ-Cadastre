@@ -26,7 +26,7 @@ export class PdfSplitterAdapter extends PdfSplitter {
 
   constructor(
     @Inject(VERIFICATION_OPTIONS) options: VerificationModuleOptions,
-    private readonly storage: ObjectStorage,
+    @Inject(ObjectStorage) private readonly storage: ObjectStorage,
   ) {
     super();
     this.limits = options.pdf;

@@ -42,3 +42,8 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+      # Runs last: it is the only step that needs docker, and a failure here
+      # should not hide a lint or type error that costs nothing to find.
+      - name: Integration tests
+        run: pnpm test:integration

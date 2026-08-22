@@ -1,3 +1,4 @@
+import { Inject } from '@nestjs/common';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 
 import { VerificationPackage } from '../../../../domain/aggregates/index.js';
@@ -22,8 +23,9 @@ export class CreatePackageHandler implements ICommandHandler<
   PackageId
 > {
   constructor(
+    @Inject(VerificationPackageRepository)
     private readonly packages: VerificationPackageRepository,
-    private readonly ids: IdGenerator,
+    @Inject(IdGenerator) private readonly ids: IdGenerator,
   ) {}
 
   async execute(command: CreatePackageCommand): Promise<PackageId> {

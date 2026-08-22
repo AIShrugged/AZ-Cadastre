@@ -1,3 +1,4 @@
+import { Inject } from '@nestjs/common';
 import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
 
 import { PackageId } from '../../../../domain/value-objects/index.js';
@@ -12,7 +13,9 @@ export class GetPackageSummaryHandler implements IQueryHandler<
   GetPackageSummaryQuery,
   PackageSummaryView
 > {
-  constructor(private readonly packages: PackageQueries) {}
+  constructor(
+    @Inject(PackageQueries) private readonly packages: PackageQueries,
+  ) {}
 
   async execute(query: GetPackageSummaryQuery): Promise<PackageSummaryView> {
     const packageId = PackageId.of(query.packageId);

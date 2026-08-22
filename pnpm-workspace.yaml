@@ -3,10 +3,17 @@ packages:
   - libs/*
   - packages/*
 allowBuilds:
-  "@nestjs/core": true
-  "@prisma/engines": true
-  "@prisma/client": true
+  '@nestjs/core': true
+  '@prisma/engines': true
+  '@prisma/client': true
   prisma: true
   esbuild: true
   nx: true
   oxlint: true
+  '@swc/core': true
+  # testcontainers pulls these in for its docker transport. Their build scripts
+  # compile native speed-ups we never reach: the integration set talks to a
+  # local docker socket, not to a container over SSH.
+  ssh2: false
+  cpu-features: false
+  protobufjs: false

@@ -86,7 +86,7 @@ export class OpenRouterOcrAdapter extends OcrProvider {
 
   constructor(
     @Inject(VERIFICATION_OPTIONS) options: VerificationModuleOptions,
-    private readonly storage: ObjectStorage,
+    @Inject(ObjectStorage) private readonly storage: ObjectStorage,
   ) {
     super();
     const openrouter = options.openrouter;

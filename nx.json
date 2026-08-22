@@ -13,6 +13,10 @@
       "cache": true,
       "dependsOn": ["^build"]
     },
+    "test:integration": {
+      "cache": false,
+      "dependsOn": ["^build"]
+    },
     "watch": {
       "continuous": true,
       "dependsOn": ["build", "^watch"]

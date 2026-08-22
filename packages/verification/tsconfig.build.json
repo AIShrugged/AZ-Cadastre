@@ -1,8 +1,15 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": ["build", "node_modules", "src/**/*.spec.ts"],
+  "exclude": [
+    "build",
+    "node_modules",
+    "test",
+    "src/**/*.spec.ts",
+    "src/**/__tests__/**"
+  ],
   "compilerOptions": {
-    "composite": true
+    "composite": true,
+    "rootDir": "./src"
   },
   "references": [
     {

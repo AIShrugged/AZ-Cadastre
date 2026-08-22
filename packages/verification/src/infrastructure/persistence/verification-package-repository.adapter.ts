@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 
 import {
   ConcurrencyConflictException,
@@ -45,8 +45,9 @@ const WHOLE_AGGREGATE = {
 @Injectable()
 export class VerificationPackageRepositoryAdapter extends VerificationPackageRepository {
   constructor(
+    @Inject(VerificationPrismaService)
     private readonly prisma: VerificationPrismaService,
-    private readonly events: DomainEventPublisher,
+    @Inject(DomainEventPublisher) private readonly events: DomainEventPublisher,
   ) {
     super();
   }

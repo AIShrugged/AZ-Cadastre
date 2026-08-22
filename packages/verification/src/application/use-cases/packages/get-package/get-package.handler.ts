@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { Inject, Logger } from '@nestjs/common';
 import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
 
 import {
@@ -22,8 +22,8 @@ export class GetPackageHandler implements IQueryHandler<
   private readonly logger = new Logger(GetPackageHandler.name);
 
   constructor(
-    private readonly packages: PackageQueries,
-    private readonly storage: ObjectStorage,
+    @Inject(PackageQueries) private readonly packages: PackageQueries,
+    @Inject(ObjectStorage) private readonly storage: ObjectStorage,
   ) {}
 
   async execute(query: GetPackageQuery): Promise<PackageDetailView> {

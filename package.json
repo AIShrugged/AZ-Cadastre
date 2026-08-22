@@ -12,6 +12,7 @@
     "test": "nx run-many -t test",
     "test:watch": "nx run-many -t test:watch",
     "test:coverage": "nx run-many -t test:coverage",
+    "test:integration": "nx run-many -t test:integration",
     "prettier": "prettier --write \"{apps,libs,packages}/**/*.{ts,tsx,json}\"",
     "prettier:check": "prettier --check \"{apps,libs,packages}/**/*.{ts,tsx,json}\"",
     "prepare": "husky"

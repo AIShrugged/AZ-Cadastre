@@ -68,7 +68,7 @@ export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
 
   constructor(
     @Inject(VERIFICATION_OPTIONS) options: VerificationModuleOptions,
-    private readonly storage: ObjectStorage,
+    @Inject(ObjectStorage) private readonly storage: ObjectStorage,
   ) {
     super();
     const openrouter = options.openrouter;

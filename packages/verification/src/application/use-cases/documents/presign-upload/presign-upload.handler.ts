@@ -1,3 +1,4 @@
+import { Inject } from '@nestjs/common';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 
 import {
@@ -17,7 +18,7 @@ export class PresignUploadHandler implements ICommandHandler<
   PresignUploadCommand,
   PresignedUpload
 > {
-  constructor(private readonly storage: ObjectStorage) {}
+  constructor(@Inject(ObjectStorage) private readonly storage: ObjectStorage) {}
 
   execute(command: PresignUploadCommand): Promise<PresignedUpload> {
     FileSize.of(command.size);

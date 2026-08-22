@@ -8,6 +8,7 @@ import { APP_FILTER } from '@nestjs/core';
 
 import {
   DocumentsController,
+  HttpExceptionFilter,
   PackagesController,
   ProfilesController,
   VerificationExceptionFilter,
@@ -37,6 +38,14 @@ export class ApiGatewayModule {
         // The transport is where a refusal becomes a status code, so the
         // `code → status` table lives at the edge and not in the context that
         // raised it.
+        /*
+         * Order matters, and it is the reverse of the listing: Nest applies
+         * APP_FILTER providers last-registered-first, so the domain filter must
+         * come after the framework one to get first refusal. Both render the
+         * contract's ErrorBody — the published language has one error shape and
+         * the API must not have two.
+         */
+        { provide: APP_FILTER, useClass: HttpExceptionFilter },
         { provide: APP_FILTER, useClass: VerificationExceptionFilter },
       ],
     };

@@ -40,7 +40,7 @@ catalogs:
   # is wrong is whichever you did not run last.
   tooling:
     typescript: 7.0.2
-    vitest: ^4.1.10
+    vitest: ^4.1.11
     '@vitest/coverage-v8': ^4.1.10
 
 # Nest 12 is not out, so its own packages and every package built for Nest 11

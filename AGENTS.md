@@ -149,7 +149,11 @@ pnpm typecheck
 pnpm build
 pnpm test              # unit
 pnpm test:integration  # needs docker
+pnpm test:api          # needs docker; runs the built server as its own process
 ```
+
+`API_SERVER_LOGS=1 pnpm test:api` streams the server's output into the run —
+the harness otherwise keeps it back and prints it only if start-up fails.
 
 Say which of these were run and what they said. A failing test is a result to
 report, not a step to repeat until it passes.

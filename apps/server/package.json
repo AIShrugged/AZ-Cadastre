@@ -9,6 +9,7 @@
     "watch": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
     "build": "tsc -p tsconfig.build.json",
     "start": "node build/main.js",
+    "test:api": "vitest run --config vitest.api.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "license": "ISC",
@@ -27,5 +28,12 @@
     "@nestjs/cqrs": "catalog:nestjs12",
     "@nestjs/platform-express": "catalog:nestjs12",
     "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@cadastre/api-client": "workspace:*",
+    "@cadastre/api-contracts": "workspace:*",
+    "@testcontainers/postgresql": "^12.1.0",
+    "testcontainers": "^12.1.0",
+    "vitest": "catalog:tooling"
   }
 }

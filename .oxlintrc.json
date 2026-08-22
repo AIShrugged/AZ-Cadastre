@@ -206,6 +206,37 @@
           }
         ]
       }
+    },
+    {
+      "files": ["libs/api-client/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@cadastre/*",
+                  "!@cadastre/api-contracts",
+                  "!@cadastre/api-contracts/*"
+                ],
+                "message": "The API client (type:client) speaks the published language and nothing else: it may depend on @cadastre/api-contracts and on no other workspace package. It is what a caller outside the system can reach, so giving it a context's internals would make it prove things no real client could do (ADR-0007)."
+              },
+              {
+                "group": [
+                  "**/../packages/**",
+                  "**/../libs/**",
+                  "**/../apps/**",
+                  "../packages/**",
+                  "../libs/**",
+                  "../apps/**"
+                ],
+                "message": "Import across projects by package name (@cadastre/x), never by a relative path: a relative path escaping its project is invisible to the boundary rules below, which match on package names (ADR-0006)."
+              }
+            ]
+          }
+        ]
+      }
     }
   ]
 }

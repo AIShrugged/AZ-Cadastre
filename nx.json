@@ -21,6 +21,10 @@
       "cache": false,
       "dependsOn": ["^build"]
     },
+    "test:api": {
+      "cache": false,
+      "dependsOn": ["build", "^build"]
+    },
     "watch": {
       "continuous": true,
       "dependsOn": ["build", "^watch"]

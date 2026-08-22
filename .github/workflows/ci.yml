@@ -47,3 +47,8 @@ jobs:
       # should not hide a lint or type error that costs nothing to find.
       - name: Integration tests
         run: pnpm test:integration
+
+      # Last, and the slowest: it brings up Postgres and object storage and runs
+      # the built server as its own process.
+      - name: API tests
+        run: pnpm test:api

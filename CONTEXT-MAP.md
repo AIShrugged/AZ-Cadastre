@@ -19,6 +19,7 @@ One context, on purpose. The system does one thing, and a second context would t
 | `libs/shared/`          | `type:kernel`    | Tactical building blocks whose meaning is identical everywhere: `AggregateRoot`, `EntityId`, `DomainEvent`, the exception bases, the publisher port. No domain concept lives here — if only one context needs it, it stays in that context. |
 | `libs/event-publisher/` | `type:adapter`   | A technical capability behind a port. Carries no domain meaning, which is why a context may import it directly.                                                                                                                             |
 | `apps/server/`          | `type:app`       | The composition root. It knows every context exists; it knows nothing about what they mean.                                                                                                                                                 |
+| `libs/api-client/`      | `type:client`    | The published API as a caller outside the system sees it, typed by the contracts. Used by the API tests; a context may not import it, which is the lint form of "a context never calls another synchronously".                              |
 | `apps/web/`             | `type:app`       | The inspector's client. It speaks the contracts and never the domain model.                                                                                                                                                                 |
 
 ## Relationships

@@ -38,21 +38,19 @@ shapes are the same tree. Split into `libs/contracts/<ctx>` with `.` and
 `./events` entries, and add the lint rule that forbids `apps/web` the `./events`
 entry. Doing it now would be structure with nothing in it.
 
-## 3. No API set and no browser set
+## 3. No browser set
 
-**Not done.** Two of the four sets in `reference/testing.md` exist: unit and
-integration. There is no test that speaks to the process over HTTP, and none
-that drives a browser.
+**Not done.** Three of the four sets in `reference/testing.md` exist: unit,
+integration and API. Nothing drives a browser.
 
-**How it fires.** A change to a gateway controller, to the exception filter's
-status mapping, or to the shape a DTO serialises into passes lint, types and both
-test sets, and breaks the client. Nothing between the context's inbound port and
-the browser is covered by anything.
+**How it fires.** A screen that stops rendering, a form that stops submitting or
+a route that stops resolving passes lint, types and all three sets. The API set
+proves the server answers correctly; nothing proves anyone can use it.
 
-**What to do.** The API set first — `apps/server/test/**/*.e2e.spec.ts` over a
-typed REST client in `libs/testing/`, with the same containers the integration
-set already brings up. The browser set only after there is a screen worth
-guarding.
+**What to do.** Playwright in `apps/e2e`, over the stack the API set already
+brings up, and only for what is invisible below: that the screen is assembled,
+that the data arrived, that the action applied. Domain rules stay where they
+are — proving them through a browser is slow and diagnoses badly.
 
 ## 4. The generated Prisma client is not in git
 
@@ -85,3 +83,22 @@ each other.
 database, so a divergence shows up as a failing count. Keep it that way: any new
 count on the read side gets a spec that submits through the command bus and
 asserts through the query bus, never one that inserts rows directly.
+
+## 6. An unmatched route answers outside the published error shape
+
+**Not done.** Every refusal the API itself makes — a domain rule, a body the
+schema rejects — comes back as the contract's `ErrorBody`, and there are API
+tests holding that. A request to a path no controller serves does not: Express
+answers it with an HTML error page before Nest's filters are reached.
+
+**How it fires.** A stale frontend build, a typo in a proxy rule or a renamed
+route sends the client an HTML page where it expects JSON. `apiFailure` in
+`apps/web` parses with `ErrorBodySchema` and answers `null`, so the UI can only
+say "something went wrong" — with the actual cause, a 404 on a path that no
+longer exists, nowhere on screen.
+
+**What to do.** A catch-all at the very edge of `main.ts` — after the global
+prefix, before the listener — rendering `ErrorBody` for anything that reached no
+route. It is deliberately not pinned by a spec today: the API test asserts the
+status and says in a comment why it does not assert the body, so fixing this
+means adding the assertion rather than changing one.

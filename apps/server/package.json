@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@cadastre/api-gateway": "workspace:*",
+    "@cadastre/logger": "workspace:*",
     "@cadastre/verification": "workspace:*",
     "@nestjs/common": "catalog:nestjs12",
     "@nestjs/config": "catalog:nestjs12",

@@ -19,6 +19,9 @@
       "path": "../../libs/event-publisher/tsconfig.build.json"
     },
     {
+      "path": "../../libs/logger/tsconfig.build.json"
+    },
+    {
       "path": "../../libs/shared/tsconfig.build.json"
     }
   ]

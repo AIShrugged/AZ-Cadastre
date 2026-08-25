@@ -1,4 +1,6 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+
+import { Logger } from '@cadastre/logger';
 
 import {
   ObjectStorage,
@@ -21,20 +23,30 @@ import { renderPdfPages } from './pdf-page-renderer.js';
 
 @Injectable()
 export class PdfSplitterAdapter extends PdfSplitter {
-  private readonly logger = new Logger(PdfSplitterAdapter.name);
+  private readonly logger: Logger;
   private readonly limits: VerificationModuleOptions['pdf'];
 
   constructor(
     @Inject(VERIFICATION_OPTIONS) options: VerificationModuleOptions,
     @Inject(ObjectStorage) private readonly storage: ObjectStorage,
+    @Inject(Logger) logger: Logger,
   ) {
     super();
+    this.logger = logger.child({ scope: PdfSplitterAdapter.name });
     this.limits = options.pdf;
   }
 
   async split(request: PdfSplitRequest): Promise<readonly SplitPage[]> {
+    const startedAt = Date.now();
     const source = await this.storage.getObject(request.storageKey);
     const pages: SplitPage[] = [];
+
+    this.logger.debug('Rendering a PDF into page images', {
+      storageKey: request.storageKey.value,
+      bytes: source.body.byteLength,
+      dpi: this.limits.pageDpi,
+      maxPages: this.limits.maxPages,
+    });
 
     // Each page is stored as it comes off the renderer, so a long document never
     // holds every rendered image in memory at once.
@@ -57,10 +69,18 @@ export class PdfSplitterAdapter extends PdfSplitter {
       });
     }
 
-    this.logger.log(
-      `Split "${request.storageKey.value}" into ${pages.length} page image(s) ` +
-        `at ${this.limits.pageDpi} dpi`,
-    );
+    this.logger.log('PDF rendered into page images', {
+      storageKey: request.storageKey.value,
+      pages: pages.length,
+      dpi: this.limits.pageDpi,
+      // A file cut short by the cap is not an error anywhere, and it is the
+      // reason a package can end up missing its last documents.
+      cappedAt:
+        pages.length === this.limits.maxPages
+          ? this.limits.maxPages
+          : undefined,
+      durationMs: Date.now() - startedAt,
+    });
 
     return pages;
   }

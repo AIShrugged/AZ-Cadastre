@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import type { LoggerModuleOptions } from '@cadastre/logger';
 import type { VerificationModuleOptions } from '@cadastre/verification';
 
 /**
@@ -20,6 +21,20 @@ export const EnvironmentSchema = z
       ),
 
     WEB_ORIGIN: z.string().nonempty().default('http://localhost:5173'),
+
+    // ── Logging ───────────────────────────────────────────────────────────
+    // Everything the service has to say goes to the console as one structured
+    // line per event (ADR-0008). `debug` adds every SQL statement the context
+    // runs and every prompt the pipeline sends; `info` is the run itself.
+    LOG_LEVEL: z
+      .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
+      .default('info'),
+    // Colourised and indented for a terminal. Turn it off in a container: one
+    // JSON object per line is what a collector can read.
+    LOG_PRETTY: z
+      .enum(['true', 'false'])
+      .default('true')
+      .transform(v => v === 'true'),
 
     // Reachable from both this service and the browser: the presigned URL points
     // straight at it.
@@ -91,6 +106,13 @@ export const EnvironmentSchema = z
     web: {
       origin: env.WEB_ORIGIN,
     },
+    logger: {
+      // The name on every line. One process today; when a context is extracted
+      // into its own, this is what tells two logs apart.
+      service: 'server',
+      level: env.LOG_LEVEL,
+      pretty: env.LOG_PRETTY,
+    } satisfies LoggerModuleOptions,
     // The slice handed to `VerificationModule.forRootAsync`. Its shape is the
     // context's `VerificationModuleOptions`, which is what the compiler checks.
     verification: {

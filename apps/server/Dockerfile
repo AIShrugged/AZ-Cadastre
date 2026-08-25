@@ -38,6 +38,7 @@ RUN pnpm install --frozen-lockfile --prod
 COPY --from=builder /app/apps/server/build ./apps/server/build
 COPY --from=builder /app/libs/shared/build ./libs/shared/build
 COPY --from=builder /app/libs/event-publisher/build ./libs/event-publisher/build
+COPY --from=builder /app/libs/logger/build ./libs/logger/build
 COPY --from=builder /app/libs/api-contracts/build ./libs/api-contracts/build
 COPY --from=builder /app/libs/api-gateway/build ./libs/api-gateway/build
 COPY --from=builder /app/packages/verification/build ./packages/verification/build
@@ -50,6 +51,10 @@ COPY --from=builder /app/packages/verification/src/infrastructure/persistence/mi
      ./packages/verification/src/infrastructure/persistence/migrations
 
 WORKDIR /app/apps/server
+
+# One JSON object per line rather than colour and indentation: in a container
+# the reader is a log collector, not a terminal (ADR-0008).
+ENV LOG_PRETTY=false
 
 EXPOSE 3000
 

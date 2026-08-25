@@ -1,6 +1,8 @@
 import type { CommandBus } from '@nestjs/cqrs';
 import { describe, expect, it } from 'vitest';
 
+import { SilentLogger } from '@cadastre/logger';
+
 import { PackageSubmitted } from '../../domain/events/index.js';
 import {
   PackageId,
@@ -31,9 +33,10 @@ describe('RunVerificationOnSubmissionHandler', () => {
   it('runs the pipeline over the package that was submitted', () => {
     const bus = new RecordingCommandBus();
 
-    new RunVerificationOnSubmissionHandler(bus as unknown as CommandBus).handle(
-      submission('package-1'),
-    );
+    new RunVerificationOnSubmissionHandler(
+      bus as unknown as CommandBus,
+      new SilentLogger(),
+    ).handle(submission('package-1'));
 
     expect(bus.executed).toEqual([new RunVerificationCommand('package-1')]);
   });
@@ -42,9 +45,10 @@ describe('RunVerificationOnSubmissionHandler', () => {
     const started = new Promise<void>(() => undefined);
     const bus = { execute: () => started } as unknown as CommandBus;
 
-    const handled = new RunVerificationOnSubmissionHandler(bus).handle(
-      submission('package-2'),
-    );
+    const handled = new RunVerificationOnSubmissionHandler(
+      bus,
+      new SilentLogger(),
+    ).handle(submission('package-2'));
 
     expect(handled).toBeUndefined();
   });
@@ -55,7 +59,7 @@ describe('RunVerificationOnSubmissionHandler', () => {
     } as unknown as CommandBus;
 
     expect(() =>
-      new RunVerificationOnSubmissionHandler(bus).handle(
+      new RunVerificationOnSubmissionHandler(bus, new SilentLogger()).handle(
         submission('package-3'),
       ),
     ).not.toThrow();

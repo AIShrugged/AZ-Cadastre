@@ -1,5 +1,7 @@
 import type { Provider } from '@nestjs/common';
 
+import { Logger } from '@cadastre/logger';
+
 import {
   CrossChecker,
   DocumentClassifier,
@@ -62,45 +64,56 @@ export const VERIFICATION_ADAPTERS: Provider[] = [
     useFactory: (
       options: VerificationModuleOptions,
       storage: ObjectStorage,
+      logger: Logger,
     ): OcrProvider =>
       options.ocr.provider === 'openrouter'
-        ? new OpenRouterOcrAdapter(options, storage)
+        ? new OpenRouterOcrAdapter(options, storage, logger)
         : new OcrProviderAdapter(),
-    inject: [VERIFICATION_OPTIONS, ObjectStorage],
+    inject: [VERIFICATION_OPTIONS, ObjectStorage, Logger],
   },
   {
     provide: DocumentSegmenter,
-    useFactory: (options: VerificationModuleOptions): DocumentSegmenter =>
+    useFactory: (
+      options: VerificationModuleOptions,
+      logger: Logger,
+    ): DocumentSegmenter =>
       options.segmenter.provider === 'openrouter'
-        ? new OpenRouterSegmenterAdapter(options)
+        ? new OpenRouterSegmenterAdapter(options, logger)
         : new DocumentSegmenterAdapter(),
-    inject: [VERIFICATION_OPTIONS],
+    inject: [VERIFICATION_OPTIONS, Logger],
   },
   {
     provide: DocumentClassifier,
-    useFactory: (options: VerificationModuleOptions): DocumentClassifier =>
+    useFactory: (
+      options: VerificationModuleOptions,
+      logger: Logger,
+    ): DocumentClassifier =>
       options.classifier.provider === 'openrouter'
-        ? new OpenRouterClassifierAdapter(options)
+        ? new OpenRouterClassifierAdapter(options, logger)
         : new DocumentClassifierAdapter(),
-    inject: [VERIFICATION_OPTIONS],
+    inject: [VERIFICATION_OPTIONS, Logger],
   },
   {
     provide: FieldExtractor,
     useFactory: (
       options: VerificationModuleOptions,
       storage: ObjectStorage,
+      logger: Logger,
     ): FieldExtractor =>
       options.extractor.provider === 'openrouter'
-        ? new OpenRouterFieldExtractorAdapter(options, storage)
+        ? new OpenRouterFieldExtractorAdapter(options, storage, logger)
         : new FieldExtractorAdapter(),
-    inject: [VERIFICATION_OPTIONS, ObjectStorage],
+    inject: [VERIFICATION_OPTIONS, ObjectStorage, Logger],
   },
   {
     provide: CrossChecker,
-    useFactory: (options: VerificationModuleOptions): CrossChecker =>
+    useFactory: (
+      options: VerificationModuleOptions,
+      logger: Logger,
+    ): CrossChecker =>
       options.crossChecker.provider === 'openrouter'
-        ? new OpenRouterCrossCheckerAdapter(options)
+        ? new OpenRouterCrossCheckerAdapter(options, logger)
         : new CrossCheckerAdapter(),
-    inject: [VERIFICATION_OPTIONS],
+    inject: [VERIFICATION_OPTIONS, Logger],
   },
 ];

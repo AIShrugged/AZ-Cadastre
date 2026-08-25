@@ -51,9 +51,10 @@
                   "!@cadastre/api-contracts",
                   "!@cadastre/api-contracts/*",
                   "!@cadastre/shared",
-                  "!@cadastre/event-publisher"
+                  "!@cadastre/event-publisher",
+                  "!@cadastre/logger"
                 ],
-                "message": "A context (type:context) and the edge (type:edge) may depend only on the published language (@cadastre/api-contracts), the shared kernel (@cadastre/shared) and technical adapters (@cadastre/event-publisher). The way out is the contracts package: route cross-context traffic through it, never through another context's internals (ADR-0006)."
+                "message": "A context (type:context) and the edge (type:edge) may depend only on the published language (@cadastre/api-contracts), the shared kernel (@cadastre/shared) and technical adapters (@cadastre/event-publisher, @cadastre/logger). The way out is the contracts package: route cross-context traffic through it, never through another context's internals (ADR-0006)."
               },
               {
                 "group": [
@@ -187,9 +188,10 @@
                   "!@cadastre/api-contracts",
                   "!@cadastre/api-contracts/*",
                   "!@cadastre/shared",
-                  "!@cadastre/event-publisher"
+                  "!@cadastre/event-publisher",
+                  "!@cadastre/logger"
                 ],
-                "message": "A context (type:context) may depend only on the published language (@cadastre/api-contracts), the shared kernel (@cadastre/shared) and technical adapters (@cadastre/event-publisher) (ADR-0006)."
+                "message": "A context (type:context) may depend only on the published language (@cadastre/api-contracts), the shared kernel (@cadastre/shared) and technical adapters (@cadastre/event-publisher, @cadastre/logger) (ADR-0006)."
               },
               {
                 "group": [

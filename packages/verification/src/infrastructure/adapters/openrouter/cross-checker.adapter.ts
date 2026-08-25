@@ -1,6 +1,8 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import OpenAI from 'openai';
 import { z } from 'zod';
+
+import { Logger } from '@cadastre/logger';
 
 import {
   CrossChecker,
@@ -21,6 +23,7 @@ import { MissingOpenRouterApiKeyException } from '../../exceptions/index.js';
 
 import { answerOf } from './answered.js';
 import { confidenceFromLogprobs } from './logprob-confidence.js';
+import { telemetryOf } from './telemetry.js';
 
 const AnswerSchema = z.object({
   verdict: z.string(),
@@ -43,12 +46,13 @@ const VERDICTS: readonly (readonly [string, CrossCheckVerdict])[] = [
 
 @Injectable()
 export class OpenRouterCrossCheckerAdapter extends CrossChecker {
-  private readonly logger = new Logger(OpenRouterCrossCheckerAdapter.name);
+  private readonly logger: Logger;
   private readonly client: OpenAI;
   private readonly model: string;
 
   constructor(
     @Inject(VERIFICATION_OPTIONS) options: VerificationModuleOptions,
+    @Inject(Logger) logger: Logger,
   ) {
     super();
     const openrouter = options.openrouter;
@@ -56,6 +60,10 @@ export class OpenRouterCrossCheckerAdapter extends CrossChecker {
       throw new MissingOpenRouterApiKeyException('CROSS_CHECKER_PROVIDER');
     }
     this.model = options.crossChecker.model;
+    this.logger = logger.child({
+      scope: OpenRouterCrossCheckerAdapter.name,
+      model: this.model,
+    });
     this.client = new OpenAI({
       apiKey: openrouter.apiKey,
       baseURL: openrouter.baseUrl,
@@ -66,6 +74,17 @@ export class OpenRouterCrossCheckerAdapter extends CrossChecker {
   }
 
   async check(request: CrossCheckRequest): Promise<CrossCheckAnswer> {
+    const startedAt = Date.now();
+
+    this.logger.debug('Holding values against each other', {
+      check: request.spec.key.value,
+      agreesWhen: request.spec.agreesWhen,
+      values: request.values.map(value => ({
+        of: `${value.documentType.value}.${value.fieldKey.value}`,
+        confidence: Math.round(value.confidence.value * 1000) / 1000,
+      })),
+    });
+
     const completion = await this.client.chat.completions.create({
       model: this.model,
       temperature: 0,
@@ -91,14 +110,17 @@ export class OpenRouterCrossCheckerAdapter extends CrossChecker {
     const confidence = leastOf(scored, stated);
     const note = (answer?.reason ?? '').trim().slice(0, NOTE_MAX);
 
-    this.logger.log(
-      `Cross-check "${request.spec.key.value}" → ${verdict.value} ` +
-        `(model said "${answer?.verdict ?? raw.slice(0, 40)}", confidence ` +
-        `${confidence.toFixed(3)} — logprobs ` +
-        `${scored === null ? 'unavailable' : scored.toFixed(3)}, stated ` +
-        `${stated === null ? 'none' : stated.toFixed(3)})` +
-        `${note ? `: ${note}` : ''}`,
-    );
+    this.logger.log('Cross-check answered', {
+      check: request.spec.key.value,
+      verdict: verdict.value,
+      modelSaid: answer?.verdict ?? raw.slice(0, 40),
+      note,
+      confidence: round(confidence),
+      logprobs: scored === null ? null : round(scored),
+      stated: stated === null ? null : round(stated),
+      durationMs: Date.now() - startedAt,
+      ...telemetryOf(completion),
+    });
 
     return { verdict, confidence: Confidence.of(confidence), note };
   }
@@ -188,7 +210,9 @@ export class OpenRouterCrossCheckerAdapter extends CrossChecker {
       // answering; `verdictOf` reads the word straight out of the raw text.
     }
 
-    this.logger.warn(`Could not read cross-check JSON: ${raw.slice(0, 120)}`);
+    this.logger.warn("Could not read the cross-checker's JSON", {
+      answered: raw.slice(0, 200),
+    });
     return null;
   }
 }
@@ -199,4 +223,8 @@ function leastOf(left: number | null, right: number | null): number {
   );
 
   return offered.length === 0 ? 0 : Math.min(...offered);
+}
+
+function round(value: number): number {
+  return Math.round(value * 1000) / 1000;
 }

@@ -1,6 +1,8 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import OpenAI from 'openai';
 import { z } from 'zod';
+
+import { Logger } from '@cadastre/logger';
 
 import {
   DocumentClassifier,
@@ -20,6 +22,7 @@ import { MissingOpenRouterApiKeyException } from '../../exceptions/index.js';
 
 import { answerOf } from './answered.js';
 import { confidenceFromLogprobs } from './logprob-confidence.js';
+import { telemetryOf } from './telemetry.js';
 
 const MAX_TEXT = 8000;
 
@@ -34,12 +37,13 @@ const CLASSIFICATION_TIMEOUT_MS = 90_000;
 
 @Injectable()
 export class OpenRouterClassifierAdapter extends DocumentClassifier {
-  private readonly logger = new Logger(OpenRouterClassifierAdapter.name);
+  private readonly logger: Logger;
   private readonly client: OpenAI;
   private readonly model: string;
 
   constructor(
     @Inject(VERIFICATION_OPTIONS) options: VerificationModuleOptions,
+    @Inject(Logger) logger: Logger,
   ) {
     super();
     const openrouter = options.openrouter;
@@ -47,6 +51,10 @@ export class OpenRouterClassifierAdapter extends DocumentClassifier {
       throw new MissingOpenRouterApiKeyException('CLASSIFIER_PROVIDER');
     }
     this.model = options.classifier.model;
+    this.logger = logger.child({
+      scope: OpenRouterClassifierAdapter.name,
+      model: this.model,
+    });
     this.client = new OpenAI({
       apiKey: openrouter.apiKey,
       baseURL: openrouter.baseUrl,
@@ -63,6 +71,13 @@ export class OpenRouterClassifierAdapter extends DocumentClassifier {
 
   async classify(request: ClassificationRequest): Promise<Classification> {
     const text = request.text.value.slice(0, MAX_TEXT);
+    const startedAt = Date.now();
+
+    this.logger.debug('Asking what this document is', {
+      characters: text.length,
+      truncated: request.text.value.length > MAX_TEXT,
+      candidates: request.candidates.map(candidate => candidate.type.value),
+    });
 
     const completion = await this.client.chat.completions.create({
       model: this.model,
@@ -93,14 +108,19 @@ export class OpenRouterClassifierAdapter extends DocumentClassifier {
     const stated = answer?.confidence ?? null;
     const confidence = leastOf(scored, stated);
 
-    this.logger.log(
-      `Classified as "${type.value}" ` +
-        `(model said "${answer?.type ?? raw.slice(0, 40)}"` +
-        `${answer?.reason ? `: ${answer.reason.slice(0, 80)}` : ''}, ` +
-        `confidence ${confidence.toFixed(3)} — logprobs ` +
-        `${scored === null ? 'unavailable' : scored.toFixed(3)}, stated ` +
-        `${stated === null ? 'none' : stated.toFixed(3)})`,
-    );
+    this.logger.log('Document classified', {
+      type: type.value,
+      // What the model answered, beside what that was read as: a type that
+      // came back misspelled and a type that was matched loosely look the same
+      // in the result and are not the same problem.
+      modelSaid: answer?.type ?? raw.slice(0, 40),
+      reason: answer?.reason?.slice(0, 120),
+      confidence: round(confidence),
+      logprobs: scored === null ? null : round(scored),
+      stated: stated === null ? null : round(stated),
+      durationMs: Date.now() - startedAt,
+      ...telemetryOf(completion),
+    });
 
     return Classification.of(type, Confidence.of(confidence));
   }
@@ -172,7 +192,9 @@ export class OpenRouterClassifierAdapter extends DocumentClassifier {
       // answering; `match` reads the key straight out of the raw text.
     }
 
-    this.logger.warn(`Could not read classifier JSON: ${raw.slice(0, 120)}`);
+    this.logger.warn("Could not read the classifier's JSON", {
+      answered: raw.slice(0, 200),
+    });
     return null;
   }
 
@@ -188,6 +210,10 @@ export class OpenRouterClassifierAdapter extends DocumentClassifier {
 
     return contained[0] ?? DocumentType.UNKNOWN;
   }
+}
+
+function round(value: number): number {
+  return Math.round(value * 1000) / 1000;
 }
 
 // Two accounts of the same certainty: take the lower, and take nothing as

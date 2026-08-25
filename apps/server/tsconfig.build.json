@@ -10,6 +10,9 @@
       "path": "../../libs/api-gateway/tsconfig.build.json"
     },
     {
+      "path": "../../libs/logger/tsconfig.build.json"
+    },
+    {
       "path": "../../packages/verification/tsconfig.build.json"
     }
   ]

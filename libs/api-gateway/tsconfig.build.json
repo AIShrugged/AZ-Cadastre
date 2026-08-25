@@ -9,6 +9,9 @@
       "path": "../api-contracts/tsconfig.build.json"
     },
     {
+      "path": "../logger/tsconfig.build.json"
+    },
+    {
       "path": "../shared/tsconfig.build.json"
     }
   ]

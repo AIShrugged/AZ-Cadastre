@@ -1,7 +1,8 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import OpenAI from 'openai';
 import { z } from 'zod';
 
+import { Logger } from '@cadastre/logger';
 import { DomainException } from '@cadastre/shared';
 
 import {
@@ -26,6 +27,7 @@ import { MissingOpenRouterApiKeyException } from '../../exceptions/index.js';
 
 import { answerOf } from './answered.js';
 import { confidenceFromLogprobs } from './logprob-confidence.js';
+import { telemetryOf } from './telemetry.js';
 
 const MAX_TEXT = 12000;
 
@@ -62,13 +64,14 @@ const EXTRACTION_TIMEOUT_MS = 180_000;
 
 @Injectable()
 export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
-  private readonly logger = new Logger(OpenRouterFieldExtractorAdapter.name);
+  private readonly logger: Logger;
   private readonly client: OpenAI;
   private readonly model: string;
 
   constructor(
     @Inject(VERIFICATION_OPTIONS) options: VerificationModuleOptions,
     @Inject(ObjectStorage) private readonly storage: ObjectStorage,
+    @Inject(Logger) logger: Logger,
   ) {
     super();
     const openrouter = options.openrouter;
@@ -76,6 +79,10 @@ export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
       throw new MissingOpenRouterApiKeyException('EXTRACTOR_PROVIDER');
     }
     this.model = options.extractor.model;
+    this.logger = logger.child({
+      scope: OpenRouterFieldExtractorAdapter.name,
+      model: this.model,
+    });
     this.client = new OpenAI({
       apiKey: openrouter.apiKey,
       baseURL: openrouter.baseUrl,
@@ -95,6 +102,14 @@ export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
   ): Promise<readonly ExtractedField[]> {
     const specs = request.spec.schema.specs;
     const transcript = request.text.value.slice(0, MAX_TEXT);
+    const startedAt = Date.now();
+
+    this.logger.debug('Asking for the fields off a document', {
+      type: request.spec.type.value,
+      asked: specs.map(spec => spec.key.value),
+      sheets: request.sheets.map(sheet => sheet.number.value),
+      characters: transcript.length,
+    });
 
     const completion = await this.client.chat.completions.create({
       model: this.model,
@@ -164,17 +179,26 @@ export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
         // extraction. Anything else is a fault of ours and travels on.
         if (!(error instanceof DomainException)) throw error;
 
-        this.logger.warn(
-          `Dropped field "${spec.key.value}": ${error.code} (${error.message})`,
-        );
+        this.logger.warn("The model's answer for a field was refused", {
+          type: request.spec.type.value,
+          field: spec.key.value,
+          code: error.code,
+          reason: error.message,
+        });
       }
     }
 
-    this.logger.log(
-      `Extracted ${fields.length}/${specs.length} fields from ` +
-        `${request.spec.type.value} (${unverified} unquoted, logprobs ` +
-        `${scored === null ? 'unavailable' : scored.toFixed(3)})`,
-    );
+    this.logger.log('Fields read off a document', {
+      type: request.spec.type.value,
+      asked: specs.length,
+      read: fields.length,
+      // A value the model did not quote from the sheet it claims to have read
+      // it off is a value it may have composed. The count is the warning.
+      unquoted: unverified,
+      logprobs: scored === null ? null : Math.round(scored * 1000) / 1000,
+      durationMs: Date.now() - startedAt,
+      ...telemetryOf(completion),
+    });
 
     return fields;
   }
@@ -218,9 +242,11 @@ export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
     } catch (error) {
       // The reading of the sheet is already in the prompt; losing its picture
       // costs accuracy on that sheet, not the extraction.
-      this.logger.warn(
-        `Sheet ${sheet.number.value}: could not be attached — ${String(error)}`,
-      );
+      this.logger.warn('A sheet could not be attached to the request', {
+        sheet: sheet.number.value,
+        storageKey: sheet.image.storageKey.value,
+        error,
+      });
 
       return null;
     }
@@ -290,7 +316,9 @@ export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
       // fall through to the warning below
     }
 
-    this.logger.warn(`Could not parse extractor JSON: ${raw.slice(0, 160)}`);
+    this.logger.warn("Could not read the extractor's JSON", {
+      answered: raw.slice(0, 200),
+    });
     return {};
   }
 }

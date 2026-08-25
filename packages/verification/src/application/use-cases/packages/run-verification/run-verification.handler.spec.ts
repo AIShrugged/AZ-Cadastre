@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { SilentLogger } from '@cadastre/logger';
+
 import { VerificationPackage } from '../../../../domain/aggregates/index.js';
 import {
   ExtractedField,
@@ -253,6 +255,7 @@ function pipelineOver(
 } {
   const packages = new InMemoryPackages(verification);
   const handler = new RunVerificationHandler(
+    new SilentLogger(),
     packages,
     new SequentialIds(),
     pdf,
@@ -502,6 +505,7 @@ describe('RunVerificationHandler', () => {
       aPackageOf(aFile('submission.pdf', ContentType.PDF)),
     );
     const handler = new RunVerificationHandler(
+      new SilentLogger(),
       packages,
       new SequentialIds(),
       splitter,
@@ -627,6 +631,7 @@ describe('RunVerificationHandler', () => {
         aPackageOf(aFile('submission.pdf', ContentType.PDF)),
       );
       const handler = new RunVerificationHandler(
+        new SilentLogger(),
         packages,
         new SequentialIds(),
         new RenderingSplitter(3),
@@ -782,6 +787,7 @@ describe('RunVerificationHandler', () => {
         aPackageOf(aFile('submission.pdf', ContentType.PDF)),
       );
       const handler = new RunVerificationHandler(
+        new SilentLogger(),
         packages,
         new SequentialIds(),
         new RenderingSplitter(2),

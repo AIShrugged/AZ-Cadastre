@@ -4,8 +4,9 @@ import {
   type ModuleMetadata,
   type Provider,
 } from '@nestjs/common';
-import { APP_FILTER } from '@nestjs/core';
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 
+import { RequestLoggingInterceptor } from './presentation/http/index.js';
 import {
   DocumentsController,
   HttpExceptionFilter,
@@ -47,6 +48,10 @@ export class ApiGatewayModule {
          */
         { provide: APP_FILTER, useClass: HttpExceptionFilter },
         { provide: APP_FILTER, useClass: VerificationExceptionFilter },
+        // Every request that reached a route, with the status it was answered
+        // with and how long it took (ADR-0008). The edge is where a request
+        // exists at all, so it is where the access log is written.
+        { provide: APP_INTERCEPTOR, useClass: RequestLoggingInterceptor },
       ],
     };
   }

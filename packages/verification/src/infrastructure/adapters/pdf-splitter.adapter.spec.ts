@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { SilentLogger } from '@cadastre/logger';
+
 import {
   ObjectStorage,
   type PresignedDownload,
@@ -95,7 +97,10 @@ function splitterOf(
     pdf: { pageDpi: 72, maxPages: 30, ...limits },
   } as VerificationModuleOptions;
 
-  return { splitter: new PdfSplitterAdapter(options, storage), storage };
+  return {
+    splitter: new PdfSplitterAdapter(options, storage, new SilentLogger()),
+    storage,
+  };
 }
 
 const aKey = StorageKey.create('9f1c/passport.pdf');

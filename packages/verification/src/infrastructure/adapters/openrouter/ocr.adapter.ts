@@ -1,5 +1,7 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import OpenAI from 'openai';
+
+import { Logger } from '@cadastre/logger';
 
 import {
   ObjectStorage,
@@ -24,6 +26,7 @@ import { MissingOpenRouterApiKeyException } from '../../exceptions/index.js';
 
 import { answerOf } from './answered.js';
 import { confidenceFromLogprobs } from './logprob-confidence.js';
+import { telemetryOf } from './telemetry.js';
 
 // A dense A4 sheet of an application form runs to a few thousand tokens once
 // its table is written out; the default cap cuts such a page off mid-row, and a
@@ -79,7 +82,7 @@ const OCR_TIMEOUT_MS = 180_000;
 
 @Injectable()
 export class OpenRouterOcrAdapter extends OcrProvider {
-  private readonly logger = new Logger(OpenRouterOcrAdapter.name);
+  private readonly logger: Logger;
   private readonly client: OpenAI;
   private readonly model: string;
   override readonly pagesAtOnce: number;
@@ -87,6 +90,7 @@ export class OpenRouterOcrAdapter extends OcrProvider {
   constructor(
     @Inject(VERIFICATION_OPTIONS) options: VerificationModuleOptions,
     @Inject(ObjectStorage) private readonly storage: ObjectStorage,
+    @Inject(Logger) logger: Logger,
   ) {
     super();
     const openrouter = options.openrouter;
@@ -96,6 +100,12 @@ export class OpenRouterOcrAdapter extends OcrProvider {
     const ocr = options.ocr;
     this.model = ocr.model;
     this.pagesAtOnce = ocr.concurrency;
+    // The model is on every line this adapter writes: half of what makes a
+    // transcription surprising is which model produced it.
+    this.logger = logger.child({
+      scope: OpenRouterOcrAdapter.name,
+      model: ocr.model,
+    });
     this.client = new OpenAI({
       apiKey: openrouter.apiKey,
       baseURL: openrouter.baseUrl,
@@ -111,9 +121,16 @@ export class OpenRouterOcrAdapter extends OcrProvider {
   }
 
   async recognise(image: PageImage): Promise<OcrResult> {
+    const startedAt = Date.now();
     const object = await this.storage.getObject(image.storageKey);
     const mime = image.contentType.value;
     const dataUrl = `data:${mime};base64,${Buffer.from(object.body).toString('base64')}`;
+
+    this.logger.debug('Asking for a transcription', {
+      storageKey: image.storageKey.value,
+      contentType: mime,
+      bytes: object.body.byteLength,
+    });
 
     const completion = await this.client.chat.completions.create({
       model: this.model,
@@ -133,7 +150,20 @@ export class OpenRouterOcrAdapter extends OcrProvider {
 
     const answered = answerOf(this.model, completion).message?.content ?? '';
     const { text, looped } = readAsFarAsItGot(answered);
-    if (text.length === 0) return OcrResult.illegible();
+    const durationMs = Date.now() - startedAt;
+
+    if (text.length === 0) {
+      // Recorded as illegible and carried into the report, so this is the only
+      // place that says whether the sheet was blank or the reader refused it.
+      this.logger.warn('The reader returned nothing for this sheet', {
+        storageKey: image.storageKey.value,
+        answeredCharacters: answered.length,
+        durationMs,
+        ...telemetryOf(completion),
+      });
+
+      return OcrResult.illegible();
+    }
 
     // Three readings of the same page, and the page is only as certain as the
     // least of them: the route's own token certainties, where the route reports
@@ -150,14 +180,23 @@ export class OpenRouterOcrAdapter extends OcrProvider {
       looped ? RUNAWAY_CEILING : 1,
     );
 
-    this.logger.log(
-      `OCR ${image.storageKey.value} via ${this.model}: ${text.length} chars, ` +
-        `confidence ${confidence.toFixed(3)} ` +
-        `(logprobs ${scored === null ? 'unavailable' : scored.toFixed(3)}, ` +
-        `legibility ${legible.toFixed(3)}` +
-        `${looped ? `, ran away after ${text.length} chars` : ''})`,
-    );
+    this.logger.log('Sheet transcribed', {
+      storageKey: image.storageKey.value,
+      characters: text.length,
+      confidence: round(confidence),
+      // The three readings the confidence was taken as the least of, kept
+      // apart: which one capped it is the whole diagnosis.
+      logprobs: scored === null ? null : round(scored),
+      legibility: round(legible),
+      ranAway: looped,
+      durationMs,
+      ...telemetryOf(completion),
+    });
 
     return OcrResult.of(RecognisedText.of(text), Confidence.of(confidence));
   }
+}
+
+function round(value: number): number {
+  return Math.round(value * 1000) / 1000;
 }

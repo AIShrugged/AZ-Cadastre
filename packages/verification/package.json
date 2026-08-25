@@ -42,6 +42,7 @@
     "@aws-sdk/s3-request-presigner": "^3.1093.0",
     "@cadastre/api-contracts": "workspace:*",
     "@cadastre/event-publisher": "workspace:*",
+    "@cadastre/logger": "workspace:*",
     "@cadastre/shared": "workspace:*",
     "@napi-rs/canvas": "^1.0.3",
     "@nestjs/common": "catalog:nestjs12",

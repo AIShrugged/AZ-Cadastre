@@ -1,6 +1,8 @@
 import { CqrsModule, type QueryBus } from '@nestjs/cqrs';
 import { Test, type TestingModule } from '@nestjs/testing';
 
+import { LoggerModule } from '@cadastre/logger';
+
 import {
   ObjectStorage,
   OcrProvider,
@@ -165,6 +167,18 @@ export async function startContext(
   const module = await Test.createTestingModule({
     imports: [
       CqrsModule.forRoot(),
+      /*
+       * The composition root registers this globally, so the context is
+       * assembled here the same way it is there. Silent by default — a set
+       * that prints a pipeline run per spec is a set nobody reads — but
+       * LOG_LEVEL turns it back on, which is the fastest way to see what a
+       * failing integration spec actually did.
+       */
+      LoggerModule.forRoot({
+        service: 'verification-test',
+        level: process.env.LOG_LEVEL ?? 'silent',
+        pretty: true,
+      }),
       VerificationModule.forRootAsync({
         useFactory: () => testOptions(databaseUrl),
       }),

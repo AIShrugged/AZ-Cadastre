@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CqrsModule } from '@nestjs/cqrs';
 
 import { ApiGatewayModule } from '@cadastre/api-gateway';
+import { LoggerModule } from '@cadastre/logger';
 import { VerificationModule } from '@cadastre/verification';
 
 import { EnvironmentSchema, type Environment } from './config/index.js';
@@ -27,6 +28,17 @@ const verification = VerificationModule.forRootAsync({
       envFilePath: ['.env.local', '.env'],
     }),
     CqrsModule.forRoot(),
+    /*
+     * Registered here and nowhere else: the module is global, so the context,
+     * the edge and Nest itself write through one instance and one destination
+     * (ADR-0008). It comes before everything that logs — a module whose
+     * constructor has something to say is constructed after this one.
+     */
+    LoggerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Environment, true>) =>
+        config.get('logger', { infer: true }),
+    }),
 
     verification,
 

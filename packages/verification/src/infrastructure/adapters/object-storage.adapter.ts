@@ -7,7 +7,9 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, type OnModuleInit } from '@nestjs/common';
+
+import { Logger } from '@cadastre/logger';
 
 import {
   ObjectStorage,
@@ -34,15 +36,17 @@ export class ObjectStorageAdapter
   extends ObjectStorage
   implements OnModuleInit
 {
-  private readonly logger = new Logger(ObjectStorageAdapter.name);
+  private readonly logger: Logger;
   private readonly client: S3Client;
   private readonly storage: VerificationModuleOptions['storage'];
   private readonly webOrigin: string;
 
   constructor(
     @Inject(VERIFICATION_OPTIONS) options: VerificationModuleOptions,
+    @Inject(Logger) logger: Logger,
   ) {
     super();
+    this.logger = logger.child({ scope: ObjectStorageAdapter.name });
     this.storage = options.storage;
     this.webOrigin = options.web.origin;
     this.client = new S3Client({
@@ -82,6 +86,13 @@ export class ObjectStorageAdapter
       url = s3UrlMatch[1];
     }
 
+    this.logger.debug('Signed an upload', {
+      key: key.value,
+      filename: request.filename.value,
+      contentType: request.contentType.value,
+      expiresIn: this.storage.presignTtl,
+    });
+
     return {
       key,
       url,
@@ -91,6 +102,8 @@ export class ObjectStorageAdapter
   }
 
   async putObject(request: PutObjectRequest): Promise<void> {
+    const startedAt = Date.now();
+
     await this.client.send(
       new PutObjectCommand({
         Bucket: this.storage.bucket,
@@ -99,6 +112,13 @@ export class ObjectStorageAdapter
         ContentType: request.contentType.value,
       }),
     );
+
+    this.logger.debug('Object stored', {
+      key: request.key.value,
+      contentType: request.contentType.value,
+      bytes: request.body.byteLength,
+      durationMs: Date.now() - startedAt,
+    });
   }
 
   async presignDownload(key: StorageKey): Promise<PresignedDownload> {
@@ -118,13 +138,26 @@ export class ObjectStorageAdapter
   }
 
   async getObject(key: StorageKey): Promise<StoredObject> {
+    const startedAt = Date.now();
     const res = await this.client.send(
       new GetObjectCommand({ Bucket: this.storage.bucket, Key: key.value }),
     );
     if (!res.Body) {
+      this.logger.error('Object exists but carried no body', {
+        key: key.value,
+        bucket: this.storage.bucket,
+      });
       throw new ObjectBodyMissingException(key);
     }
     const body = await res.Body.transformToByteArray();
+
+    this.logger.debug('Object read', {
+      key: key.value,
+      contentType: res.ContentType,
+      bytes: body.byteLength,
+      durationMs: Date.now() - startedAt,
+    });
+
     return { body, contentType: this.reportedType(res.ContentType) };
   }
 
@@ -145,7 +178,9 @@ export class ObjectStorageAdapter
     } catch (error) {
       if (!(error instanceof UnsupportedContentTypeException)) throw error;
 
-      this.logger.debug(`Object store reported unsupported type "${raw}"`);
+      this.logger.debug('Object store reported an unsupported content type', {
+        contentType: raw,
+      });
       return null;
     }
   }
@@ -170,16 +205,23 @@ export class ObjectStorageAdapter
           },
         }),
       );
-      this.logger.log(
-        `✓ CORS configured on bucket "${this.storage.bucket}" for all origins, ` +
-          `including the web app at ${this.webOrigin}`,
-      );
+      this.logger.log('CORS configured on the bucket', {
+        bucket: this.storage.bucket,
+        endpoint: this.storage.endpoint,
+        allowedOrigins: '*',
+        webOrigin: this.webOrigin,
+      });
     } catch (err) {
       // RustFS may not implement PutBucketCors, and CORS may already be set
       // outside the API — a failure here is not necessarily a broken upload.
       this.logger.debug(
-        `Could not configure CORS via S3 API on bucket "${this.storage.bucket}". ` +
-          `Uploads may still work if CORS is configured externally (e.g., via Vite proxy). ${String(err)}`,
+        'Could not configure CORS through the S3 API; uploads may still work ' +
+          'if it is configured outside it, e.g. by the dev proxy',
+        {
+          bucket: this.storage.bucket,
+          endpoint: this.storage.endpoint,
+          error: err,
+        },
       );
     }
   }

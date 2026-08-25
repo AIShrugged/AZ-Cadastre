@@ -1,6 +1,8 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import OpenAI from 'openai';
 import { z } from 'zod';
+
+import { Logger } from '@cadastre/logger';
 
 import {
   DocumentSegmenter,
@@ -19,6 +21,7 @@ import {
 import { MissingOpenRouterApiKeyException } from '../../exceptions/index.js';
 
 import { answerOf } from './answered.js';
+import { telemetryOf } from './telemetry.js';
 
 // Enough of a sheet to tell a title page from a continuation, without paying
 // for the body of a long file twice over.
@@ -63,12 +66,13 @@ const SEGMENTATION_TIMEOUT_MS = 120_000;
 
 @Injectable()
 export class OpenRouterSegmenterAdapter extends DocumentSegmenter {
-  private readonly logger = new Logger(OpenRouterSegmenterAdapter.name);
+  private readonly logger: Logger;
   private readonly client: OpenAI;
   private readonly model: string;
 
   constructor(
     @Inject(VERIFICATION_OPTIONS) options: VerificationModuleOptions,
+    @Inject(Logger) logger: Logger,
   ) {
     super();
     const openrouter = options.openrouter;
@@ -76,6 +80,10 @@ export class OpenRouterSegmenterAdapter extends DocumentSegmenter {
       throw new MissingOpenRouterApiKeyException('SEGMENTER_PROVIDER');
     }
     this.model = options.segmenter.model;
+    this.logger = logger.child({
+      scope: OpenRouterSegmenterAdapter.name,
+      model: this.model,
+    });
     this.client = new OpenAI({
       apiKey: openrouter.apiKey,
       baseURL: openrouter.baseUrl,
@@ -92,6 +100,15 @@ export class OpenRouterSegmenterAdapter extends DocumentSegmenter {
 
   async segment(request: SegmentationRequest): Promise<readonly PageRange[]> {
     const pageCount = request.pages.length;
+    const startedAt = Date.now();
+
+    this.logger.debug('Asking where the documents in this file begin', {
+      sheets: pageCount,
+      // A sheet the reader could not transcribe is a sheet this stage decides
+      // about blind, and that is where a run of them gets read as one.
+      unread: request.pages.filter(page => page.text.value.length === 0).length,
+      candidates: request.candidates.map(candidate => candidate.type.value),
+    });
 
     const completion = await this.client.chat.completions.create({
       model: this.model,
@@ -112,18 +129,23 @@ export class OpenRouterSegmenterAdapter extends DocumentSegmenter {
     );
 
     this.logger.log(
-      `Read ${pageCount} sheet(s) as ${ranges.length} document(s): ` +
-        (found.length === 0
-          ? 'the model named no boundary, so the file is taken whole'
-          : found
-              .map(
-                document =>
-                  `p.${document.start} ${document.label || '?'}` +
-                  (document.confidence == null
-                    ? ''
-                    : ` (${document.confidence.toFixed(2)})`),
-              )
-              .join(', ')),
+      found.length === 0
+        ? 'The model named no boundary, so the file is taken whole'
+        : 'File read into documents',
+      {
+        sheets: pageCount,
+        documents: ranges.length,
+        // The labels are the model's own words for what it thinks it found.
+        // They are not used anywhere — the classifier decides that — but they
+        // are what makes a wrong boundary obvious at a glance.
+        boundaries: found.map(document => ({
+          startsAt: document.start,
+          label: document.label || '?',
+          confidence: document.confidence ?? null,
+        })),
+        durationMs: Date.now() - startedAt,
+        ...telemetryOf(completion),
+      },
     );
 
     return ranges;
@@ -205,7 +227,9 @@ export class OpenRouterSegmenterAdapter extends DocumentSegmenter {
     const parsed = AnswerSchema.safeParse(this.json(json));
 
     if (!parsed.success) {
-      this.logger.warn(`Could not read segmenter JSON: ${raw.slice(0, 120)}`);
+      this.logger.warn("Could not read the segmenter's JSON", {
+        answered: raw.slice(0, 200),
+      });
       return [];
     }
 

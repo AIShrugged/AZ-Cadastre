@@ -1,5 +1,7 @@
-import { Inject, Logger } from '@nestjs/common';
+import { Inject } from '@nestjs/common';
 import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
+
+import { Logger } from '@cadastre/logger';
 
 import {
   PackageId,
@@ -19,12 +21,15 @@ export class GetPackageHandler implements IQueryHandler<
   GetPackageQuery,
   PackageDetailView
 > {
-  private readonly logger = new Logger(GetPackageHandler.name);
+  private readonly logger: Logger;
 
   constructor(
     @Inject(PackageQueries) private readonly packages: PackageQueries,
     @Inject(ObjectStorage) private readonly storage: ObjectStorage,
-  ) {}
+    @Inject(Logger) logger: Logger,
+  ) {
+    this.logger = logger.child({ scope: GetPackageHandler.name });
+  }
 
   async execute(query: GetPackageQuery): Promise<PackageDetailView> {
     const packageId = PackageId.of(query.packageId);
@@ -60,7 +65,10 @@ export class GetPackageHandler implements IQueryHandler<
       return (await this.storage.presignDownload(StorageKey.create(key))).url;
     } catch (error) {
       // The rest of the package is worth serving without one sheet's link.
-      this.logger.warn(`Could not sign for "${key}": ${String(error)}`);
+      this.logger.warn('Could not sign a sheet for viewing', {
+        storageKey: key,
+        error,
+      });
 
       return null;
     }

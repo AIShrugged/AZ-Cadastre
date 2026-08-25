@@ -141,6 +141,44 @@ describe('a verification run whose register contradicts the package', () => {
     expect(finding?.message).not.toContain('plotArea');
   });
 
+  /*
+   * The check itself, and not only the finding compiled out of it: a register
+   * that confirms produces no finding at all, so a read side carrying findings
+   * alone would report a stage nobody could tell had run (ADR-0009). It is what
+   * the surface shows the inspector.
+   */
+  it('carries the answer whole into the detail view, with the archive locator', () => {
+    // act
+    const check = detail.registryChecks[0];
+
+    // assert
+    expect(detail.registryChecks).toHaveLength(1);
+    expect(check).toMatchObject({
+      key: 'property_of_record',
+      outcome: 'Differs',
+      reference: 'folder 05, pp. 12-dən 38',
+    });
+    expect(check?.asked.value).toBe(ADDRESS);
+  });
+
+  it('carries every attribute the record was held against, the silent one included', () => {
+    // act
+    const attributes = detail.registryChecks[0]?.attributes ?? [];
+
+    // assert — in the order the profile names them
+    expect(
+      attributes.map(attribute => [
+        attribute.name,
+        attribute.agrees,
+        attribute.recorded,
+      ]),
+    ).toEqual([
+      ['ownerName', false, 'Quliyev Rəşad Tofiq oğlu'],
+      ['cadastralNumber', true, 'AZ-CAD-1024-311'],
+      ['plotArea', false, null],
+    ]);
+  });
+
   it('finishes the package rather than failing it', () => {
     // act / assert
     expect(detail.status).toBe('Completed');
@@ -190,5 +228,20 @@ describe('a verification run whose register holds no record', () => {
     // assert
     expect(kinds).toContain('RegistryUnconfirmed');
     expect(kinds).not.toContain('RegistryMismatch');
+  });
+
+  // Asked, answered, nothing found: the check still stands in the detail view,
+  // because "the register was asked and holds nothing" is the answer. There is
+  // no locator, and nothing was held against anything — every attribute came
+  // back silent.
+  it('records the lookup as a check with no record behind it', () => {
+    // act
+    const check = detail.registryChecks[0];
+
+    // assert
+    expect(check).toMatchObject({ outcome: 'NotFound', reference: null });
+    expect(
+      check?.attributes.every(attribute => attribute.recorded === null),
+    ).toBe(true);
   });
 });

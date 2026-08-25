@@ -45,6 +45,25 @@ export type CrossCheckView = {
   values: readonly CheckedValueView[];
 };
 
+export type RegistryAttributeView = {
+  name: string;
+  submitted: CheckedValueView;
+  // Null where the register is silent about the attribute.
+  recorded: string | null;
+  agrees: boolean;
+};
+
+export type RegistryCheckView = {
+  key: string;
+  outcome: string;
+  confidence: number;
+  note: string;
+  asked: CheckedValueView;
+  // Where the paper is, as the record stated it; null when none was found.
+  reference: string | null;
+  attributes: readonly RegistryAttributeView[];
+};
+
 export type ReportView = {
   status: string;
   generatedAt: Date;
@@ -96,5 +115,9 @@ export type PackageDetailView = PackageSummaryView & {
   // Every check the run was able to make, agreed or not: one that agreed is
   // work the inspector does not have to redo.
   crossChecks: readonly CrossCheckView[];
+  // What the archive register said about the property, agreed or not — for the
+  // same reason: a record that confirmed it is a lookup the inspector does not
+  // have to make.
+  registryChecks: readonly RegistryCheckView[];
   report: ReportView | null;
 };

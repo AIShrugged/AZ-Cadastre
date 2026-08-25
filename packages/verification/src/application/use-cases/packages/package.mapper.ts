@@ -1,17 +1,21 @@
 import type {
+  CheckedValueDto,
   CrossCheckDto,
   DocumentDto,
   PackageDetailDto,
   PackageDto,
+  RegistryCheckDto,
   ReportDto,
   SourceFileDto,
 } from '@cadastre/api-contracts/verification';
 
 import type {
+  CheckedValueView,
   CrossCheckView,
   DocumentView,
   PackageDetailView,
   PackageSummaryView,
+  RegistryCheckView,
   ReportView,
   SourceFileView,
 } from '../../read-models/index.js';
@@ -41,6 +45,7 @@ export function toDetailDto(view: PackageDetailView): PackageDetailDto {
     ...toSummaryDto(view),
     files: view.files.map(toSourceFileDto),
     crossChecks: view.crossChecks.map(toCrossCheckDto),
+    registryChecks: view.registryChecks.map(toRegistryCheckDto),
     report: view.report ? toReportDto(view.report) : null,
   };
 }
@@ -53,13 +58,38 @@ function toCrossCheckDto(view: CrossCheckView): CrossCheckDto {
     verdict: view.verdict as CrossCheckDto['verdict'],
     confidence: view.confidence,
     note: view.note,
-    values: view.values.map(value => ({
-      documentId: value.documentId,
-      documentType: value.documentType,
-      fieldName: value.fieldName,
-      value: value.value,
-      pageNumber: value.pageNumber,
-      confidence: value.confidence,
+    values: view.values.map(toCheckedValueDto),
+  };
+}
+
+// The value a check was made from — a cross-check's, or the address a registry
+// check asked about. Same six fields either way.
+function toCheckedValueDto(view: CheckedValueView): CheckedValueDto {
+  return {
+    documentId: view.documentId,
+    documentType: view.documentType,
+    fieldName: view.fieldName,
+    value: view.value,
+    pageNumber: view.pageNumber,
+    confidence: view.confidence,
+  };
+}
+
+function toRegistryCheckDto(view: RegistryCheckView): RegistryCheckDto {
+  return {
+    key: view.key,
+    // Only ever written through the domain's own enumeration, so the stored
+    // string is one the contract names.
+    outcome: view.outcome as RegistryCheckDto['outcome'],
+    confidence: view.confidence,
+    note: view.note,
+    asked: toCheckedValueDto(view.asked),
+    reference: view.reference,
+    attributes: view.attributes.map(attribute => ({
+      name: attribute.name,
+      submitted: toCheckedValueDto(attribute.submitted),
+      recorded: attribute.recorded,
+      agrees: attribute.agrees,
     })),
   };
 }

@@ -67,8 +67,9 @@ const en: Dict = {
   'stage.3': 'Classification',
   'stage.4': 'Field extraction',
   'stage.5': 'Cross-document check',
-  'stage.6': 'Completeness',
-  'stage.7': 'Report',
+  'stage.6': 'Archive register',
+  'stage.7': 'Completeness',
+  'stage.8': 'Report',
   'empty.title': 'The register is empty',
   'empty.body':
     'Start a verification and the package will appear here with live progress.',
@@ -237,6 +238,34 @@ const en: Dict = {
   'check.property_address': 'Property address',
   'check.cadastral_number': 'Cadastral number',
   'check.plot_area': 'Plot area',
+  'check.property_of_record': 'The property against the archive record',
+  // ─── The archive register ───────────────────────────────────────────────────
+  'detail.registry': 'Archive register',
+  'detail.registry_note':
+    'What the papers say about the property, held against the archive record of it. The only check that leaves the submission.',
+  'detail.registry_pending': 'Asked once the property address has been read.',
+  'detail.registry_none':
+    'The register gave no answer for this package — either the address it asks about could not be read, or it could not be reached. Neither stops a run.',
+  'detail.registry_asked': 'Asked about',
+  'detail.registry_where': 'In the archive',
+  'detail.reg.confirmed': 'Record agrees',
+  'detail.reg.differs': 'Record disagrees',
+  'detail.reg.not_found': 'No record',
+  'detail.reg.ambiguous': 'Several records',
+  'detail.reg.confirmed_note':
+    'The record was found and everything held against it agreed. This is the lookup you do not have to make.',
+  'detail.reg.differs_note':
+    'The record was found and states something else. It is the record that disagrees, not the papers with each other.',
+  'detail.reg.not_found_note':
+    'The register holds nothing under this address. Its coverage is the privatisations of the 1990s and 2000s, so an absent record says nothing about this package.',
+  'detail.reg.ambiguous_note':
+    'More than one record answers to this address. Which of them applies is yours to say, not the engine\u2019s.',
+  'detail.reg.submitted': 'In the package',
+  'detail.reg.recorded': 'On record',
+  'detail.reg.silent': 'the register never held this column',
+  'regattr.ownerName': 'Right holder',
+  'regattr.cadastralNumber': 'Cadastral number',
+  'regattr.plotArea': 'Plot area',
   // ─── Triage ─────────────────────────────────────────────────────────────────
   // The worklist that leads the surface, the segments that filter the register,
   // and the lines that stand in for what has been folded away.
@@ -353,8 +382,9 @@ const ru: Dict = {
   'stage.3': 'Классификация',
   'stage.4': 'Извлечение полей',
   'stage.5': 'Сверка документов',
-  'stage.6': 'Комплектность',
-  'stage.7': 'Отчёт',
+  'stage.6': 'Архивный реестр',
+  'stage.7': 'Комплектность',
+  'stage.8': 'Отчёт',
   'empty.title': 'Реестр пуст',
   'empty.body': 'Запустите проверку — пакет появится здесь с ходом обработки.',
   'empty.filtered.title': 'Совпадений нет',
@@ -522,6 +552,34 @@ const ru: Dict = {
   'check.property_address': 'Адрес объекта',
   'check.cadastral_number': 'Кадастровый номер',
   'check.plot_area': 'Площадь участка',
+  'check.property_of_record': 'Объект против архивной записи',
+  // ─── Архивный реестр ────────────────────────────────────────────────────────
+  'detail.registry': 'Архивный реестр',
+  'detail.registry_note':
+    'Что документы говорят об объекте — против архивной записи о нём. Единственная проверка, которая выходит за пределы пакета.',
+  'detail.registry_pending': 'Реестр спрашивают, когда прочитан адрес объекта.',
+  'detail.registry_none':
+    'Реестр не ответил по этому пакету: либо не прочитан адрес, о котором он спрашивает, либо до реестра не достучались. Ни то, ни другое не останавливает проверку.',
+  'detail.registry_asked': 'Спрошено об адресе',
+  'detail.registry_where': 'В архиве',
+  'detail.reg.confirmed': 'Запись подтверждает',
+  'detail.reg.differs': 'Запись расходится',
+  'detail.reg.not_found': 'Записи нет',
+  'detail.reg.ambiguous': 'Несколько записей',
+  'detail.reg.confirmed_note':
+    'Запись найдена, и всё, что с ней сверяли, совпало. Это та справка, которую вам не нужно наводить.',
+  'detail.reg.differs_note':
+    'Запись найдена и говорит другое. Расходится именно запись, а не документы между собой.',
+  'detail.reg.not_found_note':
+    'По этому адресу реестр ничего не держит. Он покрывает приватизации 1990-х и 2000-х, поэтому отсутствие записи ничего не говорит о пакете.',
+  'detail.reg.ambiguous_note':
+    'Этому адресу отвечает больше одной записи. Какая из них та самая — решать вам, а не системе.',
+  'detail.reg.submitted': 'В пакете',
+  'detail.reg.recorded': 'В записи',
+  'detail.reg.silent': 'такой графы в реестре не было',
+  'regattr.ownerName': 'Правообладатель',
+  'regattr.cadastralNumber': 'Кадастровый номер',
+  'regattr.plotArea': 'Площадь участка',
   'detail.attention': 'Требует внимания',
   'detail.attention_go': 'Перейти к этому чтению в реестре',
   'detail.observations': 'Наблюдения',
@@ -635,8 +693,9 @@ const az: Dict = {
   'stage.3': 'Təsnifat',
   'stage.4': 'Sahə çıxarışı',
   'stage.5': 'Sənədlərarası yoxlama',
-  'stage.6': 'Tamlıq',
-  'stage.7': 'Hesabat',
+  'stage.6': 'Arxiv reyestri',
+  'stage.7': 'Tamlıq',
+  'stage.8': 'Hesabat',
   'empty.title': 'Reyestr boşdur',
   'empty.body':
     'Yoxlamaya başlayın — paket burada emal gedişatı ilə görünəcək.',
@@ -806,6 +865,34 @@ const az: Dict = {
   'check.property_address': 'Obyektin ünvanı',
   'check.cadastral_number': 'Kadastr nömrəsi',
   'check.plot_area': 'Torpaq sahəsinin sahəsi',
+  'check.property_of_record': 'Əmlak arxiv qeydi ilə üzləşdirilir',
+  // ─── Arxiv reyestri ─────────────────────────────────────────────────────────
+  'detail.registry': 'Arxiv reyestri',
+  'detail.registry_note':
+    'Sənədlərin əmlak barədə dedikləri arxiv qeydi ilə tutuşdurulur. Paketdən kənara çıxan yeganə yoxlama.',
+  'detail.registry_pending': 'Əmlakın ünvanı oxunandan sonra soruşulur.',
+  'detail.registry_none':
+    'Reyestr bu paket üzrə cavab vermədi: ya soruşduğu ünvan oxunmayıb, ya da reyestrə çatmaq olmayıb. Heç biri yoxlamanı dayandırmır.',
+  'detail.registry_asked': 'Soruşulan ünvan',
+  'detail.registry_where': 'Arxivdə',
+  'detail.reg.confirmed': 'Qeyd təsdiqləyir',
+  'detail.reg.differs': 'Qeyd fərqlənir',
+  'detail.reg.not_found': 'Qeyd yoxdur',
+  'detail.reg.ambiguous': 'Bir neçə qeyd',
+  'detail.reg.confirmed_note':
+    'Qeyd tapıldı və onunla tutuşdurulan hər şey uyğun gəldi. Bu, sizin ayrıca arayış götürməyinizə ehtiyac qalmayan haldır.',
+  'detail.reg.differs_note':
+    'Qeyd tapıldı və başqa cür göstərir. Fərqlənən sənədlər deyil, məhz qeyddir.',
+  'detail.reg.not_found_note':
+    'Reyestrdə bu ünvan üzrə heç nə yoxdur. O, 1990–2000-ci illərin özəlləşdirmələrini əhatə edir, ona görə qeydin olmaması paket haqqında heç nə demir.',
+  'detail.reg.ambiguous_note':
+    'Bu ünvana birdən çox qeyd cavab verir. Hansının aid olduğunu sistem yox, siz deyirsiniz.',
+  'detail.reg.submitted': 'Paketdə',
+  'detail.reg.recorded': 'Qeyddə',
+  'detail.reg.silent': 'reyestrdə belə sütun heç vaxt olmayıb',
+  'regattr.ownerName': 'Hüquq sahibi',
+  'regattr.cadastralNumber': 'Kadastr nömrəsi',
+  'regattr.plotArea': 'Torpaq sahəsi',
   'detail.attention': 'Diqqət tələb edir',
   'detail.attention_go': 'Reyestrdə bu oxunuşa keç',
   'detail.observations': 'Müşahidələr',

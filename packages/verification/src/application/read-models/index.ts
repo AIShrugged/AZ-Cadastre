@@ -8,6 +8,8 @@ export type {
   PackageDetailView,
   PackageSummaryView,
   PageView,
+  RegistryAttributeView,
+  RegistryCheckView,
   ReportView,
   SourceFileView,
 } from './package.read-model.js';

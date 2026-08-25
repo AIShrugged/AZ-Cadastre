@@ -5,6 +5,7 @@ import type {
   CrossCheckView,
   PackageDetailView,
   PackageSummaryView,
+  RegistryCheckView,
   ReportView,
 } from '../../application/read-models/index.js';
 import {
@@ -29,6 +30,18 @@ const ISSUE_COLUMNS = {
   confidence: true,
 } as const satisfies Prisma.ValidationIssueSelect;
 
+// The value a check was made from, wherever one is stored: a cross-check's
+// values, a registry check's subject, a registry attribute. Same six columns
+// every time, so they are named once.
+const CHECKED_VALUE_COLUMNS = {
+  documentId: true,
+  documentType: true,
+  fieldName: true,
+  value: true,
+  pageNumber: true,
+  confidence: true,
+} as const;
+
 const CROSS_CHECK_COLUMNS = {
   orderBy: { key: 'asc' },
   select: {
@@ -38,17 +51,38 @@ const CROSS_CHECK_COLUMNS = {
     note: true,
     values: {
       orderBy: { position: 'asc' },
-      select: {
-        documentId: true,
-        documentType: true,
-        fieldName: true,
-        value: true,
-        pageNumber: true,
-        confidence: true,
-      },
+      select: CHECKED_VALUE_COLUMNS,
     },
   },
 } as const satisfies Prisma.VerificationPackage$crossChecksArgs;
+
+const REGISTRY_CHECK_COLUMNS = {
+  orderBy: { key: 'asc' },
+  select: {
+    key: true,
+    outcome: true,
+    confidence: true,
+    note: true,
+    reference: true,
+    // The address that was asked about. Its confidence is stored apart from the
+    // check's own, which is the floor of every reading the check was made from.
+    documentId: true,
+    documentType: true,
+    fieldName: true,
+    value: true,
+    pageNumber: true,
+    valueConfidence: true,
+    attributes: {
+      orderBy: { position: 'asc' },
+      select: {
+        name: true,
+        agrees: true,
+        recorded: true,
+        ...CHECKED_VALUE_COLUMNS,
+      },
+    },
+  },
+} as const satisfies Prisma.VerificationPackage$registryChecksArgs;
 
 const SUMMARY_COLUMNS = {
   id: true,
@@ -94,6 +128,31 @@ type CrossCheckRow = {
   readonly confidence: number;
   readonly note: string;
   readonly values: readonly {
+    readonly documentId: string | null;
+    readonly documentType: string;
+    readonly fieldName: string;
+    readonly value: string;
+    readonly pageNumber: number;
+    readonly confidence: number;
+  }[];
+};
+
+type RegistryCheckRow = {
+  readonly key: string;
+  readonly outcome: string;
+  readonly confidence: number;
+  readonly note: string;
+  readonly reference: string | null;
+  readonly documentId: string | null;
+  readonly documentType: string;
+  readonly fieldName: string;
+  readonly value: string;
+  readonly pageNumber: number;
+  readonly valueConfidence: number;
+  readonly attributes: readonly {
+    readonly name: string;
+    readonly agrees: boolean;
+    readonly recorded: string | null;
     readonly documentId: string | null;
     readonly documentType: string;
     readonly fieldName: string;
@@ -164,6 +223,7 @@ export class PackageQueriesAdapter extends PackageQueries {
         ...SUMMARY_COLUMNS,
         report: REPORT_COLUMNS,
         crossChecks: CROSS_CHECK_COLUMNS,
+        registryChecks: REGISTRY_CHECK_COLUMNS,
         sourceFiles: {
           orderBy: { createdAt: 'asc' },
           select: {
@@ -210,6 +270,9 @@ export class PackageQueriesAdapter extends PackageQueries {
       crossChecks: row.crossChecks.map(check =>
         PackageQueriesAdapter.toCrossCheck(check),
       ),
+      registryChecks: row.registryChecks.map(check =>
+        PackageQueriesAdapter.toRegistryCheck(check),
+      ),
       files: row.sourceFiles.map(file => ({
         id: file.id,
         originalFilename: file.originalFilename,
@@ -254,6 +317,39 @@ export class PackageQueriesAdapter extends PackageQueries {
         value: value.value,
         pageNumber: value.pageNumber,
         confidence: value.confidence,
+      })),
+    };
+  }
+
+  private static toRegistryCheck(row: RegistryCheckRow): RegistryCheckView {
+    return {
+      key: row.key,
+      // Only ever written through the domain's own enumeration, so the stored
+      // string is one the contract names.
+      outcome: row.outcome,
+      confidence: row.confidence,
+      note: row.note,
+      asked: {
+        documentId: row.documentId,
+        documentType: row.documentType,
+        fieldName: row.fieldName,
+        value: row.value,
+        pageNumber: row.pageNumber,
+        confidence: row.valueConfidence,
+      },
+      reference: row.reference,
+      attributes: row.attributes.map(attribute => ({
+        name: attribute.name,
+        agrees: attribute.agrees,
+        recorded: attribute.recorded,
+        submitted: {
+          documentId: attribute.documentId,
+          documentType: attribute.documentType,
+          fieldName: attribute.fieldName,
+          value: attribute.value,
+          pageNumber: attribute.pageNumber,
+          confidence: attribute.confidence,
+        },
       })),
     };
   }

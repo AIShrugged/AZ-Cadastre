@@ -11,4 +11,8 @@ export {
   PackageStatusSchema,
   type PackageStatus,
 } from './package-status.enum.js';
+export {
+  RegistryOutcomeSchema,
+  type RegistryOutcome,
+} from './registry-outcome.enum.js';
 export { ReportStatusSchema, type ReportStatus } from './report-status.enum.js';

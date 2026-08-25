@@ -10,6 +10,7 @@ import type {
   DocumentView,
   PackageDetailView,
   PackageSummaryView,
+  RegistryCheckView,
   ReportView,
   SourceFileView,
 } from '../../read-models/index.js';
@@ -127,6 +128,57 @@ function aCrossCheckView(
   };
 }
 
+function aRegistryCheckView(
+  overrides: Partial<RegistryCheckView> = {},
+): RegistryCheckView {
+  return {
+    key: 'property_of_record',
+    outcome: 'Differs',
+    confidence: 0.71,
+    note: 'answered from register 3-00219',
+    asked: {
+      documentId: anId(),
+      documentType: 'application',
+      fieldName: 'property_address',
+      value: 'Bakı ş., Nəsimi r., Azadlıq pr. 12, mən. 43',
+      pageNumber: 1,
+      confidence: 0.71,
+    },
+    reference: 'folder 05, pp. 12-dən 38',
+    attributes: [
+      {
+        name: 'ownerName',
+        recorded: 'Əliyev Elçin Vaqif oğlu',
+        agrees: true,
+        submitted: {
+          documentId: anId(),
+          documentType: 'archive_certificate',
+          fieldName: 'owner_name',
+          value: 'ELÇİN ƏLİYEV',
+          pageNumber: 3,
+          confidence: 0.9,
+        },
+      },
+      {
+        name: 'plotArea',
+        // The register never held the column, which is silence rather than a
+        // disagreement.
+        recorded: null,
+        agrees: false,
+        submitted: {
+          documentId: anId(),
+          documentType: 'land_plot_plan',
+          fieldName: 'plot_area',
+          value: '642 m²',
+          pageNumber: 2,
+          confidence: 0.84,
+        },
+      },
+    ],
+    ...overrides,
+  };
+}
+
 function aDetailView(
   overrides: Partial<PackageDetailView> = {},
 ): PackageDetailView {
@@ -134,6 +186,7 @@ function aDetailView(
     ...aSummaryView(),
     files: [aFileView()],
     crossChecks: [],
+    registryChecks: [],
     report: aReportView(),
     ...overrides,
   };
@@ -465,6 +518,51 @@ describe('toDetailDto', () => {
       toDetailDto(aDetailView({ crossChecks: [orphaned] })).crossChecks[0]
         ?.values[0]?.documentId,
     ).toBeNull();
+  });
+
+  it('renders a package the register stage has not reached with no checks', () => {
+    expect(toDetailDto(aDetailView()).registryChecks).toEqual([]);
+  });
+
+  it('renders a registry check with what the register said and where the paper is', () => {
+    const dto = toDetailDto(
+      aDetailView({ registryChecks: [aRegistryCheckView()] }),
+    );
+
+    expect(dto.registryChecks[0]).toMatchObject({
+      key: 'property_of_record',
+      outcome: 'Differs',
+      confidence: 0.71,
+      reference: 'folder 05, pp. 12-dən 38',
+    });
+  });
+
+  it('renders the address that was asked about, with the sheet it was read off', () => {
+    const dto = toDetailDto(
+      aDetailView({ registryChecks: [aRegistryCheckView()] }),
+    );
+
+    expect(dto.registryChecks[0]?.asked).toMatchObject({
+      documentType: 'application',
+      fieldName: 'property_address',
+      value: 'Bakı ş., Nəsimi r., Azadlıq pr. 12, mən. 43',
+      pageNumber: 1,
+    });
+  });
+
+  // A register that never held the column is silent, and silence is not a
+  // disagreement — so `recorded` travels as null rather than as an empty
+  // string, which a reader would show as "the record says nothing here"
+  // (ADR-0009).
+  it('renders an attribute the register is silent about with nothing recorded', () => {
+    const dto = toDetailDto(
+      aDetailView({ registryChecks: [aRegistryCheckView()] }),
+    );
+
+    expect(dto.registryChecks[0]?.attributes.map(a => a.recorded)).toEqual([
+      'Əliyev Elçin Vaqif oğlu',
+      null,
+    ]);
   });
 
   it('carries the check a finding came out of, so a reader can name it', () => {

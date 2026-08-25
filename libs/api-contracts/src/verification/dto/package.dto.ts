@@ -5,6 +5,7 @@ import {
   DocumentContentTypeSchema,
   IssueKindSchema,
   PackageStatusSchema,
+  RegistryOutcomeSchema,
   ReportStatusSchema,
 } from '../enums/index.js';
 
@@ -132,6 +133,51 @@ export const CrossCheckDtoSchema = z.object({
 });
 export type CrossCheckDto = z.infer<typeof CrossCheckDtoSchema>;
 
+// ─── The archive register ────────────────────────────────────────────────────
+// The sixth stage, and the only one that leaves the submission: what the papers
+// say about the property, held against the record of what was registered
+// (ADR-0009).
+//
+// Published whole, agreed or not, for the same reason a cross-check is: a
+// property the register confirmed is what the inspector does not have to look
+// up, and a stage that reported nothing when it agreed would be a stage nobody
+// could tell had run.
+
+export const RegistryAttributeDtoSchema = z.object({
+  // The name the register knows the attribute by — "ownerName",
+  // "cadastralNumber", "plotArea".
+  name: z.string(),
+  // What the package states, and the document it was read off.
+  submitted: CheckedValueDtoSchema,
+  // What the record states. Null where the register is silent: a column an
+  // area's register never held is silence, not a disagreement.
+  recorded: z.string().nullable(),
+  agrees: z.boolean(),
+});
+export type RegistryAttributeDto = z.infer<typeof RegistryAttributeDtoSchema>;
+
+export const RegistryCheckDtoSchema = z.object({
+  // Profile registry-check key, e.g. "property_of_record".
+  key: z.string(),
+  outcome: RegistryOutcomeSchema,
+  // 0..1, and never higher than the reading it was made from.
+  confidence: z.number(),
+  // The audit line, written in English when the register answered — including
+  // which register answered. A reader is shown the check built from the fields
+  // around it.
+  note: z.string(),
+  // The address the register was given, and where in the package it was read.
+  asked: CheckedValueDtoSchema,
+  // Where the paper is, as the record stated it. Null when no record was found
+  // — and text, because a folder and a page range are not numbers: "06-DƏK səh.
+  // 48" is a real value.
+  reference: z.string().nullable(),
+  // In the order the profile names them. Empty when no record was found, since
+  // there was nothing to hold anything against.
+  attributes: z.array(RegistryAttributeDtoSchema),
+});
+export type RegistryCheckDto = z.infer<typeof RegistryCheckDtoSchema>;
+
 export const ReportDtoSchema = z.object({
   status: ReportStatusSchema,
   // ISO-8601.
@@ -145,6 +191,10 @@ export const PackageDetailDtoSchema = PackageDtoSchema.extend({
   // Empty until the cross-document stage has run, and short of the profile's
   // full list where a check had only one document to read.
   crossChecks: z.array(CrossCheckDtoSchema),
+  // Empty until the register stage has run — and where the value a check asks
+  // about could not be read, it stays empty: a question nobody could put is
+  // already in the report as the reading that failed.
+  registryChecks: z.array(RegistryCheckDtoSchema),
   report: ReportDtoSchema.nullable(),
 });
 export type PackageDetailDto = z.infer<typeof PackageDetailDtoSchema>;

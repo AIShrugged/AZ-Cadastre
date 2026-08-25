@@ -51,7 +51,7 @@ export type VerificationPackage = {
   lowConfidence: number;
   /** Lowest field confidence seen, 0–100 (undefined until extraction runs). */
   minConfidence?: number;
-  /** For in_progress packages: current stage 1..6. */
+  /** For in_progress packages: current stage 1..8. */
   stage?: number;
   /** Optional internal reference the inspector set at creation. */
   reference?: string;

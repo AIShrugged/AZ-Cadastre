@@ -59,6 +59,9 @@ import type {
   IssueDto,
   IssueKind,
   PackageDetailDto,
+  RegistryAttributeDto,
+  RegistryCheckDto,
+  RegistryOutcome,
   ReportDto,
   ReportStatus,
   SourceFileDto,
@@ -287,6 +290,10 @@ function stageStatuses(
   // that finished takes the branch below, so a package no check could be made
   // over never sits here waiting.
   const crossDone = extractDone && pkg.crossChecks.length > 0;
+  // The register is asked once the values it holds against a record exist, and
+  // it is answered per check, so the first answer back says the stage is under
+  // way — the same reading as the cross-document stage above it.
+  const registryDone = crossDone && pkg.registryChecks.length > 0;
 
   const stages: StageStatus[] = Array.from({ length: STAGES }, () => 'pending');
   if (disposition === 'failed') {
@@ -310,6 +317,7 @@ function stageStatuses(
   stages[2] = classifyDone ? 'done' : 'current';
   stages[3] = extractDone ? 'done' : 'current';
   stages[4] = crossDone ? 'done' : extractDone ? 'current' : 'pending';
+  stages[5] = registryDone ? 'done' : crossDone ? 'current' : 'pending';
   return stages;
 }
 
@@ -1019,7 +1027,12 @@ const NOTE_SECTIONS = ORDERED.filter(([, section]) => section.tone === 'note');
 const isInformational = (kind: IssueKind): boolean =>
   SECTIONS[kind].tone === 'note';
 
-const REPORT_TONE: Record<ReportStatus, 'ok' | 'issues' | 'incomplete'> = {
+// The three tones the whole surface reports in: settled, a fault, and neither
+// of the two. Named once, because a check, a report and a register answer are
+// all read off the same colours.
+type Tone = 'ok' | 'issues' | 'incomplete';
+
+const REPORT_TONE: Record<ReportStatus, Tone> = {
   OK: 'ok',
   IssuesFound: 'issues',
   IncompletePackage: 'incomplete',
@@ -1403,12 +1416,11 @@ function Worklist({
 // A check that agreed is kept and folded rather than dropped: it is what the
 // inspector does not have to redo, and a panel showing only the failures would
 // leave them wondering which comparisons were made at all.
-const VERDICT_TONE: Record<CrossCheckVerdict, 'ok' | 'issues' | 'incomplete'> =
-  {
-    Match: 'ok',
-    Mismatch: 'issues',
-    Unclear: 'incomplete',
-  };
+const VERDICT_TONE: Record<CrossCheckVerdict, Tone> = {
+  Match: 'ok',
+  Mismatch: 'issues',
+  Unclear: 'incomplete',
+};
 
 const VERDICT_LABEL: Record<CrossCheckVerdict, string> = {
   Match: 'detail.check_agreed',
@@ -1416,10 +1428,11 @@ const VERDICT_LABEL: Record<CrossCheckVerdict, string> = {
   Unclear: 'detail.check_unclear',
 };
 
-function VerdictMark({ verdict }: { verdict: CrossCheckVerdict }) {
-  const { t } = useI18n();
-  const tone = VERDICT_TONE[verdict];
-
+/** How a check stands, as a pill. Shared by the two panels that report one, so
+ *  that "agreed" reads alike whether the papers were held against each other or
+ *  against the archive record — a reader should not have to learn two vocabularies
+ *  for the same three tones. */
+function StandingMark({ tone, label }: { tone: Tone; label: string }) {
   return (
     <span
       className={cn(
@@ -1438,8 +1451,19 @@ function VerdictMark({ verdict }: { verdict: CrossCheckVerdict }) {
           tone === 'incomplete' && 'bg-incomplete',
         )}
       />
-      {t(VERDICT_LABEL[verdict])}
+      {label}
     </span>
+  );
+}
+
+function VerdictMark({ verdict }: { verdict: CrossCheckVerdict }) {
+  const { t } = useI18n();
+
+  return (
+    <StandingMark
+      tone={VERDICT_TONE[verdict]}
+      label={t(VERDICT_LABEL[verdict])}
+    />
   );
 }
 
@@ -1577,6 +1601,256 @@ function CrossChecks({
           <CrossCheckEntry key={check.key} check={check} onJump={onJump} />
         ))}
       </div>
+    </section>
+  );
+}
+
+// ─── The archive register ────────────────────────────────────────────────────
+// The sixth stage, and the only one on this page that reports something from
+// outside the envelope: the property as the papers address it, against the
+// record of what was registered (ADR-0009).
+//
+// It is rendered whether or not it found anything, and whether or not it agreed
+// — including when it never answered. A stage that reported only its
+// disagreements would be a stage an inspector could not tell had run, and "the
+// register was asked and confirmed it" is exactly the lookup they would
+// otherwise make by hand.
+const OUTCOME_TONE: Record<RegistryOutcome, Tone> = {
+  Confirmed: 'ok',
+  Differs: 'issues',
+  // Neither is a fault in the package: the register holds the privatisations of
+  // the 1990s and 2000s, so silence there is an absence of evidence and two
+  // records answering to one address is a question for a person.
+  NotFound: 'incomplete',
+  Ambiguous: 'incomplete',
+};
+
+const OUTCOME_LABEL: Record<RegistryOutcome, string> = {
+  Confirmed: 'detail.reg.confirmed',
+  Differs: 'detail.reg.differs',
+  NotFound: 'detail.reg.not_found',
+  Ambiguous: 'detail.reg.ambiguous',
+};
+
+// What the answer means for the package, said in the reader's own language. The
+// wire carries an English audit line naming the register that answered; nothing
+// here reads it.
+const OUTCOME_NOTE: Record<RegistryOutcome, string> = {
+  Confirmed: 'detail.reg.confirmed_note',
+  Differs: 'detail.reg.differs_note',
+  NotFound: 'detail.reg.not_found_note',
+  Ambiguous: 'detail.reg.ambiguous_note',
+};
+
+/** One value held against the record: what the package states above what the
+ *  register has, so the two are read down one column rather than across. */
+function RegistryAttributeRow({
+  attribute,
+  onJump,
+}: {
+  attribute: RegistryAttributeDto;
+  onJump: Jump;
+}) {
+  const { t } = useI18n();
+  const submitted = attribute.submitted;
+  const anchor = submitted.documentId
+    ? `#field-${submitted.documentId}-${submitted.fieldName}`
+    : null;
+
+  const body = (
+    <>
+      <span className='flex min-w-0 items-baseline gap-1.5 text-[0.8125rem] leading-snug text-muted-foreground'>
+        {attribute.recorded === null ? (
+          <span aria-hidden className='w-3 shrink-0' />
+        ) : attribute.agrees ? (
+          <CheckIcon className='size-3 shrink-0 translate-y-0.5 text-ok-ink' />
+        ) : (
+          <TriangleAlertIcon className='size-3 shrink-0 translate-y-0.5 text-issues-ink' />
+        )}
+        <span className='min-w-0'>
+          {translateOr(t, `regattr.${attribute.name}`, attribute.name)}
+          <span className='text-muted-foreground/60'>
+            {' · '}
+            {translateOr(
+              t,
+              `doctype.${submitted.documentType}`,
+              submitted.documentType,
+            )}
+          </span>
+        </span>
+      </span>
+      <span className='flex min-w-0 flex-col gap-0.5'>
+        <span className='flex min-w-0 items-baseline gap-2'>
+          <span className='w-[6.5rem] shrink-0 text-[0.6875rem] leading-snug text-muted-foreground/70'>
+            {t('detail.reg.submitted')}
+          </span>
+          <span
+            data-mono
+            className='min-w-0 break-words text-[0.875rem] leading-snug text-foreground'
+          >
+            {submitted.value}
+          </span>
+          <Confidence value={submitted.confidence} bare />
+        </span>
+        <span className='flex min-w-0 items-baseline gap-2'>
+          <span className='w-[6.5rem] shrink-0 text-[0.6875rem] leading-snug text-muted-foreground/70'>
+            {t('detail.reg.recorded')}
+          </span>
+          {attribute.recorded === null ? (
+            <span className='min-w-0 text-[0.8125rem] italic leading-snug text-muted-foreground'>
+              {t('detail.reg.silent')}
+            </span>
+          ) : (
+            <span
+              data-mono
+              className={cn(
+                'min-w-0 break-words text-[0.875rem] leading-snug',
+                attribute.agrees ? 'text-muted-foreground' : 'text-issues-ink',
+              )}
+            >
+              {attribute.recorded}
+            </span>
+          )}
+        </span>
+      </span>
+    </>
+  );
+
+  const shape =
+    'grid gap-x-6 gap-y-1 border-b border-rule py-2 sm:grid-cols-[minmax(10rem,18rem)_minmax(0,1fr)]';
+
+  return (
+    <li>
+      {anchor ? (
+        <a
+          href={anchor}
+          onClick={onJump(submitted.documentId, anchor)}
+          title={t('detail.checks_go')}
+          className={cn(
+            shape,
+            '-mx-2 rounded-md px-2 transition-colors hover:bg-foreground/4 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
+          )}
+        >
+          {body}
+        </a>
+      ) : (
+        <div className={shape}>{body}</div>
+      )}
+    </li>
+  );
+}
+
+function RegistryCheckEntry({
+  check,
+  onJump,
+}: {
+  check: RegistryCheckDto;
+  onJump: Jump;
+}) {
+  const { t } = useI18n();
+
+  return (
+    // Open unless the record confirmed it, on the same rule as a cross-check:
+    // an agreement is stated and folded, anything else is where the work is.
+    <details
+      id={`registry-${check.key}`}
+      className='group scroll-mt-16'
+      open={check.outcome !== 'Confirmed'}
+    >
+      <summary className='-mx-2 flex cursor-pointer list-none select-none flex-wrap items-baseline gap-x-3 gap-y-1 rounded-md px-2 py-2 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50'>
+        <ChevronRightIcon className='size-3.5 shrink-0 translate-y-0.5 text-muted-foreground transition-transform duration-200 group-open:rotate-90' />
+        <span className='min-w-0 text-[0.8125rem] leading-snug text-foreground'>
+          {translateOr(t, `check.${check.key}`, check.key)}
+        </span>
+        <span className='ml-auto flex shrink-0 items-baseline gap-2'>
+          <StandingMark
+            tone={OUTCOME_TONE[check.outcome]}
+            label={t(OUTCOME_LABEL[check.outcome])}
+          />
+          <Confidence value={check.confidence} bare />
+        </span>
+      </summary>
+      <div className='mt-1 border-t border-rule pl-5'>
+        <p className='max-w-[70ch] py-2 text-[0.8125rem] leading-relaxed text-muted-foreground'>
+          {t(OUTCOME_NOTE[check.outcome])}
+        </p>
+        {/* The address the register was given, as a jump into the sheet it was
+            read off: a lookup that found nothing is answered by checking what
+            was asked before it is answered by anything else. */}
+        <ul className='flex flex-col'>
+          <CheckedValueRow value={check.asked} onJump={onJump} />
+          {check.attributes.map((attribute, index) => (
+            <RegistryAttributeRow
+              key={`${attribute.name}-${index}`}
+              attribute={attribute}
+              onJump={onJump}
+            />
+          ))}
+        </ul>
+        {check.reference && (
+          <p className='flex flex-wrap items-baseline gap-2 py-2 text-[0.8125rem] text-muted-foreground'>
+            {t('detail.registry_where')}
+            <span data-mono className='text-foreground/80'>
+              {check.reference}
+            </span>
+          </p>
+        )}
+      </div>
+    </details>
+  );
+}
+
+function RegistryChecks({
+  checks,
+  running,
+  onJump,
+}: {
+  checks: readonly RegistryCheckDto[];
+  // A run still under way has not reached the register yet; one that finished
+  // and carries no answer was either unable to ask or unable to reach it.
+  running: boolean;
+  onJump: Jump;
+}) {
+  const { t } = useI18n();
+  const confirmed = checks.filter(
+    check => check.outcome === 'Confirmed',
+  ).length;
+
+  return (
+    <section className='mb-9'>
+      <div className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1'>
+        <h2 className='register-label'>{t('detail.registry')}</h2>
+        {checks.length > 0 && (
+          <span
+            data-mono
+            className={cn(
+              'text-[0.75rem] tabular-nums',
+              confirmed === checks.length
+                ? 'text-muted-foreground'
+                : 'text-issues-ink',
+            )}
+          >
+            {t('detail.checks_agreed', {
+              n: confirmed,
+              total: checks.length,
+            })}
+          </span>
+        )}
+      </div>
+      <p className='mt-1 max-w-[70ch] text-[0.8125rem] leading-relaxed text-muted-foreground'>
+        {t('detail.registry_note')}
+      </p>
+      {checks.length > 0 ? (
+        <div className='mt-2 flex flex-col divide-y divide-rule border-t border-rule'>
+          {checks.map(check => (
+            <RegistryCheckEntry key={check.key} check={check} onJump={onJump} />
+          ))}
+        </div>
+      ) : (
+        <p className='mt-2 max-w-[70ch] border-t border-rule py-3 text-[0.8125rem] leading-relaxed text-muted-foreground/80'>
+          {running ? t('detail.registry_pending') : t('detail.registry_none')}
+        </p>
+      )}
     </section>
   );
 }
@@ -1874,6 +2148,16 @@ export function VerificationDetails() {
             {pkg.crossChecks.length > 0 && (
               <CrossChecks checks={pkg.crossChecks} onJump={jump} />
             )}
+
+            {/* And what the register says about the property, which is the one
+                answer on this page that did not come out of the envelope. It
+                stands whether or not it found anything: an inspector has to be
+                able to see that the question was put. */}
+            <RegistryChecks
+              checks={pkg.registryChecks}
+              running={running}
+              onJump={jump}
+            />
 
             <div className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2'>
               <h2 className='register-label'>{t('detail.documents')}</h2>

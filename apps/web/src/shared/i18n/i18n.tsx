@@ -208,6 +208,8 @@ const en: Dict = {
   'detail.sec.duplicate': 'Answered twice',
   'detail.sec.mismatch': 'Documents disagree',
   'detail.sec.extra': 'Also in the package',
+  'detail.sec.registry_mismatch': 'Disagrees with the archive record',
+  'detail.sec.registry_unconfirmed': 'Not confirmed by the register',
   'detail.clean':
     'No issues found — every required document is present and read above the confidence threshold.',
   'detail.f.missing_sub': 'Not found in the package',
@@ -219,6 +221,8 @@ const en: Dict = {
   'detail.f.duplicate_sub': 'A second {type}',
   'detail.f.mismatch_sub': 'Does not agree across documents',
   'detail.f.unclear_sub': 'Could not be decided either way',
+  'detail.f.registry_mismatch_sub': 'The archive record states otherwise',
+  'detail.f.registry_unconfirmed_sub': 'No record of it, or more than one',
   'detail.checks': 'Cross-document checks',
   'detail.checks_note':
     'Values the profile requires several documents to state alike.',
@@ -489,6 +493,8 @@ const ru: Dict = {
   'detail.sec.duplicate': 'Дублирующие документы',
   'detail.sec.mismatch': 'Документы расходятся',
   'detail.sec.extra': 'Прочее в пакете',
+  'detail.sec.registry_mismatch': 'Расходится с архивной записью',
+  'detail.sec.registry_unconfirmed': 'Реестр не подтвердил',
   'detail.clean':
     'Замечаний нет — все обязательные документы присутствуют и распознаны выше порога уверенности.',
   'detail.f.missing_sub': 'Не найден в пакете',
@@ -500,6 +506,8 @@ const ru: Dict = {
   'detail.f.duplicate_sub': 'Второй документ: {type}',
   'detail.f.mismatch_sub': 'Документы расходятся',
   'detail.f.unclear_sub': 'Однозначно определить не удалось',
+  'detail.f.registry_mismatch_sub': 'Архивная запись говорит другое',
+  'detail.f.registry_unconfirmed_sub': 'Записи нет или их несколько',
   'detail.checks': 'Сверка документов',
   'detail.checks_note':
     'Значения, которые по профилю должны совпадать в нескольких документах.',
@@ -769,6 +777,8 @@ const az: Dict = {
   'detail.sec.duplicate': 'İki dəfə təqdim edilib',
   'detail.sec.mismatch': 'Sənədlər arasında uyğunsuzluq',
   'detail.sec.extra': 'Paketdəki digər sənədlər',
+  'detail.sec.registry_mismatch': 'Arxiv qeydi ilə uyğunsuzluq',
+  'detail.sec.registry_unconfirmed': 'Reyestr təsdiqləmədi',
   'detail.clean':
     'Qüsur yoxdur — bütün tələb olunan sənədlər mövcuddur və etibar həddindən yuxarı oxunub.',
   'detail.f.missing_sub': 'Paketdə tapılmadı',
@@ -780,6 +790,8 @@ const az: Dict = {
   'detail.f.duplicate_sub': 'İkinci {type}',
   'detail.f.mismatch_sub': 'Sənədlər arasında uyğun gəlmir',
   'detail.f.unclear_sub': 'Birmənalı müəyyən edilə bilmədi',
+  'detail.f.registry_mismatch_sub': 'Arxiv qeydi başqa cür göstərir',
+  'detail.f.registry_unconfirmed_sub': 'Qeyd yoxdur və ya birdən çoxdur',
   'detail.checks': 'Sənədlərarası yoxlama',
   'detail.checks_note':
     'Profilə görə bir neçə sənəddə eyni olmalı olan dəyərlər.',

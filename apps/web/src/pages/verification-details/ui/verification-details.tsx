@@ -970,26 +970,54 @@ function RequiredDocuments({
 // where its documents contradict each other, what could not be read, what was
 // read but should be checked, and last — under its own heading, because it is
 // not a fault — what else was in the envelope.
-const ISSUE_SECTIONS: { kind: IssueKind; heading: string }[] = [
-  { kind: 'MissingDocument', heading: 'detail.sec.missing' },
-  { kind: 'FieldMismatch', heading: 'detail.sec.mismatch' },
-  { kind: 'UnreadableDocument', heading: 'detail.sec.unreadable' },
-  { kind: 'LowConfidence', heading: 'detail.sec.low' },
-];
+//
+// One record over the whole published enum, in the order the sections are
+// shown: a `Record<IssueKind, …>` will not compile while a kind is missing, so
+// a finding the contract has learned to produce cannot quietly fail to appear.
+// It used to be three parallel arrays, and the day the register stage added two
+// kinds they rendered in no section at all while the counter still counted one
+// of them — the report said "1 finding" over an empty list.
+//
+// `tone` is also the only definition of what counts: an observation is not a
+// shortfall, so a report that notes the registry's own service sheets must not
+// announce five problems. Deriving the count from here is what keeps the client
+// from disagreeing with the server about which kinds are informational.
+type SectionTone = 'finding' | 'note';
 
-// The two that are observations rather than shortfalls. They are counted apart
-// from the findings, so a report that only notes the registry's own service
-// sheets does not announce five problems — and, for the same reason, they are
-// folded away rather than listed beside them.
-const NOTE_SECTIONS: { kind: IssueKind; heading: string }[] = [
-  { kind: 'DuplicateDocument', heading: 'detail.sec.duplicate' },
-  { kind: 'ExtraDocument', heading: 'detail.sec.extra' },
-];
+const SECTIONS: Record<IssueKind, { heading: string; tone: SectionTone }> = {
+  MissingDocument: { heading: 'detail.sec.missing', tone: 'finding' },
+  FieldMismatch: { heading: 'detail.sec.mismatch', tone: 'finding' },
+  // Beside the papers disagreeing with each other, because it is the same
+  // question asked of a different source: the record of what was registered.
+  RegistryMismatch: {
+    heading: 'detail.sec.registry_mismatch',
+    tone: 'finding',
+  },
+  UnreadableDocument: { heading: 'detail.sec.unreadable', tone: 'finding' },
+  LowConfidence: { heading: 'detail.sec.low', tone: 'finding' },
+  DuplicateDocument: { heading: 'detail.sec.duplicate', tone: 'note' },
+  ExtraDocument: { heading: 'detail.sec.extra', tone: 'note' },
+  // An observation and never a fault: the archive register holds the
+  // privatisations of the 1990s and 2000s, so it having no record of a property
+  // says nothing about the submission (ADR-0009).
+  RegistryUnconfirmed: {
+    heading: 'detail.sec.registry_unconfirmed',
+    tone: 'note',
+  },
+};
 
-const INFORMATIONAL: readonly IssueKind[] = [
-  'ExtraDocument',
-  'DuplicateDocument',
-];
+const ORDERED = Object.entries(SECTIONS) as [
+  IssueKind,
+  { heading: string; tone: SectionTone },
+][];
+
+const ISSUE_SECTIONS = ORDERED.filter(
+  ([, section]) => section.tone === 'finding',
+);
+const NOTE_SECTIONS = ORDERED.filter(([, section]) => section.tone === 'note');
+
+const isInformational = (kind: IssueKind): boolean =>
+  SECTIONS[kind].tone === 'note';
 
 const REPORT_TONE: Record<ReportStatus, 'ok' | 'issues' | 'incomplete'> = {
   OK: 'ok',
@@ -1101,6 +1129,35 @@ function findingOf(
           : t('detail.f.unread_sheet_sub'),
       anchor,
       docId: null,
+    };
+  }
+
+  /*
+   * What the archive register said about the property. It is named by the value
+   * that was looked up — the address the application is made under — and
+   * answered on the sheet that value was read off, because that is where the
+   * inspector sees what the package claims. What the record says instead is not
+   * printed here: the row is a jump into the register, and the English audit
+   * line is not a sentence to show anybody (ADR-0009).
+   */
+  if (
+    issue.kind === 'RegistryMismatch' ||
+    issue.kind === 'RegistryUnconfirmed'
+  ) {
+    return {
+      subject: issue.fieldName
+        ? translateOr(t, `field.${issue.fieldName}`, issue.fieldName)
+        : translateOr(
+            t,
+            `doctype.${issue.documentType}`,
+            issue.documentType ?? '',
+          ),
+      where:
+        issue.kind === 'RegistryMismatch'
+          ? t('detail.f.registry_mismatch_sub')
+          : t('detail.f.registry_unconfirmed_sub'),
+      anchor,
+      docId: document?.id ?? null,
     };
   }
 
@@ -1218,12 +1275,8 @@ function Worklist({
   // Findings are counted; observations are mentioned. Counting them together
   // would tell the inspector a package with one missing receipt and four of the
   // registry's own service sheets in it has five problems.
-  const findings = report.issues.filter(
-    issue => !INFORMATIONAL.includes(issue.kind),
-  );
-  const notes = report.issues.filter(issue =>
-    INFORMATIONAL.includes(issue.kind),
-  );
+  const findings = report.issues.filter(issue => !isInformational(issue.kind));
+  const notes = report.issues.filter(issue => isInformational(issue.kind));
   const named = pkg.files.length > 1;
 
   const section = (kind: IssueKind, heading: string) => {
@@ -1303,7 +1356,9 @@ function Worklist({
           </p>
         ) : (
           <div className='mt-4 flex flex-col gap-5'>
-            {ISSUE_SECTIONS.map(({ kind, heading }) => section(kind, heading))}
+            {ISSUE_SECTIONS.map(([kind, { heading }]) =>
+              section(kind, heading),
+            )}
           </div>
         )}
       </div>
@@ -1328,7 +1383,7 @@ function Worklist({
             {t('detail.observations_note')}
           </p>
           <div className='mt-3 flex flex-col gap-5 pl-5'>
-            {NOTE_SECTIONS.map(({ kind, heading }) => section(kind, heading))}
+            {NOTE_SECTIONS.map(([kind, { heading }]) => section(kind, heading))}
           </div>
         </details>
       )}

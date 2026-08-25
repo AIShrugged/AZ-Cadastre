@@ -31,20 +31,39 @@ describe('boundContext', () => {
     // callers put the class name, and filed under "scope" it is unreadable.
 
     // act / assert
-    expect(boundContext(aStack())).toEqual({ stack: aStack() });
+    expect(boundContext(aStack())).toEqual({ err: { stack: aStack() } });
   });
 
-  it('unpacks an Error, whose message and stack JSON would drop', () => {
+  it('raises the Error a caller passed to the key pino serialises', () => {
     // arrange
     const error = new Error('the reader is down');
 
     // act
-    const bound = boundContext({ error });
+    const bound = boundContext({ error, sheet: 7 });
 
     // assert
-    expect(JSON.stringify(bound)).toContain('the reader is down');
-    expect(bound).toMatchObject({
-      context: { error: { name: 'Error', message: 'the reader is down' } },
+    expect(bound).toEqual({ err: error, context: { sheet: 7 } });
+  });
+
+  it('describes a second Error by hand, since only the first can be err', () => {
+    // arrange
+    const first = new Error('the reader is down');
+    const second = new Error('and so is the bucket');
+
+    // act
+    const bound = boundContext({ first, second });
+
+    // assert — a plain object would serialise to `{}`: both fields are
+    // non-enumerable on an Error.
+    expect(bound).toEqual({
+      err: first,
+      context: {
+        second: {
+          name: 'Error',
+          message: 'and so is the bucket',
+          stack: second.stack,
+        },
+      },
     });
   });
 

@@ -53,6 +53,29 @@ them, which is how a stage gets compared with its stand-in.
 Secrets live in `packages/verification/.env.local` and `apps/server/.env.local`,
 neither of which is in git.
 
+### Seeing what happened
+
+Everything the service has to say is one structured line per event on the
+console — the run of a package stage by stage, every request with its status
+and duration, every model call with its model, its upstream provider, its
+tokens and what it answered (ADR-0008). `LOG_LEVEL` decides who the reader is:
+
+| Level   | What it adds                                                                                                              |
+| ------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `info`  | the run: a package started, a file split, a document classified, a check answered, a request served                       |
+| `debug` | each stage as it starts, every object read or written, every SQL statement with its duration, every request as it arrives |
+| `trace` | SQL parameters — the data itself, so a local database and nothing else                                                    |
+
+`LOG_PRETTY=false` gives one JSON object per line instead, which is what the
+container runs. A spec that builds its subject by hand passes `new
+SilentLogger()`; the integration harness is silent unless `LOG_LEVEL` is set,
+which is the fastest way to see what a failing integration spec actually did.
+
+Log a constant message and put what varies in the context object — `('Sheet
+transcribed', { characters, confidence })`, never a sentence with the values
+baked into it. And never log a value read off somebody's papers: a field is
+logged as its key, whether it was read and how confident the reading was.
+
 ## Rakes already stepped on
 
 Each of these cost real time. The symptom is what you will see; the cause is why.

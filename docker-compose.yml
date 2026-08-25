@@ -4,7 +4,7 @@ services:
     image: ekalkutin/cadastre-web:latest
     container_name: cadastre-frontend
     ports:
-      - "80:80"
+      - '80:80'
     restart: unless-stopped
     depends_on:
       - backend
@@ -13,7 +13,7 @@ services:
     image: ekalkutin/cadastre-core:latest
     container_name: cadastre-backend
     ports:
-      - "3000:3000"
+      - '3000:3000'
     restart: unless-stopped
     environment:
       # Server
@@ -26,6 +26,13 @@ services:
 
       # Web CORS
       - WEB_ORIGIN=http://49.13.138.121
+
+      # Logging. One structured line per event on stdout, which is where
+      # `docker logs` reads it (ADR-0008). The image already sets LOG_PRETTY=false
+      # — a collector wants JSON, not colour. Raise to debug to see every SQL
+      # statement and every stage of a run; never trace outside a local box,
+      # where the parameters would be somebody's papers in the log.
+      - LOG_LEVEL=info
 
       # Object Storage (S3-compatible RustFS)
       - S3_ENDPOINT=http://rustfs:9000
@@ -74,7 +81,7 @@ services:
     image: postgres:17-alpine
     container_name: cadastre-postgres
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
     environment:
@@ -82,7 +89,7 @@ services:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=cadastre-db
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d cadastre-db"]
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d cadastre-db']
       interval: 5s
       timeout: 5s
       retries: 5
@@ -92,8 +99,8 @@ services:
     image: rustfs/rustfs:latest
     container_name: rustfs
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - '9000:9000'
+      - '9001:9001'
     volumes:
       - rustfs-data:/data
     environment:

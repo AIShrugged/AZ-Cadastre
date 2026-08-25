@@ -2,14 +2,14 @@ import {
   Catch,
   HttpException,
   HttpStatus,
-  Inject,
   type ArgumentsHost,
   type ExceptionFilter,
 } from '@nestjs/common';
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 
 import type { ErrorBody } from '@cadastre/api-contracts/shared';
-import { Logger } from '@cadastre/logger';
+
+import type { Refusal } from '../../http/index.js';
 
 /**
  * The refusals the framework raises before a context is ever asked: a body the
@@ -29,17 +29,9 @@ import { Logger } from '@cadastre/logger';
  */
 @Catch(HttpException)
 export class HttpExceptionFilter implements ExceptionFilter {
-  private readonly logger: Logger;
-
-  constructor(@Inject(Logger) logger: Logger) {
-    this.logger = logger.child({ scope: HttpExceptionFilter.name });
-  }
-
   catch(exception: HttpException, host: ArgumentsHost): void {
     const status = exception.getStatus();
-    const http = host.switchToHttp();
-    const response = http.getResponse<Response>();
-    const request = http.getRequest<Request>();
+    const response = host.switchToHttp().getResponse<Response>();
 
     const body: ErrorBody = {
       statusCode: status,
@@ -47,20 +39,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
       message: messageOf(exception),
     };
 
-    // A request refused before any route saw it never reaches the access log,
-    // which runs as an interceptor and so runs only on requests that matched
-    // one. "Why does the client get a 404 / a 400 and nothing is logged" is
-    // the question this line answers.
-    const refused = {
-      status,
+    // Left for the access log rather than logged here: one refused request is
+    // one line, and the line that says a request was refused is the one that
+    // should say why (ADR-0008).
+    response.locals.refusal = {
       code: body.code,
       reason: body.message,
-      requestId: response.getHeader('x-request-id'),
-    };
-    const line = `${request.method} ${request.originalUrl} refused`;
-
-    if (status >= 500) this.logger.error(line, refused);
-    else this.logger.warn(line, refused);
+    } satisfies Refusal;
 
     response.status(status).json(body);
   }

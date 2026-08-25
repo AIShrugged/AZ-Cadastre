@@ -75,6 +75,7 @@ libs/                       # everything that is not a context
   api-gateway/              #   type:edge — HTTP. Talks to contexts through client ports
   shared/                   #   type:kernel — the bottom of the stack. Imports nothing
   event-publisher/          #   type:adapter — one capability behind a port
+  logger/                   #   type:adapter — the Logger port and its pino adapter
 docs/
   adr/                      # system-wide Architectural Decision Records
 CONTEXT-MAP.md              # the contexts, their relationships, and the word conflicts
@@ -151,9 +152,9 @@ To stop doing it by hand, let the service migrate before it serves — give the
 `backend` service its own command in `docker-compose.yml`:
 
 ```yaml
-    command: >
-      sh -c "cd /app/packages/verification && pnpm db:deploy &&
-             cd /app/apps/server && node build/main.js"
+command: >
+  sh -c "cd /app/packages/verification && pnpm db:deploy &&
+         cd /app/apps/server && node build/main.js"
 ```
 
 `migrate deploy` is idempotent, so a restart re-runs it harmlessly and a

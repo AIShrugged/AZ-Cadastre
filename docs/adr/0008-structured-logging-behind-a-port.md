@@ -64,7 +64,15 @@ confidence, … })`, never a sentence with the values baked into it.
    `debug` is for the person looking into one run: every stage as it starts,
    every object read or written, every SQL statement, every request as it
    arrives. `trace` is SQL parameters, which are the data itself.
-7. **No values in the log.** These packages are somebody's identity card, deed
+7. **The access log is middleware, not an interceptor.** An interceptor runs
+   only on a request that matched a route, and a URL nobody serves is answered
+   404 by Express itself — which is exactly the request whose absence from the
+   log is confusing. The line is written on the response's `finish` event, so
+   the status it reports is the status the client was sent, including one an
+   exception filter substituted. The filters leave their `code` and reason on
+   `response.locals` for that line to carry: a refused request is one line, and
+   the line that says it was refused is the one that says why.
+8. **No values in the log.** These packages are somebody's identity card, deed
    and address. A field is logged as its key, whether it was read, and how
    confident the reading was — never as what it said. The same rule puts SQL
    parameters a level below the statement that carried them.

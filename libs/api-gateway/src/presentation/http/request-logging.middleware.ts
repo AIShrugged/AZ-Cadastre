@@ -1,13 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
-import {
-  Inject,
-  Injectable,
-  type CallHandler,
-  type ExecutionContext,
-  type NestInterceptor,
-} from '@nestjs/common';
-import type { Request, Response } from 'express';
+import { Inject, Injectable, type NestMiddleware } from '@nestjs/common';
+import type { NextFunction, Request, Response } from 'express';
 
 import { Logger } from '@cadastre/logger';
 
@@ -15,37 +9,35 @@ import { Logger } from '@cadastre/logger';
 const REQUEST_ID_HEADER = 'x-request-id';
 
 /**
+ * What an exception filter leaves behind for the line below to carry, so that
+ * a refused request is one line with its reason on it rather than two lines
+ * that have to be read together.
+ */
+export type Refusal = { code: string; reason: string };
+
+/**
  * One line per request, written when the response has actually gone out.
  *
- * It hangs on the response's `finish` event rather than on the observable the
- * handler returns, for two reasons: the status is then the status the client
- * was sent — including the one an exception filter substituted — and the edge
- * does not have to take a dependency on rxjs to time a request.
- *
- * A request that never matched a route is not seen here (Nest resolves those
- * before interceptors run); those are logged by `HttpExceptionFilter`, which
- * is where they end up.
+ * Middleware rather than an interceptor, because an interceptor only runs on
+ * requests that matched a route: a URL nobody serves is answered 404 by Express
+ * itself, and that is exactly the request whose absence from the log is
+ * confusing. `finish` rather than the handler's return, because the status is
+ * then the status the client was sent — including the one a filter substituted.
  */
 @Injectable()
-export class RequestLoggingInterceptor implements NestInterceptor {
+export class RequestLoggingMiddleware implements NestMiddleware {
   private readonly logger: Logger;
 
   constructor(@Inject(Logger) logger: Logger) {
-    this.logger = logger.child({ scope: RequestLoggingInterceptor.name });
+    this.logger = logger.child({ scope: RequestLoggingMiddleware.name });
   }
 
-  intercept(
-    context: ExecutionContext,
-    next: CallHandler,
-  ): ReturnType<CallHandler['handle']> {
-    const http = context.switchToHttp();
-    const request = http.getRequest<Request>();
-    const response = http.getResponse<Response>();
-
+  use(request: Request, response: Response, next: NextFunction): void {
     // Honoured rather than replaced when the caller sent one: the web client
     // and this log then name the same request.
     const requestId = headerOf(request, REQUEST_ID_HEADER) ?? randomUUID();
     response.setHeader(REQUEST_ID_HEADER, requestId);
+    response.locals.requestId = requestId;
 
     const startedAt = Date.now();
     const route = `${request.method} ${request.originalUrl}`;
@@ -56,18 +48,19 @@ export class RequestLoggingInterceptor implements NestInterceptor {
       requestId,
       method: request.method,
       url: request.originalUrl,
-      handler: `${context.getClass().name}.${context.getHandler().name}`,
       contentLength: headerOf(request, 'content-length'),
       contentType: headerOf(request, 'content-type'),
       userAgent: headerOf(request, 'user-agent'),
     });
 
     response.on('finish', () => {
+      const refusal = response.locals.refusal as Refusal | undefined;
       const finished = {
         requestId,
         method: request.method,
         url: request.originalUrl,
         status: response.statusCode,
+        ...refusal,
         durationMs: Date.now() - startedAt,
       };
 
@@ -82,7 +75,7 @@ export class RequestLoggingInterceptor implements NestInterceptor {
       }
     });
 
-    return next.handle();
+    next();
   }
 }
 

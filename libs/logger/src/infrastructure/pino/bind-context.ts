@@ -11,19 +11,38 @@ import type { LogContext } from '../../application/index.js';
 export function boundContext(context?: unknown): Record<string, unknown> {
   if (typeof context === 'string') {
     return isStack(context)
-      ? { stack: context }
+      ? { err: { stack: context } }
       : { context: { scope: context } };
   }
 
   if (!context || typeof context !== 'object') return {};
 
-  // Errors are not JSON-serialisable — message and stack are non-enumerable —
-  // and pino's serializer only applies at the top level.
-  const entries = Object.entries(context as LogContext).map(([key, value]) =>
-    value instanceof Error ? [key, describe(value)] : [key, value],
-  );
+  const fields: Record<string, unknown> = {};
+  let raised: Error | undefined;
 
-  return { context: Object.fromEntries(entries) };
+  for (const [key, value] of Object.entries(context as LogContext)) {
+    if (!(value instanceof Error)) {
+      fields[key] = value;
+      continue;
+    }
+
+    // The first Error goes to the top level as `err`, which is the key pino
+    // serialises and the pretty printer expands into readable frames. A stack
+    // rendered as a JSON string with `\n` in it is a stack nobody reads.
+    if (!raised) {
+      raised = value;
+      continue;
+    }
+
+    // Errors are not JSON-serialisable — message and stack are non-enumerable
+    // — and pino's serializer only applies to the top level.
+    fields[key] = describe(value);
+  }
+
+  return {
+    ...(raised ? { err: raised } : {}),
+    ...(Object.keys(fields).length > 0 ? { context: fields } : {}),
+  };
 }
 
 function describe(error: Error): Record<string, unknown> {

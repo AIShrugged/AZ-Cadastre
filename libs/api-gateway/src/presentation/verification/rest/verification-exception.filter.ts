@@ -15,6 +15,8 @@ import {
   InfrastructureException,
 } from '@cadastre/shared';
 
+import type { Refusal } from '../../http/index.js';
+
 const DOMAIN_STATUS: Readonly<Record<string, number>> = {
   DOCUMENT_NOT_IN_PACKAGE: HttpStatus.NOT_FOUND,
   SOURCE_FILE_NOT_IN_PACKAGE: HttpStatus.NOT_FOUND,
@@ -53,22 +55,26 @@ export class VerificationExceptionFilter implements ExceptionFilter {
     const response = http.getResponse<Response>();
     const request = http.getRequest<Request>();
 
-    const context = {
+    // The reason travels on the response for the access log to carry, so a
+    // refused request is one line and that line says why (ADR-0008).
+    response.locals.refusal = {
       code: exception.code,
-      status,
-      method: request.method,
-      url: request.originalUrl,
-      requestId: response.getHeader('x-request-id'),
-    };
+      reason: exception.message,
+    } satisfies Refusal;
 
     // A domain refusal is the system working — the inspector asked for
-    // something the model does not allow — and it is logged as what the
-    // request was answered with, not as a fault. An infrastructure failure is
-    // a fault, and it is the one that needs its stack.
+    // something the model does not allow — and the access log has already
+    // said so. An infrastructure failure is a fault of ours, and it is the one
+    // that needs a line of its own with the stack on it.
     if (exception instanceof InfrastructureException) {
-      this.logger.error(exception.message, { ...context, error: exception });
-    } else {
-      this.logger.debug(exception.message, context);
+      this.logger.error(exception.message, {
+        code: exception.code,
+        status,
+        method: request.method,
+        url: request.originalUrl,
+        requestId: response.locals.requestId,
+        error: exception,
+      });
     }
 
     const body: ErrorBody = {

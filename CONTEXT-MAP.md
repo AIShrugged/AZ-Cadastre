@@ -18,6 +18,7 @@ One context, on purpose. The system does one thing, and a second context would t
 | `libs/api-gateway/`     | `type:edge`      | Transport. It translates HTTP into port calls and status codes back, and it must never hold a word the contracts do not have.                                                                                                               |
 | `libs/shared/`          | `type:kernel`    | Tactical building blocks whose meaning is identical everywhere: `AggregateRoot`, `EntityId`, `DomainEvent`, the exception bases, the publisher port. No domain concept lives here — if only one context needs it, it stays in that context. |
 | `libs/event-publisher/` | `type:adapter`   | A technical capability behind a port. Carries no domain meaning, which is why a context may import it directly.                                                                                                                             |
+| `libs/logger/`          | `type:adapter`   | The same, for logging: the `Logger` port and its pino adapter. A context may import it; `domain/` may not, because a rule that logs has grown a collaborator (ADR-0008).                                                                    |
 | `apps/server/`          | `type:app`       | The composition root. It knows every context exists; it knows nothing about what they mean.                                                                                                                                                 |
 | `libs/api-client/`      | `type:client`    | The published API as a caller outside the system sees it, typed by the contracts. Used by the API tests; a context may not import it, which is the lint form of "a context never calls another synchronously".                              |
 | `apps/web/`             | `type:app`       | The inspector's client. It speaks the contracts and never the domain model.                                                                                                                                                                 |
@@ -53,14 +54,15 @@ None of the above is a convention. Every arrow and every absence of one has an
 entry in `.oxlintrc.json`, written as `no-restricted-imports` overrides **by
 folder**:
 
-| What is enforced                                                                   | Where it is written                                                          |
-| ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| a context and the edge may reach only contracts, the kernel and technical adapters | override on `packages/*/**` and `libs/api-gateway/**`                        |
-| contracts and adapters may reach only the kernel                                   | override on `libs/api-contracts/**`, `libs/event-publisher/**`               |
-| the kernel reaches nothing in the workspace                                        | override on `libs/shared/**`                                                 |
-| `domain/` reaches no sibling layer, no Nest, no Prisma, no provider SDK            | override on `packages/*/src/domain/**` (ADR-0007)                            |
-| `application/` reaches no `infrastructure/` or `presentation/`                     | override on `packages/*/src/application/**` (ADR-0007)                       |
-| no relative path escapes its project                                               | a pattern in every override, matching a literal `..` before a workspace root |
+| What is enforced                                                                   | Where it is written                                                                    |
+| ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| a context and the edge may reach only contracts, the kernel and technical adapters | override on `packages/*/**` and `libs/api-gateway/**`                                  |
+| contracts and adapters may reach only the kernel                                   | override on `libs/api-contracts/**`, `libs/event-publisher/**`                         |
+| the kernel reaches nothing in the workspace                                        | override on `libs/shared/**`                                                           |
+| `domain/` reaches no sibling layer, no Nest, no Prisma, no provider SDK            | override on `packages/*/src/domain/**` (ADR-0007)                                      |
+| `domain/` may not import a technical adapter either — logging included             | the same override, whose allow-list names only the contracts and the kernel (ADR-0008) |
+| `application/` reaches no `infrastructure/` or `presentation/`                     | override on `packages/*/src/application/**` (ADR-0007)                                 |
+| no relative path escapes its project                                               | a pattern in every override, matching a literal `..` before a workspace root           |
 
 Each message names the rule, names the way out and cites the ADR behind it — a
 rule whose reason is not one click away gets worked around with a relative path

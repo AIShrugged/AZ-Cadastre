@@ -3,6 +3,7 @@ import type { Provider } from '@nestjs/common';
 import { Logger } from '@cadastre/logger';
 
 import {
+  ArchiveRegistryPort,
   CrossChecker,
   DocumentClassifier,
   DocumentSegmenter,
@@ -16,10 +17,12 @@ import {
   type VerificationModuleOptions,
 } from '../../verification.module-defs.js';
 
+import { ArchiveRegistryAdapter } from './archive-registry.adapter.js';
 import { CrossCheckerAdapter } from './cross-checker.adapter.js';
 import { DocumentClassifierAdapter } from './document-classifier.adapter.js';
 import { DocumentSegmenterAdapter } from './document-segmenter.adapter.js';
 import { FieldExtractorAdapter } from './field-extractor.adapter.js';
+import { HttpArchiveRegistryAdapter } from './http-archive-registry.adapter.js';
 import { ObjectStorageAdapter } from './object-storage.adapter.js';
 import { OcrProviderAdapter } from './ocr-provider.adapter.js';
 import {
@@ -31,7 +34,9 @@ import {
 } from './openrouter/index.js';
 import { PdfSplitterAdapter } from './pdf-splitter.adapter.js';
 
+export { ArchiveRegistryAdapter } from './archive-registry.adapter.js';
 export { CrossCheckerAdapter } from './cross-checker.adapter.js';
+export { HttpArchiveRegistryAdapter } from './http-archive-registry.adapter.js';
 export { DocumentClassifierAdapter } from './document-classifier.adapter.js';
 export { DocumentSegmenterAdapter } from './document-segmenter.adapter.js';
 export { FieldExtractorAdapter } from './field-extractor.adapter.js';
@@ -114,6 +119,23 @@ export const VERIFICATION_ADAPTERS: Provider[] = [
       options.crossChecker.provider === 'openrouter'
         ? new OpenRouterCrossCheckerAdapter(options, logger)
         : new CrossCheckerAdapter(),
+    inject: [VERIFICATION_OPTIONS, Logger],
+  },
+  /*
+   * The sixth stage is not model-backed: it asks a register, and the choice is
+   * between a register that is running and the stand-in built into the context.
+   * Same shape as the five above, for the same reason — a stage is pointed at
+   * the real thing one at a time (ADR-0009).
+   */
+  {
+    provide: ArchiveRegistryPort,
+    useFactory: (
+      options: VerificationModuleOptions,
+      logger: Logger,
+    ): ArchiveRegistryPort =>
+      options.registry.provider === 'http'
+        ? new HttpArchiveRegistryAdapter(options, logger)
+        : new ArchiveRegistryAdapter(),
     inject: [VERIFICATION_OPTIONS, Logger],
   },
 ];

@@ -10,6 +10,8 @@ enum IssueKind {
   LowConfidence // a reading below the confidence threshold
   ExtraDocument // a document read fine and not of a type the profile asks for
   DuplicateDocument // a second document answering an already-answered required type
+  RegistryMismatch // the archive record of the property says something else
+  RegistryUnconfirmed // the register held no record of the property, or held two
 }
 
 model ValidationIssue {

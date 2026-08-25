@@ -8,6 +8,7 @@ import type { FieldKey } from './field.vo.js';
 import { IssueKind } from './issue-kind.vo.js';
 import type { PageNumber } from './page-number.vo.js';
 import type { PageRange } from './page-range.vo.js';
+import type { RegistryCheck } from './registry-check.vo.js';
 
 type Finding = {
   readonly kind: IssueKind;
@@ -147,6 +148,41 @@ export class ValidationIssue {
       fieldKey: anchor?.fieldKey,
       checkKey: check.key,
       pageNumber: anchor?.foundOn,
+      confidence: check.confidence,
+    });
+  }
+
+  // Filed against the document the address was read off, because that is the
+  // sheet the inspector opens to see what the package claims. The message names
+  // what the record says instead, and the register the record came from.
+  static registryMismatch(check: RegistryCheck): ValidationIssue {
+    return ValidationIssue.of({
+      kind: IssueKind.REGISTRY_MISMATCH,
+      message:
+        `The archive record of this property does not agree with the package ` +
+        `on "${check.key.value}": ${check.cited}.` +
+        (check.note ? ` ${check.note}` : ''),
+      documentId: check.asked.documentId,
+      documentType: check.asked.documentType,
+      fieldKey: check.asked.fieldKey,
+      pageNumber: check.asked.foundOn,
+      confidence: check.confidence,
+    });
+  }
+
+  // Stated for the record, never against the package: the register's coverage
+  // is partial, so an absence is something the inspector weighs and not a
+  // shortfall they have to resolve.
+  static registryUnconfirmed(check: RegistryCheck): ValidationIssue {
+    return ValidationIssue.of({
+      kind: IssueKind.REGISTRY_UNCONFIRMED,
+      message:
+        `The archive register did not confirm "${check.key.value}" for ` +
+        `${check.asked.cited}. ${check.note}`.trim(),
+      documentId: check.asked.documentId,
+      documentType: check.asked.documentType,
+      fieldKey: check.asked.fieldKey,
+      pageNumber: check.asked.foundOn,
       confidence: check.confidence,
     });
   }

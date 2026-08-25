@@ -27,9 +27,11 @@ model Document {
   /// Classifier confidence for `type`, 0..1. Null until the Classify stage runs.
   classificationConfidence Float?
 
-  extractedFields  ExtractedField[]
-  validationIssues ValidationIssue[]
-  crossCheckValues CrossCheckValue[]
+  extractedFields         ExtractedField[]
+  validationIssues        ValidationIssue[]
+  crossCheckValues        CrossCheckValue[]
+  registryChecks          RegistryCheck[]
+  registryCheckAttributes RegistryCheckAttribute[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

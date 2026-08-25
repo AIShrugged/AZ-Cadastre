@@ -97,6 +97,17 @@ export const EnvironmentSchema = z
     // model that reads Azerbaijani rather than the smallest one available.
     CROSS_CHECKER_PROVIDER: z.enum(['mock', 'openrouter']).default('mock'),
     CROSS_CHECKER_MODEL: z.string().default('openai/gpt-4o'),
+
+    // The archive register the property is looked up in (ADR-0009). Not a
+    // model: `mock` is the stand-in built into the context, which holds three
+    // records and needs no process, and `http` is whoever serves the register
+    // contract — today `apps/registry-stub`, one day a real state register, and
+    // the difference between them is this line.
+    REGISTRY_PROVIDER: z.enum(['mock', 'http']).default('mock'),
+    REGISTRY_URL: z.string().nonempty().default('http://localhost:3100'),
+    // A register that does not answer must not hold up a verification: the
+    // stage is abandoned and the report says the property was not confirmed.
+    REGISTRY_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
   })
   .transform(env => ({
     service: {
@@ -160,6 +171,11 @@ export const EnvironmentSchema = z
       crossChecker: {
         provider: env.CROSS_CHECKER_PROVIDER,
         model: env.CROSS_CHECKER_MODEL,
+      },
+      registry: {
+        provider: env.REGISTRY_PROVIDER,
+        url: env.REGISTRY_URL,
+        timeoutMs: env.REGISTRY_TIMEOUT_MS,
       },
     } satisfies VerificationModuleOptions,
   }));

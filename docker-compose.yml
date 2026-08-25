@@ -69,6 +69,16 @@ services:
       - CROSS_CHECKER_PROVIDER=openrouter
       - CROSS_CHECKER_MODEL=openai/gpt-4o
 
+      # The archive register the property is looked up in (ADR-0009). `mock` is
+      # the stand-in built into the context and needs no service; `http` is
+      # whoever serves the register contract — here the `registry` service
+      # below, one day a real state register, and the difference is these three
+      # lines. A register that does not answer never fails a verification: the
+      # stage is abandoned and the report says the property was not confirmed.
+      - REGISTRY_PROVIDER=http
+      - REGISTRY_URL=http://registry:3100
+      - REGISTRY_TIMEOUT_MS=5000
+
       # OpenRouter (optional, only needed if switching from mock to openrouter)
       - OPENROUTER_API_KEY=
       - OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
@@ -76,6 +86,37 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      registry:
+        condition: service_healthy
+
+  # The stand-in for the archive register. Not a bounded context and not part of
+  # the monolith: it stands in for a system outside this one, so it is reached
+  # over HTTP and is allowed to be down (ADR-0009).
+  registry:
+    image: ekalkutin/cadastre-registry:latest
+    container_name: cadastre-registry
+    ports:
+      - '3100:3100'
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - SERVICE_PORT=3100
+      - SERVICE_HOST=0.0.0.0
+      - LOG_LEVEL=info
+      # Mount a directory over this one to answer with your own records: they
+      # are data, and changing them needs no rebuild.
+      - REGISTRY_FIXTURES=fixtures
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3100/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   postgres:
     image: postgres:17-alpine

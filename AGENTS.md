@@ -41,6 +41,7 @@ is no Nest CLI: it cannot load TypeScript 7 — see the rakes below.
 | -------- | --------------------- | ------------------------------------------- |
 | API      | http://localhost:3000 | —                                           |
 | Web      | http://localhost:5173 | —                                           |
+| Register | http://localhost:3100 | — (the stand-in; `pnpm dev` starts it too)  |
 | Postgres | localhost:5432        | `postgres/postgres`                         |
 | RustFS   | localhost:9000        | `rustfsadmin/rustfsadmin` (console on 9001) |
 
@@ -49,6 +50,15 @@ and no network: the offline adapters run the same domain rules in
 `domain/services/` that the model-backed ones are checked against. Point one
 stage at OpenRouter at a time — `OCR_PROVIDER=openrouter` — rather than all of
 them, which is how a stage gets compared with its stand-in.
+
+The sixth stage is not a model. It asks the archive register what it holds about
+the property, and `REGISTRY_PROVIDER` picks who answers: `mock` is a stand-in
+built into the context that holds three records and compares addresses letter
+for letter, `http` is whoever serves the register contract — today
+`apps/registry-stub`, which `pnpm dev` starts alongside the server and which
+answers on 3100 (ADR-0009). The two do **not** agree, deliberately: an
+address the stub resolves through the address rules, the offline stand-in will
+report as `RegistryUnconfirmed`. The start-up line says which one is answering.
 
 Secrets live in `packages/verification/.env.local` and `apps/server/.env.local`,
 neither of which is in git.

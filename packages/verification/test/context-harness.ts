@@ -1,9 +1,14 @@
 import { CqrsModule, type QueryBus } from '@nestjs/cqrs';
 import { Test, type TestingModule } from '@nestjs/testing';
 
+import type {
+  AddressLookupRequest,
+  AddressLookupResponse,
+} from '@cadastre/api-contracts/registry';
 import { LoggerModule } from '@cadastre/logger';
 
 import {
+  ArchiveRegistryPort,
   ObjectStorage,
   OcrProvider,
   PdfSplitter,
@@ -26,6 +31,7 @@ import {
   StorageKey,
   type PackageId,
 } from '../src/domain/value-objects/index.js';
+import { ArchiveRegistryAdapter } from '../src/infrastructure/adapters/index.js';
 import type { VerificationModuleOptions } from '../src/verification.module-defs.js';
 import { VerificationModule } from '../src/verification.module.js';
 
@@ -108,6 +114,12 @@ function textFor(key: string): string {
     return 'ŞƏXSİYYƏT VƏSİQƏSİ\nSoyadı: ƏLİYEV\nAdı: ELÇİN\nVəsiqə No: AZE1234567';
   if (key.includes('erize'))
     return 'DÖVLƏT QEYDİYYATI HAQQINDA ƏRİZƏ\nƏrizəçi: ELÇİN ƏLİYEV\nŞəxsiyyət vəsiqəsi No: AZE1234567';
+  // The two papers the register stage holds against the record: the certificate
+  // names the owner, the plan-scheme carries the cadastral number and the area.
+  if (key.includes('arxiv'))
+    return 'ARXİV ARAYIŞI\nArayış No: ARX-2025-0417\nMülkiyyətçi: ELÇİN ƏLİYEV';
+  if (key.includes('plan'))
+    return 'TORPAQ SAHƏSİNİN PLAN-SXEMİ\nKadastr nömrəsi: AZ-CAD-1024-311\nSahə: 642 m²';
   return `SƏNƏD\nİstinad: ${key}`;
 }
 
@@ -125,7 +137,40 @@ export type Overrides = {
   readonly ocr?: OcrProvider;
   readonly splitter?: PdfSplitter;
   readonly storage?: InMemoryObjectStorage;
+  readonly registry?: ArchiveRegistryPort;
 };
+
+/**
+ * A register that answers whatever a spec needs it to. The stand-in built into
+ * the context holds the offline demo property and confirms it, which is a run
+ * with nothing to report — so a spec about what the register *found* supplies
+ * its own (ADR-0009).
+ */
+export class StubRegistry extends ArchiveRegistryPort {
+  readonly asked: string[] = [];
+
+  constructor(private readonly answer: AddressLookupResponse) {
+    super();
+  }
+
+  override readonly addresses = {
+    lookup: async (
+      request: AddressLookupRequest,
+    ): Promise<AddressLookupResponse> => {
+      this.asked.push(request.address);
+
+      return {
+        ...this.answer,
+        attributes: request.attributes.map((attribute, index) => ({
+          name: attribute.name,
+          match: this.answer.attributes[index]?.match ?? 'NotRecorded',
+          submitted: attribute.value,
+          recorded: this.answer.attributes[index]?.recorded ?? null,
+        })),
+      };
+    },
+  };
+}
 
 export function testOptions(databaseUrl: string): VerificationModuleOptions {
   return {
@@ -149,6 +194,9 @@ export function testOptions(databaseUrl: string): VerificationModuleOptions {
     classifier: { provider: 'mock', model: '' },
     extractor: { provider: 'mock', model: '' },
     crossChecker: { provider: 'mock', model: '' },
+    // No register process in this set: the stand-in built into the context
+    // answers unless a spec overrides the port with one of its own.
+    registry: { provider: 'mock', url: '', timeoutMs: 1000 },
   };
 }
 
@@ -190,6 +238,8 @@ export async function startContext(
     .useValue(overrides.splitter ?? new FixedPageSplitter())
     .overrideProvider(OcrProvider)
     .useValue(overrides.ocr ?? new InstantOcr())
+    .overrideProvider(ArchiveRegistryPort)
+    .useValue(overrides.registry ?? new ArchiveRegistryAdapter())
     .compile();
 
   await module.init();

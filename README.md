@@ -18,6 +18,7 @@ this is expressed in.
 - **Real-Time Updates**: WebSocket-based progress notifications
 - **Long-Running Workflows**: Temporal-based orchestration for resumable, auditable processes
 - **Structured Data Integration**: PostgreSQL for application data, RustFS (S3-compatible) for document storage
+- **Archive Register Lookup**: the property a submission is for is looked up in the cadastre archive register — is there a record of this address, who does it say holds it, what area does it say, and which folder is the paper in (ADR-0009)
 
 ## Models and confidence
 
@@ -61,6 +62,9 @@ apps/                       # deployables: composition roots and UI. No business
     src/config/             #     the one env schema in the system
     src/infrastructure/     #     port → implementation bindings. The extraction seam
   web/                      #   type:app — the inspector's client
+  registry-stub/            #   type:app — the stand-in archive register (ADR-0009).
+                            #     Not a context: it speaks the contracts, decides
+                            #     nothing, and answers from `fixtures/`
 packages/                   # bounded contexts: own language, own model, own database
   verification/             #   type:context
     CONTEXT.md              #     its ubiquitous language and what to avoid calling things
@@ -76,6 +80,8 @@ libs/                       # everything that is not a context
   shared/                   #   type:kernel — the bottom of the stack. Imports nothing
   event-publisher/          #   type:adapter — one capability behind a port
   logger/                   #   type:adapter — the Logger port and its pino adapter
+  matching-engine/          #   type:engine — pure rules: whether two ways of writing
+                            #     an address, name, area or reference mean one thing
 docs/
   adr/                      # system-wide Architectural Decision Records
 CONTEXT-MAP.md              # the contexts, their relationships, and the word conflicts
@@ -129,6 +135,9 @@ docker build -f apps/web/Dockerfile -t frontend-app .
 
 # Build backend from repository root
 docker build -f apps/server/Dockerfile -t server-app .
+
+# Build the stand-in archive register
+docker build -f apps/registry-stub/Dockerfile -t registry-app .
 
 # Run with docker-compose (includes frontend, backend, and database)
 docker compose up --build

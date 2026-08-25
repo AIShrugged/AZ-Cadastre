@@ -102,3 +102,32 @@ prefix, before the listener — rendering `ErrorBody` for anything that reached 
 route. It is deliberately not pinned by a spec today: the API test asserts the
 status and says in a comment why it does not assert the body, so fixing this
 means adding the assertion rather than changing one.
+
+`apps/registry-stub` has the same hole and the same comment in its API set
+(ADR-0009): it is one bootstrap, so the fix is the same two places.
+
+## 7. The same folding rule is written in two places
+
+**Not done.** `libs/matching-engine` and
+`packages/verification/src/domain/services/value-agreement.service.ts` both
+answer "are these two strings the same thing": both lower-case, decompose,
+strip combining marks, map `ə → e` and `ı → i`, and both refuse to recognise a
+word by a stem shorter than three letters. Neither knows about the other.
+
+**How it fires.** It already has. The domain service carries a comment saying
+that `İ` must be lower-cased _before_ decomposing, because it lowercases to an
+`i` with a combining dot; the engine, written later and without reading it, did
+not — and a name printed in capitals matched nothing until an end-to-end call
+against the register reported an owner as differing from himself (ADR-0009).
+The next divergence will be quieter: one of the two learns a rule about
+Azerbaijani spelling and the other does not, and the report says the papers
+agree with each other but not with the record, or the reverse.
+
+**What to do.** One home for the folding, and the boundary decides which. The
+engine may not simply be imported by the context — `.oxlintrc.json` allows a
+context the contracts, the kernel and the technical adapters, and an engine is
+none of those (RULE.md §2). So it is either an ADR widening that allow-list to
+`type:engine`, which is defensible because an engine is more inert than an
+adapter, or the shared primitives move into `libs/shared` and both sides build
+on them. Not the third option, which is to leave it and remember: this entry
+exists because nobody will.

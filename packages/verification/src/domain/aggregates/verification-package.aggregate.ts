@@ -12,6 +12,7 @@ import {
   FieldsExtracted,
   PackageSubmitted,
   PageRecognised,
+  RegistryCheckMade,
   ReportCompiled,
   SourceFileSegmented,
   SourceFileSplitIntoPages,
@@ -30,6 +31,7 @@ import {
   PackageMustHaveAFileException,
   PackageNotStartableException,
   PackageNotUnderWayException,
+  RegistryCheckNotInProfileException,
   SourceFileAlreadySegmentedException,
   SourceFileMustHaveADocumentException,
   SourceFileNotInPackageException,
@@ -48,9 +50,13 @@ import {
   type CrossCheckKey,
   type CrossCheckSpec,
   type DocumentId,
+  type FieldRef,
   type OcrResult,
   type PageId,
   type RecognisedText,
+  type RegistryCheck,
+  type RegistryCheckKey,
+  type RegistryCheckSpec,
   type SourceFileId,
   type VerificationProfile,
 } from '../value-objects/index.js';
@@ -63,6 +69,7 @@ export type VerificationPackageState = {
   readonly files: readonly SourceFile[];
   readonly documents: readonly Document[];
   readonly crossChecks: readonly CrossCheck[];
+  readonly registryChecks: readonly RegistryCheck[];
   readonly report: VerificationReport | null;
 };
 
@@ -72,6 +79,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   #files: SourceFile[];
   #documents: Document[];
   #crossChecks: CrossCheck[];
+  #registryChecks: RegistryCheck[];
   #report: VerificationReport | null;
 
   private constructor(state: VerificationPackageState) {
@@ -81,6 +89,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     this.#files = [...state.files];
     this.#documents = [...state.documents];
     this.#crossChecks = [...state.crossChecks];
+    this.#registryChecks = [...state.registryChecks];
     this.#report = state.report;
   }
 
@@ -107,6 +116,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       files,
       documents: [],
       crossChecks: [],
+      registryChecks: [],
       report: null,
     });
 
@@ -137,6 +147,10 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
 
   get crossChecks(): readonly CrossCheck[] {
     return this.#crossChecks;
+  }
+
+  get registryChecks(): readonly RegistryCheck[] {
+    return this.#registryChecks;
   }
 
   get report(): VerificationReport | null {
@@ -198,27 +212,77 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   // two documents answer to contributes both of them — a package carrying two
   // identity cards has two names to reconcile, not one.
   valuesFor(spec: CrossCheckSpec): readonly CheckedValue[] {
-    return spec.references.flatMap(reference =>
-      this.#documents.flatMap(document => {
-        const classification = document.classification;
+    return spec.references.flatMap(reference => this.valuesOf(reference));
+  }
 
-        if (!classification?.isPlaced) return [];
-        if (!classification.type.equals(reference.type)) return [];
+  private valuesOf(reference: FieldRef): readonly CheckedValue[] {
+    return this.#documents.flatMap(document => {
+      const classification = document.classification;
 
-        return document.fields
-          .filter(field => field.key.equals(reference.key))
-          .map(field =>
-            CheckedValue.of({
-              documentId: document.id,
-              documentType: classification.type,
-              fieldKey: field.key,
-              value: field.value,
-              foundOn: field.foundOn,
-              confidence: field.confidence,
-            }),
-          );
-      }),
-    );
+      if (!classification?.isPlaced) return [];
+      if (!classification.type.equals(reference.type)) return [];
+
+      return document.fields
+        .filter(field => field.key.equals(reference.key))
+        .map(field =>
+          CheckedValue.of({
+            documentId: document.id,
+            documentType: classification.type,
+            fieldKey: field.key,
+            value: field.value,
+            foundOn: field.foundOn,
+            confidence: field.confidence,
+          }),
+        );
+    });
+  }
+
+  // What the register is asked about, and what the package says about it. The
+  // subject is one value and not a list: a second document answering the same
+  // type is a duplicate the report already states, and asking the register
+  // twice about the same property would only file the finding twice.
+  askedOf(spec: RegistryCheckSpec): CheckedValue | null {
+    return this.valuesOf(spec.subject)[0] ?? null;
+  }
+
+  statedFor(
+    spec: RegistryCheckSpec,
+  ): readonly { name: string; value: CheckedValue }[] {
+    return spec.attributes.flatMap(attribute => {
+      const [value] = this.valuesOf(attribute.ref);
+
+      return value ? [{ name: attribute.name, value }] : [];
+    });
+  }
+
+  // Unlike a cross-check this needs one document and not two: the other side of
+  // the comparison is not in the envelope at all.
+  canAsk(spec: RegistryCheckSpec): boolean {
+    return this.askedOf(spec) !== null;
+  }
+
+  hasAsked(key: RegistryCheckKey): boolean {
+    return this.#registryChecks.some(check => check.key.equals(key));
+  }
+
+  recordRegistryCheck(check: RegistryCheck): void {
+    this.guardUnderWay();
+
+    if (!this.#profile.declaresRegistryCheck(check.key)) {
+      throw new RegistryCheckNotInProfileException(
+        check.key.value,
+        this.#profile.key,
+      );
+    }
+
+    // Replaced rather than added, for the same reason a cross-check is: a
+    // re-run asks the register again, and the package holds one answer per
+    // check rather than a history of them.
+    this.#registryChecks = [
+      ...this.#registryChecks.filter(made => !made.key.equals(check.key)),
+      check,
+    ];
+    this.apply(new RegistryCheckMade(this.id, check.key, check.outcome));
   }
 
   // A check needs two documents to be a cross-document check at all: the
@@ -268,6 +332,9 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       ) &&
       this.#profile.crossChecks.every(
         spec => this.hasMade(spec.key) || !this.canMake(spec),
+      ) &&
+      this.#profile.registryChecks.every(
+        spec => this.hasAsked(spec.key) || !this.canAsk(spec),
       )
     );
   }
@@ -407,6 +474,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       ...this.unreadable(),
       ...this.lowConfidence(),
       ...this.alsoInThePackage(),
+      ...this.againstTheRecord(),
     ];
 
     this.#report = VerificationReport.of(issues);
@@ -432,6 +500,20 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     return this.#crossChecks
       .filter(check => check.needsInspector)
       .map(check => ValidationIssue.crossCheckFailed(check));
+  }
+
+  // What the archive register had to say. A record that contradicts the package
+  // is a finding against it; a register that held no record, or held two, is
+  // told to the inspector and counts for nothing — its coverage is partial, so
+  // silence there is not evidence about the submission (ADR-0009).
+  private againstTheRecord(): readonly ValidationIssue[] {
+    return this.#registryChecks
+      .filter(check => check.needsInspector)
+      .map(check =>
+        check.contradicts
+          ? ValidationIssue.registryMismatch(check)
+          : ValidationIssue.registryUnconfirmed(check),
+      );
   }
 
   private unreadable(): readonly ValidationIssue[] {

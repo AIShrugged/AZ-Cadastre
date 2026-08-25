@@ -127,6 +127,33 @@
       }
     },
     {
+      "files": ["libs/matching-engine/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@cadastre/*", "@nestjs/*", "@prisma/*", "zod"],
+                "message": "An engine (type:engine) is pure computation with an empty dependencies block: no workspace package, no framework, no ORM and no schema library. It is what makes the same rule answer on the server, in a stand-in and in a browser from one source \u2014 the way out is to take the value as an argument (RULE.md \u00a77)."
+              },
+              {
+                "group": [
+                  "**/../packages/**",
+                  "**/../libs/**",
+                  "**/../apps/**",
+                  "../packages/**",
+                  "../libs/**",
+                  "../apps/**"
+                ],
+                "message": "Import across projects by package name (@cadastre/x), never by a relative path: a relative path escaping its project is invisible to the boundary rules below, which match on package names (ADR-0006)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "files": ["packages/*/src/domain/**/*.ts"],
       "rules": {
         "no-restricted-imports": [
@@ -144,7 +171,7 @@
                   "pdfjs-dist",
                   "@aws-sdk/*"
                 ],
-                "message": "The domain layer reads without knowing the framework or the ORM: no Nest, no Prisma, and no import from application/, infrastructure/ or presentation/. The way out is to invert it — declare what you need as a port in application/ports and let the use case pass the answer in (ADR-0004)."
+                "message": "The domain layer reads without knowing the framework or the ORM: no Nest, no Prisma, and no import from application/, infrastructure/ or presentation/. The way out is to invert it \u2014 declare what you need as a port in application/ports and let the use case pass the answer in (ADR-0004)."
               },
               {
                 "group": [

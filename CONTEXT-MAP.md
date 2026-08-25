@@ -12,25 +12,38 @@ One context, on purpose. The system does one thing, and a second context would t
 
 ## Deliberately not contexts
 
-| Project                 | Tag              | Why it is not a context                                                                                                                                                                                                                     |
-| ----------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `libs/api-contracts/`   | `type:contracts` | The published language _between_ contexts, not a language of its own. It invents no term; every name in it is a context's name, promoted so both sides can see it.                                                                          |
-| `libs/api-gateway/`     | `type:edge`      | Transport. It translates HTTP into port calls and status codes back, and it must never hold a word the contracts do not have.                                                                                                               |
-| `libs/shared/`          | `type:kernel`    | Tactical building blocks whose meaning is identical everywhere: `AggregateRoot`, `EntityId`, `DomainEvent`, the exception bases, the publisher port. No domain concept lives here — if only one context needs it, it stays in that context. |
-| `libs/event-publisher/` | `type:adapter`   | A technical capability behind a port. Carries no domain meaning, which is why a context may import it directly.                                                                                                                             |
-| `libs/logger/`          | `type:adapter`   | The same, for logging: the `Logger` port and its pino adapter. A context may import it; `domain/` may not, because a rule that logs has grown a collaborator (ADR-0008).                                                                    |
-| `apps/server/`          | `type:app`       | The composition root. It knows every context exists; it knows nothing about what they mean.                                                                                                                                                 |
-| `libs/api-client/`      | `type:client`    | The published API as a caller outside the system sees it, typed by the contracts. Used by the API tests; a context may not import it, which is the lint form of "a context never calls another synchronously".                              |
-| `apps/web/`             | `type:app`       | The inspector's client. It speaks the contracts and never the domain model.                                                                                                                                                                 |
+| Project                 | Tag              | Why it is not a context                                                                                                                                                                                                                                                  |
+| ----------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `libs/api-contracts/`   | `type:contracts` | The published language _between_ contexts, not a language of its own. It invents no term; every name in it is a context's name, promoted so both sides can see it.                                                                                                       |
+| `libs/api-gateway/`     | `type:edge`      | Transport. It translates HTTP into port calls and status codes back, and it must never hold a word the contracts do not have.                                                                                                                                            |
+| `libs/shared/`          | `type:kernel`    | Tactical building blocks whose meaning is identical everywhere: `AggregateRoot`, `EntityId`, `DomainEvent`, the exception bases, the publisher port. No domain concept lives here — if only one context needs it, it stays in that context.                              |
+| `libs/event-publisher/` | `type:adapter`   | A technical capability behind a port. Carries no domain meaning, which is why a context may import it directly.                                                                                                                                                          |
+| `libs/logger/`          | `type:adapter`   | The same, for logging: the `Logger` port and its pino adapter. A context may import it; `domain/` may not, because a rule that logs has grown a collaborator (ADR-0008).                                                                                                 |
+| `apps/server/`          | `type:app`       | The composition root. It knows every context exists; it knows nothing about what they mean.                                                                                                                                                                              |
+| `libs/api-client/`      | `type:client`    | The published API as a caller outside the system sees it, typed by the contracts. Used by the API tests; a context may not import it, which is the lint form of "a context never calls another synchronously".                                                           |
+| `apps/web/`             | `type:app`       | The inspector's client. It speaks the contracts and never the domain model.                                                                                                                                                                                              |
+| `apps/registry-stub/`   | `type:app`       | The stand-in for the archive register — a system outside this one, reached over HTTP. It speaks the contracts, decides nothing, and is deleted rather than migrated when a real register answers them (ADR-0009).                                                        |
+| `libs/matching-engine/` | `type:engine`    | Pure rules: whether two ways of writing an address, a name, an area or a reference number mean the same thing, including the Azerbaijani legacy Cyrillic table the archive files need. No dependencies, so the stand-in and whatever replaces it answer from one source. |
 
 ## Relationships
 
 ```
 apps/web  ──HTTP──▶  libs/api-gateway  ──VerificationClientPort──▶  packages/verification
-                            ▲                                              ▲
-                            └────── @cadastre/api-contracts ───────────────┘
-                                    (the language both sides speak)
+                            ▲                                              ▲   │
+                            └────── @cadastre/api-contracts ───────────────┘   │ ArchiveRegistryPort
+                                    (the language both sides speak)            │
+                                                                               ▼
+                                                            apps/registry-stub  ──▶  libs/matching-engine
+                                                            (a stand-in for a system
+                                                             outside this one)
 ```
+
+**The archive register is upstream of verification, and outside the system.** It
+is not a context and never becomes one while we hold no data: `apps/registry-stub`
+answers `@cadastre/api-contracts/registry` from fixtures until either the 55
+register files are ingested or a real state register appears (ADR-0009). What
+crosses that boundary is facts — what the register holds — never a verdict about
+a submission, because the register does not know what is being registered.
 
 **Verification is upstream; the gateway is its customer.** The gateway takes the language as verification publishes it and translates nothing back — a conformist relationship, and a deliberate one: there is one client, and giving it an anticorruption layer would buy nothing but a second set of names.
 
@@ -57,6 +70,7 @@ folder**:
 | What is enforced                                                                   | Where it is written                                                                    |
 | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | a context and the edge may reach only contracts, the kernel and technical adapters | override on `packages/*/**` and `libs/api-gateway/**`                                  |
+| an engine reaches nothing at all — no workspace package, no framework, no zod      | override on `libs/matching-engine/**` (RULE.md §7)                                     |
 | contracts and adapters may reach only the kernel                                   | override on `libs/api-contracts/**`, `libs/event-publisher/**`                         |
 | the kernel reaches nothing in the workspace                                        | override on `libs/shared/**`                                                           |
 | `domain/` reaches no sibling layer, no Nest, no Prisma, no provider SDK            | override on `packages/*/src/domain/**` (ADR-0007)                                      |

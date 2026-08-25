@@ -21,6 +21,8 @@ export { InvalidIssueKindException } from './invalid-issue-kind.exception.js';
 export { InvalidPackageStatusException } from './invalid-package-status.exception.js';
 export { InvalidPageNumberException } from './invalid-page-number.exception.js';
 export { InvalidPageRangeException } from './invalid-page-range.exception.js';
+export { InvalidRegistryCheckKeyException } from './invalid-registry-check-key.exception.js';
+export { InvalidRegistryOutcomeException } from './invalid-registry-outcome.exception.js';
 export { InvalidReportStatusException } from './invalid-report-status.exception.js';
 export { InvalidStorageKeyException } from './invalid-storage-key.exception.js';
 export { PackageAlreadyFinishedException } from './package-already-finished.exception.js';
@@ -29,6 +31,7 @@ export { PackageNotStartableException } from './package-not-startable.exception.
 export { PackageNotUnderWayException } from './package-not-under-way.exception.js';
 export { PageAlreadyRecognisedException } from './page-already-recognised.exception.js';
 export { PageNotInSourceFileException } from './page-not-in-source-file.exception.js';
+export { RegistryCheckNotInProfileException } from './registry-check-not-in-profile.exception.js';
 export { SourceFileAlreadySegmentedException } from './source-file-already-segmented.exception.js';
 export { SourceFileAlreadySplitException } from './source-file-already-split.exception.js';
 export { SourceFileMustHaveADocumentException } from './source-file-must-have-a-document.exception.js';

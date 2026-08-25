@@ -1,3 +1,4 @@
+export { ArchiveRegistryPort } from './archive-registry.port.js';
 export {
   CrossChecker,
   type CrossCheckAnswer,

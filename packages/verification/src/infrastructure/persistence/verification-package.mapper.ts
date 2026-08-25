@@ -27,6 +27,10 @@ import {
   PageNumber,
   PageRange,
   RecognisedText,
+  RegistryAttribute,
+  RegistryCheck,
+  RegistryCheckKey,
+  RegistryOutcome,
   ReportStatus,
   SourceFileId,
   StorageKey,
@@ -38,6 +42,7 @@ import {
 import {
   CrossCheckVerdict as CrossCheckVerdictColumn,
   IssueKind as IssueKindColumn,
+  RegistryOutcome as RegistryOutcomeColumn,
   ReportStatus as ReportStatusColumn,
   PackageStatus as StatusColumn,
 } from './generated/client.js';
@@ -50,6 +55,7 @@ export type PackageRow = {
   readonly sourceFiles: readonly SourceFileRow[];
   readonly documents: readonly DocumentRow[];
   readonly crossChecks: readonly CrossCheckRow[];
+  readonly registryChecks: readonly RegistryCheckRow[];
   readonly report: ReportRow | null;
 };
 
@@ -76,6 +82,33 @@ export type CrossCheckRow = {
   readonly confidence: number;
   readonly note: string;
   readonly values: readonly CheckedValueRow[];
+};
+
+export type RegistryCheckRow = {
+  readonly key: string;
+  readonly outcome: string;
+  readonly confidence: number;
+  readonly note: string;
+  readonly reference: string | null;
+  readonly documentId: string | null;
+  readonly documentType: string;
+  readonly fieldName: string;
+  readonly value: string;
+  readonly pageNumber: number;
+  readonly valueConfidence: number;
+  readonly attributes: readonly RegistryAttributeRow[];
+};
+
+export type RegistryAttributeRow = {
+  readonly name: string;
+  readonly agrees: boolean;
+  readonly recorded: string | null;
+  readonly documentId: string | null;
+  readonly documentType: string;
+  readonly fieldName: string;
+  readonly value: string;
+  readonly pageNumber: number;
+  readonly confidence: number;
 };
 
 export type CheckedValueRow = {
@@ -132,6 +165,7 @@ export type PackageWrite = {
   readonly sourceFiles: readonly SourceFileWrite[];
   readonly documents: readonly DocumentWrite[];
   readonly crossChecks: readonly CrossCheckWrite[];
+  readonly registryChecks: readonly RegistryCheckWrite[];
   readonly report: ReportWrite | null;
 };
 
@@ -158,6 +192,34 @@ export type CrossCheckWrite = {
   readonly confidence: number;
   readonly note: string;
   readonly values: readonly CheckedValueWrite[];
+};
+
+export type RegistryCheckWrite = {
+  readonly key: string;
+  readonly outcome: RegistryOutcomeColumn;
+  readonly confidence: number;
+  readonly note: string;
+  readonly reference: string | null;
+  readonly documentId: string;
+  readonly documentType: string;
+  readonly fieldName: string;
+  readonly value: string;
+  readonly pageNumber: number;
+  readonly valueConfidence: number;
+  readonly attributes: readonly RegistryAttributeWrite[];
+};
+
+export type RegistryAttributeWrite = {
+  readonly name: string;
+  readonly agrees: boolean;
+  readonly recorded: string | null;
+  readonly documentId: string;
+  readonly documentType: string;
+  readonly fieldName: string;
+  readonly value: string;
+  readonly pageNumber: number;
+  readonly confidence: number;
+  readonly position: number;
 };
 
 export type CheckedValueWrite = {
@@ -224,6 +286,9 @@ export class VerificationPackageMapper {
       crossChecks: row.crossChecks.map(check =>
         VerificationPackageMapper.crossCheckToDomain(check),
       ),
+      registryChecks: row.registryChecks.flatMap(check =>
+        VerificationPackageMapper.registryCheckToDomain(check),
+      ),
       report: row.report
         ? VerificationPackageMapper.reportToDomain(row.report)
         : null,
@@ -283,8 +348,87 @@ export class VerificationPackageMapper {
           position,
         })),
       })),
+      registryChecks: aggregate.registryChecks.flatMap(check => {
+        const asked = check.asked;
+
+        return [
+          {
+            key: check.key.value,
+            outcome: VerificationPackageMapper.outcomeColumn(check.outcome),
+            confidence: check.confidence.value,
+            note: check.note,
+            reference: check.reference,
+            documentId: asked.documentId.value,
+            documentType: asked.documentType.value,
+            fieldName: asked.fieldKey.value,
+            value: asked.value.value,
+            pageNumber: asked.foundOn.value,
+            valueConfidence: asked.confidence.value,
+            attributes: check.attributes.map((attribute, position) => ({
+              name: attribute.name,
+              agrees: attribute.agrees,
+              recorded: attribute.recorded,
+              documentId: attribute.submitted.documentId.value,
+              documentType: attribute.submitted.documentType.value,
+              fieldName: attribute.submitted.fieldKey.value,
+              value: attribute.submitted.value.value,
+              pageNumber: attribute.submitted.foundOn.value,
+              confidence: attribute.submitted.confidence.value,
+              position,
+            })),
+          },
+        ];
+      }),
       report: VerificationPackageMapper.reportRow(aggregate.report),
     };
+  }
+
+  // A check whose document a later run removed is dropped rather than guessed
+  // at: what it says is filed against a sheet, and without the sheet there is
+  // nothing for the inspector to open.
+  private static registryCheckToDomain(
+    row: RegistryCheckRow,
+  ): readonly RegistryCheck[] {
+    if (row.documentId === null) return [];
+
+    const asked = CheckedValue.of({
+      documentId: DocumentId.of(row.documentId),
+      documentType: DocumentType.create(row.documentType),
+      fieldKey: FieldKey.create(row.fieldName),
+      value: FieldValue.create(row.value),
+      foundOn: PageNumber.of(row.pageNumber),
+      confidence: Confidence.of(row.valueConfidence),
+    });
+
+    return [
+      RegistryCheck.restore({
+        key: RegistryCheckKey.create(row.key),
+        outcome: RegistryOutcome.of(row.outcome),
+        confidence: Confidence.of(row.confidence),
+        note: row.note,
+        asked,
+        reference: row.reference,
+        attributes: row.attributes.flatMap(attribute =>
+          attribute.documentId === null
+            ? []
+            : [
+                RegistryAttribute.of({
+                  name: attribute.name,
+                  agrees: attribute.agrees,
+                  recorded: attribute.recorded,
+                  submitted: CheckedValue.of({
+                    documentId: DocumentId.of(attribute.documentId),
+                    documentType: DocumentType.create(attribute.documentType),
+                    fieldKey: FieldKey.create(attribute.fieldName),
+                    value: FieldValue.create(attribute.value),
+                    foundOn: PageNumber.of(attribute.pageNumber),
+                    confidence: Confidence.of(attribute.confidence),
+                  }),
+                }),
+              ],
+        ),
+      }),
+    ];
   }
 
   private static crossCheckToDomain(row: CrossCheckRow): CrossCheck {
@@ -460,6 +604,20 @@ export class VerificationPackageMapper {
       throw new RangeError(
         `No cross-check verdict column for ${verdict.value}`,
       );
+    }
+
+    return column;
+  }
+
+  private static outcomeColumn(
+    outcome: RegistryOutcome,
+  ): RegistryOutcomeColumn {
+    const column = Object.values(RegistryOutcomeColumn).find(
+      candidate => candidate === outcome.value,
+    );
+
+    if (!column) {
+      throw new RangeError(`No registry outcome column for ${outcome.value}`);
     }
 
     return column;

@@ -22,6 +22,12 @@ export { PageImage } from './page-image.vo.js';
 export { PageNumber } from './page-number.vo.js';
 export { PageRange } from './page-range.vo.js';
 export { RecognisedText } from './recognised-text.vo.js';
+export {
+  RegistryAttribute,
+  RegistryCheck,
+  RegistryCheckKey,
+} from './registry-check.vo.js';
+export { RegistryOutcome } from './registry-outcome.vo.js';
 export { ReportStatus } from './report-status.vo.js';
 export { StorageKey } from './storage-key.vo.js';
 export { ValidationIssue } from './validation-issue.vo.js';
@@ -29,6 +35,7 @@ export {
   CrossCheckSpec,
   DocumentTypeSpec,
   FieldRef,
+  RegistryCheckSpec,
   VerificationProfile,
 } from './verification-profile.vo.js';
 export { VerificationReport } from './verification-report.vo.js';

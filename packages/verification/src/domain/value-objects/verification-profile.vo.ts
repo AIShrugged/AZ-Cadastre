@@ -1,5 +1,6 @@
 import {
   CrossCheckNotInProfileException,
+  RegistryCheckNotInProfileException,
   UnknownProfileException,
 } from '../exceptions/index.js';
 
@@ -7,6 +8,7 @@ import { CrossCheckKey } from './cross-check.vo.js';
 import { DocumentType } from './document-type.vo.js';
 import { FieldSchema, FieldSpec } from './field-schema.vo.js';
 import { FieldKey } from './field.vo.js';
+import { RegistryCheckKey } from './registry-check.vo.js';
 
 type Declaration = {
   readonly key: string;
@@ -39,6 +41,25 @@ type CrossCheckDeclaration = {
   // [document type key, field key], in the order the check reads them. The
   // first is the anchor: the finding is filed against it.
   readonly fields: readonly (readonly [string, string])[];
+};
+
+// A rule that leaves the submission: a value printed on one of these papers,
+// held against what the archive register holds about the property. The
+// difference from a cross-check is what it is compared with — not another sheet
+// of the same envelope but the record of what was registered — and that is the
+// whole reason it is a declaration of its own (ADR-0009).
+type RegistryCheckDeclaration = {
+  readonly key: string;
+  readonly description: string;
+  // The value the register is asked about: [document type key, field key]. The
+  // finding is filed against this document, because it is the sheet the
+  // inspector opens to see what the package claims.
+  readonly subject: readonly [string, string];
+  // What else the package says about the property, and the name the register
+  // knows each of them by: [register attribute, document type key, field key].
+  // A name the register does not know is not an error — it comes back as
+  // silence, the same as a column an area's register never carried.
+  readonly attributes: readonly (readonly [string, string, string])[];
 };
 
 // One value the check reaches for, named by the document type that carries it.
@@ -86,6 +107,40 @@ export class CrossCheckSpec {
 
   wants(type: DocumentType, key: FieldKey): boolean {
     return this.#references.some(reference => reference.matches(type, key));
+  }
+}
+
+export class RegistryCheckSpec {
+  readonly #attributes: readonly { name: string; ref: FieldRef }[];
+
+  private constructor(
+    public readonly key: RegistryCheckKey,
+    public readonly description: string,
+    public readonly subject: FieldRef,
+    attributes: readonly { name: string; ref: FieldRef }[],
+  ) {
+    this.#attributes = [...attributes];
+  }
+
+  static of(declaration: RegistryCheckDeclaration): RegistryCheckSpec {
+    const [subjectType, subjectField] = declaration.subject;
+
+    return new RegistryCheckSpec(
+      RegistryCheckKey.create(declaration.key),
+      declaration.description,
+      FieldRef.of(
+        DocumentType.create(subjectType),
+        FieldKey.create(subjectField),
+      ),
+      declaration.attributes.map(([name, type, field]) => ({
+        name,
+        ref: FieldRef.of(DocumentType.create(type), FieldKey.create(field)),
+      })),
+    );
+  }
+
+  get attributes(): readonly { name: string; ref: FieldRef }[] {
+    return this.#attributes;
   }
 }
 
@@ -363,21 +418,46 @@ export class VerificationProfile {
         ],
       },
     ],
+    // What the papers say about the property, held against what the archive
+    // holds about it. The submission agreeing with itself is not evidence that
+    // it agrees with the record, which is the whole of what this adds.
+    [
+      {
+        key: 'property_of_record',
+        description:
+          'The property the registration is for, as the application addresses ' +
+          'it, against the archive record of that address.',
+        subject: ['application', 'property_address'],
+        attributes: [
+          // The owner the archive certificate names against the right holder of
+          // record — the one attribute the 2008 transfer of cases between the
+          // Absheron and Baku offices is known to have changed.
+          ['ownerName', 'archive_certificate', 'owner_name'],
+          ['cadastralNumber', 'land_plot_plan', 'cadastral_number'],
+          ['plotArea', 'land_plot_plan', 'plot_area'],
+        ],
+      },
+    ],
   );
 
   readonly #specs: readonly DocumentTypeSpec[];
   readonly #crossChecks: readonly CrossCheckSpec[];
+  readonly #registryChecks: readonly RegistryCheckSpec[];
 
   private constructor(
     public readonly key: string,
     declarations: readonly Declaration[],
     crossChecks: readonly CrossCheckDeclaration[],
+    registryChecks: readonly RegistryCheckDeclaration[] = [],
   ) {
     this.#specs = declarations.map(declaration =>
       DocumentTypeSpec.of(declaration),
     );
     this.#crossChecks = crossChecks.map(declaration =>
       CrossCheckSpec.of(declaration),
+    );
+    this.#registryChecks = registryChecks.map(declaration =>
+      RegistryCheckSpec.of(declaration),
     );
   }
 
@@ -413,6 +493,24 @@ export class VerificationProfile {
     const found = this.#crossChecks.find(spec => spec.key.equals(key));
 
     if (!found) throw new CrossCheckNotInProfileException(key.value, this.key);
+
+    return found;
+  }
+
+  get registryChecks(): readonly RegistryCheckSpec[] {
+    return this.#registryChecks;
+  }
+
+  declaresRegistryCheck(key: RegistryCheckKey): boolean {
+    return this.#registryChecks.some(spec => spec.key.equals(key));
+  }
+
+  registryCheckFor(key: RegistryCheckKey): RegistryCheckSpec {
+    const found = this.#registryChecks.find(spec => spec.key.equals(key));
+
+    if (!found) {
+      throw new RegistryCheckNotInProfileException(key.value, this.key);
+    }
 
     return found;
   }

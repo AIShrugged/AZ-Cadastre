@@ -6,6 +6,9 @@
       "path": "./libs/shared/tsconfig.build.json"
     },
     {
+      "path": "./libs/matching-engine/tsconfig.build.json"
+    },
+    {
       "path": "./libs/api-contracts/tsconfig.build.json"
     },
     {
@@ -25,6 +28,9 @@
     },
     {
       "path": "./apps/server/tsconfig.build.json"
+    },
+    {
+      "path": "./apps/registry-stub/tsconfig.build.json"
     }
   ]
 }

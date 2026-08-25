@@ -1,6 +1,7 @@
 import { Inject } from '@nestjs/common';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 
+import type { AddressLookupResponse } from '@cadastre/api-contracts/registry';
 import { Logger, type LogContext } from '@cadastre/logger';
 
 import type { VerificationPackage } from '../../../../domain/aggregates/index.js';
@@ -17,14 +18,19 @@ import {
   PageImage,
   PageNumber,
   RecognisedText,
+  RegistryAttribute,
+  RegistryCheck,
+  RegistryOutcome,
   type CrossCheckSpec,
   type DocumentId,
   type PageRange,
+  type RegistryCheckSpec,
   type SourceFileId,
   type VerificationProfile,
 } from '../../../../domain/value-objects/index.js';
 import { PackageNotFoundException } from '../../../exceptions/index.js';
 import {
+  ArchiveRegistryPort,
   CrossChecker,
   DocumentClassifier,
   DocumentSegmenter,
@@ -60,6 +66,7 @@ export class RunVerificationHandler implements ICommandHandler<
     @Inject(DocumentClassifier) private readonly classifier: DocumentClassifier,
     @Inject(FieldExtractor) private readonly extractor: FieldExtractor,
     @Inject(CrossChecker) private readonly crossChecker: CrossChecker,
+    @Inject(ArchiveRegistryPort) private readonly registry: ArchiveRegistryPort,
   ) {
     this.logger = logger.child({ scope: RunVerificationHandler.name });
   }
@@ -91,6 +98,7 @@ export class RunVerificationHandler implements ICommandHandler<
         })),
         expects: submitted.profile.specs.length,
         crossChecks: submitted.profile.crossChecks.length,
+        registryChecks: submitted.profile.registryChecks.length,
       });
 
       // Every file is read to the end before any of it is classified: what one
@@ -134,6 +142,18 @@ export class RunVerificationHandler implements ICommandHandler<
         );
       }
 
+      // Last, because it needs the values every stage above it produced, and
+      // because it is the only one that leaves the submission: everything up to
+      // here is what the papers say, and this is what the record says
+      // (ADR-0009).
+      for (const spec of (await this.load(packageId)).profile.registryChecks) {
+        await this.despite(
+          'registry',
+          { packageId, check: spec.key.value },
+          () => this.askRegister(packageId, spec),
+        );
+      }
+
       // Completing is what compiles the report, so a run that read almost
       // nothing still ends with one.
       await this.change(packageId, verification => verification.complete());
@@ -162,6 +182,11 @@ export class RunVerificationHandler implements ICommandHandler<
         crossChecks: finished.crossChecks.map(check => ({
           key: check.key.value,
           verdict: check.verdict.value,
+          confidence: round(check.confidence.value),
+        })),
+        registryChecks: finished.registryChecks.map(check => ({
+          key: check.key.value,
+          outcome: check.outcome.value,
           confidence: round(check.confidence.value),
         })),
         durationMs: Date.now() - startedAt,
@@ -534,6 +559,110 @@ export class RunVerificationHandler implements ICommandHandler<
     });
   }
 
+  /*
+   * The one stage that leaves the submission: it asks the archive register what
+   * it holds about the property, and holds what the papers say against what the
+   * record says.
+   *
+   * The register answers with facts and no verdict, which is deliberate — what
+   * an absent record or a differing owner means is the profile's rule and is
+   * applied here, where the profile is (ADR-0009). A register that is down
+   * throws, `despite` catches it, and the run finishes without the check rather
+   * than failing over a source that is not the submission.
+   */
+  private async askRegister(
+    packageId: PackageId,
+    spec: RegistryCheckSpec,
+  ): Promise<void> {
+    const verification = await this.load(packageId);
+
+    if (verification.hasAsked(spec.key)) return;
+
+    const asked = verification.askedOf(spec);
+
+    if (!asked) {
+      // Not a failure and not a finding here: a value nobody could read is
+      // already in the report as the reading that failed.
+      this.logger.log(
+        'Registry check not attempted — the value it asks about is missing',
+        {
+          packageId: packageId.value,
+          check: spec.key.value,
+          needs: `${spec.subject.type.value}.${spec.subject.key.value}`,
+        },
+      );
+      return;
+    }
+
+    const stated = verification.statedFor(spec);
+    const startedAt = Date.now();
+    const answer = await this.registry.addresses.lookup({
+      address: asked.value.value,
+      attributes: stated.map(({ name, value }) => ({
+        name,
+        value: value.value.value,
+      })),
+    });
+
+    const attributes = stated.flatMap(({ name, value }) => {
+      const held = answer.attributes.find(one => one.name === name);
+
+      return held
+        ? [
+            RegistryAttribute.of({
+              name,
+              agrees: held.match === 'Matches',
+              submitted: value,
+              recorded: held.recorded,
+            }),
+          ]
+        : [];
+    });
+
+    const outcome = outcomeOf(answer.outcome, attributes);
+    // Never surer than the reading it was made from: an address the extractor
+    // half-guessed cannot produce a confident answer about the property.
+    const read = Math.min(
+      asked.confidence.value,
+      ...stated.map(({ value }) => value.confidence.value),
+    );
+
+    verification.recordRegistryCheck(
+      RegistryCheck.of({
+        key: spec.key,
+        outcome,
+        confidence: Confidence.of(read),
+        note: answer.note,
+        asked,
+        reference: locatorOf(answer),
+        attributes,
+      }),
+    );
+    await this.packages.save(verification);
+
+    this.logger.log('Registry check made', {
+      packageId: packageId.value,
+      check: spec.key.value,
+      outcome: outcome.value,
+      candidates: answer.candidates,
+      confidence: round(read),
+      // The names and how each stood, never the values: they are read off
+      // somebody's papers (ADR-0008).
+      attributes: attributes.map(attribute => ({
+        of: `${attribute.submitted.documentType.value}.${attribute.submitted.fieldKey.value}`,
+        as: attribute.name,
+        stood: attribute.isSilent
+          ? 'not recorded'
+          : attribute.agrees
+            ? 'agrees'
+            : 'differs',
+      })),
+      reference: locatorOf(answer),
+      note: answer.note,
+      durationMs: Date.now() - startedAt,
+    });
+  }
+
   private async change(
     packageId: PackageId,
     change: (verification: VerificationPackage) => void,
@@ -573,6 +702,33 @@ export class RunVerificationHandler implements ICommandHandler<
 // decimal invites a reader to compare two readings that are not different.
 function round(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+/**
+ * What the register said, turned into what it means for this package. The
+ * register knows whether it holds a record; only the profile knows that a
+ * record saying something else is a fault and a record that is absent is not.
+ */
+function outcomeOf(
+  answered: AddressLookupResponse['outcome'],
+  attributes: readonly RegistryAttribute[],
+): RegistryOutcome {
+  if (answered === 'NotFound') return RegistryOutcome.NOT_FOUND;
+  if (answered === 'Ambiguous') return RegistryOutcome.AMBIGUOUS;
+
+  return attributes.some(attribute => attribute.differs)
+    ? RegistryOutcome.DIFFERS
+    : RegistryOutcome.CONFIRMED;
+}
+
+// Where the paper is, in one line for the audit trail. Folder and page stay
+// strings: "01-dən 30" is a real page range and a number cannot hold it.
+function locatorOf(answer: AddressLookupResponse): string | null {
+  const location = answer.record?.location;
+
+  if (!location) return null;
+
+  return `folder ${location.folder}, pp. ${location.pages}`;
 }
 
 function describe(range: PageRange): string {

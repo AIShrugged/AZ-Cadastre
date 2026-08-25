@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
+import type {
+  AddressLookupRequest,
+  AddressLookupResponse,
+} from '@cadastre/api-contracts/registry';
 import { SilentLogger } from '@cadastre/logger';
 
 import { VerificationPackage } from '../../../../domain/aggregates/index.js';
@@ -31,6 +35,7 @@ import {
   VerificationProfile,
 } from '../../../../domain/value-objects/index.js';
 import {
+  ArchiveRegistryPort,
   CrossChecker,
   DocumentClassifier,
   DocumentSegmenter,
@@ -223,6 +228,55 @@ class RecordingCrossChecker extends CrossChecker {
   }
 }
 
+/**
+ * A register that answers whatever the spec needs, and remembers what it was
+ * asked. It answers facts and no verdict, like the real one: what the outcome
+ * means is worked out by the stage under test (ADR-0009).
+ */
+class RecordingRegistry extends ArchiveRegistryPort {
+  readonly asked: AddressLookupRequest[] = [];
+
+  constructor(
+    private readonly answer: Partial<AddressLookupResponse> = {},
+    private readonly refusal?: Error,
+  ) {
+    super();
+  }
+
+  override readonly addresses = {
+    lookup: async (
+      request: AddressLookupRequest,
+    ): Promise<AddressLookupResponse> => {
+      this.asked.push(request);
+
+      if (this.refusal) throw this.refusal;
+
+      return {
+        outcome: 'Found',
+        canonicalAddress: 'Bakı şəhəri, Nəsimi rayonu, Azadlıq prospekti 12',
+        record: {
+          registerNo: '3-00219',
+          inventoryNo: null,
+          address: 'Bakı şəhəri, Nəsimi rayonu, Azadlıq prospekti 12',
+          ownerName: 'ELÇİN ƏLİYEV',
+          cadastralNumber: null,
+          plotArea: null,
+          location: { folder: '05', pages: '12-dən 38' },
+        },
+        candidates: 1,
+        attributes: request.attributes.map(attribute => ({
+          name: attribute.name,
+          match: 'NotRecorded' as const,
+          submitted: attribute.value,
+          recorded: null,
+        })),
+        note: 'answered in a test',
+        ...this.answer,
+      };
+    },
+  };
+}
+
 function aPackageOf(...files: readonly SourceFile[]): VerificationPackage {
   return VerificationPackage.create(
     PackageId.of(PACKAGE_ID),
@@ -248,6 +302,7 @@ function pipelineOver(
   classifier: DocumentClassifier = new RecordingClassifier(),
   extractor: FieldExtractor = new NoFields(),
   crossChecker: CrossChecker = new RecordingCrossChecker(),
+  registry: ArchiveRegistryPort = new RecordingRegistry(),
 ): {
   run: () => Promise<void>;
   packages: InMemoryPackages;
@@ -264,6 +319,7 @@ function pipelineOver(
     classifier,
     extractor,
     crossChecker,
+    registry,
   );
 
   return {
@@ -514,6 +570,7 @@ describe('RunVerificationHandler', () => {
       new RecordingClassifier(),
       new NoFields(),
       new RecordingCrossChecker(),
+      new RecordingRegistry(),
     );
 
     await handler.execute(new RunVerificationCommand(PACKAGE_ID));
@@ -640,6 +697,7 @@ describe('RunVerificationHandler', () => {
         new RecordingClassifier(),
         new NoFields(),
         new RecordingCrossChecker(),
+        new RecordingRegistry(),
       );
 
       await handler.execute(new RunVerificationCommand(PACKAGE_ID));
@@ -796,6 +854,7 @@ describe('RunVerificationHandler', () => {
         new CardThenApplication(),
         new NamesOnTheDocument(),
         crossChecker,
+        new RecordingRegistry(),
       );
 
       await handler.execute(new RunVerificationCommand(PACKAGE_ID));
@@ -907,6 +966,135 @@ describe('RunVerificationHandler', () => {
       await run();
 
       expect((await storedPackage(packages)).status.value).toBe('Completed');
+    });
+  });
+
+  // ── The archive register ─────────────────────────────────────────────────
+  describe('looking the property up in the archive register', () => {
+    const ADDRESS = 'Bakı ş., Nəsimi r., Azadlıq pr. 12, mən. 43';
+
+    class EverythingIsAnApplication extends DocumentClassifier {
+      override async classify(): Promise<Classification> {
+        return Classification.of(
+          DocumentType.create('application'),
+          Confidence.of(0.9),
+        );
+      }
+    }
+
+    /** An application carrying the address, and nothing else worth asking about. */
+    class AnAddressOnTheApplication extends FieldExtractor {
+      constructor(private readonly confidence = 0.9) {
+        super();
+      }
+
+      override async extract(
+        request: ExtractionRequest,
+      ): Promise<readonly ExtractedField[]> {
+        if (request.spec.type.value !== 'application') return [];
+
+        return [
+          ExtractedField.of(
+            FieldKey.create('property_address'),
+            FieldValue.create(ADDRESS),
+            Confidence.of(this.confidence),
+            PageNumber.first(),
+          ),
+        ];
+      }
+    }
+
+    function aSubmission(
+      registry: ArchiveRegistryPort = new RecordingRegistry(),
+      extractor: FieldExtractor = new AnAddressOnTheApplication(),
+    ) {
+      return pipelineOver(
+        aPackageOf(aFile('submission.pdf', ContentType.PDF)),
+        new RenderingSplitter(2),
+        new RecordingOcr(),
+        new SegmenterCuttingAt([2]),
+        new EverythingIsAnApplication(),
+        extractor,
+        new RecordingCrossChecker(),
+        registry,
+      );
+    }
+
+    it('asks about the address the application is made under', async () => {
+      const registry = new RecordingRegistry();
+
+      await aSubmission(registry).run();
+
+      expect(registry.asked.map(request => request.address)).toEqual([ADDRESS]);
+    });
+
+    it('records what came back, with the archive locator', async () => {
+      const { run, packages } = aSubmission();
+
+      await run();
+
+      const stored = await storedPackage(packages);
+      expect(stored.registryChecks[0]?.outcome.confirms).toBe(true);
+      expect(stored.registryChecks[0]?.reference).toBe(
+        'folder 05, pp. 12-dən 38',
+      );
+    });
+
+    it('files a finding when the record says something else', async () => {
+      const registry = new RecordingRegistry({
+        outcome: 'NotFound',
+        record: null,
+      });
+
+      const { run, packages } = aSubmission(registry);
+      await run();
+
+      const stored = await storedPackage(packages);
+      expect(stored.registryChecks[0]?.outcome.value).toBe('NotFound');
+      expect(
+        (stored.report?.issues ?? []).map(issue => issue.kind.value),
+      ).toContain('RegistryUnconfirmed');
+    });
+
+    // An address the extractor half-guessed cannot produce a confident answer
+    // about the property.
+    it('is never surer than the reading it was made from', async () => {
+      const { run, packages } = aSubmission(
+        new RecordingRegistry(),
+        new AnAddressOnTheApplication(0.42),
+      );
+
+      await run();
+
+      expect(
+        (await storedPackage(packages)).registryChecks[0]?.confidence.value,
+      ).toBe(0.42);
+    });
+
+    it('asks nothing when no document carried the value to ask about', async () => {
+      const registry = new RecordingRegistry();
+
+      await aSubmission(registry, new NoFields()).run();
+
+      expect(registry.asked).toEqual([]);
+    });
+
+    /*
+     * The register is a source outside the system and is allowed to be down.
+     * The stage is wrapped in the same `despite` as every other one, so a
+     * refusal costs the check and not the run (ADR-0009).
+     */
+    it('carries on to the report when the register cannot be reached', async () => {
+      const { run, packages } = aSubmission(
+        new RecordingRegistry({}, new Error('the register is not answering')),
+      );
+
+      await run();
+
+      const stored = await storedPackage(packages);
+      expect(stored.registryChecks).toEqual([]);
+      expect(stored.status.value).toBe('Completed');
+      expect(stored.report).not.toBeNull();
     });
   });
 });

@@ -32,6 +32,7 @@ import {
   PackageNotUnderWayException,
   PageAlreadyRecognisedException,
   PageNotInSourceFileException,
+  RegistryCheckNotInProfileException,
   SourceFileAlreadySegmentedException,
   SourceFileAlreadySplitException,
   SourceFileMustHaveADocumentException,
@@ -60,6 +61,10 @@ import {
   PageNumber,
   PageRange,
   RecognisedText,
+  RegistryAttribute,
+  RegistryCheck,
+  RegistryCheckKey,
+  RegistryOutcome,
   SourceFileId,
   StorageKey,
   VerificationProfile,
@@ -252,6 +257,7 @@ describe('VerificationPackage', () => {
         files: [aFile()],
         documents: [],
         crossChecks: [],
+        registryChecks: [],
         report: null,
       });
 
@@ -270,6 +276,7 @@ describe('VerificationPackage', () => {
         files: [file],
         documents: [document],
         crossChecks: [],
+        registryChecks: [],
         report: null,
       });
 
@@ -288,6 +295,7 @@ describe('VerificationPackage', () => {
         files: [],
         documents: [],
         crossChecks: [],
+        registryChecks: [],
         report: null,
       });
 
@@ -1130,6 +1138,7 @@ describe('VerificationPackage', () => {
         files: verification.files,
         documents: verification.documents,
         crossChecks: verification.crossChecks,
+        registryChecks: verification.registryChecks,
         report: verification.report,
       });
       reread.recordRecognition(file.id, page.id, anOcrResult());
@@ -1406,6 +1415,7 @@ describe('VerificationPackage', () => {
         files: verification.files,
         documents: verification.documents,
         crossChecks: verification.crossChecks,
+        registryChecks: verification.registryChecks,
         report: verification.report,
       });
       reread.recordCrossCheck(aVerdict(reread, CrossCheckVerdict.MATCH));
@@ -1476,5 +1486,232 @@ describe('VerificationPackage', () => {
         'verification.VerificationStarted',
       ]);
     });
+  });
+
+  // ── The archive register ─────────────────────────────────────────────────
+  // What the papers say, held against what the record of the registration
+  // says. The register is not a third document of the submission, and its
+  // silence is not evidence about it (ADR-0009).
+  describe('when the property is looked up in the archive register', () => {
+    const SPEC = VerificationProfile.CADASTRE.registryChecks[0]!;
+
+    const ADDRESS = 'Zığ qəsəbəsi, Əliyev küçəsi 12';
+
+    function valued(key: string, value: string, confidence = 0.95) {
+      return ExtractedField.of(
+        FieldKey.create(key),
+        FieldValue.create(value),
+        Confidence.of(confidence),
+        PageNumber.first(),
+      );
+    }
+
+    // Three sheets, three documents: the application the address is read off,
+    // and the two papers the other attributes come from.
+    function aPackageOfRecord(options: { address?: string } = {}) {
+      const built = aSegmentedPackage(3);
+      const [application, certificate, plan] = built.documents;
+
+      built.verification.classify(
+        application!.id,
+        aClassification('application'),
+      );
+      built.verification.classify(
+        certificate!.id,
+        aClassification('archive_certificate'),
+      );
+      built.verification.classify(plan!.id, aClassification('land_plot_plan'));
+
+      if (options.address !== null) {
+        built.verification.recordExtractedFields(application!.id, [
+          valued('property_address', options.address ?? ADDRESS),
+        ]);
+      }
+      built.verification.recordExtractedFields(certificate!.id, [
+        valued('owner_name', 'Əliyeva Rübabə'),
+      ]);
+      built.verification.recordExtractedFields(plan!.id, [
+        valued('cadastral_number', '40-12-345-67'),
+        valued('plot_area', '600 m²'),
+      ]);
+      built.verification.commit();
+
+      return { ...built, application: application! };
+    }
+
+    function anAnswer(
+      verification: VerificationPackage,
+      outcome: RegistryOutcome,
+      attributes: readonly RegistryAttribute[] = [],
+    ): RegistryCheck {
+      return RegistryCheck.of({
+        key: SPEC.key,
+        outcome,
+        confidence: Confidence.of(0.95),
+        note: 'Register 1-12345 holds this address.',
+        asked: verification.askedOf(SPEC)!,
+        reference: 'folder 14, pp. 01-dən 30',
+        attributes,
+      });
+    }
+
+    it('asks about the address the application is made under', () => {
+      const { verification } = aPackageOfRecord();
+
+      expect(verification.askedOf(SPEC)?.value.value).toBe(ADDRESS);
+    });
+
+    it('offers the register everything the package says about the property', () => {
+      const { verification } = aPackageOfRecord();
+
+      expect(verification.statedFor(SPEC).map(stated => stated.name)).toEqual([
+        'ownerName',
+        'cadastralNumber',
+        'plotArea',
+      ]);
+    });
+
+    // Unlike a cross-check it needs one document, not two: the other side of
+    // the comparison was never in the envelope.
+    it('can be asked from a single document', () => {
+      const { verification } = aPackageOfRecord();
+
+      expect(verification.canAsk(SPEC)).toBe(true);
+    });
+
+    it('is not asked at all when the value it asks about was never read', () => {
+      const built = aSegmentedPackage(1);
+      built.verification.classify(
+        built.document.id,
+        aClassification('application'),
+      );
+
+      expect(built.verification.canAsk(SPEC)).toBe(false);
+    });
+
+    it('refuses an answer to a check the profile does not declare', () => {
+      const { verification } = aPackageOfRecord();
+      const foreign = RegistryCheck.of({
+        key: RegistryCheckKey.create('somebody_elses_rule'),
+        outcome: RegistryOutcome.CONFIRMED,
+        confidence: Confidence.of(0.9),
+        note: 'n/a',
+        asked: verification.askedOf(SPEC)!,
+      });
+
+      expect(() => verification.recordRegistryCheck(foreign)).toThrow(
+        RegistryCheckNotInProfileException,
+      );
+    });
+
+    it('holds one answer per check, so a re-run replaces rather than adds', () => {
+      const { verification } = aPackageOfRecord();
+
+      verification.recordRegistryCheck(
+        anAnswer(verification, RegistryOutcome.NOT_FOUND),
+      );
+      verification.recordRegistryCheck(
+        anAnswer(verification, RegistryOutcome.CONFIRMED),
+      );
+
+      expect(verification.registryChecks).toHaveLength(1);
+      expect(verification.registryChecks[0]?.outcome.confirms).toBe(true);
+    });
+
+    it('says nothing in the report when the record confirms the property', () => {
+      const { verification } = aPackageOfRecord();
+
+      verification.recordRegistryCheck(
+        anAnswer(verification, RegistryOutcome.CONFIRMED),
+      );
+      verification.complete();
+
+      expect(kindsOf(verification)).not.toContain('RegistryMismatch');
+      expect(kindsOf(verification)).not.toContain('RegistryUnconfirmed');
+    });
+
+    it('files a finding against the package when the record says otherwise', () => {
+      const { verification, application } = aPackageOfRecord();
+      const differing = RegistryAttribute.of({
+        name: 'ownerName',
+        agrees: false,
+        submitted: verification.statedFor(SPEC)[0]!.value,
+        recorded: 'Quliyev Rəşad Tofiq oğlu',
+      });
+
+      verification.recordRegistryCheck(
+        anAnswer(verification, RegistryOutcome.DIFFERS, [differing]),
+      );
+      verification.complete();
+
+      const issue = verification.report?.issues.find(
+        one => one.kind.value === 'RegistryMismatch',
+      );
+
+      expect(issue).toBeDefined();
+      // Filed against the sheet the inspector opens to see what the package
+      // claims, not against the register.
+      expect(issue?.documentId?.value).toBe(application.id.value);
+      expect(issue?.kind.isInformational).toBe(false);
+      expect(issue?.message).toContain('Quliyev Rəşad Tofiq oğlu');
+    });
+
+    // The register holds the privatisations of the 1990s and 2000s, not
+    // everything that exists, so an absence is told and never counted.
+    it('tells the inspector, and counts nothing, when there is no record', () => {
+      const { verification } = aPackageOfRecord();
+
+      verification.recordRegistryCheck(
+        anAnswer(verification, RegistryOutcome.NOT_FOUND),
+      );
+      verification.complete();
+
+      const issue = verification.report?.issues.find(
+        one => one.kind.value === 'RegistryUnconfirmed',
+      );
+
+      expect(issue).toBeDefined();
+      expect(issue?.kind.isInformational).toBe(true);
+    });
+
+    it('tells the inspector when more than one record answers', () => {
+      const { verification } = aPackageOfRecord();
+
+      verification.recordRegistryCheck(
+        anAnswer(verification, RegistryOutcome.AMBIGUOUS),
+      );
+      verification.complete();
+
+      expect(kindsOf(verification)).toContain('RegistryUnconfirmed');
+    });
+
+    // A field the register never carried is silence, and silence is not a
+    // disagreement.
+    it('does not read a field the record is silent about as a difference', () => {
+      const { verification } = aPackageOfRecord();
+      const silent = RegistryAttribute.of({
+        name: 'cadastralNumber',
+        agrees: false,
+        submitted: verification.statedFor(SPEC)[1]!.value,
+        recorded: null,
+      });
+
+      verification.recordRegistryCheck(
+        anAnswer(verification, RegistryOutcome.CONFIRMED, [silent]),
+      );
+      verification.complete();
+
+      expect(kindsOf(verification)).not.toContain('RegistryMismatch');
+    });
+
+    it('is not fully processed until the register has been asked', () => {
+      const { verification } = aPackageOfRecord();
+
+      expect(verification.isFullyProcessed).toBe(false);
+    });
+
+    function kindsOf(verification: VerificationPackage): readonly string[] {
+      return (verification.report?.issues ?? []).map(issue => issue.kind.value);
+    }
   });
 });

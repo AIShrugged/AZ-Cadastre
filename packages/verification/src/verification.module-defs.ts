@@ -55,6 +55,14 @@ export type VerificationModuleOptions = {
     provider: 'mock' | 'openrouter';
     model: string;
   };
+  // The archive register the property is looked up in. `mock` answers from the
+  // stand-in built into the context and needs no process; `http` calls whoever
+  // serves the register contract — today `apps/registry-stub` (ADR-0009).
+  registry: {
+    provider: 'mock' | 'http';
+    url: string;
+    timeoutMs: number;
+  };
 };
 
 /** How `VerificationModule.forRootAsync` is handed that shape. */

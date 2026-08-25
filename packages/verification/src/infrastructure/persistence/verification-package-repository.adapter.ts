@@ -17,6 +17,7 @@ import {
   type DocumentWrite,
   type PackageWrite,
   type PageWrite,
+  type RegistryCheckWrite,
   type ReportWrite,
   type SourceFileWrite,
 } from './verification-package.mapper.js';
@@ -38,6 +39,10 @@ const WHOLE_AGGREGATE = {
   crossChecks: {
     orderBy: { key: 'asc' },
     include: { values: { orderBy: { position: 'asc' } } },
+  },
+  registryChecks: {
+    orderBy: { key: 'asc' },
+    include: { attributes: { orderBy: { position: 'asc' } } },
   },
   report: { include: { issues: { orderBy: { createdAt: 'asc' } } } },
 } as const satisfies Prisma.VerificationPackageInclude;
@@ -86,6 +91,10 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
 
       for (const check of row.crossChecks) {
         await this.writeCrossCheck(tx, row.id, check);
+      }
+
+      for (const check of row.registryChecks) {
+        await this.writeRegistryCheck(tx, row.id, check);
       }
 
       await this.writeReport(tx, row.id, row.report);
@@ -234,6 +243,34 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
       data: check.values.map(value => ({
         ...value,
         crossCheckId: stored.id,
+      })),
+    });
+  }
+
+  // Keyed on which check this is, like a cross-check, and for the same reason:
+  // a re-run asks the register again and replaces the answer rather than
+  // writing a second one. The attributes go with it — half of an old comparison
+  // beside a new one would be a comparison that never happened.
+  private async writeRegistryCheck(
+    tx: Prisma.TransactionClient,
+    packageId: string,
+    check: RegistryCheckWrite,
+  ): Promise<void> {
+    const { attributes, ...answer } = check;
+
+    const stored = await tx.registryCheck.upsert({
+      where: { packageId_key: { packageId, key: check.key } },
+      create: { packageId, ...answer },
+      update: answer,
+    });
+
+    await tx.registryCheckAttribute.deleteMany({
+      where: { registryCheckId: stored.id },
+    });
+    await tx.registryCheckAttribute.createMany({
+      data: attributes.map(attribute => ({
+        ...attribute,
+        registryCheckId: stored.id,
       })),
     });
   }

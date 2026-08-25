@@ -1,0 +1,40 @@
+{
+  "name": "@cadastre/registry-stub",
+  "version": "1.0.0",
+  "description": "The stand-in for the archive register: an HTTP service that answers what the cadastre archive holds about a property. Seeded from fixtures today, from the ingested register files tomorrow \u2014 the contract it answers is the part that does not change.",
+  "type": "module",
+  "main": "./build/main.js",
+  "scripts": {
+    "dev": "node --watch build/main.js",
+    "watch": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node build/main.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:api": "vitest run --config vitest.api.config.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "license": "ISC",
+  "nx": {
+    "tags": [
+      "type:app",
+      "deployment:monolith"
+    ]
+  },
+  "dependencies": {
+    "@cadastre/matching-engine": "workspace:*",
+    "@cadastre/api-contracts": "workspace:*",
+    "@cadastre/logger": "workspace:*",
+    "@nestjs/common": "catalog:nestjs12",
+    "@nestjs/config": "catalog:nestjs12",
+    "@nestjs/core": "catalog:nestjs12",
+    "@nestjs/platform-express": "catalog:nestjs12",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@vitest/coverage-v8": "catalog:tooling",
+    "vitest": "catalog:tooling"
+  }
+}

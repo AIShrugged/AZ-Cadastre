@@ -40,6 +40,7 @@ async function bootstrap(): Promise<void> {
       classifier: `${verification.classifier.provider}:${verification.classifier.model || '—'}`,
       extractor: `${verification.extractor.provider}:${verification.extractor.model || '—'}`,
       crossChecker: `${verification.crossChecker.provider}:${verification.crossChecker.model || '—'}`,
+      registry: `${verification.registry.provider}:${verification.registry.provider === 'http' ? verification.registry.url : '—'}`,
     },
     storage: {
       endpoint: verification.storage.endpoint,

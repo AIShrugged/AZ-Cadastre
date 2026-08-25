@@ -8,6 +8,12 @@ export class IssueKind {
   // profile says must be one value — the name on the identity card against the
   // name the application is made in — and they were not shown to agree.
   static readonly FIELD_MISMATCH = new IssueKind('FieldMismatch');
+  // The archive register holds a record of this property and it says something
+  // else — a different owner, a different area, a different cadastral number.
+  // Unlike FIELD_MISMATCH this is not the papers disagreeing with each other
+  // but with the record of what was registered, which is why it is a kind of
+  // its own and not a second flavour of the same one (ADR-0009).
+  static readonly REGISTRY_MISMATCH = new IssueKind('RegistryMismatch');
   // A document the package carries that the profile does not ask for, and a
   // required type that two documents answer to at once. Neither is a fault:
   // packages arrive with the registry's own service sheets in them, and a title
@@ -15,6 +21,11 @@ export class IssueKind {
   // only the inspector can say whether this one matters.
   static readonly EXTRA_DOCUMENT = new IssueKind('ExtraDocument');
   static readonly DUPLICATE_DOCUMENT = new IssueKind('DuplicateDocument');
+  // The register held no record of the property, or held more than one. Its
+  // coverage is partial and historical — the privatisations of the 1990s and
+  // 2000s, not everything that exists — so an absence proves nothing and is
+  // told to the inspector rather than counted against the package.
+  static readonly REGISTRY_UNCONFIRMED = new IssueKind('RegistryUnconfirmed');
 
   private constructor(public readonly value: string) {}
 
@@ -24,8 +35,10 @@ export class IssueKind {
       IssueKind.UNREADABLE_DOCUMENT,
       IssueKind.LOW_CONFIDENCE,
       IssueKind.FIELD_MISMATCH,
+      IssueKind.REGISTRY_MISMATCH,
       IssueKind.EXTRA_DOCUMENT,
       IssueKind.DUPLICATE_DOCUMENT,
+      IssueKind.REGISTRY_UNCONFIRMED,
     ];
   }
 
@@ -35,7 +48,8 @@ export class IssueKind {
   get isInformational(): boolean {
     return (
       this.equals(IssueKind.EXTRA_DOCUMENT) ||
-      this.equals(IssueKind.DUPLICATE_DOCUMENT)
+      this.equals(IssueKind.DUPLICATE_DOCUMENT) ||
+      this.equals(IssueKind.REGISTRY_UNCONFIRMED)
     );
   }
 

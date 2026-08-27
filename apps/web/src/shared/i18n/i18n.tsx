@@ -172,6 +172,19 @@ const en: Dict = {
   'detail.stage_running': 'running…',
   'detail.in_progress_note':
     'Verification is running — this updates as each stage completes.',
+  'detail.review_preparing': 'Review is being prepared',
+  'detail.review_preparing_note':
+    'The final checklist appears after classification, field extraction and comparisons finish.',
+  'detail.review_unavailable':
+    'A final report could not be prepared. Check the process state and the source documents.',
+  'detail.review_focus': 'What to review',
+  'detail.review_focus_note':
+    'Start with the sections that show a non-zero count before making your decision.',
+  'detail.focus_findings': 'Package findings',
+  'detail.focus_comparisons': 'Document comparison',
+  'detail.focus_archive': 'Archive comparison',
+  'detail.focus_none': 'No action needed',
+  'detail.focus_needs_review': '{n} need review',
   'detail.failed_note': 'Verification failed at {stage}.',
   'detail.report': 'Verification report',
   'detail.required': 'Required documents',
@@ -226,9 +239,14 @@ const en: Dict = {
   'detail.f.registry_mismatch_sub': 'The archive record states otherwise',
   'detail.f.registry_unconfirmed_sub': 'No record of it, or more than one',
   'detail.checks': 'Cross-document checks',
+  'detail.checks_result': 'Document comparison results',
+  'detail.checks_result_note':
+    'Fields that the profile asks to compare across documents. Every value leads back to its source document and page.',
   'detail.checks_note':
     'Values the profile requires several documents to state alike.',
   'detail.checks_pending': 'Made once every document has been read.',
+  'detail.checks_none':
+    'No document comparisons were available for this package.',
   'detail.checks_agreed': '{n} of {total} agree',
   'detail.checks_go': 'Go to this reading in the register',
   'detail.check_agreed': 'Agree',
@@ -488,6 +506,19 @@ const ru: Dict = {
   'detail.stage_running': 'выполняется…',
   'detail.in_progress_note':
     'Проверка идёт — обновляется по мере прохождения этапов.',
+  'detail.review_preparing': 'Результаты проверки готовятся',
+  'detail.review_preparing_note':
+    'Итоговый список появится после классификации, извлечения полей и сверок.',
+  'detail.review_unavailable':
+    'Итоговый отчёт не удалось подготовить. Проверьте ход процесса и исходные документы.',
+  'detail.review_focus': 'На что обратить внимание',
+  'detail.review_focus_note':
+    'Перед решением начните с разделов с ненулевым счётчиком.',
+  'detail.focus_findings': 'Замечания по пакету',
+  'detail.focus_comparisons': 'Сверка документов',
+  'detail.focus_archive': 'Сравнение с архивом',
+  'detail.focus_none': 'Действий не требуется',
+  'detail.focus_needs_review': 'Требует проверки: {n}',
   'detail.failed_note': 'Проверка прервана на этапе «{stage}».',
   'detail.report': 'Отчёт проверки',
   'detail.required': 'Обязательные документы',
@@ -542,9 +573,14 @@ const ru: Dict = {
   'detail.f.registry_mismatch_sub': 'Архивная запись говорит другое',
   'detail.f.registry_unconfirmed_sub': 'Записи нет или их несколько',
   'detail.checks': 'Сверка документов',
+  'detail.checks_result': 'Результаты сверки документов',
+  'detail.checks_result_note':
+    'Поля, которые профиль требует сверить между документами. Каждое значение ведёт к исходному документу и листу.',
   'detail.checks_note':
     'Значения, которые по профилю должны совпадать в нескольких документах.',
   'detail.checks_pending': 'Выполняется после прочтения всех документов.',
+  'detail.checks_none':
+    'Для этого пакета нет доступных результатов сверки документов.',
   'detail.checks_agreed': 'совпадает: {n} из {total}',
   'detail.checks_go': 'Перейти к этому значению в реестре',
   'detail.check_agreed': 'Совпадает',
@@ -803,6 +839,19 @@ const az: Dict = {
   'detail.process': 'Yoxlama prosesi',
   'detail.stage_running': 'gedir…',
   'detail.in_progress_note': 'Yoxlama gedir — hər mərhələ bitdikcə yenilənir.',
+  'detail.review_preparing': 'Yoxlama nəticələri hazırlanır',
+  'detail.review_preparing_note':
+    'Yekun siyahı təsnifat, sahələrin çıxarılması və müqayisələr bitəndən sonra görünəcək.',
+  'detail.review_unavailable':
+    'Yekun hesabat hazırlana bilmədi. Prosesin vəziyyətini və mənbə sənədlərini yoxlayın.',
+  'detail.review_focus': 'Nəyə diqqət yetirməli',
+  'detail.review_focus_note':
+    'Qərar verməzdən əvvəl sıfır olmayan sayğaclı bölmələrdən başlayın.',
+  'detail.focus_findings': 'Paket üzrə qeydlər',
+  'detail.focus_comparisons': 'Sənədlərin müqayisəsi',
+  'detail.focus_archive': 'Arxivlə müqayisə',
+  'detail.focus_none': 'Əməliyyat tələb olunmur',
+  'detail.focus_needs_review': 'Yoxlama tələb edir: {n}',
   'detail.failed_note': 'Yoxlama «{stage}» mərhələsində dayandı.',
   'detail.report': 'Yoxlama hesabatı',
   'detail.required': 'Tələb olunan sənədlər',
@@ -857,9 +906,13 @@ const az: Dict = {
   'detail.f.registry_mismatch_sub': 'Arxiv qeydi başqa cür göstərir',
   'detail.f.registry_unconfirmed_sub': 'Qeyd yoxdur və ya birdən çoxdur',
   'detail.checks': 'Sənədlərarası yoxlama',
+  'detail.checks_result': 'Sənədlərin müqayisə nəticələri',
+  'detail.checks_result_note':
+    'Profilin sənədlər arasında müqayisə etməyi tələb etdiyi sahələr. Hər dəyər mənbə sənədə və səhifəyə aparır.',
   'detail.checks_note':
     'Profilə görə bir neçə sənəddə eyni olmalı olan dəyərlər.',
   'detail.checks_pending': 'Bütün sənədlər oxunduqdan sonra aparılır.',
+  'detail.checks_none': 'Bu paket üçün sənədlərin müqayisə nəticələri yoxdur.',
   'detail.checks_agreed': '{total} yoxlamadan {n} uyğundur',
   'detail.checks_go': 'Reyestrdə bu dəyərə keç',
   'detail.check_agreed': 'Uyğundur',

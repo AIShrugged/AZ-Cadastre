@@ -1077,12 +1077,6 @@ const isArchiveFinding = (kind: IssueKind): boolean =>
 // all read off the same colours.
 type Tone = 'ok' | 'issues' | 'incomplete';
 
-const REPORT_TONE: Record<ReportStatus, Tone> = {
-  OK: 'ok',
-  IssuesFound: 'issues',
-  IncompletePackage: 'incomplete',
-};
-
 const REPORT_LABEL: Record<ReportStatus, string> = {
   OK: 'status.ok',
   IssuesFound: 'status.issues',
@@ -1319,6 +1313,129 @@ function FindingRow({
   );
 }
 
+// The report used to begin with its status and then make the inspector infer
+// where to look. This compact index names the three sources of evidence in the
+// order a decision is prepared and leads straight to each one.
+function ReviewOverview({
+  report,
+  checks,
+  registryChecks,
+  running,
+}: {
+  report: ReportDto | null;
+  checks: readonly CrossCheckDto[];
+  registryChecks: readonly RegistryCheckDto[];
+  running: boolean;
+}) {
+  const { t } = useI18n();
+
+  if (!report) {
+    return (
+      <section className='mb-9 border-y border-rule-strong py-4'>
+        <h2 className='text-[1rem] font-[550] tracking-[-0.01em] text-foreground'>
+          {t('detail.review_preparing')}
+        </h2>
+        <p className='mt-1 max-w-[70ch] text-[0.8125rem] leading-relaxed text-muted-foreground'>
+          {running
+            ? t('detail.review_preparing_note')
+            : t('detail.review_unavailable')}
+        </p>
+      </section>
+    );
+  }
+
+  const findings = report.issues.filter(
+    issue => !isInformational(issue.kind) && !isArchiveFinding(issue.kind),
+  );
+  const comparisons = checks.filter(check => check.verdict !== 'Match');
+  const archive = registryChecks.filter(check => check.outcome !== 'Confirmed');
+  const sections = [
+    {
+      anchor: '#attention',
+      label: t('detail.focus_findings'),
+      count: findings.length,
+      detail:
+        findings.length === 0
+          ? t('detail.focus_none')
+          : t('detail.focus_needs_review', { n: findings.length }),
+    },
+    {
+      anchor: '#document-comparison',
+      label: t('detail.focus_comparisons'),
+      count: comparisons.length,
+      detail:
+        checks.length === 0
+          ? t('detail.checks_none')
+          : t('detail.checks_agreed', {
+              n: checks.filter(check => check.verdict === 'Match').length,
+              total: checks.length,
+            }),
+    },
+    {
+      anchor: '#archive-comparison',
+      label: t('detail.focus_archive'),
+      count: archive.length,
+      detail:
+        archive.length === 0
+          ? t('detail.focus_none')
+          : t('detail.focus_needs_review', { n: archive.length }),
+    },
+  ];
+
+  return (
+    <section className='mb-9 border-y border-rule-strong py-4'>
+      <div className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1'>
+        <h2 className='text-[1rem] font-[550] tracking-[-0.01em] text-foreground'>
+          {t('detail.review_focus')}
+        </h2>
+        <span className='text-[0.75rem] text-muted-foreground'>
+          {t(REPORT_LABEL[report.status])}
+        </span>
+      </div>
+      <p className='mt-1 max-w-[70ch] text-[0.8125rem] leading-relaxed text-muted-foreground'>
+        {t('detail.review_focus_note')}
+      </p>
+      <nav aria-label={t('detail.review_focus')} className='mt-4'>
+        <ul className='grid border-y border-rule md:grid-cols-3'>
+          {sections.map((section, index) => (
+            <li
+              key={section.anchor}
+              className={cn(
+                'min-w-0 border-rule py-3',
+                index > 0 && 'border-t md:border-t-0 md:border-l md:pl-4',
+                index < sections.length - 1 && 'md:pr-4',
+              )}
+            >
+              <a
+                href={section.anchor}
+                className='group flex min-w-0 items-baseline gap-2 rounded-md text-[0.8125rem] text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
+              >
+                <span
+                  data-mono
+                  className={cn(
+                    'shrink-0 text-[0.75rem] tabular-nums',
+                    section.count > 0
+                      ? 'text-issues-ink'
+                      : 'text-muted-foreground',
+                  )}
+                >
+                  {section.count}
+                </span>
+                <span className='min-w-0 font-medium group-hover:text-primary'>
+                  {section.label}
+                </span>
+              </a>
+              <p className='mt-1 text-[0.75rem] leading-snug text-muted-foreground'>
+                {section.detail}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </section>
+  );
+}
+
 function Worklist({
   report,
   pkg,
@@ -1329,7 +1446,6 @@ function Worklist({
   onJump: Jump;
 }) {
   const { t } = useI18n();
-  const tone = REPORT_TONE[report.status];
   // Findings are counted; observations are mentioned. Counting them together
   // would tell the inspector a package with one missing receipt and four of the
   // registry's own service sheets in it has five problems.
@@ -1375,8 +1491,8 @@ function Worklist({
   };
 
   return (
-    <section className='mb-9'>
-      <div className='flex items-baseline justify-between gap-4'>
+    <section id='attention' className='mb-9 scroll-mt-16'>
+      <div className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule-strong pb-3'>
         <h2 className='register-label'>{t('detail.attention')}</h2>
         <span
           data-mono
@@ -1390,48 +1506,17 @@ function Worklist({
         </span>
       </div>
 
-      <div
-        className={cn(
-          'mt-3 rounded-xl border p-4 md:p-5',
-          tone === 'ok' && 'border-ok/35 bg-ok/6',
-          tone === 'issues' && 'border-issues/35 bg-issues/6',
-          tone === 'incomplete' && 'border-incomplete/35 bg-incomplete/6',
-        )}
-      >
-        <div className='flex items-center gap-2 leading-none'>
-          <span
-            aria-hidden
-            className={cn(
-              'size-2 shrink-0 rounded-full',
-              tone === 'ok' && 'bg-ok',
-              tone === 'issues' && 'bg-issues',
-              tone === 'incomplete' && 'bg-incomplete',
-            )}
-          />
-          <span
-            className={cn(
-              'text-[0.875rem] font-semibold tracking-tight',
-              tone === 'ok' && 'text-ok-ink',
-              tone === 'issues' && 'text-issues-ink',
-              tone === 'incomplete' && 'text-incomplete-ink',
-            )}
-          >
-            {t(REPORT_LABEL[report.status])}
-          </span>
+      {findings.length === 0 ? (
+        <p className='mt-3 max-w-[70ch] text-[0.8125rem] leading-relaxed text-muted-foreground'>
+          {t('detail.clean')}
+        </p>
+      ) : (
+        <div className='mt-4 flex flex-col gap-5'>
+          {ISSUE_SECTIONS.filter(([kind]) => !isArchiveFinding(kind)).map(
+            ([kind, { heading }]) => section(kind, heading),
+          )}
         </div>
-
-        {findings.length === 0 ? (
-          <p className='mt-2.5 max-w-[70ch] text-[0.8125rem] leading-relaxed text-muted-foreground'>
-            {t('detail.clean')}
-          </p>
-        ) : (
-          <div className='mt-4 flex flex-col gap-5'>
-            {ISSUE_SECTIONS.filter(([kind]) => !isArchiveFinding(kind)).map(
-              ([kind, { heading }]) => section(kind, heading),
-            )}
-          </div>
-        )}
-      </div>
+      )}
 
       {/* What the package carries beyond what the profile asks for. It is not a
           shortfall, so it does not sit inside the disposition panel and does
@@ -1624,40 +1709,50 @@ function CrossCheckEntry({
   );
 }
 
-function CrossChecks({
+function DocumentComparisons({
   checks,
+  running,
   onJump,
 }: {
   checks: readonly CrossCheckDto[];
+  running: boolean;
   onJump: Jump;
 }) {
   const { t } = useI18n();
   const agreed = checks.filter(check => check.verdict === 'Match').length;
 
   return (
-    <section className='mb-9'>
-      <div className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1'>
-        <h2 className='register-label'>{t('detail.checks')}</h2>
-        <span
-          data-mono
-          className={cn(
-            'text-[0.75rem] tabular-nums',
-            agreed === checks.length
-              ? 'text-muted-foreground'
-              : 'text-issues-ink',
-          )}
-        >
-          {t('detail.checks_agreed', { n: agreed, total: checks.length })}
-        </span>
+    <section id='document-comparison' className='mb-9 scroll-mt-16'>
+      <div className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule-strong pb-3'>
+        <h2 className='register-label'>{t('detail.checks_result')}</h2>
+        {checks.length > 0 && (
+          <span
+            data-mono
+            className={cn(
+              'text-[0.75rem] tabular-nums',
+              agreed === checks.length
+                ? 'text-muted-foreground'
+                : 'text-issues-ink',
+            )}
+          >
+            {t('detail.checks_agreed', { n: agreed, total: checks.length })}
+          </span>
+        )}
       </div>
-      <p className='mt-1 max-w-[70ch] text-[0.8125rem] leading-relaxed text-muted-foreground'>
-        {t('detail.checks_note')}
+      <p className='mt-2 max-w-[70ch] text-[0.8125rem] leading-relaxed text-muted-foreground'>
+        {t('detail.checks_result_note')}
       </p>
-      <div className='mt-2 flex flex-col divide-y divide-rule border-t border-rule'>
-        {checks.map(check => (
-          <CrossCheckEntry key={check.key} check={check} onJump={onJump} />
-        ))}
-      </div>
+      {checks.length > 0 ? (
+        <div className='mt-3 flex flex-col divide-y divide-rule border-t border-rule'>
+          {checks.map(check => (
+            <CrossCheckEntry key={check.key} check={check} onJump={onJump} />
+          ))}
+        </div>
+      ) : (
+        <p className='mt-3 border-t border-rule py-3 text-[0.8125rem] leading-relaxed text-muted-foreground'>
+          {running ? t('detail.checks_pending') : t('detail.checks_none')}
+        </p>
+      )}
     </section>
   );
 }
@@ -1875,8 +1970,8 @@ function RegistryChecks({
   ).length;
 
   return (
-    <section className='mb-9'>
-      <div className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1'>
+    <section id='archive-comparison' className='mb-9 scroll-mt-16'>
+      <div className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule-strong pb-3'>
         <h2 className='register-label'>{t('detail.archive_comparison')}</h2>
         {checks.length > 0 && (
           <span
@@ -1896,13 +1991,13 @@ function RegistryChecks({
         )}
       </div>
       {checks.length > 0 ? (
-        <div className='mt-2 flex flex-col divide-y divide-rule border-t border-rule'>
+        <div className='mt-3 flex flex-col divide-y divide-rule border-t border-rule'>
           {checks.map(check => (
             <RegistryCheckEntry key={check.key} check={check} onJump={onJump} />
           ))}
         </div>
       ) : (
-        <p className='mt-2 max-w-[70ch] border-t border-rule py-3 text-[0.8125rem] leading-relaxed text-muted-foreground/80'>
+        <p className='mt-3 max-w-[70ch] border-t border-rule py-3 text-[0.8125rem] leading-relaxed text-muted-foreground/80'>
           {running ? t('detail.registry_pending') : t('detail.registry_none')}
         </p>
       )}
@@ -2190,6 +2285,13 @@ export function VerificationDetails() {
           {/* ── The evidence: every document the engine read, with its fields
               and the source text they came from. ── */}
           <main className='min-w-0 xl:col-start-1 xl:row-start-1'>
+            <ReviewOverview
+              report={pkg.report}
+              checks={pkg.crossChecks}
+              registryChecks={pkg.registryChecks}
+              running={running}
+            />
+
             {/* The work comes first — what the run found that wants the
                 inspector's eyes, each line a jump into the evidence below. */}
             {pkg.report && (
@@ -2200,9 +2302,11 @@ export function VerificationDetails() {
                 because a disagreement there is answered here, and it precedes
                 the register because it is read across documents rather than
                 down one. */}
-            {pkg.crossChecks.length > 0 && (
-              <CrossChecks checks={pkg.crossChecks} onJump={jump} />
-            )}
+            <DocumentComparisons
+              checks={pkg.crossChecks}
+              running={running}
+              onJump={jump}
+            />
 
             {/* And what the register says about the property, which is the one
                 answer on this page that did not come out of the envelope. It
@@ -2214,7 +2318,10 @@ export function VerificationDetails() {
               onJump={jump}
             />
 
-            <div className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2'>
+            <div
+              id='documents'
+              className='scroll-mt-16 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2 border-b border-rule-strong pb-3'
+            >
               <h2 className='register-label'>{t('detail.documents')}</h2>
               <span
                 data-mono

@@ -50,6 +50,7 @@ import {
   SurfaceHeading,
   SurfacePage,
 } from '@/shared/ui/surface';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import type {
   CheckedValueDto,
   CrossCheckDto,
@@ -73,6 +74,15 @@ type Translate = (
 ) => string;
 
 type StageStatus = 'done' | 'current' | 'pending' | 'error';
+type WorkspaceView = 'review' | 'checks' | 'archive' | 'documents';
+
+function workspaceFromHash(hash: string): WorkspaceView {
+  if (hash.startsWith('#check-')) return 'checks';
+  if (hash.startsWith('#registry-')) return 'archive';
+  if (hash.startsWith('#doc-') || hash.startsWith('#field-'))
+    return 'documents';
+  return 'review';
+}
 
 // ─── Pipeline, read down the rail ─────────────────────────────────────────────
 // Vertical, because the seven stage names are long in all three languages and a
@@ -1313,129 +1323,6 @@ function FindingRow({
   );
 }
 
-// The report used to begin with its status and then make the inspector infer
-// where to look. This compact index names the three sources of evidence in the
-// order a decision is prepared and leads straight to each one.
-function ReviewOverview({
-  report,
-  checks,
-  registryChecks,
-  running,
-}: {
-  report: ReportDto | null;
-  checks: readonly CrossCheckDto[];
-  registryChecks: readonly RegistryCheckDto[];
-  running: boolean;
-}) {
-  const { t } = useI18n();
-
-  if (!report) {
-    return (
-      <section className='mb-9 border-y border-rule-strong py-4'>
-        <h2 className='text-[1rem] font-[550] tracking-[-0.01em] text-foreground'>
-          {t('detail.review_preparing')}
-        </h2>
-        <p className='mt-1 max-w-[70ch] text-[0.8125rem] leading-relaxed text-muted-foreground'>
-          {running
-            ? t('detail.review_preparing_note')
-            : t('detail.review_unavailable')}
-        </p>
-      </section>
-    );
-  }
-
-  const findings = report.issues.filter(
-    issue => !isInformational(issue.kind) && !isArchiveFinding(issue.kind),
-  );
-  const comparisons = checks.filter(check => check.verdict !== 'Match');
-  const archive = registryChecks.filter(check => check.outcome !== 'Confirmed');
-  const sections = [
-    {
-      anchor: '#attention',
-      label: t('detail.focus_findings'),
-      count: findings.length,
-      detail:
-        findings.length === 0
-          ? t('detail.focus_none')
-          : t('detail.focus_needs_review', { n: findings.length }),
-    },
-    {
-      anchor: '#document-comparison',
-      label: t('detail.focus_comparisons'),
-      count: comparisons.length,
-      detail:
-        checks.length === 0
-          ? t('detail.checks_none')
-          : t('detail.checks_agreed', {
-              n: checks.filter(check => check.verdict === 'Match').length,
-              total: checks.length,
-            }),
-    },
-    {
-      anchor: '#archive-comparison',
-      label: t('detail.focus_archive'),
-      count: archive.length,
-      detail:
-        archive.length === 0
-          ? t('detail.focus_none')
-          : t('detail.focus_needs_review', { n: archive.length }),
-    },
-  ];
-
-  return (
-    <section className='mb-9 border-y border-rule-strong py-4'>
-      <div className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1'>
-        <h2 className='text-[1rem] font-[550] tracking-[-0.01em] text-foreground'>
-          {t('detail.review_focus')}
-        </h2>
-        <span className='text-[0.75rem] text-muted-foreground'>
-          {t(REPORT_LABEL[report.status])}
-        </span>
-      </div>
-      <p className='mt-1 max-w-[70ch] text-[0.8125rem] leading-relaxed text-muted-foreground'>
-        {t('detail.review_focus_note')}
-      </p>
-      <nav aria-label={t('detail.review_focus')} className='mt-4'>
-        <ul className='grid border-y border-rule md:grid-cols-3'>
-          {sections.map((section, index) => (
-            <li
-              key={section.anchor}
-              className={cn(
-                'min-w-0 border-rule py-3',
-                index > 0 && 'border-t md:border-t-0 md:border-l md:pl-4',
-                index < sections.length - 1 && 'md:pr-4',
-              )}
-            >
-              <a
-                href={section.anchor}
-                className='group flex min-w-0 items-baseline gap-2 rounded-md text-[0.8125rem] text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
-              >
-                <span
-                  data-mono
-                  className={cn(
-                    'shrink-0 text-[0.75rem] tabular-nums',
-                    section.count > 0
-                      ? 'text-issues-ink'
-                      : 'text-muted-foreground',
-                  )}
-                >
-                  {section.count}
-                </span>
-                <span className='min-w-0 font-medium group-hover:text-primary'>
-                  {section.label}
-                </span>
-              </a>
-              <p className='mt-1 text-[0.75rem] leading-snug text-muted-foreground'>
-                {section.detail}
-              </p>
-            </li>
-          ))}
-        </ul>
-      </nav>
-    </section>
-  );
-}
-
 function Worklist({
   report,
   pkg,
@@ -1492,7 +1379,7 @@ function Worklist({
 
   return (
     <section id='attention' className='mb-9 scroll-mt-16'>
-      <div className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule-strong pb-3'>
+      <div className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 pb-1'>
         <h2 className='register-label'>{t('detail.attention')}</h2>
         <span
           data-mono
@@ -1542,6 +1429,22 @@ function Worklist({
           </div>
         </details>
       )}
+    </section>
+  );
+}
+
+function PendingReview({ running }: { running: boolean }) {
+  const { t } = useI18n();
+  return (
+    <section id='attention' className='scroll-mt-16 py-7'>
+      <h2 className='text-lg font-[550] tracking-[-0.015em] text-foreground'>
+        {t('detail.attention')}
+      </h2>
+      <p className='mt-2 max-w-[65ch] text-[0.875rem] leading-relaxed text-muted-foreground'>
+        {running
+          ? t('detail.review_preparing_note')
+          : t('detail.review_unavailable')}
+      </p>
     </section>
   );
 }
@@ -1723,7 +1626,7 @@ function DocumentComparisons({
 
   return (
     <section id='document-comparison' className='mb-9 scroll-mt-16'>
-      <div className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule-strong pb-3'>
+      <div className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 pb-1'>
         <h2 className='register-label'>{t('detail.checks_result')}</h2>
         {checks.length > 0 && (
           <span
@@ -1971,7 +1874,7 @@ function RegistryChecks({
 
   return (
     <section id='archive-comparison' className='mb-9 scroll-mt-16'>
-      <div className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule-strong pb-3'>
+      <div className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 pb-1'>
         <h2 className='register-label'>{t('detail.archive_comparison')}</h2>
         {checks.length > 0 && (
           <span
@@ -2005,110 +1908,6 @@ function RegistryChecks({
   );
 }
 
-// ─── Contents ─────────────────────────────────────────────────────────────────
-// The package read as a table of contents: every document the engine placed, in
-// sheet order, as a jump into the register. It is the only navigation this
-// surface needs — and, read on its own, the fastest answer to "what is in this
-// package". Sheet numbers restart in every file, so once a package carries more
-// than one, each file names itself above its own documents; otherwise "p. 1"
-// would appear twice meaning two different sheets.
-function ContentsRow({ doc, onJump }: { doc: DocumentDto; onJump: Jump }) {
-  const { t } = useI18n();
-  const flagged = needsReview(doc) && doc.type !== null;
-  return (
-    <li>
-      <a
-        href={`#doc-${doc.id}`}
-        onClick={onJump(doc.id, `#doc-${doc.id}`)}
-        className='-mx-2 flex items-baseline gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
-      >
-        <span
-          data-mono
-          className='shrink-0 text-[0.6875rem] tabular-nums text-muted-foreground'
-        >
-          {pageLabel(t, doc)}
-        </span>
-        <span
-          className={cn(
-            'truncate text-[0.8125rem]',
-            isAside(doc) ? 'text-muted-foreground' : 'text-foreground/85',
-          )}
-        >
-          {doc.type
-            ? translateOr(t, `doctype.${doc.type}`, doc.type)
-            : t('detail.classifying')}
-        </span>
-        {flagged && (
-          <TriangleAlertIcon
-            aria-label={t('detail.needs_review')}
-            className='ml-auto size-3 shrink-0 translate-y-0.5 text-incomplete-ink'
-          />
-        )}
-      </a>
-    </li>
-  );
-}
-
-function Contents({
-  files,
-  onJump,
-}: {
-  files: readonly SourceFileDto[];
-  onJump: Jump;
-}) {
-  const { t } = useI18n();
-  const groups = files.filter(file => file.documents.length > 0);
-  const named = groups.length > 1;
-  // The index answers "what is in this package". Half of what the engine placed
-  // here is not a document the profile asks for, and eight identical lines
-  // saying so make the seven that matter harder to find than no index at all —
-  // so they fold to a count that opens.
-  const asides = groups.flatMap(file => file.documents.filter(isAside));
-
-  return (
-    <nav className='hidden xl:block'>
-      <h2 className='register-label'>{t('detail.contents')}</h2>
-      <div className='mt-2 flex flex-col gap-3'>
-        {groups.map(file => {
-          const listed = file.documents.filter(doc => !isAside(doc));
-          if (listed.length === 0) return null;
-          return (
-            <div key={file.id}>
-              {named && (
-                <p
-                  data-mono
-                  className='mb-1 truncate text-[0.6875rem] text-muted-foreground/80'
-                >
-                  {file.originalFilename}
-                </p>
-              )}
-              <ul className='flex flex-col'>
-                {listed.map(doc => (
-                  <ContentsRow key={doc.id} doc={doc} onJump={onJump} />
-                ))}
-              </ul>
-            </div>
-          );
-        })}
-      </div>
-
-      {asides.length > 0 && (
-        <details className='group mt-2'>
-          <summary className='-mx-2 flex cursor-pointer list-none select-none items-baseline gap-1.5 rounded-md px-2 py-1.5 text-[0.8125rem] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50'>
-            <ChevronRightIcon className='size-3 shrink-0 translate-y-0.5 transition-transform duration-200 group-open:rotate-90' />
-            {t('detail.contents_rest', { n: asides.length })}
-          </summary>
-          <ul className='mt-1 flex flex-col'>
-            {asides.map(doc => (
-              <ContentsRow key={doc.id} doc={doc} onJump={onJump} />
-            ))}
-          </ul>
-        </details>
-      )}
-    </nav>
-  );
-}
-
 // ─── Page ──────────────────────────────────────────────────────────────────────
 export function VerificationDetails() {
   const { t, locale } = useI18n();
@@ -2122,6 +1921,9 @@ export function VerificationDetails() {
   // actually found rather than being frozen at first render — the package is
   // still being verified while this page is open.
   const [pickedSegment, setPickedSegment] = useState<DocSegment | null>(null);
+  const [activeView, setActiveView] = useState<WorkspaceView>(() =>
+    workspaceFromHash(window.location.hash),
+  );
   const {
     data: pkg,
     isLoading,
@@ -2198,24 +2000,51 @@ export function VerificationDetails() {
     all: documents.length,
     other: documents.filter(isAside).length,
   };
+  const reviewCount = pkg.report
+    ? pkg.report.issues.filter(
+        issue => !isInformational(issue.kind) && !isArchiveFinding(issue.kind),
+      ).length
+    : counts.review;
+  const workspaceTabs: {
+    view: WorkspaceView;
+    label: string;
+    count: number;
+  }[] = [
+    { view: 'review', label: t('detail.attention'), count: reviewCount },
+    {
+      view: 'checks',
+      label: t('detail.checks'),
+      count: pkg.crossChecks.filter(check => check.verdict !== 'Match').length,
+    },
+    {
+      view: 'archive',
+      label: t('detail.archive_comparison'),
+      count: pkg.registryChecks.filter(check => check.outcome !== 'Confirmed')
+        .length,
+    },
+    { view: 'documents', label: t('detail.documents'), count: counts.all },
+  ];
   // Open on the work when there is work: a package this size is mostly settled,
   // and the segment that shows only what wants a second look is the one the
   // inspector would pick anyway. With nothing flagged there is nothing to
   // filter to, so the register opens whole.
   const segment = pickedSegment ?? (counts.review > 0 ? 'review' : 'all');
 
-  // A jump out of the worklist or the index into the register. If the segment
-  // on screen already shows the target, the browser's own fragment navigation
-  // does the work — hash, :target wash, scroll-margin and all. If it does not,
-  // the segment changes to one where the target is rendered open, and the hash
-  // is set on the next frame so the jump lands after the register has re-laid.
+  // A finding always takes the inspector to its evidence, even when the
+  // evidence lives in another workspace view. The panel changes before the
+  // fragment is applied, so a link never lands in content that is not mounted.
   const jump: Jump = (docId, anchor) => event => {
+    const destination = workspaceFromHash(anchor);
     const doc = documents.find(candidate => candidate.id === docId);
-    if (!doc || isOpenIn(doc, segment)) return;
+    const needsSegment = doc ? !isOpenIn(doc, segment) : false;
+    if (activeView === destination && !needsSegment) return;
     event.preventDefault();
-    setPickedSegment(
-      isAside(doc) ? 'other' : needsReview(doc) ? 'review' : 'all',
-    );
+    setActiveView(destination);
+    if (doc) {
+      setPickedSegment(
+        isAside(doc) ? 'other' : needsReview(doc) ? 'review' : 'all',
+      );
+    }
     requestAnimationFrame(() => {
       window.location.hash = anchor;
     });
@@ -2241,153 +2070,163 @@ export function VerificationDetails() {
         }
       />
 
-      {/* Fragment jumps are how this surface is read — a finding in the worklist
-          or a line in the index, followed down into the evidence. Animating the
-          scroll keeps the connection between the two visible: the register
-          travels rather than cutting, so the inspector sees where the answer
-          sits relative to what they clicked. Skipped under reduced motion,
-          where the cut is the accessible behaviour. */}
       <SurfaceBody className='motion-safe:scroll-smooth'>
         <div className='mx-auto grid w-full max-w-[88rem] gap-x-10 gap-y-7 px-4 py-7 md:px-8 md:py-9 xl:grid-cols-[minmax(0,1fr)_18rem]'>
-          {/* ── State of the run: how far it got, what is still expected, and
-              what the package turned out to contain. Declared first so it is
-              also read first — a summary before the evidence. ── */}
-          <aside className='border-b border-rule pb-7 xl:col-start-2 xl:row-start-1 xl:border-b-0 xl:border-l xl:border-rule xl:pb-0 xl:pl-9'>
-            {/* One scrollbar on the surface, not two. The rail used to stick and
-                scroll inside its own capped box, which put a second scrollbar
-                beside the register's — and while the run is live the rail is at
-                its tallest, so that is exactly when it appeared. It flows with
-                the page instead: the whole rail is reachable by the scroll the
-                inspector is already using. */}
-            <div className='flex flex-col gap-7'>
-              {/* First at every stage of the run, and first once it is over —
-                  where the rail is looked at, the state of the run is the line
-                  that answers whether anything below it is final yet. */}
+          <main className='min-w-0 xl:col-start-1 xl:row-start-1'>
+            <Tabs
+              value={activeView}
+              onValueChange={value => setActiveView(value as WorkspaceView)}
+            >
+              <div className='pb-5'>
+                <div className='flex flex-wrap items-baseline justify-between gap-x-5 gap-y-1'>
+                  <h2 className='text-xl font-[560] tracking-[-0.02em] text-foreground'>
+                    {pkg.report
+                      ? t('detail.review_focus')
+                      : t('detail.review_preparing')}
+                  </h2>
+                  {pkg.report && (
+                    <span className='text-[0.8125rem] text-muted-foreground'>
+                      {t(REPORT_LABEL[pkg.report.status])}
+                    </span>
+                  )}
+                </div>
+                <p className='mt-1 max-w-[65ch] text-[0.875rem] leading-relaxed text-muted-foreground'>
+                  {pkg.report
+                    ? t('detail.review_focus_note')
+                    : running
+                      ? t('detail.review_preparing_note')
+                      : t('detail.review_unavailable')}
+                </p>
+              </div>
+
+              <TabsList
+                variant='line'
+                aria-label={t('detail.report')}
+                className='mt-5 h-auto w-full flex-wrap justify-start gap-1 p-0'
+              >
+                {workspaceTabs.map(tab => (
+                  <TabsTrigger
+                    key={tab.view}
+                    value={tab.view}
+                    className='flex-none gap-2 px-3 py-2.5 text-[0.8125rem]'
+                  >
+                    {tab.label}
+                    <span
+                      data-mono
+                      className='text-[0.6875rem] tabular-nums text-muted-foreground/70 group-data-[variant=line]/tabs-list:data-active:text-foreground/65'
+                    >
+                      {tab.count}
+                    </span>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+
+              <TabsContent value='review' className='pt-7'>
+                {pkg.report ? (
+                  <Worklist report={pkg.report} pkg={pkg} onJump={jump} />
+                ) : (
+                  <PendingReview running={running} />
+                )}
+              </TabsContent>
+
+              <TabsContent value='checks' className='pt-7'>
+                <DocumentComparisons
+                  checks={pkg.crossChecks}
+                  running={running}
+                  onJump={jump}
+                />
+              </TabsContent>
+
+              <TabsContent value='archive' className='pt-7'>
+                <RegistryChecks
+                  checks={pkg.registryChecks}
+                  running={running}
+                  onJump={jump}
+                />
+              </TabsContent>
+
+              <TabsContent value='documents' className='pt-7'>
+                <section id='documents' className='scroll-mt-16'>
+                  <div className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2 pb-1'>
+                    <h2 className='register-label'>{t('detail.documents')}</h2>
+                    <span
+                      data-mono
+                      className='text-[0.75rem] tabular-nums text-muted-foreground'
+                    >
+                      {t('detail.docs_count', {
+                        d: pkg.classifiedCount,
+                        r: pkg.documentsCount,
+                      })}
+                    </span>
+                  </div>
+
+                  {counts.all > 1 && (
+                    <div className='sticky top-0 z-10 -mx-1 mt-2 flex items-stretch gap-0.5 overflow-x-auto bg-background px-1'>
+                      {SEGMENTS.map(seg => {
+                        const active = segment === seg;
+                        return (
+                          <button
+                            key={seg}
+                            onClick={() => setPickedSegment(seg)}
+                            aria-pressed={active}
+                            disabled={counts[seg] === 0}
+                            className={cn(
+                              'relative flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2.5 py-2 text-[0.8125rem] transition-colors',
+                              'after:absolute after:inset-x-2 after:bottom-0 after:h-[2px] after:bg-transparent',
+                              'disabled:pointer-events-none disabled:opacity-40',
+                              active
+                                ? 'font-medium text-foreground after:bg-foreground'
+                                : 'text-muted-foreground hover:text-foreground',
+                            )}
+                          >
+                            {t(SEGMENT_KEY[seg])}
+                            <span
+                              data-mono
+                              className={cn(
+                                'text-[0.6875rem] tabular-nums',
+                                active
+                                  ? 'text-foreground/60'
+                                  : 'text-muted-foreground/60',
+                              )}
+                            >
+                              {counts[seg]}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <div className='mt-5 flex flex-col gap-10'>
+                    {pkg.files.map(file => (
+                      <FileGroup
+                        key={file.id}
+                        file={file}
+                        failed={view.disposition === 'failed'}
+                        segment={segment}
+                      />
+                    ))}
+                  </div>
+                </section>
+              </TabsContent>
+            </Tabs>
+          </main>
+
+          <aside className='pb-7 xl:sticky xl:top-6 xl:col-start-2 xl:row-start-1 xl:h-fit xl:pb-0 xl:pl-9'>
+            <div className='flex flex-col gap-8'>
               <RunProgress
                 stages={stages}
                 running={running}
                 failed={failed}
                 stageRunning={stageRunning}
               />
-
               <RequiredDocuments
                 missing={missing}
                 total={expected ?? 0}
                 settled={classified}
               />
-
-              {documents.length > 1 && (
-                <Contents files={pkg.files} onJump={jump} />
-              )}
             </div>
           </aside>
-
-          {/* ── The evidence: every document the engine read, with its fields
-              and the source text they came from. ── */}
-          <main className='min-w-0 xl:col-start-1 xl:row-start-1'>
-            <ReviewOverview
-              report={pkg.report}
-              checks={pkg.crossChecks}
-              registryChecks={pkg.registryChecks}
-              running={running}
-            />
-
-            {/* The work comes first — what the run found that wants the
-                inspector's eyes, each line a jump into the evidence below. */}
-            {pkg.report && (
-              <Worklist report={pkg.report} pkg={pkg} onJump={jump} />
-            )}
-
-            {/* What the papers were asked to agree on. It follows the worklist
-                because a disagreement there is answered here, and it precedes
-                the register because it is read across documents rather than
-                down one. */}
-            <DocumentComparisons
-              checks={pkg.crossChecks}
-              running={running}
-              onJump={jump}
-            />
-
-            {/* And what the register says about the property, which is the one
-                answer on this page that did not come out of the envelope. It
-                stands whether or not it found anything: an inspector has to be
-                able to see that the question was put. */}
-            <RegistryChecks
-              checks={pkg.registryChecks}
-              running={running}
-              onJump={jump}
-            />
-
-            <div
-              id='documents'
-              className='scroll-mt-16 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2 border-b border-rule-strong pb-3'
-            >
-              <h2 className='register-label'>{t('detail.documents')}</h2>
-              <span
-                data-mono
-                className='text-[0.75rem] tabular-nums text-muted-foreground'
-              >
-                {/* Documents placed out of documents found — both discovered by
-                    the pipeline, so before detection runs this reads 0 of 0. */}
-                {t('detail.docs_count', {
-                  d: pkg.classifiedCount,
-                  r: pkg.documentsCount,
-                })}
-              </span>
-            </div>
-
-            {/* ── The register's own triage ── the same segment strip the
-                package register uses, so the two surfaces filter alike. It
-                sticks, because it is how the inspector gets back out of a long
-                document. */}
-            {counts.all > 1 && (
-              <div className='sticky top-0 z-10 -mx-1 mt-2 flex items-stretch gap-0.5 overflow-x-auto border-b border-rule-strong bg-background px-1'>
-                {SEGMENTS.map(seg => {
-                  const active = segment === seg;
-                  return (
-                    <button
-                      key={seg}
-                      onClick={() => setPickedSegment(seg)}
-                      aria-pressed={active}
-                      disabled={counts[seg] === 0}
-                      className={cn(
-                        'relative flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2.5 py-2 text-[0.8125rem] transition-colors',
-                        'after:absolute after:inset-x-2 after:bottom-0 after:h-[2px] after:bg-transparent',
-                        'disabled:pointer-events-none disabled:opacity-40',
-                        active
-                          ? 'font-medium text-foreground after:bg-foreground'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                    >
-                      {t(SEGMENT_KEY[seg])}
-                      <span
-                        data-mono
-                        className={cn(
-                          'text-[0.6875rem] tabular-nums',
-                          active
-                            ? 'text-foreground/60'
-                            : 'text-muted-foreground/60',
-                        )}
-                      >
-                        {counts[seg]}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            <div className='mt-5 flex flex-col gap-10'>
-              {pkg.files.map(file => (
-                <FileGroup
-                  key={file.id}
-                  file={file}
-                  failed={view.disposition === 'failed'}
-                  segment={segment}
-                />
-              ))}
-            </div>
-          </main>
         </div>
       </SurfaceBody>
 

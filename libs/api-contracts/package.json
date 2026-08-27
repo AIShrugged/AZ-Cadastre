@@ -1,0 +1,69 @@
+{
+  "name": "@cadastre/api-contracts",
+  "version": "1.0.0",
+  "description": "The published language: the API interfaces, zod DTO schemas and enums the contexts, the gateway and the web client agree on. Zod and plain TypeScript only \u2014 the browser imports it.",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/index.d.ts",
+      "import": "./build/index.js"
+    },
+    "./shared": {
+      "types": "./build/shared/index.d.ts",
+      "import": "./build/shared/index.js"
+    },
+    "./registry": {
+      "types": "./build/registry/index.d.ts",
+      "import": "./build/registry/index.js"
+    },
+    "./registry/api": {
+      "types": "./build/registry/api/index.d.ts",
+      "import": "./build/registry/api/index.js"
+    },
+    "./registry/dto": {
+      "types": "./build/registry/dto/index.d.ts",
+      "import": "./build/registry/dto/index.js"
+    },
+    "./registry/enums": {
+      "types": "./build/registry/enums/index.d.ts",
+      "import": "./build/registry/enums/index.js"
+    },
+    "./verification": {
+      "types": "./build/verification/index.d.ts",
+      "import": "./build/verification/index.js"
+    },
+    "./verification/api": {
+      "types": "./build/verification/api/index.d.ts",
+      "import": "./build/verification/api/index.js"
+    },
+    "./verification/dto": {
+      "types": "./build/verification/dto/index.d.ts",
+      "import": "./build/verification/dto/index.js"
+    },
+    "./verification/enums": {
+      "types": "./build/verification/enums/index.d.ts",
+      "import": "./build/verification/enums/index.js"
+    }
+  },
+  "files": [
+    "build"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "watch": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "license": "ISC",
+  "nx": {
+    "tags": [
+      "type:contracts",
+      "deployment:monolith"
+    ]
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  }
+}

@@ -1,32 +1,32 @@
-import axios from "axios"
+import axios from 'axios';
+
+import { http } from '@/shared/api';
 import type {
   DocumentContentType,
   PresignResponse,
-} from "@cadastre/contracts"
-
-import { http } from "@/shared/api"
+} from '@cadastre/api-contracts/verification';
 
 /** What the transport resolves with once a document is stored. */
 export type UploadResult = {
   /** Object key the file now lives under in the bucket. */
-  key: string
+  key: string;
   /** MIME type the file was stored as (pinned into the presign signature). */
-  contentType: DocumentContentType
-}
+  contentType: DocumentContentType;
+};
 
 export type UploadHandlers = {
   /** Transfer progress, 0–100. */
-  onProgress?: (progress: number) => void
-  signal?: AbortSignal
-}
+  onProgress?: (progress: number) => void;
+  signal?: AbortSignal;
+};
 
 /** The extensions this feature accepts, mapped to the formats the engine does. */
 const CONTENT_TYPE: Record<string, DocumentContentType> = {
-  pdf: "application/pdf",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  png: "image/png",
-}
+  pdf: 'application/pdf',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+};
 
 /**
  * The extension decides, and `file.type` is only a fallback — the other way
@@ -39,8 +39,8 @@ const CONTENT_TYPE: Record<string, DocumentContentType> = {
  * saw "Upload failed" for a document that was perfectly fine.
  */
 function contentTypeFor(file: File): string {
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? ""
-  return CONTENT_TYPE[ext] ?? file.type
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+  return CONTENT_TYPE[ext] ?? file.type;
 }
 
 /**
@@ -53,22 +53,22 @@ export async function uploadDocument(
   file: File,
   { onProgress, signal }: UploadHandlers = {},
 ): Promise<UploadResult> {
-  const contentType = contentTypeFor(file)
+  const contentType = contentTypeFor(file);
 
   const { data } = await http.post<PresignResponse>(
-    "/documents/presign",
+    '/documents/presign',
     { filename: file.name, contentType, size: file.size },
     { signal },
-  )
+  );
 
   await axios.put(data.url, file, {
     signal,
-    headers: { "Content-Type": data.contentType },
-    onUploadProgress: (e) => {
-      const total = e.total ?? file.size
-      if (total > 0) onProgress?.(Math.round((e.loaded / total) * 100))
+    headers: { 'Content-Type': data.contentType },
+    onUploadProgress: e => {
+      const total = e.total ?? file.size;
+      if (total > 0) onProgress?.(Math.round((e.loaded / total) * 100));
     },
-  })
+  });
 
-  return { key: data.key, contentType: data.contentType }
+  return { key: data.key, contentType: data.contentType };
 }

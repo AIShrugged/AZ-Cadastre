@@ -1,4 +1,4 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react"
+import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
 /**
  * Base RTK Query API for the core (NestJS) service. Feature/entity layers extend
@@ -6,8 +6,8 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react"
  * the `http` axios client — proxied to the service by Vite in dev.
  */
 export const api = createApi({
-  reducerPath: "api",
-  baseQuery: fetchBaseQuery({ baseUrl: "/api" }),
-  tagTypes: ["Package"],
+  reducerPath: 'api',
+  baseQuery: fetchBaseQuery({ baseUrl: '/api' }),
+  tagTypes: ['Package'],
   endpoints: () => ({}),
-})
+});

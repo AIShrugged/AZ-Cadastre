@@ -1,5 +1,7 @@
 # A package per bounded context, with a domain model at its centre
 
+> Partly superseded by [ADR-0006](./0006-contexts-contracts-edge-and-composition-root.md): the context, its aggregate and its database are unchanged, but it now lives under `packages/`, the HTTP layer moved to `libs/api-gateway/`, and the two shared packages named below merged into `@cadastre/shared`.
+
 Supersedes the layout half of [ADR-0004](./0004-layered-core-thin-contracts.md). The four layers it named are unchanged and still correct; where they live, and what is in them, is not.
 
 `apps/core` held the layers directly and was the only backend package. Two things had gone wrong with that. The `domain/` layer held loose functions over `Record<string, string[]>` maps, so every rule about a package actually lived in the service that happened to touch it — the pipeline wrote columns and nothing could refuse. And `application/ports/` imported `PackageStatus` from the generated Prisma client, so the innermost layer depended on the ORM: the dependency rule was a convention, not something the imports could show.
@@ -10,6 +12,6 @@ The backend is now a package per bounded context. `libs/contexts/verification/` 
 
 Every refusal is thrown, typed by the layer that refused it: a `DomainException` for a broken rule, an `ApplicationException` for a use case that could not proceed, an `InfrastructureException` for machinery that failed. A `DomainException` carries no HTTP status — the domain does not know HTTP exists — so `api/http/` holds a `code → status` table and decides.
 
-The cost is real and accepted: more files, more indirection, and a pipeline that now loads and saves the aggregate once per stage instead of writing columns as it goes. That last one is not a regression to fix — it is the activity shape [ADR-0001](./0001-in-process-pipeline-before-temporal.md) asks for, and it is what makes a resumed run continue rather than repeat.
+The cost is real and accepted: more files, more indirection, and a pipeline that now loads and saves the aggregate once per stage instead of writing columns as it goes. That last one is not a regression to fix — it is the activity shape [ADR-0001](../../packages/verification/docs/adr/0001-in-process-pipeline-before-temporal.md) asks for, and it is what makes a resumed run continue rather than repeat.
 
 `libs/contracts` holds one file per endpoint. Zod there checks the shape a request arrived in and stops: whether a string is a filename, a known profile or an accepted format is a rule, and the value object owns it. The schemas used to repeat those constraints — a `.max(255)` beside `Filename.MAX_LENGTH`, a content-type enum beside `ContentType` — which is one rule in two places, and the copy in the contract is the one nobody remembers to change. The visible consequence is that a rejected value now answers `422` with a stable domain `code` rather than a `400` zod field error; a body of the wrong shape is still `400`, because that much really is the transport's business.

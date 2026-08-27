@@ -1,0 +1,39 @@
+{
+  "name": "@cadastre/api-gateway",
+  "version": "1.0.0",
+  "description": "The HTTP edge: it translates requests into calls on the client ports it declares, and errors back into status codes. No domain logic and no vocabulary of its own.",
+  "type": "module",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/index.d.ts",
+      "import": "./build/index.js"
+    }
+  },
+  "files": [
+    "build"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "watch": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "license": "ISC",
+  "nx": {
+    "tags": [
+      "type:edge",
+      "deployment:monolith"
+    ]
+  },
+  "dependencies": {
+    "@cadastre/api-contracts": "workspace:*",
+    "@cadastre/logger": "workspace:*",
+    "@cadastre/shared": "workspace:*",
+    "@nestjs/common": "catalog:nestjs12",
+    "@nestjs/core": "catalog:nestjs12"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0"
+  }
+}

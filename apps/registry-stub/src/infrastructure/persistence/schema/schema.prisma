@@ -1,0 +1,30 @@
+// Prisma schema for the archive register stand-in (multi-file — one model per
+// file).
+//
+// This is not a bounded context and this is not our data. It is the shape the
+// archive's own registers have, held in a database so the stand-in can be
+// queried the way the real thing will be — the barrier the customer's own
+// analysis names is that the registers are Excel files and "not queryable via
+// API in their current state" (ADR-0010).
+//
+// The database is the register's own and is shared with nothing: `cadastre-db`
+// belongs to the verification context, and a join between a submission and the
+// record of a registration is the one thing that must stay impossible.
+//
+// Every model here is a persistence view of a *legacy* register, so its
+// oddities are deliberate. Numbers that are not arithmetic — folder, page
+// range, storey count, area with its unit — are text, because the sources hold
+// "01-dən 30", "2 (ики)" and "0,05 ha" in those columns and casting them loses
+// the value. Nothing here is normalised past what the registers themselves
+// distinguish.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../generated"
+  runtime      = "nodejs"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}

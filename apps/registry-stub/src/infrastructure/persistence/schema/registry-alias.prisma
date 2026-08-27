@@ -1,0 +1,44 @@
+// Every other number one property answers to.
+//
+// An object accumulates identifiers across offices and eras: the registration
+// number of each act made on it, the inventory number the archive filed it
+// under, the eight-digit `registr kodu` with its three-digit sub-unit code from
+// the sale-contract registers, the state act number, the technical passport
+// number. The Hövsan handover registers put four of them on one row for one
+// object, two per territorial office.
+//
+// They are aliases and not columns because the set is open: every register
+// found so far has added one, and the next one will too.
+
+enum AliasKind {
+  Registration // `Qeydiyyat nömrəsi` — per act, not per object
+  Inventory // `İnventar №`
+  RegisterCode // the 8-digit `registr kodu`, with its sub-unit code appended
+  StateAct // `Dövlət aktı` / `№JN`
+  Certificate // `Şəhadətnamə` — the privatisation certificate number
+  TechnicalPassport // `Paspоrt nömrəsi` of the technical passport
+  Application // `Müraciət №` — the application the case came in under
+}
+
+model RegistryAlias {
+  id       String         @id @default(uuid()) @db.Uuid
+  objectId String         @db.Uuid
+  object   RegistryObject @relation(fields: [objectId], references: [id], onDelete: Cascade)
+
+  kind  AliasKind
+  value String
+
+  /// Which office issued this number. The same object holds an Absheron pair
+  /// and a Baku pair, and without this they are four numbers with no story.
+  issuingOffice String?
+
+  sourceDatabase String
+
+  position Int
+
+  createdAt DateTime @default(now())
+
+  @@index([objectId])
+  @@index([kind, value])
+  @@map("registry_aliases")
+}

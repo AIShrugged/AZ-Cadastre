@@ -1,0 +1,57 @@
+// A single finding in a report (PRD §4.6 / §5). The kinds are fixed by the
+// validation *engine* (ADR-0002), not by profiles, so they're a DB enum. The
+// nullable descriptor columns cover every kind without per-kind tables.
+
+enum IssueKind {
+  MissingDocument // a required document type is absent
+  UnreadableDocument // a sheet that could not be read, or a document that could not be placed
+  FieldMismatch // two documents disagree on a field that must match
+  Expired // a document past its expiration date
+  LowConfidence // a reading below the confidence threshold
+  ExtraDocument // a document read fine and not of a type the profile asks for
+  DuplicateDocument // a second document answering an already-answered required type
+  RegistryMismatch // the archive record of the property says something else
+  RegistryDocumentMissing // the archive holds no original of a paper relied on
+  RegistryUnconfirmed // the register held no record of the property, or held two
+}
+
+model ValidationIssue {
+  id       String @id @default(uuid()) @db.Uuid
+  reportId String @db.Uuid
+  report   Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  kind    IssueKind
+  message String // human-readable description shown in the report
+
+  // The document this issue concerns, when there is one (mismatch, expired,
+  // low-confidence). Null for MissingDocument. SetNull so removing a single
+  // document doesn't delete its report's findings.
+  documentId String?   @db.Uuid
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  // The uploaded file the issue was met in. Set where a document could not be
+  // named — an unread sheet belongs to a file, not yet to a document.
+  sourceFileId String?     @db.Uuid
+  sourceFile   SourceFile? @relation(fields: [sourceFileId], references: [id], onDelete: SetNull)
+
+  /// Profile document-type key (ADR-0002) the issue is about — for
+  /// MissingDocument, the type that's missing.
+  documentType String?
+
+  /// Profile field key involved (mismatch, low-confidence, expired).
+  fieldName String?
+
+  /// Profile cross-check key (ADR-0002) the finding came out of — set only for
+  /// FieldMismatch, where the finding is about a rule rather than about one
+  /// field. It is what names the finding to a reader in their own language.
+  checkKey String?
+
+  pageNumber Int? // page reference, when applicable
+  confidence Float? // relevant confidence (e.g. the flagged low value)
+
+  createdAt DateTime @default(now())
+
+  @@index([reportId])
+  @@index([documentId])
+  @@map("validation_issues")
+}

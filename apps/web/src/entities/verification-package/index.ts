@@ -4,36 +4,36 @@
  * copied), the pipeline stage count, the live package API, and the entity's
  * read-only UI marks.
  */
-export type { ProfileDto } from "./model/profile"
+export type { ProfileDto } from './model/profile';
 export {
   documentsExpected,
   missingTypes,
   profileName,
   requiredTypes,
-} from "./model/profile"
+} from './model/profile';
 
-export { STAGES } from "./model/pipeline"
+export { STAGES } from './model/pipeline';
 
 export type {
   Disposition,
   VerificationPackage,
   Segment,
-} from "./model/verification-package"
+} from './model/verification-package';
 export {
   inSegment,
   packageRef,
   segmentCounts,
   matchesQuery,
   toViewPackage,
-} from "./model/verification-package"
+} from './model/verification-package';
 
 export {
   useGetPackagesQuery,
   useGetPackageQuery,
   useCreatePackageMutation,
-} from "./api/packages-api"
-export { useGetProfilesQuery } from "./api/profiles-api"
+} from './api/packages-api';
+export { useGetProfilesQuery } from './api/profiles-api';
 
-export { DispositionMark } from "./ui/disposition-mark"
-export { ProfileGlyph } from "./ui/profile-glyph"
-export { StageBar } from "./ui/stage-bar"
+export { DispositionMark } from './ui/disposition-mark';
+export { ProfileGlyph } from './ui/profile-glyph';
+export { StageBar } from './ui/stage-bar';

@@ -7,21 +7,21 @@
  * gets a mark, the neutral fallback: an undrawn profile must not read as an
  * absent one.
  */
-import { FileStackIcon, HouseIcon, type LucideIcon } from "lucide-react"
+import { FileStackIcon, HouseIcon, type LucideIcon } from 'lucide-react';
 
 const ICONS: Record<string, LucideIcon> = {
   cadastre: HouseIcon,
-}
+};
 
-const FALLBACK: LucideIcon = FileStackIcon
+const FALLBACK: LucideIcon = FileStackIcon;
 
 export function ProfileGlyph({
   profileKey,
   className,
 }: {
-  profileKey: string
-  className?: string
+  profileKey: string;
+  className?: string;
 }) {
-  const Icon = ICONS[profileKey] ?? FALLBACK
-  return <Icon aria-hidden className={className} />
+  const Icon = ICONS[profileKey] ?? FALLBACK;
+  return <Icon aria-hidden className={className} />;
 }

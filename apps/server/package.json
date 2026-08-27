@@ -1,0 +1,40 @@
+{
+  "name": "@cadastre/server",
+  "version": "1.0.0",
+  "description": "Composition root: validates the environment, mounts every bounded context and the edge, and binds the ports between them.",
+  "type": "module",
+  "main": "./build/main.js",
+  "scripts": {
+    "dev": "node --watch build/main.js",
+    "watch": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node build/main.js",
+    "test:api": "vitest run --config vitest.api.config.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "license": "ISC",
+  "nx": {
+    "tags": [
+      "type:app",
+      "deployment:monolith"
+    ]
+  },
+  "dependencies": {
+    "@cadastre/api-gateway": "workspace:*",
+    "@cadastre/logger": "workspace:*",
+    "@cadastre/verification": "workspace:*",
+    "@nestjs/common": "catalog:nestjs12",
+    "@nestjs/config": "catalog:nestjs12",
+    "@nestjs/core": "catalog:nestjs12",
+    "@nestjs/cqrs": "catalog:nestjs12",
+    "@nestjs/platform-express": "catalog:nestjs12",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@cadastre/api-client": "workspace:*",
+    "@cadastre/api-contracts": "workspace:*",
+    "@testcontainers/postgresql": "^12.1.0",
+    "testcontainers": "^12.1.0",
+    "vitest": "catalog:tooling"
+  }
+}

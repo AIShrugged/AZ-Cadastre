@@ -1,0 +1,36 @@
+{
+  "name": "@cadastre/shared",
+  "version": "1.0.0",
+  "description": "The shared kernel: what a domain model extends (AggregateRoot, EntityId, DomainEvent), the ports a use case runs on, and the three exception bases. No workspace dependencies and no framework.",
+  "type": "module",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/index.d.ts",
+      "import": "./build/index.js"
+    }
+  },
+  "files": [
+    "build"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "watch": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "license": "ISC",
+  "nx": {
+    "tags": [
+      "type:kernel",
+      "deployment:monolith"
+    ]
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "catalog:tooling",
+    "vitest": "catalog:tooling"
+  }
+}

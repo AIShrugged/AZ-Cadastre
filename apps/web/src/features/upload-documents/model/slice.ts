@@ -1,80 +1,75 @@
-import {
-  createSlice,
-  nanoid,
-  type PayloadAction,
-} from "@reduxjs/toolkit"
-import axios from "axios"
+import { createSlice, nanoid, type PayloadAction } from '@reduxjs/toolkit';
+import axios from 'axios';
 
-import { failureCode } from "@/shared/api"
-import type { AppDispatch } from "@/shared/lib/store-hooks"
-import { uploadDocument } from "../api/upload-api"
-import { fileKind, MAX_BYTES } from "../lib/file"
-import type { Attachment } from "./types"
+import { failureCode } from '@/shared/api';
+import type { AppDispatch } from '@/shared/lib/store-hooks';
+
+import { uploadDocument } from '../api/upload-api';
+import { fileKind, MAX_BYTES } from '../lib/file';
+
+import type { Attachment } from './types';
 
 type UploadDocumentsState = {
-  files: Attachment[]
-}
+  files: Attachment[];
+};
 
 const initialState: UploadDocumentsState = {
   files: [],
-}
+};
 
 /**
  * In-flight aborters, kept outside the store because `AbortController` is not
  * serializable. Keyed by attachment id; used to cancel a transfer when its row
  * is removed or the list is cleared.
  */
-const aborters = new Map<string, AbortController>()
+const aborters = new Map<string, AbortController>();
 
 const uploadDocumentsSlice = createSlice({
-  name: "uploadDocuments",
+  name: 'uploadDocuments',
   initialState,
   reducers: {
     fileAdded(state, action: PayloadAction<Attachment>) {
-      state.files.push(action.payload)
+      state.files.push(action.payload);
     },
     fileRemoved(state, action: PayloadAction<string>) {
-      state.files = state.files.filter((f) => f.id !== action.payload)
+      state.files = state.files.filter(f => f.id !== action.payload);
     },
     allCleared(state) {
-      state.files = []
+      state.files = [];
     },
     uploadProgress(
       state,
       action: PayloadAction<{ id: string; progress: number }>,
     ) {
-      const f = state.files.find((f) => f.id === action.payload.id)
-      if (f && f.status === "uploading") f.progress = action.payload.progress
+      const f = state.files.find(f => f.id === action.payload.id);
+      if (f && f.status === 'uploading') f.progress = action.payload.progress;
     },
     uploadSucceeded(
       state,
       action: PayloadAction<{
-        id: string
-        key: string
-        contentType: Attachment["contentType"]
+        id: string;
+        key: string;
+        contentType: Attachment['contentType'];
       }>,
     ) {
-      const f = state.files.find((f) => f.id === action.payload.id)
+      const f = state.files.find(f => f.id === action.payload.id);
       if (f) {
-        f.status = "ready"
-        f.progress = 100
-        f.key = action.payload.key
-        f.contentType = action.payload.contentType
+        f.status = 'ready';
+        f.progress = 100;
+        f.key = action.payload.key;
+        f.contentType = action.payload.contentType;
       }
     },
-    uploadFailed(
-      state,
-      action: PayloadAction<{ id: string; code?: string }>,
-    ) {
-      const f = state.files.find((f) => f.id === action.payload.id)
+    uploadFailed(state, action: PayloadAction<{ id: string; code?: string }>) {
+      const f = state.files.find(f => f.id === action.payload.id);
       if (f) {
-        f.status = "error"
-        f.error = "failed"
-        f.failureCode = action.payload.code
+        f.status = 'error';
+        f.error = 'failed';
+        f.failureCode = action.payload.code;
       }
     },
   },
-})
+});
 
 export const {
   fileAdded,
@@ -83,9 +78,9 @@ export const {
   uploadProgress,
   uploadSucceeded,
   uploadFailed,
-} = uploadDocumentsSlice.actions
+} = uploadDocumentsSlice.actions;
 
-export default uploadDocumentsSlice.reducer
+export default uploadDocumentsSlice.reducer;
 
 // ─── Thunks ───────────────────────────────────────────────────────────────────
 
@@ -93,8 +88,8 @@ export default uploadDocumentsSlice.reducer
 export function enqueueDocuments(list: FileList | File[]) {
   return (dispatch: AppDispatch) => {
     for (const file of Array.from(list)) {
-      const id = nanoid()
-      const kind = fileKind(file.name)
+      const id = nanoid();
+      const kind = fileKind(file.name);
 
       if (!kind) {
         dispatch(
@@ -102,13 +97,13 @@ export function enqueueDocuments(list: FileList | File[]) {
             id,
             name: file.name,
             size: file.size,
-            kind: "image",
-            status: "error",
+            kind: 'image',
+            status: 'error',
             progress: 0,
-            error: "format",
+            error: 'format',
           }),
-        )
-        continue
+        );
+        continue;
       }
       if (file.size > MAX_BYTES) {
         dispatch(
@@ -117,12 +112,12 @@ export function enqueueDocuments(list: FileList | File[]) {
             name: file.name,
             size: file.size,
             kind,
-            status: "error",
+            status: 'error',
             progress: 0,
-            error: "size",
+            error: 'size',
           }),
-        )
-        continue
+        );
+        continue;
       }
 
       dispatch(
@@ -131,51 +126,51 @@ export function enqueueDocuments(list: FileList | File[]) {
           name: file.name,
           size: file.size,
           kind,
-          status: "uploading",
+          status: 'uploading',
           progress: 0,
         }),
-      )
-      dispatch(startUpload(id, file))
+      );
+      dispatch(startUpload(id, file));
     }
-  }
+  };
 }
 
 /** Drive one file's transfer, translating transport events into store actions. */
 function startUpload(id: string, file: File) {
   return async (dispatch: AppDispatch) => {
-    const controller = new AbortController()
-    aborters.set(id, controller)
+    const controller = new AbortController();
+    aborters.set(id, controller);
     try {
       const { key, contentType } = await uploadDocument(file, {
         signal: controller.signal,
-        onProgress: (progress) => dispatch(uploadProgress({ id, progress })),
-      })
-      dispatch(uploadSucceeded({ id, key, contentType }))
+        onProgress: progress => dispatch(uploadProgress({ id, progress })),
+      });
+      dispatch(uploadSucceeded({ id, key, contentType }));
     } catch (err) {
       // A removed/cleared row aborts its own transfer — that's not a failure.
-      if (axios.isCancel(err)) return
+      if (axios.isCancel(err)) return;
       // A refusal names the rule it refused; a network drop names nothing.
-      dispatch(uploadFailed({ id, code: failureCode(err) ?? undefined }))
+      dispatch(uploadFailed({ id, code: failureCode(err) ?? undefined }));
     } finally {
-      aborters.delete(id)
+      aborters.delete(id);
     }
-  }
+  };
 }
 
 /** Remove a file and cancel its transfer if still running. */
 export function removeDocument(id: string) {
   return (dispatch: AppDispatch) => {
-    aborters.get(id)?.abort()
-    aborters.delete(id)
-    dispatch(fileRemoved(id))
-  }
+    aborters.get(id)?.abort();
+    aborters.delete(id);
+    dispatch(fileRemoved(id));
+  };
 }
 
 /** Clear the whole list, cancelling any in-flight transfers. */
 export function clearDocuments() {
   return (dispatch: AppDispatch) => {
-    for (const controller of aborters.values()) controller.abort()
-    aborters.clear()
-    dispatch(allCleared())
-  }
+    for (const controller of aborters.values()) controller.abort();
+    aborters.clear();
+    dispatch(allCleared());
+  };
 }

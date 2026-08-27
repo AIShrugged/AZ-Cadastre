@@ -9,7 +9,8 @@ AZ-Cadastre processes multi-page, multi-format document packages (PDF, JPG, PNG)
 An uploaded file is a **container**, not a document: one PDF may hold a passport
 on sheet 1 and a title deed on sheets 2–4. The inspector attaches files; the
 pipeline reads each one into the documents it actually holds, and classifies and
-extracts from those. See `docs/CONTEXT.md` for the language this is expressed in.
+extracts from those. See `packages/verification/CONTEXT.md` for the language
+this is expressed in.
 
 ## Key Features
 
@@ -17,6 +18,7 @@ extracts from those. See `docs/CONTEXT.md` for the language this is expressed in
 - **Real-Time Updates**: WebSocket-based progress notifications
 - **Long-Running Workflows**: Temporal-based orchestration for resumable, auditable processes
 - **Structured Data Integration**: PostgreSQL for application data, RustFS (S3-compatible) for document storage
+- **Archive Register Lookup**: the property a submission is for is looked up in the cadastre archive register — is there a record of this address, who does it say holds it, what area does it say, and which folder is the paper in (ADR-0009)
 
 ## Models and confidence
 
@@ -46,31 +48,61 @@ explains why `PDF_PAGE_DPI` is 300 rather than 150.
 
 ## Project Structure
 
+Three kinds of project, and only three. Each is a real package, imported by
+package name and tagged under `nx.tags` in its `package.json` with what it is.
+The tags are the vocabulary the dependency rule in `.oxlintrc.json` is written
+in, and they are how a subset is selected: `nx run-many -t build -p
+tag:type:context`.
+
 ```
-apps/
-  web/                      # Client-facing UI application
-  core/                     # Composition root: mounts contexts, serves HTTP
-libs/
-  contexts/
-    verification/           # The verification bounded context
-      src/domain/           #   aggregates, entities, value objects, events,
-                            #   exceptions, repository interfaces — no framework
-      src/application/      #   use cases (command + handler), ports, read models
-      src/infrastructure/   #   Prisma schema/migrations/client, adapters
-      src/api/http/         #   controllers, exception filter
-  shared/                   # backend-only
-    kernel/                 #   What a domain model extends. No dependencies at all
-    application/            #   Use-case machinery shared by every context
-  contracts/                # Zod schemas, one file per endpoint — the wire, not
-                            # the backend, which is why it sits outside shared/
+apps/                       # deployables: composition roots and UI. No business rules
+  server/                   #   type:app — validates env, mounts contexts, binds ports
+    src/main.ts             #     bootstrap, transports, global pipes
+    src/server.module.ts    #     imports every context module, passes its config slice
+    src/config/             #     the one env schema in the system
+    src/infrastructure/     #     port → implementation bindings. The extraction seam
+  web/                      #   type:app — the inspector's client
+  registry-stub/            #   type:app — the stand-in archive register (ADR-0009).
+                            #     Not a context: it speaks the contracts, decides
+                            #     nothing, and answers from `fixtures/`
+packages/                   # bounded contexts: own language, own model, own database
+  verification/             #   type:context
+    CONTEXT.md              #     its ubiquitous language and what to avoid calling things
+    docs/adr/               #     decisions local to this context
+    src/domain/             #     aggregates, entities, value objects, events,
+                            #     exceptions, repository interfaces — no framework
+    src/application/        #     ports/{inbound,outbound}, use cases, services
+    src/infrastructure/     #     Prisma schema/migrations/client, adapters
+    src/index.ts            #     the port, the module, the options type. Nothing else
+libs/                       # everything that is not a context
+  api-contracts/            #   type:contracts — the published language. Zod + plain TS
+  api-gateway/              #   type:edge — HTTP. Talks to contexts through client ports
+  shared/                   #   type:kernel — the bottom of the stack. Imports nothing
+  event-publisher/          #   type:adapter — one capability behind a port
+  logger/                   #   type:adapter — the Logger port and its pino adapter
+  matching-engine/          #   type:engine — pure rules: whether two ways of writing
+                            #     an address, name, area or reference mean one thing
 docs/
-  adr/                      # Architectural Decision Records
+  adr/                      # system-wide Architectural Decision Records
+CONTEXT-MAP.md              # the contexts, their relationships, and the word conflicts
 ```
 
 A context owns its database: its schema, client and migration history all live
-under `src/infrastructure/persistence/`, never in a shared package. See
-[ADR-0005](docs/adr/0005-bounded-context-packages.md) for why the backend is
-shaped this way, and `.claude/skills/backend/` for the conventions in full.
+under `src/infrastructure/persistence/`, never in a shared package. Two contexts
+never import each other — cross-context traffic goes through a port typed by
+`@cadastre/api-contracts` and bound in `apps/server/src/infrastructure/`. `pnpm
+lint` (oxlint) enforces both, and bans relative imports that escape a package,
+because a package-name rule cannot see one.
+
+Tests are per package: each one that has specs owns a `vitest.config.ts`
+covering its own `src/`, and `pnpm test` runs them through nx, which builds a
+package's dependencies first. Nothing aliases a package name back to its
+sources — a spec imports `@cadastre/shared` exactly as production code does.
+
+See [ADR-0006](docs/adr/0006-contexts-contracts-edge-and-composition-root.md)
+for why the backend is shaped this way, [CONTEXT-MAP.md](CONTEXT-MAP.md) for
+what the boundaries are, and `.claude/skills/backend/` for the conventions in
+full.
 
 ## Getting Started
 
@@ -78,17 +110,20 @@ This is a monorepo project using pnpm workspaces.
 
 ```bash
 pnpm install                                      # install and generate the Prisma client
-cp apps/core/.env.example apps/core/.env          # the running service's environment
-cp libs/contexts/verification/.env.example \
-   libs/contexts/verification/.env                # DATABASE_URL for migrations
+cp apps/server/.env.example apps/server/.env      # the running service's environment
+cp packages/verification/.env.example \
+   packages/verification/.env                     # DATABASE_URL for migrations
 
 pnpm --filter @cadastre/verification db:migrate   # apply the context's migrations
 pnpm build                                        # build every package, in dependency order
-pnpm --filter @cadastre/core dev                  # run the API
+pnpm lint                                         # check the dependency rule holds
+pnpm --filter @cadastre/server dev                # run the API
 ```
 
 Unit tests live beside the source they cover (`confidence.vo.ts` →
-`confidence.vo.spec.ts`) and run with `pnpm test`.
+`confidence.vo.spec.ts`). `pnpm test` runs every package's; `pnpm --filter
+@cadastre/verification test:watch` runs one package's in watch mode, and
+`test:coverage` reports on it.
 
 ## Docker
 
@@ -99,7 +134,10 @@ Build and run the application in Docker:
 docker build -f apps/web/Dockerfile -t frontend-app .
 
 # Build backend from repository root
-docker build -f apps/core/Dockerfile -t core-app .
+docker build -f apps/server/Dockerfile -t server-app .
+
+# Build the stand-in archive register
+docker build -f apps/registry-stub/Dockerfile -t registry-app .
 
 # Run with docker-compose (includes frontend, backend, and database)
 docker compose up --build
@@ -108,11 +146,11 @@ docker compose up --build
 ### Migrations in a container
 
 The verification context owns its database, so its migration history travels
-inside its own package — not in `apps/core`, where there is no Prisma at all
+inside its own package — not in `apps/server`, where there is no Prisma at all
 (`npx prisma` from there answers `prisma: not found`). Run them from the package:
 
 ```bash
-docker compose exec -w /app/libs/contexts/verification backend pnpm db:deploy
+docker compose exec -w /app/packages/verification backend pnpm db:deploy
 ```
 
 `db:deploy` is `prisma migrate deploy`: it applies what is pending, never
@@ -123,9 +161,9 @@ To stop doing it by hand, let the service migrate before it serves — give the
 `backend` service its own command in `docker-compose.yml`:
 
 ```yaml
-    command: >
-      sh -c "cd /app/libs/contexts/verification && pnpm db:deploy &&
-             cd /app/apps/core && node build/main.js"
+command: >
+  sh -c "cd /app/packages/verification && pnpm db:deploy &&
+         cd /app/apps/server && node build/main.js"
 ```
 
 `migrate deploy` is idempotent, so a restart re-runs it harmlessly and a

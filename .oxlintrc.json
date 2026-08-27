@@ -1,0 +1,271 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "ignorePatterns": [
+    "**/build/**",
+    "node_modules/**",
+    "**/generated/**",
+    "**/*.generated.ts"
+  ],
+  "plugins": ["import", "typescript", "oxc", "unicorn"],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "import/newline-after-import": "error",
+    "typescript/no-empty-object-type": "off",
+    "typescript/ban-ts-comment": "off",
+    "no-unused-vars": "warn",
+    "typescript/no-explicit-any": "warn",
+    "no-console": "warn",
+    "unicorn/no-empty-file": "warn",
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": [
+              "**/../packages/**",
+              "**/../libs/**",
+              "**/../apps/**",
+              "../packages/**",
+              "../libs/**",
+              "../apps/**"
+            ],
+            "message": "Import across projects by package name (@cadastre/x), never by a relative path: a relative path escaping its project is invisible to the boundary rules below, which match on package names (ADR-0006)."
+          }
+        ]
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["packages/*/**/*.ts", "libs/api-gateway/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@cadastre/*",
+                  "!@cadastre/api-contracts",
+                  "!@cadastre/api-contracts/*",
+                  "!@cadastre/shared",
+                  "!@cadastre/event-publisher",
+                  "!@cadastre/logger"
+                ],
+                "message": "A context (type:context) and the edge (type:edge) may depend only on the published language (@cadastre/api-contracts), the shared kernel (@cadastre/shared) and technical adapters (@cadastre/event-publisher, @cadastre/logger). The way out is the contracts package: route cross-context traffic through it, never through another context's internals (ADR-0006)."
+              },
+              {
+                "group": [
+                  "**/../packages/**",
+                  "**/../libs/**",
+                  "**/../apps/**",
+                  "../packages/**",
+                  "../libs/**",
+                  "../apps/**"
+                ],
+                "message": "Import across projects by package name (@cadastre/x), never by a relative path: a relative path escaping its project is invisible to the boundary rules below, which match on package names (ADR-0006)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["libs/api-contracts/**/*.ts", "libs/event-publisher/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@cadastre/*", "!@cadastre/shared"],
+                "message": "Contracts (type:contracts) and technical adapters (type:adapter) may depend only on the shared kernel (@cadastre/shared). The way out is to move what you need into the kernel if its meaning is identical everywhere, or to leave it with its owner if it is not (ADR-0006)."
+              },
+              {
+                "group": [
+                  "**/../packages/**",
+                  "**/../libs/**",
+                  "**/../apps/**",
+                  "../packages/**",
+                  "../libs/**",
+                  "../apps/**"
+                ],
+                "message": "Import across projects by package name (@cadastre/x), never by a relative path: a relative path escaping its project is invisible to the boundary rules below, which match on package names (ADR-0006)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["libs/shared/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@cadastre/*"],
+                "message": "The shared kernel (type:kernel) is the bottom of the stack and depends on nothing in the workspace. The way out is to leave the concept with the context that owns it: if only one context needs it, it is not kernel (ADR-0006)."
+              },
+              {
+                "group": [
+                  "**/../packages/**",
+                  "**/../libs/**",
+                  "**/../apps/**",
+                  "../packages/**",
+                  "../libs/**",
+                  "../apps/**"
+                ],
+                "message": "Import across projects by package name (@cadastre/x), never by a relative path: a relative path escaping its project is invisible to the boundary rules below, which match on package names (ADR-0006)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["libs/matching-engine/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@cadastre/*", "@nestjs/*", "@prisma/*", "zod"],
+                "message": "An engine (type:engine) is pure computation with an empty dependencies block: no workspace package, no framework, no ORM and no schema library. It is what makes the same rule answer on the server, in a stand-in and in a browser from one source \u2014 the way out is to take the value as an argument (RULE.md \u00a77)."
+              },
+              {
+                "group": [
+                  "**/../packages/**",
+                  "**/../libs/**",
+                  "**/../apps/**",
+                  "../packages/**",
+                  "../libs/**",
+                  "../apps/**"
+                ],
+                "message": "Import across projects by package name (@cadastre/x), never by a relative path: a relative path escaping its project is invisible to the boundary rules below, which match on package names (ADR-0006)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["packages/*/src/domain/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "**/application/**",
+                  "**/infrastructure/**",
+                  "**/presentation/**",
+                  "@nestjs/*",
+                  "@prisma/*",
+                  "openai",
+                  "pdfjs-dist",
+                  "@aws-sdk/*"
+                ],
+                "message": "The domain layer reads without knowing the framework or the ORM: no Nest, no Prisma, and no import from application/, infrastructure/ or presentation/. The way out is to invert it \u2014 declare what you need as a port in application/ports and let the use case pass the answer in (ADR-0004)."
+              },
+              {
+                "group": [
+                  "@cadastre/*",
+                  "!@cadastre/api-contracts",
+                  "!@cadastre/api-contracts/*",
+                  "!@cadastre/shared"
+                ],
+                "message": "A context (type:context) may depend only on the published language (@cadastre/api-contracts) and the shared kernel (@cadastre/shared); the domain layer normally needs neither (ADR-0006)."
+              },
+              {
+                "group": [
+                  "**/../packages/**",
+                  "**/../libs/**",
+                  "**/../apps/**",
+                  "../packages/**",
+                  "../libs/**",
+                  "../apps/**"
+                ],
+                "message": "Import across projects by package name (@cadastre/x), never by a relative path: a relative path escaping its project is invisible to the boundary rules below, which match on package names (ADR-0006)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["packages/*/src/application/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["**/infrastructure/**", "**/presentation/**"],
+                "message": "The application layer names ports, not adapters: it may not import infrastructure/ or presentation/. The way out is an abstract class in application/ports bound to its adapter in the module (ADR-0004)."
+              },
+              {
+                "group": [
+                  "@cadastre/*",
+                  "!@cadastre/api-contracts",
+                  "!@cadastre/api-contracts/*",
+                  "!@cadastre/shared",
+                  "!@cadastre/event-publisher",
+                  "!@cadastre/logger"
+                ],
+                "message": "A context (type:context) may depend only on the published language (@cadastre/api-contracts), the shared kernel (@cadastre/shared) and technical adapters (@cadastre/event-publisher, @cadastre/logger) (ADR-0006)."
+              },
+              {
+                "group": [
+                  "**/../packages/**",
+                  "**/../libs/**",
+                  "**/../apps/**",
+                  "../packages/**",
+                  "../libs/**",
+                  "../apps/**"
+                ],
+                "message": "Import across projects by package name (@cadastre/x), never by a relative path: a relative path escaping its project is invisible to the boundary rules below, which match on package names (ADR-0006)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["libs/api-client/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@cadastre/*",
+                  "!@cadastre/api-contracts",
+                  "!@cadastre/api-contracts/*"
+                ],
+                "message": "The API client (type:client) speaks the published language and nothing else: it may depend on @cadastre/api-contracts and on no other workspace package. It is what a caller outside the system can reach, so giving it a context's internals would make it prove things no real client could do (ADR-0007)."
+              },
+              {
+                "group": [
+                  "**/../packages/**",
+                  "**/../libs/**",
+                  "**/../apps/**",
+                  "../packages/**",
+                  "../libs/**",
+                  "../apps/**"
+                ],
+                "message": "Import across projects by package name (@cadastre/x), never by a relative path: a relative path escaping its project is invisible to the boundary rules below, which match on package names (ADR-0006)."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

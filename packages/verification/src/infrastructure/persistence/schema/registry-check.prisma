@@ -1,0 +1,147 @@
+// Output of the Register stage (ADR-0009): one of the profile's registry
+// checks, applied by asking the archive register what it holds about the
+// property this package is for.
+//
+// It is not a cross-check with a third document. A cross-check holds the papers
+// of one submission against each other; this holds one of them against the
+// record of what was registered, which is a different kind of evidence and a
+// different kind of finding — so it is a table of its own rather than a flavour
+// of "cross_checks".
+//
+// Kept whole rather than reduced to its findings, for the same reason a
+// cross-check is: a property the register confirmed is what the inspector does
+// not have to look up, and the report is compiled afresh from these every time.
+
+/// What the register said. About its own holdings, never about the package: its
+/// coverage is partial and historical, so `NotFound` is an absence of evidence.
+enum RegistryOutcome {
+  Confirmed // a record was found and everything held against it agreed
+  Differs // a record was found and says something else
+  Incomplete // it agreed, and the archive has no original of one of the papers
+  NotFound // the register holds nothing under that address
+  Ambiguous // more than one record answers to it
+}
+
+/// Whether the archive holds the original of one of the papers the package
+/// rests on. Three states because the archive's presence registers have three:
+/// `+`, `-`, and a column that area's register never carried.
+enum ArchiveHolding {
+  Held
+  NotHeld
+  Unknown
+}
+
+model RegistryCheck {
+  id        String              @id @default(uuid()) @db.Uuid
+  packageId String              @db.Uuid
+  package   VerificationPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  /// Profile registry-check key (ADR-0002), e.g. "property_of_record". A string
+  /// so a new profile needs no migration.
+  key String
+
+  outcome    RegistryOutcome
+  confidence Float // 0..1, never higher than the value that was asked about
+
+  /// The audit line, written in English when the register answered.
+  note String
+
+  /// Where the paper is, as the register stated it — "folder 14, pp. 01-dən
+  /// 30". Text, because a folder and a page range are not numbers: real values
+  /// include "06-DƏK səh. 48".
+  reference String?
+
+  // ── what was asked ──────────────────────────────────────────────────────
+  // The value the register was given, with the document it was read off, so a
+  // finding lands on a sheet the inspector can open. SetNull so re-segmenting a
+  // file does not delete the check it fed.
+  documentId String?   @db.Uuid
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  documentType    String
+  fieldName       String
+  value           String
+  pageNumber      Int
+  valueConfidence Float // how well the value itself was read (0..1)
+
+  attributes RegistryCheckAttribute[]
+  documents  RegistryCheckDocument[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // One answer per check per package → the stage is an idempotent upsert.
+  @@unique([packageId, key])
+  @@map("registry_checks")
+}
+
+/// One thing the package said about the property, held against the record.
+/// `recorded` is null where the register is silent: half the registers carry a
+/// column the other half never had, and a column an area's register never held
+/// is silence rather than a disagreement.
+model RegistryCheckAttribute {
+  id              String        @id @default(uuid()) @db.Uuid
+  registryCheckId String        @db.Uuid
+  registryCheck   RegistryCheck @relation(fields: [registryCheckId], references: [id], onDelete: Cascade)
+
+  /// The name the register knows the attribute by: "ownerName" |
+  /// "cadastralNumber" | "plotArea".
+  name     String
+  agrees   Boolean
+  recorded String?
+
+  documentId String?   @db.Uuid
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  documentType String
+  fieldName    String
+  value        String
+  pageNumber   Int
+  confidence   Float
+
+  // The order the profile names them in.
+  position Int
+
+  createdAt DateTime @default(now())
+
+  @@index([registryCheckId])
+  @@map("registry_check_attributes")
+}
+
+/// One paper the package rests on, held against what the archive keeps.
+///
+/// Two names and not one: `name` is the register's own word for the kind of
+/// paper — "Ərizə", "Sərəncam çıxarışı" — and `documentType` is the profile's,
+/// carried so a finding lands on a sheet the inspector can open. The two
+/// vocabularies were written by different offices decades apart and neither may
+/// borrow the other's (ADR-0010).
+model RegistryCheckDocument {
+  id              String        @id @default(uuid()) @db.Uuid
+  registryCheckId String        @db.Uuid
+  registryCheck   RegistryCheck @relation(fields: [registryCheckId], references: [id], onDelete: Cascade)
+
+  name    String
+  holding ArchiveHolding
+
+  /// What the archive's own entry says about the paper, where it says anything,
+  /// and where that paper is. Text for the reason `reference` above is.
+  recordedNumber String?
+  recordedDate   String?
+  reference      String?
+
+  // The document of this package the question was asked about. SetNull so
+  // re-segmenting a file does not delete the check it fed.
+  documentId String?   @db.Uuid
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  documentType String
+  pageNumber   Int
+
+  // The order the profile names them in.
+  position Int
+
+  createdAt DateTime @default(now())
+
+  @@index([registryCheckId])
+  @@map("registry_check_documents")
+}

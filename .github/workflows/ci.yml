@@ -1,0 +1,54 @@
+name: CI
+
+# The boundaries in .oxlintrc.json, the layering and the four test sets are only
+# real if something that cannot be skipped runs them. The husky hook is a
+# convenience for the author; `--no-verify` removes it, and CI is what stays.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Format
+        run: pnpm prettier:check
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+      - name: Test
+        run: pnpm test
+
+      # Runs last: it is the only step that needs docker, and a failure here
+      # should not hide a lint or type error that costs nothing to find.
+      - name: Integration tests
+        run: pnpm test:integration
+
+      # Last, and the slowest: it brings up Postgres and object storage and runs
+      # the built server as its own process.
+      - name: API tests
+        run: pnpm test:api

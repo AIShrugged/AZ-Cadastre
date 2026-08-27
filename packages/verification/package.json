@@ -1,0 +1,68 @@
+{
+  "name": "@cadastre/verification",
+  "version": "1.0.0",
+  "description": "The verification bounded context: packages, documents, the OCR/classify/extract pipeline and the profiles that govern them.",
+  "type": "module",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/index.d.ts",
+      "import": "./build/index.js"
+    }
+  },
+  "files": [
+    "build"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "watch": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:integration:coverage": "vitest run --config vitest.integration.config.ts --coverage",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:reset": "prisma migrate reset --force",
+    "db:studio": "prisma studio",
+    "postinstall": "prisma generate"
+  },
+  "license": "ISC",
+  "nx": {
+    "tags": [
+      "type:context",
+      "deployment:monolith"
+    ]
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1093.0",
+    "@aws-sdk/s3-request-presigner": "^3.1093.0",
+    "@cadastre/api-contracts": "workspace:*",
+    "@cadastre/event-publisher": "workspace:*",
+    "@cadastre/logger": "workspace:*",
+    "@cadastre/shared": "workspace:*",
+    "@napi-rs/canvas": "^1.0.3",
+    "@nestjs/common": "catalog:nestjs12",
+    "@nestjs/core": "catalog:nestjs12",
+    "@nestjs/cqrs": "catalog:nestjs12",
+    "@prisma/adapter-pg": "^7.9.0",
+    "@prisma/client": "^7.9.0",
+    "openai": "^6.49.0",
+    "pdfjs-dist": "^6.2.108",
+    "pg": "^8.22.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@nestjs/testing": "catalog:nestjs12",
+    "@testcontainers/postgresql": "^12.1.0",
+    "@types/pg": "^8.20.0",
+    "@vitest/coverage-v8": "catalog:tooling",
+    "prisma": "^7.9.0",
+    "reflect-metadata": "^0.2.2",
+    "testcontainers": "^12.1.0",
+    "vitest": "catalog:tooling"
+  }
+}

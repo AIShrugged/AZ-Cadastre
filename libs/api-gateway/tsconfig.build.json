@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": ["build", "node_modules", "src/**/*.spec.ts"],
+  "compilerOptions": {
+    "composite": true
+  },
+  "references": [
+    {
+      "path": "../api-contracts/tsconfig.build.json"
+    },
+    {
+      "path": "../logger/tsconfig.build.json"
+    },
+    {
+      "path": "../shared/tsconfig.build.json"
+    }
+  ]
+}

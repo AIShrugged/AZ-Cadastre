@@ -104,7 +104,7 @@ states are all translatable, and layouts must tolerate the length and script
 variation across the three languages (including Cyrillic). Document *content*
 remains Azerbaijani (Latin and Cyrillic); the UI chrome is trilingual.
 
-**Ubiquitous language (from docs/CONTEXT.md — use these terms, avoid the
+**Ubiquitous language (from packages/verification/CONTEXT.md — use these terms, avoid the
 alternatives):** Verification Package (not submission/case/batch); Document (not
 file/scan/attachment); Page; Document Type (not category/kind); Extracted Field
 (not attribute/property); Verification Profile (not ruleset/config/template);
@@ -122,7 +122,7 @@ decision, not a consumer app. The name in use is **AZ-Cadastre**.
 
 ## Evidence on Hand
 
-- Product documentation: `docs/PRD.md` (full MVP spec), `docs/CONTEXT.md`
+- Product documentation: `docs/PRD.md` (full MVP spec), `packages/verification/CONTEXT.md`
   (ubiquitous language), `README.md`, and ADRs `docs/adr/0001`–`0004`.
 - The MVP ships **one Verification Profile** — first state registration of an
   individual residential house — whose seven document types are all required.

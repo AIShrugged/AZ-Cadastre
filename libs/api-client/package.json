@@ -1,0 +1,34 @@
+{
+  "name": "@cadastre/api-client",
+  "version": "1.0.0",
+  "description": "Typed client for the published API over the real endpoints. Speaks contracts and nothing else; used by tests and seeding, never by a context.",
+  "type": "module",
+  "private": true,
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/index.d.ts",
+      "import": "./build/index.js"
+    }
+  },
+  "files": [
+    "build"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "watch": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "license": "ISC",
+  "nx": {
+    "tags": [
+      "type:client",
+      "deployment:monolith"
+    ]
+  },
+  "dependencies": {
+    "@cadastre/api-contracts": "workspace:*",
+    "zod": "catalog:"
+  }
+}

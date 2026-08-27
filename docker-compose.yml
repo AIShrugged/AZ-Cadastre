@@ -4,7 +4,7 @@ services:
     image: ekalkutin/cadastre-web:latest
     container_name: cadastre-frontend
     ports:
-      - "80:80"
+      - '80:80'
     restart: unless-stopped
     depends_on:
       - backend
@@ -13,7 +13,7 @@ services:
     image: ekalkutin/cadastre-core:latest
     container_name: cadastre-backend
     ports:
-      - "3000:3000"
+      - '3000:3000'
     restart: unless-stopped
     environment:
       # Server
@@ -26,6 +26,13 @@ services:
 
       # Web CORS
       - WEB_ORIGIN=http://49.13.138.121
+
+      # Logging. One structured line per event on stdout, which is where
+      # `docker logs` reads it (ADR-0008). The image already sets LOG_PRETTY=false
+      # — a collector wants JSON, not colour. Raise to debug to see every SQL
+      # statement and every stage of a run; never trace outside a local box,
+      # where the parameters would be somebody's papers in the log.
+      - LOG_LEVEL=info
 
       # Object Storage (S3-compatible RustFS)
       - S3_ENDPOINT=http://rustfs:9000
@@ -62,6 +69,16 @@ services:
       - CROSS_CHECKER_PROVIDER=openrouter
       - CROSS_CHECKER_MODEL=openai/gpt-4o
 
+      # The archive register the property is looked up in (ADR-0009). `mock` is
+      # the stand-in built into the context and needs no service; `http` is
+      # whoever serves the register contract — here the `registry` service
+      # below, one day a real state register, and the difference is these three
+      # lines. A register that does not answer never fails a verification: the
+      # stage is abandoned and the report says the property was not confirmed.
+      - REGISTRY_PROVIDER=http
+      - REGISTRY_URL=http://registry:3100
+      - REGISTRY_TIMEOUT_MS=5000
+
       # OpenRouter (optional, only needed if switching from mock to openrouter)
       - OPENROUTER_API_KEY=
       - OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
@@ -69,20 +86,64 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      registry:
+        condition: service_healthy
+
+  # The stand-in for the archive register. Not a bounded context and not part of
+  # the monolith: it stands in for a system outside this one, so it is reached
+  # over HTTP and is allowed to be down (ADR-0009).
+  registry:
+    image: ekalkutin/cadastre-registry:latest
+    container_name: cadastre-registry
+    ports:
+      - '3100:3100'
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - SERVICE_PORT=3100
+      - SERVICE_HOST=0.0.0.0
+      - LOG_LEVEL=info
+      # The register's own database, and deliberately not cadastre-db: that one
+      # belongs to the verification context (ADR-0010). It is created by the
+      # init script the postgres service mounts — which the official image runs
+      # only when the data directory is new, so on an existing volume create it
+      # by hand:
+      #   docker exec cadastre-postgres createdb -U postgres cadastre-registry
+      # Then apply the schema and put the records in:
+      #   docker exec cadastre-registry pnpm db:deploy
+      #   docker exec cadastre-registry pnpm db:seed
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/cadastre-registry?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3100/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   postgres:
     image: postgres:17-alpine
     container_name: cadastre-postgres
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      # Creates the register's database beside the context's. Read only, and
+      # run by the image only on a data directory it has just created.
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=cadastre-db
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d cadastre-db"]
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d cadastre-db']
       interval: 5s
       timeout: 5s
       retries: 5
@@ -90,10 +151,10 @@ services:
 
   rustfs:
     image: rustfs/rustfs:latest
-    container_name: rustfs
+    container_name: cadastre-rustfs
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - '9000:9000'
+      - '9001:9001'
     volumes:
       - rustfs-data:/data
     environment:

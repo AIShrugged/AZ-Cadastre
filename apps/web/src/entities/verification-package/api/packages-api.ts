@@ -5,49 +5,48 @@
  *
  * Each endpoint names the contract's *response* type for its own URL rather than
  * a shared DTO, and parses the body through that endpoint's schema. Zod ships
- * alongside the types in `@cadastre/contracts`, so declining to run it would
+ * alongside the types in `@cadastre/api-contracts`, so declining to run it would
  * leave the one place the two sides can actually drift — the wire — checked only
  * by a compiler that never sees the server. A mismatch then surfaces here, named,
  * instead of as an `undefined` three components away.
  */
+import { api } from '@/shared/api';
 import {
   GetPackageResponseSchema,
   ListPackagesResponseSchema,
   type CreatePackageRequest,
   type CreatePackageResponse,
   type GetPackageResponse,
-} from "@cadastre/contracts"
-
-import { api } from "@/shared/api"
+} from '@cadastre/api-contracts/verification';
 
 import {
   toViewPackage,
   type VerificationPackage,
-} from "../model/verification-package"
+} from '../model/verification-package';
 
 export const packagesApi = api.injectEndpoints({
-  endpoints: (build) => ({
+  endpoints: build => ({
     getPackages: build.query<VerificationPackage[], void>({
-      query: () => "/packages",
+      query: () => '/packages',
       transformResponse: (response: unknown) =>
         ListPackagesResponseSchema.parse(response).map(toViewPackage),
-      providesTags: ["Package"],
+      providesTags: ['Package'],
     }),
     getPackage: build.query<GetPackageResponse, string>({
-      query: (id) => `/packages/${id}`,
+      query: id => `/packages/${id}`,
       transformResponse: (response: unknown) =>
         GetPackageResponseSchema.parse(response),
-      providesTags: (_result, _error, id) => [{ type: "Package", id }],
+      providesTags: (_result, _error, id) => [{ type: 'Package', id }],
     }),
     createPackage: build.mutation<CreatePackageResponse, CreatePackageRequest>({
-      query: (body) => ({ url: "/packages", method: "POST", body }),
-      invalidatesTags: ["Package"],
+      query: body => ({ url: '/packages', method: 'POST', body }),
+      invalidatesTags: ['Package'],
     }),
   }),
-})
+});
 
 export const {
   useGetPackagesQuery,
   useGetPackageQuery,
   useCreatePackageMutation,
-} = packagesApi
+} = packagesApi;

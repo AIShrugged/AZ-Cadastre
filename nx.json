@@ -1,0 +1,38 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "targetDefaults": {
+    "build": {
+      "cache": true,
+      "dependsOn": ["^build"],
+      "outputs": [
+        "{projectRoot}/build",
+        "{projectRoot}/tsconfig.build.tsbuildinfo"
+      ]
+    },
+    "typecheck": {
+      "cache": true,
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "cache": true,
+      "dependsOn": ["^build"]
+    },
+    "test:integration": {
+      "cache": false,
+      "dependsOn": ["^build"]
+    },
+    "test:api": {
+      "cache": false,
+      "dependsOn": ["build", "^build"]
+    },
+    "watch": {
+      "continuous": true,
+      "dependsOn": ["build", "^watch"]
+    },
+    "dev": {
+      "continuous": true,
+      "dependsOn": ["watch"]
+    }
+  },
+  "analytics": false
+}

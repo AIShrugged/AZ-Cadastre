@@ -7,23 +7,22 @@
  * meant the screen could tally a package against documents the classifier was
  * never looking for.
  */
+import { api } from '@/shared/api';
 import {
   ListProfilesResponseSchema,
   type ListProfilesResponse,
-} from "@cadastre/contracts"
-
-import { api } from "@/shared/api"
+} from '@cadastre/api-contracts/verification';
 
 export const profilesApi = api.injectEndpoints({
-  endpoints: (build) => ({
+  endpoints: build => ({
     getProfiles: build.query<ListProfilesResponse, void>({
-      query: () => "/profiles",
+      query: () => '/profiles',
       // Policy changes with a deployment, not with a package, so there is
       // nothing here for a `Package` write to invalidate.
       transformResponse: (response: unknown) =>
         ListProfilesResponseSchema.parse(response),
     }),
   }),
-})
+});
 
-export const { useGetProfilesQuery } = profilesApi
+export const { useGetProfilesQuery } = profilesApi;

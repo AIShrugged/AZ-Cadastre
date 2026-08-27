@@ -1,1 +1,1 @@
-export { NewVerification } from "./ui/new-verification"
+export { NewVerification } from './ui/new-verification';

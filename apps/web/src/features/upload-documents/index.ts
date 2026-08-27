@@ -6,28 +6,28 @@
  */
 
 // Public UI
-export { Dropzone } from "./ui/dropzone"
-export { UploadedList } from "./ui/uploaded-list"
+export { Dropzone } from './ui/dropzone';
+export { UploadedList } from './ui/uploaded-list';
 
 // Model — reducer (register in the store), thunks, selectors, types
-export { default as uploadDocumentsReducer } from "./model/slice"
+export { default as uploadDocumentsReducer } from './model/slice';
 export {
   enqueueDocuments,
   removeDocument,
   clearDocuments,
   allCleared,
-} from "./model/slice"
+} from './model/slice';
 export {
   selectDocuments,
   selectValidCount,
   selectReadyCount,
-} from "./model/selectors"
+} from './model/selectors';
 export type {
   Attachment,
   FileKind,
   UploadStatus,
   UploadErrorKind,
-} from "./model/types"
+} from './model/types';
 
 // Constants for the picker/input in the host surface
-export { ACCEPT, MAX_MB, MAX_BYTES } from "./lib/file"
+export { ACCEPT, MAX_MB, MAX_BYTES } from './lib/file';

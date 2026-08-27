@@ -1,0 +1,38 @@
+{
+  "name": "@cadastre/matching-engine",
+  "version": "1.0.0",
+  "description": "The rules that decide whether two ways of writing one Azerbaijani address, name, area or reference number mean the same thing. Pure functions, no framework and no I/O: the same source answers in the stub, in a real registry and in a browser.",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/index.d.ts",
+      "import": "./build/index.js"
+    }
+  },
+  "files": [
+    "build"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "watch": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "license": "ISC",
+  "nx": {
+    "tags": [
+      "type:engine",
+      "deployment:monolith"
+    ]
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@vitest/coverage-v8": "catalog:tooling",
+    "vitest": "catalog:tooling"
+  }
+}

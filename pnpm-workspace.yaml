@@ -1,11 +1,83 @@
 packages:
   - apps/*
   - libs/*
-  - libs/contexts/*
-  - libs/shared/*
+  - packages/*
+
+# One version per dependency, declared once. A package writes `catalog:` instead
+# of a range, so "which version of Nest does this repo use" has one answer and
+# one place to change it — and a package cannot drift by being installed on a
+# day the registry moved.
+#
+# Three groups, because they are pinned for three different reasons.
+
+# The default catalog: libraries that must be ONE instance at runtime, not just
+# one version. A zod schema built in @cadastre/api-contracts is parsed inside
+# the context; two copies of zod would be two class identities and the parse
+# would fail on a schema it should accept.
+catalog:
+  zod: ^4.4.3
+
+catalogs:
+  # Nest 12 is pre-release, and its packages are published under tags that are
+  # not ranges — `12.0.0-alpha.5` for the core line, `12.0.0-next.0` for config.
+  # A caret would not match them and a mismatch between two @nestjs packages
+  # fails at DI time rather than at install time, so they move together or not
+  # at all.
+  nestjs12:
+    '@nestjs/common': 12.0.0-alpha.5
+    '@nestjs/core': 12.0.0-alpha.5
+    '@nestjs/platform-express': 12.0.0-alpha.5
+    '@nestjs/testing': 12.0.0-alpha.5
+    '@nestjs/config': 12.0.0-next.0
+    # No 12 line exists for cqrs — 11.0.3 is its latest, and it is built
+    # against Nest 11, which is what the peer rules below are about. Pinned
+    # exactly like the rest: a caret here could float onto a build made for a
+    # different core.
+    '@nestjs/cqrs': 11.0.3
+
+  # The compiler and the test runner. Two packages on two compiler versions
+  # produce two different `build/` trees from the same source, and the one that
+  # is wrong is whichever you did not run last.
+  tooling:
+    typescript: 7.0.2
+    vitest: ^4.1.11
+    '@vitest/coverage-v8': ^4.1.10
+
+# Nest 12 is not out, so its own packages and every package built for Nest 11
+# still declare `^11.0.0` peers that `12.0.0-alpha.5` cannot satisfy. The
+# warning is noise here — the alpha is the version this repo runs on — but noise
+# is what hides the next real peer conflict, so it is answered by name rather
+# than left standing.
+#
+# Delete this block when Nest 12 goes stable: if the peers then still do not
+# match, that is a genuine problem and it should be allowed to say so.
+peerDependencyRules:
+  allowedVersions:
+    '@nestjs/core>@nestjs/common': 12.0.0-alpha.5
+    '@nestjs/core>@nestjs/platform-express': 12.0.0-alpha.5
+    '@nestjs/platform-express>@nestjs/common': 12.0.0-alpha.5
+    '@nestjs/platform-express>@nestjs/core': 12.0.0-alpha.5
+    '@nestjs/config>@nestjs/common': 12.0.0-alpha.5
+    '@nestjs/config>@nestjs/core': 12.0.0-alpha.5
+    '@nestjs/cqrs>@nestjs/common': 12.0.0-alpha.5
+    '@nestjs/cqrs>@nestjs/core': 12.0.0-alpha.5
+    '@nestjs/testing>@nestjs/common': 12.0.0-alpha.5
+    '@nestjs/testing>@nestjs/core': 12.0.0-alpha.5
+    '@nestjs/testing>@nestjs/platform-express': 12.0.0-alpha.5
+
 allowBuilds:
-  "@nestjs/core": true
-  "@prisma/engines": true
-  "@prisma/client": true
+  '@nestjs/core': true
+  '@prisma/engines': true
+  '@prisma/client': true
   prisma: true
   esbuild: true
+  nx: true
+  oxlint: true
+  # nx's own optional native parser, not ours.
+  '@swc/core': true
+  # testcontainers pulls these in for its docker transport. Their build scripts
+  # compile native speed-ups we never reach: the integration set talks to a
+  # local docker socket, not to a container over SSH.
+  ssh2: false
+  cpu-features: false
+  protobufjs: false

@@ -131,3 +131,26 @@ none of those (RULE.md §2). So it is either an ADR widening that allow-list to
 adapter, or the shared primitives move into `libs/shared` and both sides build
 on them. Not the third option, which is to leave it and remember: this entry
 exists because nobody will.
+
+## 8. The archive locator reaches the trilingual surface in English
+
+**Not done.** `RegistryCheck.reference` is one string, composed by the register
+stage as `folder 05, pp. 12-dən 38`, and the register panel on the details
+screen prints it as it stands. Every other string on that surface is built from
+data in the reader's own language; this one carries two English words a Russian
+or Azerbaijani reader is shown untranslated.
+
+**How it fires.** Quietly, and only to a reader: the locator is where the
+inspector goes to pull the paper, so the one line that sends them to the archive
+is the line not written in their language. It gets worse the day a second thing
+about the record is worth showing — a register number, an inventory number —
+because the same shortcut will be taken again.
+
+**What to do.** Split the locator at the source: the register already answers
+with `location: { folder, pages }` (`ArchiveRecordDto`), so the domain can keep
+the two apart instead of formatting them into a sentence, and the surface can
+say "папка 05, стр. 12-dən 38" itself. That is a migration on `registry_checks`
+and a change to the published `RegistryCheckDto`, which is why it was not done
+with the panel: the panel is what makes the stage visible at all, and it is
+useful in English until then. The page ranges themselves stay strings — `01-dən
+30` is a real value (ADR-0009).

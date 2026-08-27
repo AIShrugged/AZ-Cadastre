@@ -190,6 +190,7 @@ const en: Dict = {
   'detail.docs_count': '{d} of {r} documents',
   'detail.contents': 'Contents',
   'detail.source_text': 'Source text',
+  'detail.handwritten': 'Handwritten',
   'detail.ocr': 'OCR',
   'detail.fields': 'Extracted fields',
   'detail.pending': 'Extraction pending',
@@ -241,6 +242,7 @@ const en: Dict = {
   'check.property_of_record': 'The property against the archive record',
   // ─── The archive register ───────────────────────────────────────────────────
   'detail.registry': 'Archive register',
+  'detail.archive_comparison': 'Comparison with archive',
   'detail.registry_note':
     'What the papers say about the property, held against the archive record of it. The only check that leaves the submission.',
   'detail.registry_pending': 'Asked once the property address has been read.',
@@ -504,6 +506,7 @@ const ru: Dict = {
   'detail.docs_count': '{d} из {r} документов',
   'detail.contents': 'Состав пакета',
   'detail.source_text': 'Исходный текст',
+  'detail.handwritten': 'Рукописный',
   'detail.ocr': 'OCR',
   'detail.fields': 'Извлечённые поля',
   'detail.pending': 'Извлечение ожидается',
@@ -555,6 +558,7 @@ const ru: Dict = {
   'check.property_of_record': 'Объект против архивной записи',
   // ─── Архивный реестр ────────────────────────────────────────────────────────
   'detail.registry': 'Архивный реестр',
+  'detail.archive_comparison': 'Сравнение с архивом',
   'detail.registry_note':
     'Что документы говорят об объекте — против архивной записи о нём. Единственная проверка, которая выходит за пределы пакета.',
   'detail.registry_pending': 'Реестр спрашивают, когда прочитан адрес объекта.',
@@ -817,6 +821,7 @@ const az: Dict = {
   'detail.docs_count': '{r} sənəddən {d}',
   'detail.contents': 'Paketin tərkibi',
   'detail.source_text': 'Mənbə mətni',
+  'detail.handwritten': 'Əlyazma',
   'detail.ocr': 'OCR',
   'detail.fields': 'Çıxarılan sahələr',
   'detail.pending': 'Çıxarış gözlənilir',
@@ -868,6 +873,7 @@ const az: Dict = {
   'check.property_of_record': 'Əmlak arxiv qeydi ilə üzləşdirilir',
   // ─── Arxiv reyestri ─────────────────────────────────────────────────────────
   'detail.registry': 'Arxiv reyestri',
+  'detail.archive_comparison': 'Arxivlə müqayisə',
   'detail.registry_note':
     'Sənədlərin əmlak barədə dedikləri arxiv qeydi ilə tutuşdurulur. Paketdən kənara çıxan yeganə yoxlama.',
   'detail.registry_pending': 'Əmlakın ünvanı oxunandan sonra soruşulur.',

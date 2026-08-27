@@ -138,7 +138,7 @@ services:
 
   rustfs:
     image: rustfs/rustfs:latest
-    container_name: rustfs
+    container_name: cadastre-rustfs
     ports:
       - '9000:9000'
       - '9001:9001'

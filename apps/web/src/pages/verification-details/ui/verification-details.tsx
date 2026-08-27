@@ -546,7 +546,37 @@ function PageTally({ file, failed }: { file: SourceFileDto; failed: boolean }) {
 // makes a name in the application comparable to the name on the identity card at
 // a glance. Nothing is truncated; a long value wraps, because a value the
 // inspector cannot read is a value they cannot verify.
-function Fields({ fields, docId }: { fields: FieldDto[]; docId: string }) {
+const HANDWRITTEN_FRAGMENT = /\[hw:\s*([^\]]+?)\s*\]/giu;
+
+// OCR marks handwriting in the transcription itself. Field DTOs intentionally
+// stay neutral, so the report derives provenance from the source it already
+// shows instead of inventing another field classification at the HTTP edge.
+function isHandwritten(value: string, sourceText: string): boolean {
+  const normalise = (text: string) =>
+    text
+      .toLocaleLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, ' ')
+      .trim()
+      .replace(/\s+/g, ' ');
+  const needle = normalise(value);
+
+  if (needle.length < 2) return false;
+
+  return [...sourceText.matchAll(HANDWRITTEN_FRAGMENT)].some(match => {
+    const marked = normalise(match[1] ?? '');
+    return marked.includes(needle) || needle.includes(marked);
+  });
+}
+
+function Fields({
+  fields,
+  docId,
+  sourceText,
+}: {
+  fields: FieldDto[];
+  docId: string;
+  sourceText: string;
+}) {
   const { t } = useI18n();
   return (
     <dl className='mt-3 border-t border-rule'>
@@ -562,16 +592,23 @@ function Fields({ fields, docId }: { fields: FieldDto[]; docId: string }) {
           <dt className='col-span-2 text-[0.8125rem] leading-snug text-muted-foreground sm:col-span-1'>
             {translateOr(t, `field.${f.name}`, f.name)}
           </dt>
-          <dd
-            data-mono
-            className={cn(
-              'min-w-0 break-words whitespace-pre-line text-[0.875rem] leading-snug',
-              f.confidence < CONFIDENCE_FLOOR
-                ? 'text-incomplete-ink'
-                : 'text-foreground',
+          <dd className='min-w-0'>
+            <span
+              data-mono
+              className={cn(
+                'break-words whitespace-pre-line text-[0.875rem] leading-snug',
+                f.confidence < CONFIDENCE_FLOOR
+                  ? 'text-incomplete-ink'
+                  : 'text-foreground',
+              )}
+            >
+              {f.value || '—'}
+            </span>
+            {isHandwritten(f.value, sourceText) && (
+              <span className='ml-2 inline-flex align-middle rounded-sm bg-accent-2-tint px-1.5 py-0.5 text-[0.625rem] font-medium leading-none text-accent-2-ink'>
+                {t('detail.handwritten')}
+              </span>
             )}
-          >
-            {f.value || '—'}
           </dd>
           <Confidence value={f.confidence} />
         </div>
@@ -756,7 +793,9 @@ function DocumentEntry({
             )}
           </p>
         ) : (
-          doc.fields.length > 0 && <Fields fields={doc.fields} docId={doc.id} />
+          doc.fields.length > 0 && (
+            <Fields fields={doc.fields} docId={doc.id} sourceText={text} />
+          )
         )}
 
         {/* The machine's account of the same sheets the column beside it
@@ -1027,6 +1066,12 @@ const NOTE_SECTIONS = ORDERED.filter(([, section]) => section.tone === 'note');
 const isInformational = (kind: IssueKind): boolean =>
   SECTIONS[kind].tone === 'note';
 
+// Archive answers have their own comparison surface below. Keeping them out of
+// the package worklist prevents the same disagreement being explained twice,
+// once without the archived value and once with it.
+const isArchiveFinding = (kind: IssueKind): boolean =>
+  kind === 'RegistryMismatch' || kind === 'RegistryUnconfirmed';
+
 // The three tones the whole surface reports in: settled, a fault, and neither
 // of the two. Named once, because a check, a report and a register answer are
 // all read off the same colours.
@@ -1288,9 +1333,21 @@ function Worklist({
   // Findings are counted; observations are mentioned. Counting them together
   // would tell the inspector a package with one missing receipt and four of the
   // registry's own service sheets in it has five problems.
-  const findings = report.issues.filter(issue => !isInformational(issue.kind));
-  const notes = report.issues.filter(issue => isInformational(issue.kind));
+  const archiveFindings = report.issues.filter(issue =>
+    isArchiveFinding(issue.kind),
+  );
+  const findings = report.issues.filter(
+    issue => !isInformational(issue.kind) && !isArchiveFinding(issue.kind),
+  );
+  const notes = report.issues.filter(
+    issue => isInformational(issue.kind) && !isArchiveFinding(issue.kind),
+  );
   const named = pkg.files.length > 1;
+
+  // The report's remaining attention belongs to the archive comparison. A
+  // second empty conclusion here would say "no issues" above a disagreement.
+  if (findings.length === 0 && notes.length === 0 && archiveFindings.length > 0)
+    return null;
 
   const section = (kind: IssueKind, heading: string) => {
     const found = report.issues.filter(issue => issue.kind === kind);
@@ -1369,8 +1426,8 @@ function Worklist({
           </p>
         ) : (
           <div className='mt-4 flex flex-col gap-5'>
-            {ISSUE_SECTIONS.map(([kind, { heading }]) =>
-              section(kind, heading),
+            {ISSUE_SECTIONS.filter(([kind]) => !isArchiveFinding(kind)).map(
+              ([kind, { heading }]) => section(kind, heading),
             )}
           </div>
         )}
@@ -1748,6 +1805,7 @@ function RegistryCheckEntry({
   onJump: Jump;
 }) {
   const { t } = useI18n();
+  const differences = check.attributes.filter(attribute => !attribute.agrees);
 
   return (
     // Open unless the record confirmed it, on the same rule as a cross-check:
@@ -1779,7 +1837,7 @@ function RegistryCheckEntry({
             was asked before it is answered by anything else. */}
         <ul className='flex flex-col'>
           <CheckedValueRow value={check.asked} onJump={onJump} />
-          {check.attributes.map((attribute, index) => (
+          {differences.map((attribute, index) => (
             <RegistryAttributeRow
               key={`${attribute.name}-${index}`}
               attribute={attribute}
@@ -1819,7 +1877,7 @@ function RegistryChecks({
   return (
     <section className='mb-9'>
       <div className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1'>
-        <h2 className='register-label'>{t('detail.registry')}</h2>
+        <h2 className='register-label'>{t('detail.archive_comparison')}</h2>
         {checks.length > 0 && (
           <span
             data-mono
@@ -1837,9 +1895,6 @@ function RegistryChecks({
           </span>
         )}
       </div>
-      <p className='mt-1 max-w-[70ch] text-[0.8125rem] leading-relaxed text-muted-foreground'>
-        {t('detail.registry_note')}
-      </p>
       {checks.length > 0 ? (
         <div className='mt-2 flex flex-col divide-y divide-rule border-t border-rule'>
           {checks.map(check => (

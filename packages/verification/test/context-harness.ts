@@ -120,6 +120,10 @@ function textFor(key: string): string {
     return 'ARXİV ARAYIŞI\nArayış No: ARX-2025-0417\nMülkiyyətçi: ELÇİN ƏLİYEV';
   if (key.includes('plan'))
     return 'TORPAQ SAHƏSİNİN PLAN-SXEMİ\nKadastr nömrəsi: AZ-CAD-1024-311\nSahə: 642 m²';
+  // The title the archive is asked to produce the original of, which is the
+  // one a Decree 439 ground stands or falls on (ADR-0010).
+  if (key.includes('serencam'))
+    return 'SƏRƏNCAMDAN ÇIXARIŞ\nSərəncam No: R-1147\nBakı Şəhər İcra Hakimiyyəti';
   return `SƏNƏD\nİstinad: ${key}`;
 }
 
@@ -148,6 +152,7 @@ export type Overrides = {
  */
 export class StubRegistry extends ArchiveRegistryPort {
   readonly asked: string[] = [];
+  readonly askedFor: string[][] = [];
 
   constructor(private readonly answer: AddressLookupResponse) {
     super();
@@ -158,6 +163,7 @@ export class StubRegistry extends ArchiveRegistryPort {
       request: AddressLookupRequest,
     ): Promise<AddressLookupResponse> => {
       this.asked.push(request.address);
+      this.askedFor.push(request.documents.map(document => document.name));
 
       return {
         ...this.answer,
@@ -167,6 +173,23 @@ export class StubRegistry extends ArchiveRegistryPort {
           submitted: attribute.value,
           recorded: this.answer.attributes[index]?.recorded ?? null,
         })),
+        // Keyed by the register's own word rather than by position: which of
+        // the profile's papers a package actually carries is up to the package,
+        // so the spec's answer and the request need not line up.
+        documents: request.documents.map(document => {
+          const said = this.answer.documents.find(
+            one => one.name === document.name,
+          );
+
+          return {
+            name: document.name,
+            type: document.type,
+            holding: said?.holding ?? ('Unknown' as const),
+            number: said?.number ?? null,
+            issuedOn: said?.issuedOn ?? null,
+            location: said?.location ?? null,
+          };
+        }),
       };
     },
   };

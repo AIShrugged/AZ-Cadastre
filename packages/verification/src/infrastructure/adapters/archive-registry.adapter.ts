@@ -4,6 +4,7 @@ import type {
   AddressesApi,
   AddressLookupRequest,
   AddressLookupResponse,
+  ArchiveDocumentDto,
   ArchiveRecordDto,
 } from '@cadastre/api-contracts/registry';
 
@@ -12,10 +13,10 @@ import { ArchiveRegistryPort } from '../../application/ports/outbound/index.js';
 /*
  * The offline stand-in for the archive register.
  *
- * It is not the fixture set — that lives with the register itself, in
- * `apps/registry-stub/fixtures`, where it can be edited without a rebuild.
- * The records here exist so the pipeline runs end to end with no register
- * process and no network at all, which is what every other provider in this
+ * It is not the register's own records — those are in the register's own
+ * database, put there by the seed in `apps/registry-stub` (ADR-0010). The three
+ * here exist so the pipeline runs end to end with no register process, no
+ * database and no network at all, which is what every other provider in this
  * context does when it is left on `mock`.
  *
  * It matches on a flattened string rather than on the address rules, and says
@@ -32,6 +33,7 @@ const HELD: readonly ArchiveRecordDto[] = [
     cadastralNumber: '40-12-345-67',
     plotArea: '600 m²',
     location: { folder: '14', pages: '01-dən 30' },
+    documents: held(['Ərizə', 'Sərəncam çıxarışı', 'Arayış']),
   },
   /*
    * The property the offline extractor reads off its own demo papers, so a run
@@ -47,6 +49,7 @@ const HELD: readonly ArchiveRecordDto[] = [
     cadastralNumber: 'AZ-CAD-1024-311',
     plotArea: '642 m²',
     location: { folder: '05', pages: '12-dən 38' },
+    documents: held(['Ərizə', 'Sərəncam çıxarışı', 'Arayış']),
   },
   {
     registerNo: '2-00871',
@@ -56,8 +59,34 @@ const HELD: readonly ArchiveRecordDto[] = [
     cadastralNumber: '40-08-112-09',
     plotArea: '520,5 m²',
     location: { folder: '31', pages: '06-DƏK səh. 48' },
+    // The one record whose file is short a paper, so the offline pipeline can
+    // reach the outcome at all. The presence register of this settlement wrote
+    // a minus against the decree extract.
+    documents: [
+      ...held(['Ərizə', 'Arayış']),
+      {
+        name: 'Sərəncam çıxarışı',
+        holding: 'NotHeld',
+        number: null,
+        issuedOn: null,
+        issuingAuthority: null,
+        location: null,
+      },
+    ],
   },
 ];
+
+/** Papers the archive has, with nothing said about them beyond that. */
+function held(names: readonly string[]): ArchiveDocumentDto[] {
+  return names.map(name => ({
+    name,
+    holding: 'Held' as const,
+    number: null,
+    issuedOn: null,
+    issuingAuthority: null,
+    location: null,
+  }));
+}
 
 function flattened(raw: string): string {
   return raw
@@ -91,6 +120,7 @@ class OfflineAddresses implements AddressesApi {
         record: null,
         candidates: 0,
         attributes: [],
+        documents: [],
         note:
           'Answered offline, by the stand-in built into the context: it holds ' +
           'three records and compares addresses letter for letter.',
@@ -115,6 +145,20 @@ class OfflineAddresses implements AddressesApi {
                 : ('Differs' as const),
           submitted: attribute.value,
           recorded,
+        };
+      }),
+      documents: request.documents.map(asked => {
+        const paper = record.documents.find(one => one.name === asked.name);
+
+        return {
+          name: asked.name,
+          type: asked.type,
+          // A kind this record says nothing about is silence and not an
+          // absence, the same as it is in the register itself.
+          holding: paper?.holding ?? ('Unknown' as const),
+          number: paper?.number ?? null,
+          issuedOn: paper?.issuedOn ?? null,
+          location: paper?.location ?? record.location,
         };
       }),
       note:

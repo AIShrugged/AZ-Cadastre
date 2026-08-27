@@ -62,6 +62,7 @@ import type {
   PackageDetailDto,
   RegistryAttributeDto,
   RegistryCheckDto,
+  RegistryDocumentDto,
   RegistryOutcome,
   ReportDto,
   ReportStatus,
@@ -1050,6 +1051,13 @@ const SECTIONS: Record<IssueKind, { heading: string; tone: SectionTone }> = {
     heading: 'detail.sec.registry_mismatch',
     tone: 'finding',
   },
+  // A finding and not an observation, unlike an absent record: the archive
+  // wrote down that it does not have the original, and for a title relied on
+  // under Decree 439 the original is a condition of the ground (ADR-0010).
+  RegistryDocumentMissing: {
+    heading: 'detail.sec.registry_document_missing',
+    tone: 'finding',
+  },
   UnreadableDocument: { heading: 'detail.sec.unreadable', tone: 'finding' },
   LowConfidence: { heading: 'detail.sec.low', tone: 'finding' },
   DuplicateDocument: { heading: 'detail.sec.duplicate', tone: 'note' },
@@ -1080,7 +1088,9 @@ const isInformational = (kind: IssueKind): boolean =>
 // the package worklist prevents the same disagreement being explained twice,
 // once without the archived value and once with it.
 const isArchiveFinding = (kind: IssueKind): boolean =>
-  kind === 'RegistryMismatch' || kind === 'RegistryUnconfirmed';
+  kind === 'RegistryMismatch' ||
+  kind === 'RegistryDocumentMissing' ||
+  kind === 'RegistryUnconfirmed';
 
 // The three tones the whole surface reports in: settled, a fault, and neither
 // of the two. Named once, because a check, a report and a register answer are
@@ -1204,20 +1214,26 @@ function findingOf(
    */
   if (
     issue.kind === 'RegistryMismatch' ||
+    issue.kind === 'RegistryDocumentMissing' ||
     issue.kind === 'RegistryUnconfirmed'
   ) {
     return {
-      subject: issue.fieldName
-        ? translateOr(t, `field.${issue.fieldName}`, issue.fieldName)
-        : translateOr(
-            t,
-            `doctype.${issue.documentType}`,
-            issue.documentType ?? '',
-          ),
+      // A missing original is about the paper and not about a value on it, so
+      // it is named by the document even where a field was read.
+      subject:
+        issue.fieldName && issue.kind !== 'RegistryDocumentMissing'
+          ? translateOr(t, `field.${issue.fieldName}`, issue.fieldName)
+          : translateOr(
+              t,
+              `doctype.${issue.documentType}`,
+              issue.documentType ?? '',
+            ),
       where:
         issue.kind === 'RegistryMismatch'
           ? t('detail.f.registry_mismatch_sub')
-          : t('detail.f.registry_unconfirmed_sub'),
+          : issue.kind === 'RegistryDocumentMissing'
+            ? t('detail.f.registry_document_missing_sub')
+            : t('detail.f.registry_unconfirmed_sub'),
       anchor,
       docId: document?.id ?? null,
     };
@@ -1673,6 +1689,9 @@ function DocumentComparisons({
 const OUTCOME_TONE: Record<RegistryOutcome, Tone> = {
   Confirmed: 'ok',
   Differs: 'issues',
+  // A fault too, and a different one: the record agrees and the archive has no
+  // original of a paper the submission rests on.
+  Incomplete: 'issues',
   // Neither is a fault in the package: the register holds the privatisations of
   // the 1990s and 2000s, so silence there is an absence of evidence and two
   // records answering to one address is a question for a person.
@@ -1683,6 +1702,7 @@ const OUTCOME_TONE: Record<RegistryOutcome, Tone> = {
 const OUTCOME_LABEL: Record<RegistryOutcome, string> = {
   Confirmed: 'detail.reg.confirmed',
   Differs: 'detail.reg.differs',
+  Incomplete: 'detail.reg.incomplete',
   NotFound: 'detail.reg.not_found',
   Ambiguous: 'detail.reg.ambiguous',
 };
@@ -1693,6 +1713,7 @@ const OUTCOME_LABEL: Record<RegistryOutcome, string> = {
 const OUTCOME_NOTE: Record<RegistryOutcome, string> = {
   Confirmed: 'detail.reg.confirmed_note',
   Differs: 'detail.reg.differs_note',
+  Incomplete: 'detail.reg.incomplete_note',
   NotFound: 'detail.reg.not_found_note',
   Ambiguous: 'detail.reg.ambiguous_note',
 };
@@ -1795,6 +1816,101 @@ function RegistryAttributeRow({
   );
 }
 
+/**
+ * One paper the submission rests on, and what the archive has of it.
+ *
+ * The register's own word for the kind of paper is not shown: it is
+ * Azerbaijani, it is the archive's filing vocabulary rather than anybody's
+ * reading vocabulary, and the reader is looking at their own document. What is
+ * shown is the document type they know it by, the standing, and — when the
+ * archive has it — where the original is, which is the whole point of asking.
+ */
+function RegistryDocumentRow({
+  document,
+  onJump,
+}: {
+  document: RegistryDocumentDto;
+  onJump: Jump;
+}) {
+  const { t } = useI18n();
+
+  const body = (
+    <>
+      <span className='flex min-w-0 items-baseline gap-1.5 text-[0.8125rem] leading-snug text-muted-foreground'>
+        {document.holding === 'Held' ? (
+          <CheckIcon className='size-3 shrink-0 translate-y-0.5 text-ok-ink' />
+        ) : document.holding === 'NotHeld' ? (
+          <TriangleAlertIcon className='size-3 shrink-0 translate-y-0.5 text-issues-ink' />
+        ) : (
+          <span aria-hidden className='w-3 shrink-0' />
+        )}
+        <span className='min-w-0'>
+          {translateOr(t, `doctype.${document.type}`, document.type)}
+        </span>
+      </span>
+      <span className='flex min-w-0 flex-col gap-0.5'>
+        <span
+          className={cn(
+            'text-[0.8125rem] leading-snug',
+            document.holding === 'NotHeld'
+              ? 'text-issues-ink'
+              : document.holding === 'Unknown'
+                ? 'italic text-muted-foreground'
+                : 'text-muted-foreground',
+          )}
+        >
+          {t(`detail.reg.holding_${document.holding.toLowerCase()}`)}
+        </span>
+        {(document.number ?? document.reference) && (
+          <span className='flex min-w-0 flex-wrap items-baseline gap-x-2'>
+            {document.number && (
+              <span
+                data-mono
+                className='min-w-0 break-words text-[0.8125rem] leading-snug text-foreground'
+              >
+                {document.number}
+                {document.issuedOn ? ` · ${document.issuedOn}` : ''}
+              </span>
+            )}
+            {document.reference && (
+              <span
+                data-mono
+                className='min-w-0 break-words text-[0.75rem] leading-snug text-muted-foreground/70'
+              >
+                {document.reference}
+              </span>
+            )}
+          </span>
+        )}
+      </span>
+    </>
+  );
+
+  const shape =
+    'grid gap-x-6 gap-y-1 border-b border-rule py-2 sm:grid-cols-[minmax(10rem,18rem)_minmax(0,1fr)]';
+  const anchor = document.documentId ? `#doc-${document.documentId}` : null;
+
+  return (
+    <li>
+      {anchor && document.documentId ? (
+        <a
+          href={anchor}
+          onClick={onJump(document.documentId, anchor)}
+          title={t('detail.checks_go')}
+          className={cn(
+            shape,
+            '-mx-2 rounded-md px-2 transition-colors hover:bg-foreground/4 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
+          )}
+        >
+          {body}
+        </a>
+      ) : (
+        <div className={shape}>{body}</div>
+      )}
+    </li>
+  );
+}
+
 function RegistryCheckEntry({
   check,
   onJump,
@@ -1843,6 +1959,25 @@ function RegistryCheckEntry({
             />
           ))}
         </ul>
+        {/* Every paper asked about, held or not: the ones the archive has are
+            what the inspector does not have to go and look for, and a list that
+            showed only the gaps would be a list they could not trust. */}
+        {check.documents.length > 0 && (
+          <>
+            <p className='pt-3 text-[0.6875rem] font-medium uppercase tracking-wide text-muted-foreground/70'>
+              {t('detail.reg.papers')}
+            </p>
+            <ul className='flex flex-col'>
+              {check.documents.map((document, index) => (
+                <RegistryDocumentRow
+                  key={`${document.name}-${index}`}
+                  document={document}
+                  onJump={onJump}
+                />
+              ))}
+            </ul>
+          </>
+        )}
         {check.reference && (
           <p className='flex flex-wrap items-baseline gap-2 py-2 text-[0.8125rem] text-muted-foreground'>
             {t('detail.registry_where')}

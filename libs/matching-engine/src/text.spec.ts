@@ -25,6 +25,29 @@ describe('fromLegacyCyrillic', () => {
   it('reads a city name the sheets spell in Cyrillic', () => {
     expect(fromLegacyCyrillic('эянъя')).toBe('gəncə');
   });
+
+  /*
+   * ь is the letter ğ in this code page and not a soft sign. Read as a soft
+   * sign it disappears, "Таьыйев" becomes "tayıyev", and the street stops
+   * resolving to the one the submission names — which is how it was found:
+   * a seeded record off `пасбаза 2 Smtn.xlsx` would not match its own address.
+   */
+  it('reads ь as ğ, which is what the technical-passport database means by it', () => {
+    expect(fromLegacyCyrillic('щ.з.таьыйев кцчяси')).toBe('h.z.tağıyev küçəsi');
+  });
+
+  /*
+   * ю is ö and not yu, which the source proves about itself: the same database
+   * heads a column "Паспорт нюмряси" and translates it, on the sheet beside it,
+   * as "Passport No." — nömrəsi.
+   */
+  it('reads ю as ö, which the register proves by translating its own column', () => {
+    expect(fromLegacyCyrillic('паспорт нюмряси')).toBe('pasport nömrəsi');
+  });
+
+  it('reads both inside one patronymic', () => {
+    expect(fromLegacyCyrillic('мювлуд оьлу')).toBe('mövlud oğlu');
+  });
 });
 
 describe('isCyrillic', () => {

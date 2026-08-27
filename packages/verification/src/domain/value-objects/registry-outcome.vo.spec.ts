@@ -5,13 +5,33 @@ import { InvalidRegistryOutcomeException } from '../exceptions/index.js';
 import { RegistryOutcome } from './registry-outcome.vo.js';
 
 describe('RegistryOutcome', () => {
-  it('reads back the four answers a register can give', () => {
+  it('reads back the five answers the stage can record', () => {
     expect(RegistryOutcome.all.map(outcome => outcome.value)).toEqual([
       'Confirmed',
       'Differs',
+      'Incomplete',
       'NotFound',
       'Ambiguous',
     ]);
+  });
+
+  /*
+   * Two findings against the package and not one, which is the whole reason
+   * `Incomplete` exists: a record that says something else and a file the
+   * original is not in are different problems with different answers, and an
+   * inspector told only that "the register did not confirm it" cannot tell
+   * which they are looking at (ADR-0010).
+   */
+  it('separates a record that contradicts from a file that is short a paper', () => {
+    expect(RegistryOutcome.DIFFERS.contradicts).toBe(true);
+    expect(RegistryOutcome.DIFFERS.isShortOfPaper).toBe(false);
+    expect(RegistryOutcome.INCOMPLETE.isShortOfPaper).toBe(true);
+    expect(RegistryOutcome.INCOMPLETE.contradicts).toBe(false);
+  });
+
+  it('sends a file that is short a paper to the inspector', () => {
+    expect(RegistryOutcome.INCOMPLETE.needsInspector).toBe(true);
+    expect(RegistryOutcome.INCOMPLETE.confirms).toBe(false);
   });
 
   it('refuses a word that is not one of them', () => {

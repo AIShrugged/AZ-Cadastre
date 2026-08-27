@@ -53,6 +53,19 @@ export type RegistryAttributeView = {
   agrees: boolean;
 };
 
+export type RegistryDocumentView = {
+  name: string;
+  // Held | NotHeld | Unknown.
+  holding: string;
+  number: string | null;
+  issuedOn: string | null;
+  reference: string | null;
+  // Null once the document it was asked about is gone.
+  documentId: string | null;
+  documentType: string;
+  pageNumber: number;
+};
+
 export type RegistryCheckView = {
   key: string;
   outcome: string;
@@ -62,6 +75,9 @@ export type RegistryCheckView = {
   // Where the paper is, as the record stated it; null when none was found.
   reference: string | null;
   attributes: readonly RegistryAttributeView[];
+  // One line per paper the profile asked the archive about, in the order it
+  // names them.
+  documents: readonly RegistryDocumentView[];
 };
 
 export type ReportView = {

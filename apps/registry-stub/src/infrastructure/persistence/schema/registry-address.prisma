@@ -1,0 +1,41 @@
+// How the archive spells where a property is — one row per spelling, because
+// there is never only one.
+//
+// The state register extract prints two in a single cell: the URIS-assigned
+// form the object carries now ("AZ 1093, Bakı şəhəri, Xəzər rayonu, Buzovna
+// qəsəbəsi, 259-cu Buzovna küçəsi, giriş 14") and, after the words `Köhnə
+// ünvan:`, the one it carried before ("Bakı şəhəri, Xəzər rayonu, Buzovna
+// qəsəbəsi, sahə 5-862"). The legacy registers hold a third and a fourth, in
+// their own abbreviations and sometimes in the Azerbaijani Cyrillic code page.
+//
+// A submission written against any of them is about the same property, so all
+// of them are searchable and the current one is what the register answers with.
+
+enum AddressKind {
+  Current // the URIS-assigned form, the one the register now spells it by
+  Legacy // `Köhnə ünvan` — the form the same extract prints underneath
+  Register // as one of the archive's own registers writes it
+}
+
+model RegistryAddress {
+  id       String         @id @default(uuid()) @db.Uuid
+  objectId String         @db.Uuid
+  object   RegistryObject @relation(fields: [objectId], references: [id], onDelete: Cascade)
+
+  kind  AddressKind
+  value String
+
+  /// Which register this spelling was read out of, for the same reason the
+  /// object records it: two registers write one address two ways, and a lookup
+  /// that resolved through the odd one should be able to say so.
+  sourceDatabase String?
+
+  /// The order the record lists them in, so the canonical form stays first
+  /// within its kind.
+  position Int
+
+  createdAt DateTime @default(now())
+
+  @@index([objectId])
+  @@map("registry_addresses")
+}

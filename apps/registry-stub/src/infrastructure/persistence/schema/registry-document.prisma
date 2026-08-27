@@ -1,0 +1,70 @@
+// What papers the archive holds for a property.
+//
+// This is the normalised form of the presence registers the archive keeps per
+// settlement — `abs`, `buzovna`, `ramana`, `kohne-hovsan` and their neighbours
+// — where a row is a case, a column is a kind of paper (`Ərizə`, `Texniki
+// Pasport`, `Arayış`, `Sərəncam çıxarışı`, `Müayinə aktı`) and the cell is `+`
+// or `-`. The column set differs from settlement to settlement, which is the
+// reason this is rows and not columns: a schema with one column per kind would
+// have to be migrated every time a settlement's register turned up with a kind
+// the others never kept.
+//
+// It is load-bearing rather than decorative. The customer's own verification
+// points make it the sixth check: a title document relied on under Decree 439
+// is a valid ground for registration only if the original is in the National
+// Archive Fund (§7). "The archive does not hold it" is therefore an answer
+// about the paper, and the caller's profile decides what it costs.
+
+/// Whether the archive holds this kind of paper for this property. Three states
+/// because the sources have three: `+`, `-`, and a column the register of that
+/// area never carried.
+enum DocumentHolding {
+  Held
+  NotHeld
+  Unknown
+}
+
+model RegistryDocument {
+  id       String         @id @default(uuid()) @db.Uuid
+  objectId String         @db.Uuid
+  object   RegistryObject @relation(fields: [objectId], references: [id], onDelete: Cascade)
+
+  /// The register's own word for the kind of paper — "Ərizə", "Sərəncam
+  /// çıxarışı", "Texniki Pasport". Not the caller's document type: those two
+  /// vocabularies were written by different offices decades apart, and mapping
+  /// one to the other is the asking profile's job, not the register's
+  /// (ADR-0010).
+  name String
+
+  holding DocumentHolding
+
+  /// The taxonomy reference where the paper is one of the named grounds for
+  /// registration — "8.0.5" under Article 8, "439:2.3" under Decree 439. Null
+  /// for the service papers of a case, which are grounds for nothing.
+  taxonomyRef String?
+
+  /// As written. The privatisation registers fuse a certificate number with its
+  /// date in one cell — "08812     12.01.1998" — and the irregular spacing is
+  /// part of the value, not something to tidy on the way in.
+  number           String?
+  issuedOn         String?
+  issuingAuthority String?
+
+  /// Where this paper is, when the register locates it apart from the folder
+  /// the whole case sits in. Strings for the reason ArchiveLocation says.
+  folder String?
+  pages  String?
+
+  sourceDatabase String
+
+  /// The order the register lists them in.
+  position Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // One answer per kind of paper per object: a register that recorded a kind
+  // twice recorded it once badly.
+  @@unique([objectId, name])
+  @@map("registry_documents")
+}

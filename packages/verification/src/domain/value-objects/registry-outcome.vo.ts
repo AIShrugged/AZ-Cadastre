@@ -14,6 +14,12 @@ export class RegistryOutcome {
   static readonly CONFIRMED = new RegistryOutcome('Confirmed');
   // A record was found and something the package states is not what it holds.
   static readonly DIFFERS = new RegistryOutcome('Differs');
+  // A record was found, everything held against it agreed, and the archive does
+  // not hold one of the papers the submission rests on. Its own answer and not
+  // a flavour of DIFFERS: the record does not contradict the package — the file
+  // behind it is short, which for a Decree 439 title is the question rather
+  // than a footnote (ADR-0010).
+  static readonly INCOMPLETE = new RegistryOutcome('Incomplete');
   static readonly NOT_FOUND = new RegistryOutcome('NotFound');
   // More than one record answers to the property. Somebody has to say which,
   // and it is not the engine.
@@ -25,6 +31,7 @@ export class RegistryOutcome {
     return [
       RegistryOutcome.CONFIRMED,
       RegistryOutcome.DIFFERS,
+      RegistryOutcome.INCOMPLETE,
       RegistryOutcome.NOT_FOUND,
       RegistryOutcome.AMBIGUOUS,
     ];
@@ -50,8 +57,14 @@ export class RegistryOutcome {
     return this.equals(RegistryOutcome.DIFFERS);
   }
 
+  // The other finding against the package, and a different one: the record
+  // agrees, and the archive does not hold a paper the submission rests on.
+  get isShortOfPaper(): boolean {
+    return this.equals(RegistryOutcome.INCOMPLETE);
+  }
+
   // Anything but a confirmation reaches the inspector — but only a
-  // contradiction reaches them as a fault.
+  // contradiction and a missing original reach them as a fault.
   get needsInspector(): boolean {
     return !this.confirms;
   }

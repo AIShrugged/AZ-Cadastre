@@ -1,4 +1,8 @@
 export {
+  ArchiveHoldingSchema,
+  type ArchiveHolding,
+} from './archive-holding.enum.js';
+export {
   DocumentContentTypeSchema,
   type DocumentContentType,
 } from './content-type.enum.js';

@@ -1,0 +1,37 @@
+// Where the paper is. The most useful thing the register has for an inspector,
+// and the one they cannot work out for themselves.
+//
+// Every column here is text. `Qovluq` holds "01-ƏMDK" as well as "14"; `Səhifə`
+// holds "01-dən 30", "92-129" and "06-DƏK səh. 48"; the archive fund reference
+// is written in Russian in the older files ("Ф.11165, оп.1, ед.хр.159") and in
+// Azerbaijani in the newer ones ("Fond-130, siy.1, i-476, var.98"). A column
+// headed "page (to)" is not always a page.
+
+model ArchiveLocation {
+  id       String         @id @default(uuid()) @db.Uuid
+  objectId String         @unique @db.Uuid
+  object   RegistryObject @relation(fields: [objectId], references: [id], onDelete: Cascade)
+
+  /// `Qovluq`.
+  folder String
+
+  /// `Səhifə (başlanğıc)` and `(son)`, as one range in the register's own
+  /// wording. Kept whole rather than as two columns because half of the sources
+  /// write it as one.
+  pages String
+
+  /// The register book and sheet, where the case was entered into one.
+  bookNo    String?
+  sheetNo   String?
+
+  /// Fund, inventory and file in the National Archive Fund — what Decree 439 §7
+  /// makes the original of a title document answer to.
+  fundReference String?
+
+  sourceDatabase String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("archive_locations")
+}

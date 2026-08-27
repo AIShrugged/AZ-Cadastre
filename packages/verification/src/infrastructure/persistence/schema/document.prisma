@@ -32,6 +32,7 @@ model Document {
   crossCheckValues        CrossCheckValue[]
   registryChecks          RegistryCheck[]
   registryCheckAttributes RegistryCheckAttribute[]
+  registryCheckDocuments  RegistryCheckDocument[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -1,0 +1,52 @@
+// Who the register says holds the property — the `Hüquq sahibləri` table of the
+// state register extract, plus the `Şəhadətnamə verilir` column of the older
+// privatisation registers.
+//
+// One free-text name column, for people and firms alike, because that is what
+// every source has: `Əliyeva Rübabə Kavı qızı` and `"Qərənfil 97" firması` sit
+// in the same column of the same sheet. `kind` is recorded beside it rather
+// than split into two tables, since which of the two a row is cannot always be
+// told from the text and a wrong guess would hide the record.
+
+enum RightHolderKind {
+  Individual
+  LegalEntity
+}
+
+model RegistryRightHolder {
+  id       String         @id @default(uuid()) @db.Uuid
+  objectId String         @db.Uuid
+  object   RegistryObject @relation(fields: [objectId], references: [id], onDelete: Cascade)
+
+  /// `Hüquq sahibinin adı`, in the source's own form — surname, given name,
+  /// patronymic as `oğlu`/`qızı`. Never reordered or transliterated on the way
+  /// in: what the record says is the evidence, and the matching rules are what
+  /// forgive the spelling.
+  name String
+  kind RightHolderKind
+
+  /// `Payı` — "Tam" for the whole, otherwise a fraction as written.
+  share String?
+
+  /// `Qeydiyyat nömrəsi` and `Qeydiyyat tarixi`: the number and date of the act
+  /// that registered this right. Not a key of the object — one object collects
+  /// many of them over the years.
+  registrationNo String?
+  registeredOn   String?
+
+  /// `İlkin mülkiyyətçi` — who the register says held it before. This is the
+  /// column the 2008 transfer of cases between the Absheron and Baku offices is
+  /// known to have rewritten, which is why it is kept rather than overwritten.
+  previousOwner String?
+
+  /// VÖEN for a legal entity, identity document for a person, where the source
+  /// carried one.
+  taxOrDocumentNo String?
+
+  position Int
+
+  createdAt DateTime @default(now())
+
+  @@index([objectId])
+  @@map("registry_right_holders")
+}

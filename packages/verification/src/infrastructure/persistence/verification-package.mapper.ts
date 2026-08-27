@@ -30,6 +30,7 @@ import {
   RegistryAttribute,
   RegistryCheck,
   RegistryCheckKey,
+  RegistryDocument,
   RegistryOutcome,
   ReportStatus,
   SourceFileId,
@@ -40,6 +41,7 @@ import {
 } from '../../domain/value-objects/index.js';
 
 import {
+  ArchiveHolding as ArchiveHoldingColumn,
   CrossCheckVerdict as CrossCheckVerdictColumn,
   IssueKind as IssueKindColumn,
   RegistryOutcome as RegistryOutcomeColumn,
@@ -97,6 +99,18 @@ export type RegistryCheckRow = {
   readonly pageNumber: number;
   readonly valueConfidence: number;
   readonly attributes: readonly RegistryAttributeRow[];
+  readonly documents: readonly RegistryDocumentRow[];
+};
+
+export type RegistryDocumentRow = {
+  readonly name: string;
+  readonly holding: string;
+  readonly recordedNumber: string | null;
+  readonly recordedDate: string | null;
+  readonly reference: string | null;
+  readonly documentId: string | null;
+  readonly documentType: string;
+  readonly pageNumber: number;
 };
 
 export type RegistryAttributeRow = {
@@ -207,6 +221,19 @@ export type RegistryCheckWrite = {
   readonly pageNumber: number;
   readonly valueConfidence: number;
   readonly attributes: readonly RegistryAttributeWrite[];
+  readonly documents: readonly RegistryDocumentWrite[];
+};
+
+export type RegistryDocumentWrite = {
+  readonly name: string;
+  readonly holding: ArchiveHoldingColumn;
+  readonly recordedNumber: string | null;
+  readonly recordedDate: string | null;
+  readonly reference: string | null;
+  readonly documentId: string;
+  readonly documentType: string;
+  readonly pageNumber: number;
+  readonly position: number;
 };
 
 export type RegistryAttributeWrite = {
@@ -376,6 +403,19 @@ export class VerificationPackageMapper {
               confidence: attribute.submitted.confidence.value,
               position,
             })),
+            documents: check.documents.map((document, position) => ({
+              name: document.name,
+              holding: VerificationPackageMapper.holdingColumn(
+                document.holding,
+              ),
+              recordedNumber: document.recordedNumber,
+              recordedDate: document.recordedDate,
+              reference: document.reference,
+              documentId: document.carried.documentId.value,
+              documentType: document.carried.documentType.value,
+              pageNumber: document.carried.foundOn.value,
+              position,
+            })),
           },
         ];
       }),
@@ -427,8 +467,49 @@ export class VerificationPackageMapper {
                 }),
               ],
         ),
+        // Dropped rather than guessed at, for the same reason an attribute is:
+        // what it says is filed against a sheet, and without the sheet there is
+        // nothing for the inspector to open.
+        documents: row.documents.flatMap(document =>
+          document.documentId === null
+            ? []
+            : [
+                RegistryDocument.of({
+                  name: document.name,
+                  holding: document.holding as RegistryDocument['holding'],
+                  recordedNumber: document.recordedNumber,
+                  recordedDate: document.recordedDate,
+                  reference: document.reference,
+                  carried: CheckedValue.of({
+                    documentId: DocumentId.of(document.documentId),
+                    documentType: DocumentType.create(document.documentType),
+                    // The paper is what was asked about, so the anchor is the
+                    // document and not a field of it. The key is kept for the
+                    // shape a CheckedValue has to have.
+                    fieldKey: FieldKey.create('document'),
+                    value: FieldValue.create(document.name),
+                    foundOn: PageNumber.of(document.pageNumber),
+                    confidence: Confidence.of(1),
+                  }),
+                }),
+              ],
+        ),
       }),
     ];
+  }
+
+  private static holdingColumn(
+    holding: RegistryDocument['holding'],
+  ): ArchiveHoldingColumn {
+    const column = Object.values(ArchiveHoldingColumn).find(
+      candidate => candidate === holding,
+    );
+
+    if (!column) {
+      throw new RangeError(`No archive holding column for ${holding}`);
+    }
+
+    return column;
   }
 
   private static crossCheckToDomain(row: CrossCheckRow): CrossCheck {

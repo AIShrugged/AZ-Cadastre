@@ -20,13 +20,13 @@ export const EnvironmentSchema = z
       .transform(v => v === 'true'),
 
     /*
-     * Where the records are read from. A directory rather than a bundled
-     * module, so the answers can be changed without a rebuild — which is the
-     * whole point of a stand-in: the interesting cases (an address absent, an
-     * owner who changed at the 2008 handover, two records for one address) are
-     * data, and whoever is testing against it should be able to add one.
+     * The register's own database, and nothing else's. `cadastre-db` belongs to
+     * the verification context, which owns it; this is a different system that
+     * happens to run on the same server, and the day a join is written between
+     * a submission and the record of a registration is the day the boundary
+     * stopped meaning anything (ADR-0010).
      */
-    REGISTRY_FIXTURES: z.string().nonempty().default('fixtures'),
+    DATABASE_URL: z.string().nonempty(),
   })
   .transform(env => ({
     service: {
@@ -38,8 +38,8 @@ export const EnvironmentSchema = z
       level: env.LOG_LEVEL,
       pretty: env.LOG_PRETTY,
     } satisfies LoggerModuleOptions,
-    fixtures: {
-      directory: env.REGISTRY_FIXTURES,
+    database: {
+      url: env.DATABASE_URL,
     },
   }));
 

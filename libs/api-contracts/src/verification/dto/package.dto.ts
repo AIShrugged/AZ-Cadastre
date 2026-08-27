@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import {
+  ArchiveHoldingSchema,
   CrossCheckVerdictSchema,
   DocumentContentTypeSchema,
   IssueKindSchema,
@@ -156,6 +157,36 @@ export const RegistryAttributeDtoSchema = z.object({
 });
 export type RegistryAttributeDto = z.infer<typeof RegistryAttributeDtoSchema>;
 
+/**
+ * One paper the package rests on, held against what the archive keeps.
+ *
+ * Two names, because there are two vocabularies and neither side may borrow the
+ * other's: `name` is the register's own word for the kind of paper, `type` is
+ * the profile's document type — which is what makes the finding land on a sheet
+ * the inspector can open (ADR-0010).
+ */
+export const RegistryDocumentDtoSchema = z.object({
+  name: z.string(),
+  type: z.string(),
+  // The document of this package the question was asked about, so the answer is
+  // a jump into the sheet rather than a sentence about it. Null once that
+  // document is gone — the answer stands, the jump does not, which is how a
+  // CheckedValueDto behaves for the same reason.
+  documentId: z.string().nullable(),
+  pageNumber: z.number().int().positive(),
+  // Held | NotHeld | Unknown. `Unknown` is the ordinary case and not a
+  // shortfall: the archive's presence registers are kept per settlement and
+  // their columns differ, so a kind that area never recorded is silence.
+  holding: ArchiveHoldingSchema,
+  // What the archive's own entry says about the paper, where it says anything.
+  number: z.string().nullable(),
+  issuedOn: z.string().nullable(),
+  // Where that paper is, as the register stated it. Text, for the reason
+  // `reference` below is.
+  reference: z.string().nullable(),
+});
+export type RegistryDocumentDto = z.infer<typeof RegistryDocumentDtoSchema>;
+
 export const RegistryCheckDtoSchema = z.object({
   // Profile registry-check key, e.g. "property_of_record".
   key: z.string(),
@@ -175,6 +206,10 @@ export const RegistryCheckDtoSchema = z.object({
   // In the order the profile names them. Empty when no record was found, since
   // there was nothing to hold anything against.
   attributes: z.array(RegistryAttributeDtoSchema),
+  // One line per paper the profile asked the archive about, in the order it
+  // names them. Empty when no record was found, and empty on a profile that
+  // asks about none.
+  documents: z.array(RegistryDocumentDtoSchema),
 });
 export type RegistryCheckDto = z.infer<typeof RegistryCheckDtoSchema>;
 

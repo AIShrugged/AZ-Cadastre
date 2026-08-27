@@ -50,6 +50,7 @@ import {
   type CrossCheckKey,
   type CrossCheckSpec,
   type DocumentId,
+  type DocumentType,
   type FieldRef,
   type OcrResult,
   type PageId,
@@ -237,12 +238,23 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     });
   }
 
-  // What the register is asked about, and what the package says about it. The
-  // subject is one value and not a list: a second document answering the same
-  // type is a duplicate the report already states, and asking the register
-  // twice about the same property would only file the finding twice.
+  /*
+   * What the register is asked about.
+   *
+   * One value and never a list: a second document answering the same type is a
+   * duplicate the report already states, and asking the register twice about
+   * one property would only file the finding twice. But *which* value is the
+   * profile's ordering, walked until a paper states one — an address is printed
+   * on several of the papers and they are not equally trustworthy (ADR-0010).
+   */
   askedOf(spec: RegistryCheckSpec): CheckedValue | null {
-    return this.valuesOf(spec.subject)[0] ?? null;
+    for (const subject of spec.subjects) {
+      const [value] = this.valuesOf(subject);
+
+      if (value) return value;
+    }
+
+    return null;
   }
 
   statedFor(
@@ -252,6 +264,52 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       const [value] = this.valuesOf(attribute.ref);
 
       return value ? [{ name: attribute.name, value }] : [];
+    });
+  }
+
+  /*
+   * Which of the check's papers this package actually carries, and the sheet of
+   * it a finding would be filed against.
+   *
+   * Only the ones that are here. A required type the envelope is missing is
+   * already in the report as a missing document, and asking the archive whether
+   * it holds the original of a paper nobody submitted would put the same
+   * shortfall in the report twice under two names.
+   *
+   * The anchor is the document's first value, whichever field it is: the
+   * finding is about the paper and not about anything printed on it.
+   */
+  carriedFor(
+    spec: RegistryCheckSpec,
+  ): readonly { name: string; carried: CheckedValue }[] {
+    return spec.documents.flatMap(paper => {
+      const [carried] = this.anchorsOf(paper.type);
+
+      return carried ? [{ name: paper.name, carried }] : [];
+    });
+  }
+
+  private anchorsOf(type: DocumentType): readonly CheckedValue[] {
+    return this.#documents.flatMap(document => {
+      const classification = document.classification;
+
+      if (!classification?.isPlaced) return [];
+      if (!classification.type.equals(type)) return [];
+
+      const [field] = document.fields;
+
+      if (!field) return [];
+
+      return [
+        CheckedValue.of({
+          documentId: document.id,
+          documentType: classification.type,
+          fieldKey: field.key,
+          value: field.value,
+          foundOn: field.foundOn,
+          confidence: field.confidence,
+        }),
+      ];
     });
   }
 
@@ -509,11 +567,22 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   private againstTheRecord(): readonly ValidationIssue[] {
     return this.#registryChecks
       .filter(check => check.needsInspector)
-      .map(check =>
-        check.contradicts
-          ? ValidationIssue.registryMismatch(check)
-          : ValidationIssue.registryUnconfirmed(check),
-      );
+      .flatMap(check => {
+        if (check.contradicts) return [ValidationIssue.registryMismatch(check)];
+
+        /*
+         * One finding per paper the archive does not hold, and not one per
+         * check: each is a different original in a different file, and an
+         * inspector answering them answers them one at a time.
+         */
+        if (check.isShortOfPaper) {
+          return check.missing.map(document =>
+            ValidationIssue.registryDocumentMissing(check, document),
+          );
+        }
+
+        return [ValidationIssue.registryUnconfirmed(check)];
+      });
   }
 
   private unreadable(): readonly ValidationIssue[] {

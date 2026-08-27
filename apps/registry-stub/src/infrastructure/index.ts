@@ -2,16 +2,24 @@ import type { Provider } from '@nestjs/common';
 
 import { RegistrySource } from '../application/ports/index.js';
 
-import { FixtureRegistrySourceAdapter } from './fixture-registry-source.adapter.js';
+import {
+  PrismaRegistrySourceAdapter,
+  RegistryPrismaService,
+} from './persistence/index.js';
 
-export { FixtureRegistrySourceAdapter } from './fixture-registry-source.adapter.js';
+export {
+  PrismaRegistrySourceAdapter,
+  RegistryPrismaService,
+} from './persistence/index.js';
 
 /**
- * The one binding this service has. When the register files are ingested for
- * real, a second adapter is added here and chosen by configuration — the way
- * every other provider in this repository is chosen — and nothing above this
- * line changes.
+ * The one binding this service has. The records come out of the register's own
+ * database — seeded today with the cases the customer supplied, loaded from the
+ * ingested register files tomorrow, and answered by a real state register the
+ * day one exists. Which of those is behind it is this line and nothing above it
+ * (ADR-0009, ADR-0010).
  */
 export const REGISTRY_INFRASTRUCTURE: Provider[] = [
-  { provide: RegistrySource, useClass: FixtureRegistrySourceAdapter },
+  RegistryPrismaService,
+  { provide: RegistrySource, useClass: PrismaRegistrySourceAdapter },
 ];

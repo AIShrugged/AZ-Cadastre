@@ -20,6 +20,7 @@ import {
   RecognisedText,
   RegistryAttribute,
   RegistryCheck,
+  RegistryDocument,
   RegistryOutcome,
   type CrossCheckSpec,
   type DocumentId,
@@ -588,19 +589,28 @@ export class RunVerificationHandler implements ICommandHandler<
         {
           packageId: packageId.value,
           check: spec.key.value,
-          needs: `${spec.subject.type.value}.${spec.subject.key.value}`,
+          needs: spec.subjects
+            .map(subject => `${subject.type.value}.${subject.key.value}`)
+            .join(' | '),
         },
       );
       return;
     }
 
     const stated = verification.statedFor(spec);
+    const carried = verification.carriedFor(spec);
     const startedAt = Date.now();
     const answer = await this.registry.addresses.lookup({
       address: asked.value.value,
       attributes: stated.map(({ name, value }) => ({
         name,
         value: value.value.value,
+      })),
+      // The register knows the papers by its own words; the type key rides
+      // along untouched so a finding lands on the sheet it came off (ADR-0010).
+      documents: carried.map(({ name, carried: value }) => ({
+        name,
+        type: value.documentType.value,
       })),
     });
 
@@ -619,7 +629,26 @@ export class RunVerificationHandler implements ICommandHandler<
         : [];
     });
 
-    const outcome = outcomeOf(answer.outcome, attributes);
+    const documents = carried.flatMap(({ name, carried: value }) => {
+      const said = answer.documents.find(one => one.name === name);
+
+      return said
+        ? [
+            RegistryDocument.of({
+              name,
+              holding: said.holding,
+              carried: value,
+              recordedNumber: said.number,
+              recordedDate: said.issuedOn,
+              reference: said.location
+                ? `folder ${said.location.folder}, pp. ${said.location.pages}`
+                : null,
+            }),
+          ]
+        : [];
+    });
+
+    const outcome = outcomeOf(answer.outcome, attributes, documents);
     // Never surer than the reading it was made from: an address the extractor
     // half-guessed cannot produce a confident answer about the property.
     const read = Math.min(
@@ -636,6 +665,7 @@ export class RunVerificationHandler implements ICommandHandler<
         asked,
         reference: locatorOf(answer),
         attributes,
+        documents,
       }),
     );
     await this.packages.save(verification);
@@ -656,6 +686,13 @@ export class RunVerificationHandler implements ICommandHandler<
           : attribute.agrees
             ? 'agrees'
             : 'differs',
+      })),
+      // The kinds of paper and what the archive said about each — never a
+      // number off one of them, which is somebody's papers (ADR-0008).
+      documents: documents.map(document => ({
+        of: document.carried.documentType.value,
+        as: document.name,
+        stood: document.holding,
       })),
       reference: locatorOf(answer),
       note: answer.note,
@@ -712,12 +749,21 @@ function round(value: number): number {
 function outcomeOf(
   answered: AddressLookupResponse['outcome'],
   attributes: readonly RegistryAttribute[],
+  documents: readonly RegistryDocument[],
 ): RegistryOutcome {
   if (answered === 'NotFound') return RegistryOutcome.NOT_FOUND;
   if (answered === 'Ambiguous') return RegistryOutcome.AMBIGUOUS;
 
-  return attributes.some(attribute => attribute.differs)
-    ? RegistryOutcome.DIFFERS
+  // A record that says something else outranks a file that is short a paper:
+  // both are reported as findings, and the check carries the graver of the two.
+  if (attributes.some(attribute => attribute.differs)) {
+    return RegistryOutcome.DIFFERS;
+  }
+
+  // Only a paper the register recorded the absence of. One it is silent about
+  // is a column that area never kept, which is not evidence of anything.
+  return documents.some(document => document.isMissing)
+    ? RegistryOutcome.INCOMPLETE
     : RegistryOutcome.CONFIRMED;
 }
 

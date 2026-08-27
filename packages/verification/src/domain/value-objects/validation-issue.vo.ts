@@ -8,7 +8,7 @@ import type { FieldKey } from './field.vo.js';
 import { IssueKind } from './issue-kind.vo.js';
 import type { PageNumber } from './page-number.vo.js';
 import type { PageRange } from './page-range.vo.js';
-import type { RegistryCheck } from './registry-check.vo.js';
+import type { RegistryCheck, RegistryDocument } from './registry-check.vo.js';
 
 type Finding = {
   readonly kind: IssueKind;
@@ -166,6 +166,33 @@ export class ValidationIssue {
       documentType: check.asked.documentType,
       fieldKey: check.asked.fieldKey,
       pageNumber: check.asked.foundOn,
+      confidence: check.confidence,
+    });
+  }
+
+  /*
+   * Filed against the paper itself, not against the address: the sheet the
+   * inspector opens is the decree extract whose original the archive does not
+   * have, and the question is whether that ground stands without it.
+   *
+   * A finding and not an observation. The register's silence about a kind of
+   * paper never reaches here — only a register that recorded the absence does —
+   * and for a title relied on under Decree 439 §7 the original in the National
+   * Archive Fund is a condition of the ground being valid (ADR-0010).
+   */
+  static registryDocumentMissing(
+    check: RegistryCheck,
+    document: RegistryDocument,
+  ): ValidationIssue {
+    return ValidationIssue.of({
+      kind: IssueKind.REGISTRY_DOCUMENT_MISSING,
+      message:
+        `The archive holds no original of ${document.cited} for this ` +
+        `property.` +
+        (check.reference ? ` Its file is at ${check.reference}.` : ''),
+      documentId: document.carried.documentId,
+      documentType: document.carried.documentType,
+      pageNumber: document.carried.foundOn,
       confidence: check.confidence,
     });
   }

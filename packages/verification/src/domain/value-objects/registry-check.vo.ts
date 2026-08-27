@@ -72,6 +72,67 @@ export class RegistryAttribute {
 }
 
 /**
+ * One paper the submission rests on, held against what the archive keeps.
+ *
+ * Two names, because there are two vocabularies. `name` is the register's own
+ * word for the kind of paper — "Ərizə", "Sərəncam çıxarışı" — and the only one
+ * it can look anything up by. `carried` is the document of this package that
+ * answers to it, so a finding lands on a sheet the inspector can open.
+ *
+ * `Unknown` is neither held nor missing and is the ordinary case: the archive's
+ * presence registers are kept per settlement and their columns differ, so a
+ * kind that area never recorded is silence. Only `NotHeld` is a finding.
+ */
+export class RegistryDocument {
+  private constructor(
+    public readonly name: string,
+    public readonly holding: 'Held' | 'NotHeld' | 'Unknown',
+    public readonly carried: CheckedValue,
+    // What the archive's own entry says about the paper, where it says
+    // anything, and where that paper is.
+    public readonly recordedNumber: string | null,
+    public readonly recordedDate: string | null,
+    public readonly reference: string | null,
+  ) {}
+
+  static of(state: {
+    name: string;
+    holding: 'Held' | 'NotHeld' | 'Unknown';
+    carried: CheckedValue;
+    recordedNumber?: string | null;
+    recordedDate?: string | null;
+    reference?: string | null;
+  }): RegistryDocument {
+    return new RegistryDocument(
+      state.name,
+      state.holding,
+      state.carried,
+      state.recordedNumber ?? null,
+      state.recordedDate ?? null,
+      state.reference ?? null,
+    );
+  }
+
+  get isHeld(): boolean {
+    return this.holding === 'Held';
+  }
+
+  // The register said it is not in the file. Silence does not count: a column
+  // the area never kept is not a paper the archive lost.
+  get isMissing(): boolean {
+    return this.holding === 'NotHeld';
+  }
+
+  get isSilent(): boolean {
+    return this.holding === 'Unknown';
+  }
+
+  get cited(): string {
+    return `"${this.name}" (${this.carried.documentType.value})`;
+  }
+}
+
+/**
  * What the register stage recorded for one of the profile's registry checks:
  * what was asked, what came back, and every attribute that was held against the
  * record.
@@ -83,6 +144,7 @@ export class RegistryAttribute {
  */
 export class RegistryCheck {
   readonly #attributes: readonly RegistryAttribute[];
+  readonly #documents: readonly RegistryDocument[];
 
   private constructor(
     public readonly key: RegistryCheckKey,
@@ -96,8 +158,10 @@ export class RegistryCheck {
     // "01-dən 30" is a real value and casting it to a number loses it.
     public readonly reference: string | null,
     attributes: readonly RegistryAttribute[],
+    documents: readonly RegistryDocument[],
   ) {
     this.#attributes = [...attributes];
+    this.#documents = [...documents];
   }
 
   static of(state: {
@@ -108,6 +172,7 @@ export class RegistryCheck {
     asked: CheckedValue;
     reference?: string | null;
     attributes?: readonly RegistryAttribute[];
+    documents?: readonly RegistryDocument[];
   }): RegistryCheck {
     return new RegistryCheck(
       state.key,
@@ -117,6 +182,7 @@ export class RegistryCheck {
       state.asked,
       state.reference ?? null,
       state.attributes ?? [],
+      state.documents ?? [],
     );
   }
 
@@ -128,6 +194,7 @@ export class RegistryCheck {
     asked: CheckedValue;
     reference: string | null;
     attributes: readonly RegistryAttribute[];
+    documents: readonly RegistryDocument[];
   }): RegistryCheck {
     return RegistryCheck.of(state);
   }
@@ -136,8 +203,22 @@ export class RegistryCheck {
     return this.#attributes;
   }
 
+  get documents(): readonly RegistryDocument[] {
+    return this.#documents;
+  }
+
   get contradicts(): boolean {
     return this.outcome.contradicts;
+  }
+
+  get isShortOfPaper(): boolean {
+    return this.outcome.isShortOfPaper;
+  }
+
+  // Only the papers the register said are not in the file. One it is silent
+  // about is not among them, for the reason RegistryDocument says.
+  get missing(): readonly RegistryDocument[] {
+    return this.#documents.filter(document => document.isMissing);
   }
 
   get needsInspector(): boolean {

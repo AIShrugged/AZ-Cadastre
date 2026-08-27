@@ -262,6 +262,7 @@ class RecordingRegistry extends ArchiveRegistryPort {
           cadastralNumber: null,
           plotArea: null,
           location: { folder: '05', pages: '12-dən 38' },
+          documents: [],
         },
         candidates: 1,
         attributes: request.attributes.map(attribute => ({
@@ -269,6 +270,17 @@ class RecordingRegistry extends ArchiveRegistryPort {
           match: 'NotRecorded' as const,
           submitted: attribute.value,
           recorded: null,
+        })),
+        // Silence by default, which is what most of the archive's registers
+        // answer: an area whose presence register never had a column for a kind
+        // of paper says nothing about it either way.
+        documents: request.documents.map(document => ({
+          name: document.name,
+          type: document.type,
+          holding: 'Unknown' as const,
+          number: null,
+          issuedOn: null,
+          location: null,
         })),
         note: 'answered in a test',
         ...this.answer,

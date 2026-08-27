@@ -51,15 +51,34 @@ type CrossCheckDeclaration = {
 type RegistryCheckDeclaration = {
   readonly key: string;
   readonly description: string;
-  // The value the register is asked about: [document type key, field key]. The
-  // finding is filed against this document, because it is the sheet the
-  // inspector opens to see what the package claims.
-  readonly subject: readonly [string, string];
+  // The value the register is asked about, as [document type key, field key],
+  // in the order the papers are believed: the first of these the package
+  // actually states is the one asked, and the finding is filed against that
+  // document, because it is the sheet the inspector opens to see what the
+  // package claims.
+  //
+  // A list and not one pair because an address is printed on several of the
+  // papers and they are not equally trustworthy. Both real submissions read so
+  // far carry two sheets classified as applications — the form itself, whose
+  // address line went unread, and a second sheet whose address came back as
+  // "Xetan uue, Burome 98. 5-862 saha". Asking the register about that is
+  // asking it about nothing (ADR-0010).
+  readonly subject: readonly (readonly [string, string])[];
   // What else the package says about the property, and the name the register
   // knows each of them by: [register attribute, document type key, field key].
   // A name the register does not know is not an error — it comes back as
   // silence, the same as a column an area's register never carried.
   readonly attributes: readonly (readonly [string, string, string])[];
+  // Which of the package's papers to ask the archive whether it holds the
+  // original of: [the register's word for the kind of paper, document type
+  // key]. Two words and not one because there are two vocabularies — the
+  // archive's presence registers were written by a different office in a
+  // different decade, and neither side may borrow the other's name (ADR-0010).
+  //
+  // A kind the area's register never had a column for comes back as silence,
+  // not as a paper that is missing; only a register that recorded its absence
+  // is a finding.
+  readonly documents?: readonly (readonly [string, string])[];
 };
 
 // One value the check reaches for, named by the document type that carries it.
@@ -111,36 +130,52 @@ export class CrossCheckSpec {
 }
 
 export class RegistryCheckSpec {
+  readonly #subjects: readonly FieldRef[];
   readonly #attributes: readonly { name: string; ref: FieldRef }[];
+  readonly #documents: readonly { name: string; type: DocumentType }[];
 
   private constructor(
     public readonly key: RegistryCheckKey,
     public readonly description: string,
-    public readonly subject: FieldRef,
+    subjects: readonly FieldRef[],
     attributes: readonly { name: string; ref: FieldRef }[],
+    documents: readonly { name: string; type: DocumentType }[],
   ) {
+    this.#subjects = [...subjects];
     this.#attributes = [...attributes];
+    this.#documents = [...documents];
   }
 
   static of(declaration: RegistryCheckDeclaration): RegistryCheckSpec {
-    const [subjectType, subjectField] = declaration.subject;
-
     return new RegistryCheckSpec(
       RegistryCheckKey.create(declaration.key),
       declaration.description,
-      FieldRef.of(
-        DocumentType.create(subjectType),
-        FieldKey.create(subjectField),
+      declaration.subject.map(([type, field]) =>
+        FieldRef.of(DocumentType.create(type), FieldKey.create(field)),
       ),
       declaration.attributes.map(([name, type, field]) => ({
         name,
         ref: FieldRef.of(DocumentType.create(type), FieldKey.create(field)),
       })),
+      (declaration.documents ?? []).map(([name, type]) => ({
+        name,
+        type: DocumentType.create(type),
+      })),
     );
+  }
+
+  // In the order they are believed. The first the package states is the one
+  // asked about.
+  get subjects(): readonly FieldRef[] {
+    return this.#subjects;
   }
 
   get attributes(): readonly { name: string; ref: FieldRef }[] {
     return this.#attributes;
+  }
+
+  get documents(): readonly { name: string; type: DocumentType }[] {
+    return this.#documents;
   }
 }
 
@@ -427,7 +462,16 @@ export class VerificationProfile {
         description:
           'The property the registration is for, as the application addresses ' +
           'it, against the archive record of that address.',
-        subject: ['application', 'property_address'],
+        // The plan-scheme first: it is the surveyed drawing of this parcel, and
+        // the address on it was written by the office that surveyed it. Then
+        // the sketch design, drawn against that plan. The application last —
+        // it is filled in by hand, and it is where the reading went wrong in
+        // both of the real submissions this profile has been run against.
+        subject: [
+          ['land_plot_plan', 'property_address'],
+          ['sketch_project', 'property_address'],
+          ['application', 'property_address'],
+        ],
         attributes: [
           // The owner the archive certificate names against the right holder of
           // record — the one attribute the 2008 transfer of cases between the
@@ -435,6 +479,16 @@ export class VerificationProfile {
           ['ownerName', 'archive_certificate', 'owner_name'],
           ['cadastralNumber', 'land_plot_plan', 'cadastral_number'],
           ['plotArea', 'land_plot_plan', 'plot_area'],
+        ],
+        // The three the archive files a case under, in its own words. Only
+        // three, because the archive keeps what a case was decided on and not
+        // what the applicant paid or who they are: there is no column for a
+        // receipt or an identity card in any of the presence registers, and
+        // asking about one would produce silence that reads as an answer.
+        documents: [
+          ['Ərizə', 'application'],
+          ['Sərəncam çıxarışı', 'disposal_order'],
+          ['Arayış', 'archive_certificate'],
         ],
       },
     ],

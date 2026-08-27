@@ -27,11 +27,21 @@ them on purpose, there is an ADR or an entry in `TECH_DEBT.md` — never silence
 ## Local development
 
 ```bash
-pnpm install                 # postinstall runs `prisma generate`
+pnpm install                 # postinstall runs `prisma generate` in both schemas
 docker compose up -d postgres rustfs
+docker exec cadastre-postgres createdb -U postgres cadastre-registry
 pnpm --filter @cadastre/verification db:migrate
+pnpm --filter @cadastre/registry-stub db:migrate && \
+  pnpm --filter @cadastre/registry-stub db:seed
 pnpm dev                     # watches every package and starts the server
 ```
+
+Two databases, not one. `cadastre-db` belongs to the verification context, which
+owns it; `cadastre-registry` belongs to the archive register, which is a system
+outside this one that happens to run on the same server (ADR-0010). The compose
+file creates the second through an init script the postgres image runs **only on
+a new data directory** — on a volume that already exists, the `createdb` line
+above is how it appears.
 
 `pnpm dev` is `tsc --watch` per package plus `node --watch build/main.js`, wired
 by nx (`dev` depends on `watch`, `watch` depends on `build` and `^watch`). There
@@ -52,16 +62,30 @@ stage at OpenRouter at a time — `OCR_PROVIDER=openrouter` — rather than all 
 them, which is how a stage gets compared with its stand-in.
 
 The sixth stage is not a model. It asks the archive register what it holds about
-the property, and `REGISTRY_PROVIDER` picks who answers: `mock` is a stand-in
+the property — and, since ADR-0010, which of the package's papers the archive has
+the original of. `REGISTRY_PROVIDER` picks who answers: `mock` is a stand-in
 built into the context that holds three records and compares addresses letter
 for letter, `http` is whoever serves the register contract — today
-`apps/registry-stub`, which `pnpm dev` starts alongside the server and which
-answers on 3100 (ADR-0009). The two do **not** agree, deliberately: an
-address the stub resolves through the address rules, the offline stand-in will
-report as `RegistryUnconfirmed`. The start-up line says which one is answering.
+`apps/registry-stub`, which `pnpm dev` starts alongside the server, which answers
+on 3100 and which reads its records out of `cadastre-registry` (ADR-0009,
+ADR-0010). The two do **not** agree, deliberately: an address the stub resolves
+through the address rules, the offline stand-in will report as
+`RegistryUnconfirmed`. The start-up line says which one is answering and how many
+records it holds — a register with an empty database and a register that holds
+nothing under an address look identical from the caller's side.
 
-Secrets live in `packages/verification/.env.local` and `apps/server/.env.local`,
-neither of which is in git.
+The stub's records are a **seed and not fixtures**: `db:seed` is idempotent and
+re-runnable, and `db:reset` runs it. What is in it is the customer's own two
+cases — one that confirms on every attribute and every paper, one whose figures
+do not add up — and any other address comes back `NotFound`. Editing them means
+editing `apps/registry-stub/src/infrastructure/persistence/seed.ts` and running
+`db:seed` again.
+
+Secrets live in `packages/verification/.env.local`, `apps/server/.env.local` and
+`apps/registry-stub/.env.local`, none of which is in git. Note that
+`process.loadEnvFile` never overwrites a variable already set, so the first file
+to name one wins and the ambient environment wins over both — which is why both
+`prisma.config.ts` files load `.env.local` before `.env` and not after.
 
 ### Seeing what happened
 

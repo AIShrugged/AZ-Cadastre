@@ -14,6 +14,14 @@ export class IssueKind {
   // but with the record of what was registered, which is why it is a kind of
   // its own and not a second flavour of the same one (ADR-0009).
   static readonly REGISTRY_MISMATCH = new IssueKind('RegistryMismatch');
+  // The archive does not hold the original of a paper the submission rests on.
+  // Not MISSING_DOCUMENT, which is about the envelope: the paper is here, and
+  // the file it should have come out of does not have it. For a title relied on
+  // under Decree 439 that is the whole question — §7 makes the original in the
+  // National Archive Fund a condition of the ground being valid (ADR-0010).
+  static readonly REGISTRY_DOCUMENT_MISSING = new IssueKind(
+    'RegistryDocumentMissing',
+  );
   // A document the package carries that the profile does not ask for, and a
   // required type that two documents answer to at once. Neither is a fault:
   // packages arrive with the registry's own service sheets in them, and a title
@@ -36,6 +44,7 @@ export class IssueKind {
       IssueKind.LOW_CONFIDENCE,
       IssueKind.FIELD_MISMATCH,
       IssueKind.REGISTRY_MISMATCH,
+      IssueKind.REGISTRY_DOCUMENT_MISSING,
       IssueKind.EXTRA_DOCUMENT,
       IssueKind.DUPLICATE_DOCUMENT,
       IssueKind.REGISTRY_UNCONFIRMED,

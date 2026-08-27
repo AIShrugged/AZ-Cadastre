@@ -1,7 +1,7 @@
 {
   "name": "@cadastre/registry-stub",
   "version": "1.0.0",
-  "description": "The stand-in for the archive register: an HTTP service that answers what the cadastre archive holds about a property. Seeded from fixtures today, from the ingested register files tomorrow \u2014 the contract it answers is the part that does not change.",
+  "description": "The stand-in for the archive register: an HTTP service that answers what the cadastre archive holds about a property. It answers from its own PostgreSQL database, seeded with the cases the customer supplied; the contract it answers is the part that does not change.",
   "type": "module",
   "main": "./build/main.js",
   "scripts": {
@@ -13,7 +13,14 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:api": "vitest run --config vitest.api.config.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:reset": "prisma migrate reset --force",
+    "db:seed": "node build/infrastructure/persistence/seed.js",
+    "db:studio": "prisma studio",
+    "postinstall": "prisma generate"
   },
   "license": "ISC",
   "nx": {
@@ -23,18 +30,25 @@
     ]
   },
   "dependencies": {
-    "@cadastre/matching-engine": "workspace:*",
     "@cadastre/api-contracts": "workspace:*",
     "@cadastre/logger": "workspace:*",
+    "@cadastre/matching-engine": "workspace:*",
     "@nestjs/common": "catalog:nestjs12",
     "@nestjs/config": "catalog:nestjs12",
     "@nestjs/core": "catalog:nestjs12",
     "@nestjs/platform-express": "catalog:nestjs12",
+    "@prisma/adapter-pg": "^7.9.0",
+    "@prisma/client": "^7.9.0",
+    "pg": "^8.22.0",
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@testcontainers/postgresql": "^12.1.0",
     "@types/express": "^5.0.0",
+    "@types/pg": "^8.20.0",
     "@vitest/coverage-v8": "catalog:tooling",
+    "prisma": "^7.9.0",
+    "testcontainers": "^12.1.0",
     "vitest": "catalog:tooling"
   }
 }

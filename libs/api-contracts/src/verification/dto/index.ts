@@ -34,6 +34,7 @@ export {
   PageDtoSchema,
   RegistryAttributeDtoSchema,
   RegistryCheckDtoSchema,
+  RegistryDocumentDtoSchema,
   ReportDtoSchema,
   SourceFileDtoSchema,
   type CheckedValueDto,
@@ -47,6 +48,7 @@ export {
   type PageDto,
   type RegistryAttributeDto,
   type RegistryCheckDto,
+  type RegistryDocumentDto,
   type ReportDto,
   type SourceFileDto,
 } from './package.dto.js';

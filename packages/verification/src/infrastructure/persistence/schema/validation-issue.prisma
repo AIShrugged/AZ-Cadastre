@@ -11,6 +11,7 @@ enum IssueKind {
   ExtraDocument // a document read fine and not of a type the profile asks for
   DuplicateDocument // a second document answering an already-answered required type
   RegistryMismatch // the archive record of the property says something else
+  RegistryDocumentMissing // the archive holds no original of a paper relied on
   RegistryUnconfirmed // the register held no record of the property, or held two
 }
 

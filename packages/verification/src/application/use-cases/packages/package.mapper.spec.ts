@@ -175,6 +175,28 @@ function aRegistryCheckView(
         },
       },
     ],
+    documents: [
+      {
+        name: 'Ərizə',
+        holding: 'Held',
+        number: '1126012493',
+        issuedOn: '28.01.2026',
+        reference: 'folder 05, pp. 12-dən 38',
+        documentId: anId(),
+        documentType: 'application',
+        pageNumber: 1,
+      },
+      {
+        name: 'Sərəncam çıxarışı',
+        holding: 'NotHeld',
+        number: null,
+        issuedOn: null,
+        reference: null,
+        documentId: anId(),
+        documentType: 'disposal_order',
+        pageNumber: 4,
+      },
+    ],
     ...overrides,
   };
 }
@@ -554,6 +576,37 @@ describe('toDetailDto', () => {
   // disagreement — so `recorded` travels as null rather than as an empty
   // string, which a reader would show as "the record says nothing here"
   // (ADR-0009).
+  /*
+   * The two vocabularies stay apart on the wire: `name` is the register's word
+   * for the kind of paper and `type` is the profile's, and a reader who
+   * conflated them would file a finding against the wrong sheet (ADR-0010).
+   */
+  it("renders a paper the archive holds under both its name and the profile's type", () => {
+    const dto = toDetailDto(
+      aDetailView({ registryChecks: [aRegistryCheckView()] }),
+    );
+
+    expect(dto.registryChecks[0]?.documents[0]).toMatchObject({
+      name: 'Ərizə',
+      type: 'application',
+      holding: 'Held',
+      number: '1126012493',
+    });
+  });
+
+  it('renders a paper the archive recorded that it does not hold', () => {
+    const dto = toDetailDto(
+      aDetailView({ registryChecks: [aRegistryCheckView()] }),
+    );
+
+    expect(dto.registryChecks[0]?.documents[1]).toMatchObject({
+      type: 'disposal_order',
+      holding: 'NotHeld',
+      reference: null,
+      pageNumber: 4,
+    });
+  });
+
   it('renders an attribute the register is silent about with nothing recorded', () => {
     const dto = toDetailDto(
       aDetailView({ registryChecks: [aRegistryCheckView()] }),

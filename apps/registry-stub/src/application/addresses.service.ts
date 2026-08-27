@@ -6,6 +6,8 @@ import type {
   AddressLookupResponse,
   ArchiveRecordDto,
   CheckedAttributeDto,
+  CheckedDocumentDto,
+  SubmittedDocument,
 } from '@cadastre/api-contracts/registry';
 import { Logger } from '@cadastre/logger';
 import {
@@ -56,9 +58,10 @@ function recordedValue(record: ArchiveRecordDto, name: string): string | null {
  * Answers what the register holds, and stops there.
  *
  * There is no verdict in here. Whether an absent record, an owner who does not
- * match or an address two records answer to means anything for a submission is
- * a rule of the caller's profile — the register would have to know what is
- * being registered to have an opinion, and it does not (ADR-0009).
+ * match, an address two records answer to or a paper the archive never filed
+ * means anything for a submission is a rule of the caller's profile — the
+ * register would have to know what is being registered to have an opinion, and
+ * it does not (ADR-0009).
  */
 @Injectable()
 export class AddressesService implements AddressesApi {
@@ -84,6 +87,10 @@ export class AddressesService implements AddressesApi {
         name: attribute.name,
         match: attribute.match,
       })),
+      documents: answer.documents.map(document => ({
+        name: document.name,
+        holding: document.holding,
+      })),
     });
 
     return answer;
@@ -102,6 +109,7 @@ export class AddressesService implements AddressesApi {
         record: null,
         candidates: 0,
         attributes: [],
+        documents: [],
         note:
           `No record of this address among the ${await this.source.size()} the ` +
           `register holds. Its coverage is partial and historical.`,
@@ -115,6 +123,7 @@ export class AddressesService implements AddressesApi {
         record: null,
         candidates: candidates.length,
         attributes: [],
+        documents: [],
         note:
           `${candidates.length} records answer to this address ` +
           `(${candidates.map(one => one.registerNo).join(', ')}); the register ` +
@@ -125,8 +134,14 @@ export class AddressesService implements AddressesApi {
     const attributes = request.attributes.map(attribute =>
       AddressesService.hold(attribute.name, attribute.value, record),
     );
+    const documents = request.documents.map(document =>
+      AddressesService.holds(document, record),
+    );
     const differing = attributes.filter(
       attribute => attribute.match === 'Differs',
+    ).length;
+    const unheld = documents.filter(
+      document => document.holding === 'NotHeld',
     ).length;
 
     return {
@@ -135,11 +150,15 @@ export class AddressesService implements AddressesApi {
       record,
       candidates: 1,
       attributes,
+      documents,
       note:
         `Register ${record.registerNo} holds this address. ` +
         (attributes.length === 0
           ? 'Nothing else was supplied to hold against it.'
-          : `${differing} of ${attributes.length} supplied attributes differ from the record.`),
+          : `${differing} of ${attributes.length} supplied attributes differ from the record.`) +
+        (documents.length === 0
+          ? ''
+          : ` Of ${documents.length} papers asked about, the archive does not hold ${unheld}.`),
     };
   }
 
@@ -162,6 +181,32 @@ export class AddressesService implements AddressesApi {
       match: agrees(submitted, recorded) ? 'Matches' : 'Differs',
       submitted,
       recorded,
+    };
+  }
+
+  /**
+   * Whether the archive holds this kind of paper for the property.
+   *
+   * A kind the record says nothing about comes back `Unknown` and never
+   * `NotHeld`: the presence registers are kept per settlement and their columns
+   * differ, so a column that area never kept is silence. Only a register that
+   * wrote `-` against the paper says it is not there.
+   */
+  private static holds(
+    asked: SubmittedDocument,
+    record: ArchiveRecordDto,
+  ): CheckedDocumentDto {
+    const held = record.documents.find(
+      document => fold(document.name) === fold(asked.name),
+    );
+
+    return {
+      name: asked.name,
+      type: asked.type,
+      holding: held?.holding ?? 'Unknown',
+      number: held?.number ?? null,
+      issuedOn: held?.issuedOn ?? null,
+      location: held?.location ?? null,
     };
   }
 }

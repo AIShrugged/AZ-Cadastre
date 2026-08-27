@@ -1561,6 +1561,44 @@ describe('VerificationPackage', () => {
       expect(verification.askedOf(SPEC)?.value.value).toBe(ADDRESS);
     });
 
+    /*
+     * The profile names the papers an address may be read off in the order it
+     * believes them, and the first one the package states is the one asked.
+     * This is not a nicety: in both real submissions run against this profile
+     * the application form's address line went unread and a second sheet
+     * classified as an application carried a mangled one — "Xetan uue, Burome
+     * 98. 5-862 saha" — so the register was asked about nothing (ADR-0010).
+     */
+    it('prefers the surveyed plan-scheme over the hand-filled application', () => {
+      const built = aSegmentedPackage(2);
+      const [application, plan] = built.documents;
+
+      built.verification.classify(
+        application!.id,
+        aClassification('application'),
+      );
+      built.verification.classify(plan!.id, aClassification('land_plot_plan'));
+      built.verification.recordExtractedFields(application!.id, [
+        valued('property_address', 'Xetan uue, Burome 98. 5-862 saha'),
+      ]);
+      built.verification.recordExtractedFields(plan!.id, [
+        valued('property_address', ADDRESS),
+      ]);
+      built.verification.commit();
+
+      expect(built.verification.askedOf(SPEC)?.value.value).toBe(ADDRESS);
+    });
+
+    // And falls through to it when no better paper states one, which is what
+    // keeps the ordering a preference rather than a requirement.
+    it('falls back to the application when no better paper states an address', () => {
+      const { verification } = aPackageOfRecord();
+
+      expect(verification.askedOf(SPEC)?.documentType.value).toBe(
+        'application',
+      );
+    });
+
     it('offers the register everything the package says about the property', () => {
       const { verification } = aPackageOfRecord();
 

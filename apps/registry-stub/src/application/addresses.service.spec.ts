@@ -14,6 +14,26 @@ const ZIG: ArchiveRecordDto = {
   cadastralNumber: '40-12-345-67',
   plotArea: '600 m²',
   location: { folder: '14', pages: '01-dən 30' },
+  documents: [
+    {
+      name: 'Ərizə',
+      holding: 'Held',
+      number: '1126012493',
+      issuedOn: null,
+      issuingAuthority: null,
+      location: null,
+    },
+    // The presence register of this settlement wrote `-` against the decree
+    // extract: the archive knows the paper is not in the file.
+    {
+      name: 'Sərəncam çıxarışı',
+      holding: 'NotHeld',
+      number: null,
+      issuedOn: null,
+      issuingAuthority: null,
+      location: null,
+    },
+  ],
 };
 
 class StubSource extends RegistrySource {
@@ -42,7 +62,11 @@ describe('AddressesService', () => {
   });
 
   it('hands back the record and the address as the register spells it', async () => {
-    const answer = await found.lookup({ address: ZIG.address, attributes: [] });
+    const answer = await found.lookup({
+      address: ZIG.address,
+      attributes: [],
+      documents: [],
+    });
 
     expect(answer.outcome).toBe('Found');
     expect(answer.record?.registerNo).toBe('1-12345');
@@ -57,6 +81,7 @@ describe('AddressesService', () => {
         { name: 'plotArea', value: '600,00 kv.m' },
         { name: 'cadastralNumber', value: '40 12 345 67' },
       ],
+      documents: [],
     });
 
     expect(answer.attributes.map(attribute => attribute.match)).toEqual([
@@ -70,6 +95,7 @@ describe('AddressesService', () => {
     const answer = await found.lookup({
       address: ZIG.address,
       attributes: [{ name: 'ownerName', value: 'Həsənova Sevinc Əli qızı' }],
+      documents: [],
     });
 
     expect(answer.attributes[0]).toMatchObject({
@@ -85,6 +111,7 @@ describe('AddressesService', () => {
     const answer = await service.lookup({
       address: ZIG.address,
       attributes: [{ name: 'cadastralNumber', value: '40-12-345-67' }],
+      documents: [],
     });
 
     expect(answer.attributes[0]?.match).toBe('NotRecorded');
@@ -94,6 +121,7 @@ describe('AddressesService', () => {
     const answer = await found.lookup({
       address: ZIG.address,
       attributes: [{ name: 'storeys', value: '2' }],
+      documents: [],
     });
 
     expect(answer.attributes[0]?.match).toBe('NotRecorded');
@@ -103,6 +131,7 @@ describe('AddressesService', () => {
     const answer = await serviceOver([]).lookup({
       address: 'Bakı şəhəri, Nizami rayonu, Yeni küçə, ev 1',
       attributes: [],
+      documents: [],
     });
 
     expect(answer).toMatchObject({
@@ -118,7 +147,7 @@ describe('AddressesService', () => {
     const answer = await serviceOver([
       ZIG,
       { ...ZIG, registerNo: '1-12345-D' },
-    ]).lookup({ address: ZIG.address, attributes: [] });
+    ]).lookup({ address: ZIG.address, attributes: [], documents: [] });
 
     expect(answer).toMatchObject({
       outcome: 'Ambiguous',
@@ -128,8 +157,83 @@ describe('AddressesService', () => {
     expect(answer.note).toContain('1-12345-D');
   });
 
+  describe('the papers it was asked about', () => {
+    it('says the archive holds one, and where the file is', async () => {
+      const answer = await found.lookup({
+        address: ZIG.address,
+        attributes: [],
+        documents: [{ name: 'Ərizə', type: 'application' }],
+      });
+
+      expect(answer.documents[0]).toMatchObject({
+        name: 'Ərizə',
+        type: 'application',
+        holding: 'Held',
+        number: '1126012493',
+      });
+    });
+
+    /*
+     * The whole of the third case: the record is there, the figures agree, and
+     * one of the papers the submission rests on was never filed. Decree 439 §7
+     * makes that the question rather than a footnote — but it is still a fact
+     * and not a verdict, and what it costs is the caller's rule.
+     */
+    it('says the archive does not hold one it wrote a minus against', async () => {
+      const answer = await found.lookup({
+        address: ZIG.address,
+        attributes: [],
+        documents: [{ name: 'Sərəncam çıxarışı', type: 'disposal_order' }],
+      });
+
+      expect(answer.documents[0]).toMatchObject({
+        holding: 'NotHeld',
+        type: 'disposal_order',
+      });
+    });
+
+    /*
+     * Not the same as `NotHeld`, and the distinction is the reason there are
+     * three states: the presence registers are kept per settlement and their
+     * columns differ, so a kind that area never recorded is silence.
+     */
+    it('is silent about a kind of paper its register never had a column for', async () => {
+      const answer = await found.lookup({
+        address: ZIG.address,
+        attributes: [],
+        documents: [{ name: 'Vərəsəlik şəhadətnaməsi', type: 'inheritance' }],
+      });
+
+      expect(answer.documents[0]?.holding).toBe('Unknown');
+    });
+
+    it('hands the caller its own type key back untouched', async () => {
+      const answer = await found.lookup({
+        address: ZIG.address,
+        attributes: [],
+        documents: [{ name: 'Ərizə', type: 'application' }],
+      });
+
+      expect(answer.documents[0]?.type).toBe('application');
+    });
+
+    it('has nothing to say about papers when it found no record', async () => {
+      const answer = await serviceOver([]).lookup({
+        address: 'Bakı şəhəri, Nizami rayonu, Yeni küçə, ev 1',
+        attributes: [],
+        documents: [{ name: 'Ərizə', type: 'application' }],
+      });
+
+      expect(answer.documents).toEqual([]);
+    });
+  });
+
   it('never answers with a verdict about the submission', async () => {
-    const answer = await found.lookup({ address: ZIG.address, attributes: [] });
+    const answer = await found.lookup({
+      address: ZIG.address,
+      attributes: [],
+      documents: [],
+    });
 
     expect(answer).not.toHaveProperty('valid');
   });

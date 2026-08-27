@@ -224,6 +224,7 @@ const en: Dict = {
   'detail.sec.mismatch': 'Documents disagree',
   'detail.sec.extra': 'Also in the package',
   'detail.sec.registry_mismatch': 'Disagrees with the archive record',
+  'detail.sec.registry_document_missing': 'Original not in the archive',
   'detail.sec.registry_unconfirmed': 'Not confirmed by the register',
   'detail.clean':
     'No issues found — every required document is present and read above the confidence threshold.',
@@ -237,6 +238,8 @@ const en: Dict = {
   'detail.f.mismatch_sub': 'Does not agree across documents',
   'detail.f.unclear_sub': 'Could not be decided either way',
   'detail.f.registry_mismatch_sub': 'The archive record states otherwise',
+  'detail.f.registry_document_missing_sub':
+    'The archive keeps no original of this paper',
   'detail.f.registry_unconfirmed_sub': 'No record of it, or more than one',
   'detail.checks': 'Cross-document checks',
   'detail.checks_result': 'Document comparison results',
@@ -270,12 +273,15 @@ const en: Dict = {
   'detail.registry_where': 'In the archive',
   'detail.reg.confirmed': 'Record agrees',
   'detail.reg.differs': 'Record disagrees',
+  'detail.reg.incomplete': 'Original not in the archive',
   'detail.reg.not_found': 'No record',
   'detail.reg.ambiguous': 'Several records',
   'detail.reg.confirmed_note':
     'The record was found and everything held against it agreed. This is the lookup you do not have to make.',
   'detail.reg.differs_note':
     'The record was found and states something else. It is the record that disagrees, not the papers with each other.',
+  'detail.reg.incomplete_note':
+    'The record was found and agrees with the package. What the archive does not have is the original of one of the papers below \u2014 which, for a title relied on under Decree 439, is a condition of the ground and not a formality.',
   'detail.reg.not_found_note':
     'The register holds nothing under this address. Its coverage is the privatisations of the 1990s and 2000s, so an absent record says nothing about this package.',
   'detail.reg.ambiguous_note':
@@ -283,6 +289,11 @@ const en: Dict = {
   'detail.reg.submitted': 'In the package',
   'detail.reg.recorded': 'On record',
   'detail.reg.silent': 'the register never held this column',
+  'detail.reg.papers': 'Papers in the archive',
+  'detail.reg.holding_held': 'The archive holds the original',
+  'detail.reg.holding_notheld': 'The archive has no original of it',
+  'detail.reg.holding_unknown':
+    'the archive of this area never recorded papers of this kind',
   'regattr.ownerName': 'Right holder',
   'regattr.cadastralNumber': 'Cadastral number',
   'regattr.plotArea': 'Plot area',
@@ -558,6 +569,7 @@ const ru: Dict = {
   'detail.sec.mismatch': 'Документы расходятся',
   'detail.sec.extra': 'Прочее в пакете',
   'detail.sec.registry_mismatch': 'Расходится с архивной записью',
+  'detail.sec.registry_document_missing': 'Подлинника нет в архиве',
   'detail.sec.registry_unconfirmed': 'Реестр не подтвердил',
   'detail.clean':
     'Замечаний нет — все обязательные документы присутствуют и распознаны выше порога уверенности.',
@@ -571,6 +583,8 @@ const ru: Dict = {
   'detail.f.mismatch_sub': 'Документы расходятся',
   'detail.f.unclear_sub': 'Однозначно определить не удалось',
   'detail.f.registry_mismatch_sub': 'Архивная запись говорит другое',
+  'detail.f.registry_document_missing_sub':
+    'Подлинник этого документа в архиве не хранится',
   'detail.f.registry_unconfirmed_sub': 'Записи нет или их несколько',
   'detail.checks': 'Сверка документов',
   'detail.checks_result': 'Результаты сверки документов',
@@ -604,12 +618,15 @@ const ru: Dict = {
   'detail.registry_where': 'В архиве',
   'detail.reg.confirmed': 'Запись подтверждает',
   'detail.reg.differs': 'Запись расходится',
+  'detail.reg.incomplete': 'Подлинника нет в архиве',
   'detail.reg.not_found': 'Записи нет',
   'detail.reg.ambiguous': 'Несколько записей',
   'detail.reg.confirmed_note':
     'Запись найдена, и всё, что с ней сверяли, совпало. Это та справка, которую вам не нужно наводить.',
   'detail.reg.differs_note':
     'Запись найдена и говорит другое. Расходится именно запись, а не документы между собой.',
+  'detail.reg.incomplete_note':
+    'Запись найдена и с пакетом сходится. Чего в архиве нет \u2014 так это подлинника одного из документов ниже; для основания по постановлению 439 это условие действительности, а не формальность.',
   'detail.reg.not_found_note':
     'По этому адресу реестр ничего не держит. Он покрывает приватизации 1990-х и 2000-х, поэтому отсутствие записи ничего не говорит о пакете.',
   'detail.reg.ambiguous_note':
@@ -617,6 +634,11 @@ const ru: Dict = {
   'detail.reg.submitted': 'В пакете',
   'detail.reg.recorded': 'В записи',
   'detail.reg.silent': 'такой графы в реестре не было',
+  'detail.reg.papers': 'Документы в архиве',
+  'detail.reg.holding_held': 'Подлинник в архиве есть',
+  'detail.reg.holding_notheld': 'Подлинника в архиве нет',
+  'detail.reg.holding_unknown':
+    'архив этого района такие документы никогда не учитывал',
   'regattr.ownerName': 'Правообладатель',
   'regattr.cadastralNumber': 'Кадастровый номер',
   'regattr.plotArea': 'Площадь участка',
@@ -891,6 +913,7 @@ const az: Dict = {
   'detail.sec.mismatch': 'Sənədlər arasında uyğunsuzluq',
   'detail.sec.extra': 'Paketdəki digər sənədlər',
   'detail.sec.registry_mismatch': 'Arxiv qeydi ilə uyğunsuzluq',
+  'detail.sec.registry_document_missing': 'Əsli arxivdə yoxdur',
   'detail.sec.registry_unconfirmed': 'Reyestr təsdiqləmədi',
   'detail.clean':
     'Qüsur yoxdur — bütün tələb olunan sənədlər mövcuddur və etibar həddindən yuxarı oxunub.',
@@ -904,6 +927,8 @@ const az: Dict = {
   'detail.f.mismatch_sub': 'Sənədlər arasında uyğun gəlmir',
   'detail.f.unclear_sub': 'Birmənalı müəyyən edilə bilmədi',
   'detail.f.registry_mismatch_sub': 'Arxiv qeydi başqa cür göstərir',
+  'detail.f.registry_document_missing_sub':
+    'Bu sənədin əsli arxivdə saxlanılmır',
   'detail.f.registry_unconfirmed_sub': 'Qeyd yoxdur və ya birdən çoxdur',
   'detail.checks': 'Sənədlərarası yoxlama',
   'detail.checks_result': 'Sənədlərin müqayisə nəticələri',
@@ -936,12 +961,15 @@ const az: Dict = {
   'detail.registry_where': 'Arxivdə',
   'detail.reg.confirmed': 'Qeyd təsdiqləyir',
   'detail.reg.differs': 'Qeyd fərqlənir',
+  'detail.reg.incomplete': 'Əsli arxivdə yoxdur',
   'detail.reg.not_found': 'Qeyd yoxdur',
   'detail.reg.ambiguous': 'Bir neçə qeyd',
   'detail.reg.confirmed_note':
     'Qeyd tapıldı və onunla tutuşdurulan hər şey uyğun gəldi. Bu, sizin ayrıca arayış götürməyinizə ehtiyac qalmayan haldır.',
   'detail.reg.differs_note':
     'Qeyd tapıldı və başqa cür göstərir. Fərqlənən sənədlər deyil, məhz qeyddir.',
+  'detail.reg.incomplete_note':
+    'Qeyd tapıldı və paketlə uyğun gəlir. Arxivdə olmayan şey aşağıdakı sənədlərdən birinin əslidir; 439 nömrəli qərara əsaslanan hüquq üçün bu, formallıq deyil, etibarlılıq şərtidir.',
   'detail.reg.not_found_note':
     'Reyestrdə bu ünvan üzrə heç nə yoxdur. O, 1990–2000-ci illərin özəlləşdirmələrini əhatə edir, ona görə qeydin olmaması paket haqqında heç nə demir.',
   'detail.reg.ambiguous_note':
@@ -949,6 +977,11 @@ const az: Dict = {
   'detail.reg.submitted': 'Paketdə',
   'detail.reg.recorded': 'Qeyddə',
   'detail.reg.silent': 'reyestrdə belə sütun heç vaxt olmayıb',
+  'detail.reg.papers': 'Arxivdəki sənədlər',
+  'detail.reg.holding_held': 'Əsli arxivdə var',
+  'detail.reg.holding_notheld': 'Əsli arxivdə yoxdur',
+  'detail.reg.holding_unknown':
+    'bu ərazinin arxivi belə sənədləri heç vaxt qeydə almayıb',
   'regattr.ownerName': 'Hüquq sahibi',
   'regattr.cadastralNumber': 'Kadastr nömrəsi',
   'regattr.plotArea': 'Torpaq sahəsi',

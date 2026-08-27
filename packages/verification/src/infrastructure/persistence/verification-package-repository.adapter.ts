@@ -42,7 +42,10 @@ const WHOLE_AGGREGATE = {
   },
   registryChecks: {
     orderBy: { key: 'asc' },
-    include: { attributes: { orderBy: { position: 'asc' } } },
+    include: {
+      attributes: { orderBy: { position: 'asc' } },
+      documents: { orderBy: { position: 'asc' } },
+    },
   },
   report: { include: { issues: { orderBy: { createdAt: 'asc' } } } },
 } as const satisfies Prisma.VerificationPackageInclude;
@@ -256,7 +259,7 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
     packageId: string,
     check: RegistryCheckWrite,
   ): Promise<void> {
-    const { attributes, ...answer } = check;
+    const { attributes, documents, ...answer } = check;
 
     const stored = await tx.registryCheck.upsert({
       where: { packageId_key: { packageId, key: check.key } },
@@ -270,6 +273,16 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
     await tx.registryCheckAttribute.createMany({
       data: attributes.map(attribute => ({
         ...attribute,
+        registryCheckId: stored.id,
+      })),
+    });
+
+    await tx.registryCheckDocument.deleteMany({
+      where: { registryCheckId: stored.id },
+    });
+    await tx.registryCheckDocument.createMany({
+      data: documents.map(document => ({
+        ...document,
         registryCheckId: stored.id,
       })),
     });

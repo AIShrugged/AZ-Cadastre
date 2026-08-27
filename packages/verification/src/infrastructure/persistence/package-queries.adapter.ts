@@ -81,6 +81,19 @@ const REGISTRY_CHECK_COLUMNS = {
         ...CHECKED_VALUE_COLUMNS,
       },
     },
+    documents: {
+      orderBy: { position: 'asc' },
+      select: {
+        name: true,
+        holding: true,
+        recordedNumber: true,
+        recordedDate: true,
+        reference: true,
+        documentId: true,
+        documentType: true,
+        pageNumber: true,
+      },
+    },
   },
 } as const satisfies Prisma.VerificationPackage$registryChecksArgs;
 
@@ -159,6 +172,16 @@ type RegistryCheckRow = {
     readonly value: string;
     readonly pageNumber: number;
     readonly confidence: number;
+  }[];
+  readonly documents: readonly {
+    readonly name: string;
+    readonly holding: string;
+    readonly recordedNumber: string | null;
+    readonly recordedDate: string | null;
+    readonly reference: string | null;
+    readonly documentId: string | null;
+    readonly documentType: string;
+    readonly pageNumber: number;
   }[];
 };
 
@@ -338,6 +361,18 @@ export class PackageQueriesAdapter extends PackageQueries {
         confidence: row.valueConfidence,
       },
       reference: row.reference,
+      documents: row.documents.map(document => ({
+        name: document.name,
+        // Only ever written through the domain's own enumeration, so the stored
+        // string is one the contract names.
+        holding: document.holding,
+        number: document.recordedNumber,
+        issuedOn: document.recordedDate,
+        reference: document.reference,
+        documentId: document.documentId,
+        documentType: document.documentType,
+        pageNumber: document.pageNumber,
+      })),
       attributes: row.attributes.map(attribute => ({
         name: attribute.name,
         agrees: attribute.agrees,

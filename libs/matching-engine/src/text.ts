@@ -41,13 +41,22 @@ const LEGACY_CYRILLIC: ReadonlyMap<string, string> = new Map(
     ш: 'ş',
     ы: 'ı',
     // The substitutions the archive's own sheets prove, and the reason a
-    // Russian table produces nonsense here: ъ→c, э→g, ц→ü, я→ə, щ→h. "Эянъя"
-    // is Gəncə and "сащяси" is sahəsi.
+    // Russian table produces nonsense here: ъ→c, э→g, ц→ü, я→ə, щ→h, ь→ğ.
+    // "Эянъя" is Gəncə and "сащяси" is sahəsi.
     ъ: 'c',
     э: 'g',
     ц: 'ü',
     я: 'ə',
     щ: 'h',
+    // ь is not a soft sign here: the technical-passport database writes
+    // "Таьыйев" for Tağıyev, "оьлу" for oğlu, "маьазасы" for mağazası and
+    // "Ляьв" for ləğv, so in this code page it is the letter ğ. Read as a soft
+    // sign — which is what a Russian table does — it drops out and an address
+    // stops resolving.
+    ь: 'ğ',
+    // And ю is ö, not yu. The same database heads a column "Паспорт нюмряси"
+    // and translates it, in the sheet beside it, as "Passport No." — nömrəsi.
+    ю: 'ö',
     // The proper Azerbaijani Cyrillic schwa, for text that was written with it
     // rather than substituted around it.
     ә: 'ə',

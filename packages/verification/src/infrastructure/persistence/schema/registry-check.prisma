@@ -17,8 +17,18 @@
 enum RegistryOutcome {
   Confirmed // a record was found and everything held against it agreed
   Differs // a record was found and says something else
+  Incomplete // it agreed, and the archive has no original of one of the papers
   NotFound // the register holds nothing under that address
   Ambiguous // more than one record answers to it
+}
+
+/// Whether the archive holds the original of one of the papers the package
+/// rests on. Three states because the archive's presence registers have three:
+/// `+`, `-`, and a column that area's register never carried.
+enum ArchiveHolding {
+  Held
+  NotHeld
+  Unknown
 }
 
 model RegistryCheck {
@@ -55,6 +65,7 @@ model RegistryCheck {
   valueConfidence Float // how well the value itself was read (0..1)
 
   attributes RegistryCheckAttribute[]
+  documents  RegistryCheckDocument[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -95,4 +106,42 @@ model RegistryCheckAttribute {
 
   @@index([registryCheckId])
   @@map("registry_check_attributes")
+}
+
+/// One paper the package rests on, held against what the archive keeps.
+///
+/// Two names and not one: `name` is the register's own word for the kind of
+/// paper — "Ərizə", "Sərəncam çıxarışı" — and `documentType` is the profile's,
+/// carried so a finding lands on a sheet the inspector can open. The two
+/// vocabularies were written by different offices decades apart and neither may
+/// borrow the other's (ADR-0010).
+model RegistryCheckDocument {
+  id              String        @id @default(uuid()) @db.Uuid
+  registryCheckId String        @db.Uuid
+  registryCheck   RegistryCheck @relation(fields: [registryCheckId], references: [id], onDelete: Cascade)
+
+  name    String
+  holding ArchiveHolding
+
+  /// What the archive's own entry says about the paper, where it says anything,
+  /// and where that paper is. Text for the reason `reference` above is.
+  recordedNumber String?
+  recordedDate   String?
+  reference      String?
+
+  // The document of this package the question was asked about. SetNull so
+  // re-segmenting a file does not delete the check it fed.
+  documentId String?   @db.Uuid
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  documentType String
+  pageNumber   Int
+
+  // The order the profile names them in.
+  position Int
+
+  createdAt DateTime @default(now())
+
+  @@index([registryCheckId])
+  @@map("registry_check_documents")
 }

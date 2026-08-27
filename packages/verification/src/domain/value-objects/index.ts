@@ -26,6 +26,7 @@ export {
   RegistryAttribute,
   RegistryCheck,
   RegistryCheckKey,
+  RegistryDocument,
 } from './registry-check.vo.js';
 export { RegistryOutcome } from './registry-outcome.vo.js';
 export { ReportStatus } from './report-status.vo.js';

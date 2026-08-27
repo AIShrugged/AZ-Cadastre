@@ -103,9 +103,19 @@ services:
       - SERVICE_PORT=3100
       - SERVICE_HOST=0.0.0.0
       - LOG_LEVEL=info
-      # Mount a directory over this one to answer with your own records: they
-      # are data, and changing them needs no rebuild.
-      - REGISTRY_FIXTURES=fixtures
+      # The register's own database, and deliberately not cadastre-db: that one
+      # belongs to the verification context (ADR-0010). It is created by the
+      # init script the postgres service mounts — which the official image runs
+      # only when the data directory is new, so on an existing volume create it
+      # by hand:
+      #   docker exec cadastre-postgres createdb -U postgres cadastre-registry
+      # Then apply the schema and put the records in:
+      #   docker exec cadastre-registry pnpm db:deploy
+      #   docker exec cadastre-registry pnpm db:seed
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/cadastre-registry?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test:
         [
@@ -125,6 +135,9 @@ services:
       - '5432:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      # Creates the register's database beside the context's. Read only, and
+      # run by the image only on a data directory it has just created.
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres

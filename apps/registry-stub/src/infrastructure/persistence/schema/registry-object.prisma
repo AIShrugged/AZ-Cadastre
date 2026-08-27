@@ -1,0 +1,92 @@
+// One immovable-property object as the archive registers hold it.
+//
+// The key is `reyestr nömrəsi` — the register number, `003013067339-10301` —
+// and it is unique per territorial office rather than globally. That is not a
+// modelling choice: the Hövsan handover registers carry, for one physical
+// object, an Absheron office registration/register pair and a Baku office pair,
+// because the case was transferred between the two offices in 2008. An object
+// keyed globally could not hold both, and the second one is exactly what an
+// inspector is looking for when the owner of record "changed".
+//
+// The address is not the key and never was. Every object has at least two —
+// the URIS-assigned form and the `köhnə ünvan` that the same extract prints
+// under it — so where a property is answers to RegistryAddress, one row per
+// spelling.
+
+model RegistryObject {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// `Reyestr nömrəsi`: a 12-digit body and, for an object inside a building, a
+  /// 5-digit object code — "003013067339-10301". Text, because the leading zero
+  /// is significant and some registers lost it by storing the column as a
+  /// number.
+  registerNo String
+
+  /// Which office's numbering `registerNo` belongs to. Part of the key.
+  territorialOffice String
+
+  /// `İnventar №` — the archive-era key, which survives as a way in for papers
+  /// filed before the register number existed.
+  inventoryNo String?
+
+  /// The number surveyed onto the plan-scheme. A different identifier from the
+  /// register number and frequently absent: the older registers never carried
+  /// the column.
+  cadastralNumber String?
+
+  /// `Daşınmaz əmlakın növü` — "Fərdi yaşayış evi", "Mənzil", "Qeyri-yaşayış
+  /// sahəsi". The register's own words, untranslated.
+  propertyType String?
+
+  district String?
+
+  // ── what is on the ground ───────────────────────────────────────────────
+  // All four as written, with the unit the source wrote them in. The same
+  // parcel is 0.0309 ha in the register extract and 500.0m² in the engineer's
+  // report on the same case, and both are what their document says: converting
+  // on the way in would put a number in the record that no paper states.
+  plotArea      String?
+  totalArea     String?
+  mainArea      String?
+  auxiliaryArea String?
+  footprintArea String?
+
+  /// `Mərtəbəsi`. Text: real values are "2 (ики)" and "9/zirzəmi".
+  floors String?
+
+  buildYear Int?
+
+  // ── what the right is ───────────────────────────────────────────────────
+  // The four columns the state register extract prints above the areas —
+  // "Xüsusi", "Mülkiyyət", "Yaşayış məntəqələrinin torpaqları". The building
+  // and the land under it are titled separately and not always the same way,
+  // which is why there are two pairs and not one.
+  ownershipType     String?
+  rightType         String?
+  landOwnershipType String?
+  landRightType     String?
+  landCategory      String?
+
+  /// The register book and the sheet in it the entry was made on — "reyestr
+  /// kitabının 805, vərəq 64".
+  registryBookNo    String?
+  registryBookSheet String?
+
+  /// Which of the archive's registers this row was read out of — "пасбаза",
+  /// "EMDK:Mulkuyat", "Hövsan:qəbul edilən". An answer without its provenance
+  /// is not usable: there are six of these registers, they overlap, and where
+  /// they disagree somebody has to be told which one said what (ADR-0010).
+  sourceDatabase String
+
+  addresses    RegistryAddress[]
+  rightHolders RegistryRightHolder[]
+  documents    RegistryDocument[]
+  aliases      RegistryAlias[]
+  location     ArchiveLocation?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([territorialOffice, registerNo])
+  @@map("registry_objects")
+}

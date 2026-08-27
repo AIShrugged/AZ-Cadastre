@@ -5,6 +5,7 @@ import type {
   PackageDetailDto,
   PackageDto,
   RegistryCheckDto,
+  RegistryDocumentDto,
   ReportDto,
   SourceFileDto,
 } from '@cadastre/api-contracts/verification';
@@ -90,6 +91,18 @@ function toRegistryCheckDto(view: RegistryCheckView): RegistryCheckDto {
       submitted: toCheckedValueDto(attribute.submitted),
       recorded: attribute.recorded,
       agrees: attribute.agrees,
+    })),
+    documents: view.documents.map(document => ({
+      name: document.name,
+      type: document.documentType,
+      documentId: document.documentId,
+      pageNumber: document.pageNumber,
+      // Only ever written through the domain's own enumeration, so the stored
+      // string is one the contract names.
+      holding: document.holding as RegistryDocumentDto['holding'],
+      number: document.number,
+      issuedOn: document.issuedOn,
+      reference: document.reference,
     })),
   };
 }

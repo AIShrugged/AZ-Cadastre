@@ -25,8 +25,13 @@ export const PackageDtoSchema = z.object({
   // Null until the run has compiled a report. A report is the last thing every
   // run produces, however much of the package it managed to read.
   reportStatus: ReportStatusSchema.nullable(),
-  // Findings about the package itself, and readings the engine is unsure of.
-  // Counted apart: they do not add up to one number.
+  // Findings the report holds against the package, split in two so the row can
+  // say them apart: a shortfall in the package itself, and a reading the engine
+  // was unsure of. Neither counts the observations — what the run noted in
+  // passing is stated for the record, never against the package, which is the
+  // same rule the report's own status is decided by and the same one the detail
+  // screen counts its worklist by. `issuesCount + lowConfidenceCount` is every
+  // finding against the package, and that is what the card shows.
   issuesCount: z.number().int().nonnegative(),
   lowConfidenceCount: z.number().int().nonnegative(),
   // ISO-8601.

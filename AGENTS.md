@@ -81,6 +81,15 @@ do not add up — and any other address comes back `NotFound`. Editing them mean
 editing `apps/registry-stub/src/infrastructure/persistence/seed.ts` and running
 `db:seed` again.
 
+Records that are not the repository's own cases go in over HTTP instead:
+`POST /api/import/records` takes an `.xlsx` workbook, one sheet per model, and
+answers with a report naming the sheet, row and column of anything it refused
+(ADR-0011). `apps/registry-stub/fixtures/registry-import-template.xlsx` is the
+template to fill in — `pnpm --filter @cadastre/registry-stub fixtures:template`
+rebuilds it from the script beside it. The import is stub-local and not part of
+`@cadastre/api-contracts`: no verification of a submission ever loads a register
+file.
+
 Secrets live in `packages/verification/.env.local`, `apps/server/.env.local` and
 `apps/registry-stub/.env.local`, none of which is in git. Note that
 `process.loadEnvFile` never overwrites a variable already set, so the first file

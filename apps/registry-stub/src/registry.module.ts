@@ -4,13 +4,17 @@ import { APP_FILTER } from '@nestjs/core';
 
 import { LoggerModule } from '@cadastre/logger';
 
-import { AddressesService } from './application/index.js';
+import {
+  AddressesService,
+  RegistryImportService,
+} from './application/index.js';
 import { EnvironmentSchema, type Environment } from './config/index.js';
 import { REGISTRY_INFRASTRUCTURE } from './infrastructure/index.js';
 import {
   AddressesController,
   HealthController,
   HttpExceptionFilter,
+  ImportController,
 } from './presentation/http/index.js';
 
 /**
@@ -32,9 +36,10 @@ import {
         config.get('logger', { infer: true }),
     }),
   ],
-  controllers: [AddressesController, HealthController],
+  controllers: [AddressesController, HealthController, ImportController],
   providers: [
     AddressesService,
+    RegistryImportService,
     ...REGISTRY_INFRASTRUCTURE,
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
   ],

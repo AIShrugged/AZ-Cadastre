@@ -9,6 +9,8 @@ export type PackageSummaryView = {
   extractedCount: number;
   // Null until the run has compiled a report.
   reportStatus: string | null;
+  // Findings held against the package, said apart: a shortfall in the package,
+  // and a reading the engine was unsure of. Observations are in neither.
   issuesCount: number;
   lowConfidenceCount: number;
   createdAt: Date;

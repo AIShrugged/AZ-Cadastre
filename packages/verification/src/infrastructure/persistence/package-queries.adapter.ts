@@ -431,9 +431,12 @@ export class PackageQueriesAdapter extends PackageQueries {
       ).length,
       reportStatus: row.report?.status ?? null,
       // A reading the engine is unsure of is reported apart from a shortfall in
-      // the package itself: the register says both, and they do not add up.
+      // the package itself: the register says both, and together they are every
+      // finding the report holds against the package.
       issuesCount: issues.filter(
-        issue => issue.kind !== IssueKind.LOW_CONFIDENCE.value,
+        issue =>
+          PackageQueriesAdapter.isAgainstPackage(issue.kind) &&
+          issue.kind !== IssueKind.LOW_CONFIDENCE.value,
       ).length,
       lowConfidenceCount: issues.filter(
         issue => issue.kind === IssueKind.LOW_CONFIDENCE.value,
@@ -441,5 +444,27 @@ export class PackageQueriesAdapter extends PackageQueries {
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };
+  }
+
+  /**
+   * Whether a finding is held against the package, by the domain's own rule —
+   * the one `VerificationReport` decides OK against, and the one the detail
+   * screen counts its worklist by.
+   *
+   * The register used to count everything that was not a low-confidence
+   * reading, which swept in the observations: a package carrying four of the
+   * registry's own service sheets was announced as having four замечаний, and
+   * the same package's card, counting by tone, disagreed with the row that led
+   * to it. An observation is stated for the record and never against the
+   * package, so it is not what the register tallies.
+   *
+   * A kind the enumeration does not know is counted rather than thrown on: the
+   * register is a read surface, and one unrecognised row must not take the
+   * whole list down.
+   */
+  private static isAgainstPackage(kind: string): boolean {
+    const known = IssueKind.all.find(candidate => candidate.value === kind);
+
+    return known ? !known.isInformational : true;
   }
 }

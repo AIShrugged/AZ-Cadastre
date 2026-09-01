@@ -7,7 +7,10 @@ import {
   waitForTerminalStatus,
 } from '../../../../../test/context-harness.js';
 import type { PackageId } from '../../../../domain/value-objects/index.js';
-import { PackageStatus } from '../../../../domain/value-objects/index.js';
+import {
+  IssueKind,
+  PackageStatus,
+} from '../../../../domain/value-objects/index.js';
 import { PackageNotFoundException } from '../../../exceptions/index.js';
 import type {
   PackageDetailView,
@@ -77,6 +80,37 @@ describe('PackageQueriesAdapter', () => {
       summary.documentsCount,
     );
     expect(summary.reportStatus).not.toBeNull();
+  });
+
+  // The register once said 17 замечаний over a package whose own card listed
+  // 19: the row counted the observations as findings and left the unsure
+  // readings out, while the card counted by the domain's rule. The two numbers
+  // are read off the same report, so the invariant — and not a figure — is what
+  // is held here (TECH_DEBT §5).
+  it('tallies the register row off the same findings the card lists', async () => {
+    // act
+    const summary: PackageSummaryView = await queries.execute(
+      new GetPackageSummaryQuery(finished.value),
+    );
+    const detail: PackageDetailView = await queries.execute(
+      new GetPackageQuery(finished.value),
+    );
+
+    // assert
+    const issues = detail.report?.issues ?? [];
+    const againstPackage = issues.filter(
+      issue => !IssueKind.of(issue.kind).isInformational,
+    );
+    const unsure = againstPackage.filter(
+      issue => issue.kind === IssueKind.LOW_CONFIDENCE.value,
+    );
+
+    expect(summary.lowConfidenceCount).toBe(unsure.length);
+    expect(summary.issuesCount).toBe(againstPackage.length - unsure.length);
+    // What the card puts at the head of its worklist.
+    expect(summary.issuesCount + summary.lowConfidenceCount).toBe(
+      againstPackage.length,
+    );
   });
 
   it('carries the pages and their recognised text into the detail view', async () => {

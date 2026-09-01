@@ -14,6 +14,15 @@ export default defineConfig({
         target: process.env.VITE_CORE_URL ?? 'http://localhost:3000',
         changeOrigin: true,
       },
+      // The archive register (apps/registry-stub). Proxied for the same reason as
+      // /documents — the register answers with no CORS headers, so the browser
+      // has to stay on localhost:5173 — and reached at all because its workbook
+      // import is not part of @cadastre/api-contracts (ADR-0011 §1, TECH_DEBT §10).
+      '/registry': {
+        target: process.env.VITE_REGISTRY_URL ?? 'http://localhost:3100',
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/registry/, ''),
+      },
       // S3-compatible storage (RustFS) — presigned upload URLs. Proxying through
       // Vite keeps the browser on one origin (localhost:5173) and eliminates CORS
       // issues since the dev server automatically adds CORS headers.

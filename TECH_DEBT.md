@@ -180,3 +180,41 @@ decides. The engine stays the thing that decides — a prefilter that also judge
 would be a second, looser copy of the rule, which is what `libs/matching-engine`
 exists to prevent. Until then the adapter says in its own doc comment that this
 is what it does.
+
+## 10. The client calls the archive register directly, and the register has no door
+
+**Not done.** `apps/web` speaks `@cadastre/api-contracts` through
+`libs/api-gateway` and nothing else (`CONTEXT-MAP.md`). The workbook import does
+not: `features/import-registry` posts straight to `apps/registry-stub`'s
+`POST /api/import/records`, proxied at `/registry` by the dev server, with the
+report's shape restated in the feature's own `model/types.ts`.
+
+It is deliberate on both counts. The endpoint is not in the contract because no
+verification of a submission ever loads a register file, and publishing it would
+put an operator's tool in the language a real state register would have to
+implement (ADR-0011 §1) — so routing it through the gateway would undo the
+decision rather than honour it. And it is reached from the browser at all
+because the testing phase needs records in the register that the seed does not
+carry, and the person with the register files does not have a terminal.
+
+**How it fires.** Two ways, and the second is the one that matters. The register
+answers with no authentication in front of it and none behind it (ADR-0011,
+consequences): the moment `apps/web` is served anywhere the register is also
+reachable, anyone who can open the page can write to the archive register. The
+quieter one is drift — the register's Zod schemas change, the feature's restated
+`RegistryImportReport` does not, and the modal renders `undefined` for a count
+nobody notices. Nothing type-checks the two against each other. Two smaller
+edges ride along: the register's refusal sentence and the `message` of each
+refused row are shown as they came, in English, on a trilingual surface (the
+same shortcut as §8), and the register's one refusal code is `VALIDATION_FAILED`
+for every fault, so there is nothing to key a translation on.
+
+**What to do.** Before this is deployed anywhere but a developer's machine, one
+of two things: put the register behind the same auth as everything else and give
+the import a caller it can name, or take the button out — it is a testing-phase
+convenience (COMM-19) and not a feature the inspector was promised. It is not a
+reason to publish the endpoint in `@cadastre/api-contracts`; the way to keep the
+shapes honest without doing that is an API-set case in `apps/registry-stub` that
+asserts the report against the same literal the feature restates. Whichever
+happens, the `/registry` proxy in `apps/web/vite.config.ts` and this entry go
+together — remove one and the other is a lie.

@@ -64,7 +64,8 @@ apps/                       # deployables: composition roots and UI. No business
   web/                      #   type:app — the inspector's client
   registry-stub/            #   type:app — the stand-in archive register (ADR-0009).
                             #     Not a context: it speaks the contracts, decides
-                            #     nothing, and answers from `fixtures/`
+                            #     nothing, and answers from its own database —
+                            #     own schema, own migrations, own seed (ADR-0010)
 packages/                   # bounded contexts: own language, own model, own database
   verification/             #   type:context
     CONTEXT.md              #     its ubiquitous language and what to avoid calling things

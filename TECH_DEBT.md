@@ -154,3 +154,29 @@ and a change to the published `RegistryCheckDto`, which is why it was not done
 with the panel: the panel is what makes the stage visible at all, and it is
 useful in English until then. The page ranges themselves stay strings — `01-dən
 30` is a real value (ADR-0009).
+
+## 9. The register matches an address by reading its whole address table
+
+**Not done.** `PrismaRegistrySourceAdapter.findByAddress` reads every row of
+`registry_addresses`, matches them in JavaScript with `addressesAgree`, and only
+then hydrates the objects that matched. There is no index behind the first read
+and there cannot be a straightforward one: the rule that decides whether two
+spellings mean the same place binds an administrative level to the word beside
+it, forgives a level one side omits, and reads the Azerbaijani legacy Cyrillic
+code page (ADR-0009, ADR-0010). None of that is a predicate PostgreSQL can be
+given.
+
+**How it fires.** Not at all today: the register holds the customer's two cases
+and four records kept for behaviour the fixtures had, and a full scan of a table
+that size is faster than the round trip. It fires on the day the 55 register
+files are ingested — one lookup per package becomes a scan of every address the
+archive knows, and the register stage is the last stage of a run that already
+took a minute.
+
+**What to do.** A prefilter, not a rewrite: store the folded tokens of each
+spelling beside it, written by the same engine at ingest time, and use a GIN
+index to narrow to the rows that share enough of them before `addressesAgree`
+decides. The engine stays the thing that decides — a prefilter that also judged
+would be a second, looser copy of the rule, which is what `libs/matching-engine`
+exists to prevent. Until then the adapter says in its own doc comment that this
+is what it does.

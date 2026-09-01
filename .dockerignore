@@ -16,3 +16,10 @@ coverage
 .next
 .turbo
 pnpm-debug.log
+
+# The customer's own material: register schema workbooks and two complete cases
+# with people's identity documents in them. No image copies it — the Dockerfiles
+# name the paths they take — but without this line 122 MB of somebody's papers
+# is uploaded to the daemon on every build, and one careless `COPY . .` away
+# from being published.
+Fedor Zhernovoy/

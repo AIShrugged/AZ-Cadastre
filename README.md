@@ -104,6 +104,11 @@ for why the backend is shaped this way, [CONTEXT-MAP.md](CONTEXT-MAP.md) for
 what the boundaries are, and `.claude/skills/backend/` for the conventions in
 full.
 
+## Documentation
+
+- [Как работает программа — полный цикл](docs/process-overview.md) — полный цикл обработки
+  пакета документов: от загрузки до отчёта инспектору.
+
 ## Getting Started
 
 This is a monorepo project using pnpm workspaces.

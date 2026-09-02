@@ -1,0 +1,95 @@
+// The vocabulary the rest of these files are written in.
+//
+// Two vocabularies, on purpose. The C4 kinds (person, softwareSystem,
+// container, component) describe what runs; the data kinds (database, table)
+// describe what is stored. They never mix in one view: a table belongs to
+// exactly one database, and the C4 views stop at the container that owns it.
+
+specification {
+  // ── C4 ────────────────────────────────────────────────────────────────────
+  element person {
+    style {
+      shape person
+      color secondary
+    }
+  }
+
+  element softwareSystem {
+    style {
+      shape rectangle
+    }
+  }
+
+  element container {
+    style {
+      shape rectangle
+    }
+  }
+
+  element component {
+    style {
+      shape component
+      color secondary
+    }
+  }
+
+  element storage {
+    style {
+      shape storage
+      color green
+    }
+  }
+
+  // ── data ──────────────────────────────────────────────────────────────────
+  element database {
+    style {
+      shape cylinder
+      color green
+    }
+  }
+
+  element table {
+    notation 'Table'
+    style {
+      shape rectangle
+      color muted
+      // Large, because a table node has to hold its whole column list without
+      // the renderer clipping it to an ellipsis.
+      size large
+    }
+  }
+
+  // ── tags ──────────────────────────────────────────────────────────────────
+  tag external {
+    color #c92a2a
+  }
+
+  // A system outside this one that we happen to run: apps/registry-stub stands
+  // in for the archive register until a real one answers the same contract
+  // (ADR-0009). Tagged rather than modelled as ours, because the boundary is
+  // what matters and it is the boundary that survives the stand-in.
+  tag stand-in {
+    color #e8a33d
+  }
+
+  tag verification-context
+  tag archive-register
+
+  // ── relationship kinds ────────────────────────────────────────────────────
+  relationship https {
+    technology 'HTTPS/JSON'
+  }
+
+  relationship sql {
+    technology 'Prisma / SQL'
+    line dotted
+  }
+
+  // A foreign key. Dashed and open-headed so an ERD edge never reads like a
+  // call: nothing here invokes anything, one row references another.
+  relationship fk {
+    line dashed
+    head vee
+    color muted
+  }
+}

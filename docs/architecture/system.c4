@@ -1,0 +1,214 @@
+// What runs, and what talks to what.
+//
+// Follows CONTEXT-MAP.md: apps/web → libs/api-gateway → packages/verification →
+// apps/registry-stub. The component names are package paths and class names, so
+// a diagram that has drifted from the code can be told from one that has not.
+
+model {
+  inspector = person 'Inspector' {
+    summary 'Officer of the Real Estate Registration Authority'
+    description '''
+      Submits a citizen's package of papers for a first state registration of
+      an individual dwelling house, and reads what the system found.
+
+      **The system never approves or rejects.** It prepares evidence — what was
+      found, what did not agree, how confidently each thing was read and on
+      which sheet it sits. The decision is the inspector's.
+    '''
+  }
+
+  openrouter = softwareSystem 'OpenRouter' {
+    #external
+    summary 'The vision and language models every reading stage is served by'
+    technology 'HTTPS/JSON'
+    description '''
+      One route per stage — OCR, segmentation, classification, field extraction
+      and cross-checking — each pinned to a model observed to return real token
+      logprobs, because the confidence a reading carries is taken as the lower
+      of the logprobs and the model's own stated certainty.
+
+      See `docs/MODELS.md` before changing any of them.
+    '''
+    link ../MODELS.md 'docs/MODELS.md'
+  }
+
+  // ── the system ────────────────────────────────────────────────────────────
+  cadastre = softwareSystem 'AZ-Cadastre' {
+    #verification-context
+    summary 'Reads a submitted package of papers and reports what it found'
+    link ../../CONTEXT-MAP.md 'CONTEXT-MAP.md'
+
+    web = container 'Inspector web client' {
+      technology 'React SPA, nginx'
+      summary 'apps/web — upload, package list, report. Trilingual: ru / en / az'
+      description '''
+        Speaks `@cadastre/api-contracts` and never the domain model. No live
+        updates: the inspector reloads the package screen to see progress.
+      '''
+    }
+
+    core = container 'cadastre-core' {
+      technology 'NestJS, Node 26'
+      summary 'apps/server — the composition root: the HTTP edge and the verification context in one process'
+      description '''
+        `apps/server` validates the environment, mounts the context module and
+        binds every port to an implementation in
+        `src/infrastructure/index.ts` — the one place that changes if
+        verification becomes its own service.
+      '''
+
+      gateway = component 'libs/api-gateway' {
+        technology 'NestJS controllers, Zod'
+        summary 'Transport: HTTP in, port calls out, status codes back'
+        description 'type:edge. Holds no word the contracts do not have (CONTEXT-MAP.md).'
+      }
+
+      facade = component 'VerificationService' {
+        technology 'packages/verification/src/application/services'
+        summary 'The context façade — implements the `…Api` interfaces the gateway mirrors'
+      }
+
+      pipeline = component 'RunVerificationHandler' {
+        technology 'packages/verification/…/use-cases/packages/run-verification'
+        summary 'The eight stages, in order, and the rule that none of them may stop the run'
+        description '''
+          Every stage is wrapped in `despite(...)`: a file that will not split,
+          a sheet the reader refuses, a document nothing can place — each is
+          carried into the report rather than raised. Only losing the package
+          itself ends a run.
+        '''
+      }
+
+      profiles = component 'Verification profiles' {
+        technology 'packages/verification/src/domain — code, not the database'
+        summary 'Which papers are required, which fields to read, which checks to make (ADR-0002)'
+      }
+
+      domain = component 'Domain model' {
+        technology 'Aggregates, entities, value objects, events'
+        summary 'VerificationPackage and everything under it. Imports no framework, no Prisma, no provider SDK'
+      }
+
+      repository = component 'Prisma repository' {
+        technology 'packages/verification/src/infrastructure/persistence'
+        summary 'VerificationPackageRepository and the read models — the only writer of cadastre-db'
+      }
+
+      objectStorageAdapter = component 'Object-storage adapter' {
+        technology 'AWS SDK v3, S3-compatible'
+        summary 'Presigns the browser upload and reads the bytes back for splitting'
+      }
+
+      pdfSplitter = component 'PDF splitter' {
+        technology 'pdf rendering at 300 dpi'
+        summary 'Stage 1 — a PDF becomes one PNG per sheet; an image file is one sheet'
+      }
+
+      readers = component 'OpenRouter adapters' {
+        technology 'packages/verification/src/infrastructure/adapters/openrouter'
+        summary 'OcrProvider, DocumentSegmenter, DocumentClassifier, FieldExtractor, CrossChecker'
+        description '''
+          Five ports, five adapters, one HTTP client. Each records a confidence
+          taken as the *lower* of the route's token logprobs and the model's own
+          stated certainty; a route that offers neither makes the reading
+          **unscored**, which puts it below the 0.80 floor and in front of a
+          human.
+        '''
+      }
+
+      registryClient = component 'HTTP archive-registry adapter' {
+        technology 'ArchiveRegistryPort over HTTPS'
+        summary 'The one call that leaves the submission (ADR-0009)'
+        description 'A register that does not answer never fails a verification — the stage is abandoned and the report says the property was not confirmed.'
+      }
+    }
+
+    cadastreDb = database 'cadastre-db' {
+      #verification-context
+      technology 'PostgreSQL'
+      summary 'The verification context owns it — schema, migrations and client under src/infrastructure/persistence'
+      description 'Its tables are in `erd-cadastre-db.c4`. Nothing outside the verification context reads it (ADR-0010).'
+    }
+
+    files = storage 'Document storage' {
+      technology 'RustFS (S3-compatible)'
+      summary 'The uploaded files and the page images rendered off them'
+      description 'The bytes never pass through cadastre-core on the way in: the browser PUTs them to a presigned URL.'
+    }
+  }
+
+  // ── outside the system, and run by us until it is not ─────────────────────
+  archive = softwareSystem 'Archive register' {
+    #stand-in
+    #archive-register
+    summary 'apps/registry-stub — the stand-in for the cadastre archive register'
+    description '''
+      Not a bounded context and not our data. It states **facts** — what the
+      register holds about a property and which of the package's papers the
+      archive has the original of — and never a verdict about a submission,
+      because it does not know what is being registered.
+
+      It is deleted rather than migrated when a real state register answers the
+      same contract (ADR-0009, ADR-0010).
+    '''
+    link ../adr/0009-the-archive-register-behind-a-port.md 'ADR-0009'
+    link ../adr/0010-the-register-holds-its-records-in-its-own-database.md 'ADR-0010'
+
+    registryApi = container 'cadastre-registry service' {
+      technology 'NestJS, Node 26'
+      summary 'apps/registry-stub — answers @cadastre/api-contracts/registry over HTTP'
+
+      lookup = component 'Address lookup' {
+        technology 'apps/registry-stub/src/application'
+        summary 'Finds the object an address answers to and reports what the register holds about it'
+        description 'Reads the whole address table on every call, because the rule that decides whether two spellings mean one place is JavaScript and not a SQL predicate (TECH_DEBT.md §9).'
+      }
+
+      matching = component 'libs/matching-engine' {
+        technology 'Pure rules, no dependencies'
+        summary 'Whether two ways of writing an address, a name, an area or a reference number mean the same thing'
+        description 'Includes the Azerbaijani legacy Cyrillic table the archive files need. No dependencies, so the stand-in and whatever replaces it answer from one source.'
+      }
+
+      workbookImport = component 'Workbook import' {
+        technology 'POST /api/import/records — stub-local, not in the published contract'
+        summary 'Puts the archive Excel registers into the database, a sheet per model (ADR-0011)'
+      }
+    }
+
+    registryDb = database 'cadastre-registry' {
+      #archive-register
+      technology 'PostgreSQL'
+      summary "The register's own database, and deliberately not cadastre-db (ADR-0010)"
+      description 'Its tables are in `erd-cadastre-registry.c4`. Two databases are what make a join between a submission and the record of a registration a network call rather than a query somebody can write by accident.'
+    }
+  }
+
+  // ── relationships ─────────────────────────────────────────────────────────
+  inspector -[https]-> web 'submits packages, reads reports'
+  web -[https]-> gateway 'REST /api/packages, /api/documents/presign'
+  web -[https]-> files 'PUTs the file bytes to a presigned URL'
+
+  gateway -> facade 'VerificationClientPort — mirrors the published `…Api` interfaces'
+  facade -> pipeline 'PackageSubmitted starts the run; the inspector is answered at once'
+  facade -> repository 'read models for the package list and the report'
+  facade -> profiles 'which profiles a package may be submitted under'
+  facade -> objectStorageAdapter 'presigns the upload'
+
+  pipeline -> domain 'loads the aggregate, records what each stage found'
+  pipeline -> profiles 'what to require, what to read, what to check'
+  pipeline -> repository 'saves the package after every stage'
+  pipeline -> objectStorageAdapter 'reads the uploaded bytes, stores the page images'
+  pipeline -> pdfSplitter 'PdfSplitter'
+  pipeline -> readers 'OcrProvider, DocumentSegmenter, DocumentClassifier, FieldExtractor, CrossChecker'
+  pipeline -> registryClient 'ArchiveRegistryPort'
+
+  repository -[sql]-> cadastreDb 'the verification package and everything under it'
+  objectStorageAdapter -> files 'presign, get, put' 'S3 API'
+  readers -[https]-> openrouter 'one route per stage, images and text'
+  registryClient -[https]-> registryApi '@cadastre/api-contracts/registry'
+
+  lookup -> matching 'do these two spellings mean one place?'
+  lookup -[sql]-> registryDb 'objects, addresses, right holders, papers, locations'
+  workbookImport -[sql]-> registryDb 'one object with its children per import unit'
+}

@@ -36,6 +36,22 @@ outside `@cadastre/api-contracts` (ADR-0011 §1, TECH_DEBT §10).
 
 [![Containers](exports/containers.png)](exports/containers.png)
 
+## The same containers, for somebody who does not write code
+
+`po.c4` is the container view told a second time, in Russian and in the words a
+product owner uses: *Рабочий экран*, *Основной сервис проверки*, *База данных
+проверок*. It carries the instruction for loading an Excel register file into
+the archive register — which button, in what order, what the report means — in
+its own description and in the description of the register service, so it is
+read beside the picture rather than in a separate document.
+
+It adds **no elements of its own**: every block is the element `system.c4`
+already declares, with title, technology and description replaced for the length
+of that one view (`include … with { … }`). A container that leaves the system
+leaves both pictures, so the two cannot drift apart.
+
+[![Что запущено — простыми словами](exports/po.png)](exports/po.png)
+
 ## Components of `cadastre-core` — the ports-and-adapters seam
 
 The pipeline names a port; `apps/server/src/infrastructure/index.ts` binds it to
@@ -89,8 +105,9 @@ model is wrong or the code is.
 | `system.c4`                 | The C4 model — people, systems, containers, components, and what talks to what |
 | `erd-cadastre-db.c4`        | The tables of `cadastre-db`, nested inside its container                      |
 | `erd-cadastre-registry.c4`  | The tables of `cadastre-registry`, nested inside its container                |
-| `views.c4`                  | The seven views above                                                         |
-| `az-cadastre.c4`            | **Generated.** The five above as one document, for the playground             |
+| `views.c4`                  | The seven engineering views above                                             |
+| `po.c4`                     | The eighth view: the containers, retold for a non-technical reader            |
+| `az-cadastre.c4`            | **Generated.** The six above as one document, for the playground              |
 | `bundle.sh`                 | Regenerates `az-cadastre.c4`                                                   |
 | `likec4.config.json`        | Names the project and keeps `az-cadastre.c4` out of the workspace              |
 
@@ -145,13 +162,13 @@ themes and wrong in an image viewer that paints alpha black.
 ### One file, for the playground
 
 [playground.likec4.dev](https://playground.likec4.dev) takes a single document,
-so the five files are also committed joined, as
+so the six files are also committed joined, as
 [`az-cadastre.c4`](az-cadastre.c4). Copy that file, paste it there, and all
-seven views are in the list. Joining needs no rewriting: a `.c4` document may
+eight views are in the list. Joining needs no rewriting: a `.c4` document may
 hold any number of `specification`, `model` and `views` blocks, and references
 resolve across the whole of it.
 
-It is **generated**. Edit the five sources and run:
+It is **generated**. Edit the six sources and run:
 
 ```bash
 docs/architecture/bundle.sh
@@ -160,7 +177,7 @@ docs/architecture/bundle.sh
 Two consequences worth knowing before you move it:
 
 - `likec4.config.json` lists it under `exclude`. Without that the tool loads the
-  bundle *and* its five sources, every element is declared twice, and the whole
+  bundle *and* its six sources, every element is declared twice, and the whole
   workspace stops resolving — a subfolder does not help, the scan is recursive.
   Note that setting `exclude` replaces the default, which is why
   `**/node_modules/**` is spelled out again there.
@@ -176,6 +193,10 @@ Two consequences worth knowing before you move it:
 - Keep the model honest about **this** code. Component titles are package paths
   and class names (`libs/api-gateway`, `RunVerificationHandler`) so that a
   diagram which has drifted can be told from one that has not, by grep.
+- `po.c4` is the one place where that rule is inverted, and only in the labels:
+  it renames the same elements for a reader who does not know what a gateway is.
+  A container added to `containers` is added to `po` in the same commit, or it
+  shows up there under its package path.
 - When a schema changes, the ERD changes with it in the same commit. The Prisma
   files are the source of truth: `packages/verification/src/infrastructure/persistence/schema/`
   and `apps/registry-stub/src/infrastructure/persistence/schema/`.

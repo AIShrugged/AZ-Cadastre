@@ -1,15 +1,15 @@
 // AZ-Cadastre — the whole architecture model in one file. GENERATED; DO NOT EDIT.
 //
-// specification.c4, system.c4, erd-cadastre-db.c4, erd-cadastre-registry.c4 and
-// views.c4, concatenated in that order and nothing else. Regenerate with
-// `docs/architecture/bundle.sh` after editing any of them; edit those five, not
-// this.
+// specification.c4, system.c4, erd-cadastre-db.c4, erd-cadastre-registry.c4,
+// views.c4 and po.c4, concatenated in that order and nothing else. Regenerate
+// with `docs/architecture/bundle.sh` after editing any of them; edit those six,
+// not this.
 //
 // It exists for https://playground.likec4.dev, which takes a single document:
-// copy this whole file, paste it there, and all seven views are in the list.
+// copy this whole file, paste it there, and all eight views are in the list.
 //
 // `likec4.config.json` excludes this file from the workspace — the tool would
-// otherwise load both it and its five sources, and every element would be
+// otherwise load both it and its six sources, and every element would be
 // declared twice.
 //
 // https://github.com/AIShrugged/AZ-Cadastre/tree/main/docs/architecture
@@ -906,5 +906,293 @@ views {
       opacity 8%
     }
     autoLayout LeftRight 120 60
+  }
+}
+// The container diagram told a second time, for a reader who does not write
+// code — a product owner, an analyst, whoever has to know what is running
+// without knowing what a gateway is.
+//
+// It declares **no model of its own**. Every block below is the same element
+// `system.c4` declares, with its title, technology and description replaced for
+// the length of this one view (`include … with { … }`). That is the whole
+// point: a container that leaves the system leaves both pictures, and these two
+// cannot drift apart the way two separately drawn diagrams do. Nothing here is
+// a simplification of the truth — it is the same truth in other words.
+//
+// The rendered strings are Russian because the reader this view is written for
+// is. Identifiers and these comments stay English, like everywhere else in the
+// repository: the file is maintained by engineers and read by everybody else
+// through `likec4 start`.
+//
+// Two things the tool does that shaped this file. An element's `summary` is
+// dropped from a customised node, so the short line a reader sees is the
+// overridden `description`. And a blank `technology ''` is trimmed to nothing
+// and falls back to the relationship kind's own — 'HTTPS/JSON', 'Prisma / SQL'
+// — so every edge here names its transport in words instead.
+//
+// `likec4 format` reflows this file into a style the rest of the folder is not
+// written in; the .c4 files here are hand-formatted, and prettier does not
+// cover them.
+//
+// When `containers` in views.c4 changes, this changes with it in the same
+// commit. It is one `include` per block on purpose: a block added to the system
+// and not to this file is missing from the picture rather than silently
+// labelled with its package path.
+
+views {
+
+  view po of cadastre {
+    title 'Что запущено — простыми словами'
+    description '''
+      Что работает в системе и кто к кому обращается, без внутренних названий.
+      Каждая рамка — отдельно работающая программа или хранилище; стрелка —
+      кто кого о чём просит.
+
+      Оранжевым обведено чужое: архивный реестр — не наша система, сейчас его
+      роль исполняет наша временная замена. Красным — чужой сервис в интернете.
+      Всё остальное — то, что мы делаем и запускаем сами.
+
+      ## Как загрузить Excel-файл, чтобы наполнить архивный реестр
+
+      Нужен только браузер: ни программиста, ни доступа к серверу, ни каких-либо
+      технических инструментов. Шаги 1–3 на схеме — это и есть этот путь.
+
+      1. Откройте главный экран — **«Реестр проверок»**, список проверок.
+      2. Вверху справа, слева от синей кнопки «Новая проверка», нажмите
+         **«Загрузить файл реестра»**.
+      3. В открывшемся окне нажмите **«Выбрать файл»** и укажите файл `.xlsx`
+         размером до 25 МБ.
+      4. Нажмите **«Загрузить»**. Сначала идёт «Передача… %», затем «Реестр
+         читает файл…» — на этом шаге нужно подождать, окно закрывать не надо.
+      5. Прочитайте отчёт: **«Загружено»** и **«Отклонено»**, а под ними таблица
+         «Лист / Строка / Столбец / Что не так» по каждому непринятому объекту.
+         Исправьте эти строки в Excel и нажмите **«Загрузить ещё раз»**.
+
+      Что стоит знать заранее:
+
+      - **Загрузить тот же файл повторно безопасно.** Объект узнают по паре
+        «территориальный отдел + номер по реестру» и перезаписывают — дубли не
+        появляются, поэтому исправленный файл можно слать целиком.
+      - **Одна ошибка не отменяет весь файл.** Объект, в строках которого есть
+        ошибка, реестр не берёт целиком — но все остальные объекты из файла
+        загружает. Отчёт покажет, сколько чего.
+      - **Форма файла — по листу на каждый вид данных**: `Objects`, `Addresses`,
+        `RightHolders`, `Documents`, `Aliases`, `Locations`. Пустой шаблон с
+        нужными столбцами лежит в проекте — файл
+        [registry-import-template.xlsx](https://github.com/AIShrugged/AZ-Cadastre/blob/main/apps/registry-stub/fixtures/registry-import-template.xlsx).
+      - **Отчёт называет место, а не значение** — лист, строку и столбец. Ничего
+        из чужих персональных данных он обратно не показывает, поэтому смотреть
+        придётся в свой же файл.
+      - **Ограничение на размер — 25 МБ**, это один реестр за раз, а не все сразу.
+    '''
+
+    // ── кто этим пользуется ───────────────────────────────────────────────
+    include inspector with {
+      title 'Инспектор'
+      description '''
+        Принимает у гражданина пакет документов на регистрацию дома и читает,
+        что нашла система.
+
+        **Система ничего не одобряет и не отклоняет.** Она собирает
+        доказательства: что нашлось, что не сошлось, насколько уверенно
+        прочитано и на какой странице это видно. Решение принимает инспектор.
+      '''
+    }
+
+    include registryOperator with {
+      title 'Сотрудник, который ведёт реестр'
+      description '''
+        Наполняет архивный реестр: берёт Excel-файлы реестра и загружает их
+        кнопкой в том же веб-приложении. Проверками пакетов не занимается — это
+        другая работа и другой человек.
+      '''
+    }
+
+    // ── наше ──────────────────────────────────────────────────────────────
+    include cadastre with {
+      title 'Система проверки документов'
+      description '''
+        То, что мы делаем и запускаем. Всё, что внутри этой рамки, — наше; всё,
+        что снаружи, принадлежит кому-то другому.
+      '''
+    }
+
+    include cadastre.web with {
+      title 'Рабочий экран (веб-приложение)'
+      technology 'Открывается в браузере'
+      description '''
+        Единственное, что человек видит своими глазами. Здесь загружают пакет
+        документов, следят за списком проверок и читают отчёт — и здесь же
+        кнопка загрузки Excel-файла реестра.
+
+        Три языка: русский, английский, азербайджанский. Готовый результат
+        появляется после обновления страницы — сам он не «прилетает».
+      '''
+    }
+
+    include cadastre.core with {
+      title 'Основной сервис проверки'
+      technology 'Программа на сервере'
+      description '''
+        Делает всю работу. Разбирает присланный пакет на отдельные документы,
+        вытаскивает нужные поля, сверяет их между документами, спрашивает
+        архивный реестр и собирает итоговый отчёт.
+
+        Ни одна неудача не останавливает проверку: непрочитанная страница,
+        непонятный документ, молчащий реестр — каждое становится строкой в
+        отчёте, а проверка идёт дальше.
+      '''
+    }
+
+    include cadastre.cadastreDb with {
+      title 'База данных проверок'
+      technology 'База данных'
+      description '''
+        Что прислали, что распознали, что сошлось и что нет, и готовые отчёты.
+
+        Здесь лежат только проверки. Данных архивного реестра здесь нет и не
+        должно быть — это соседняя, отдельная база.
+      '''
+    }
+
+    include cadastre.files with {
+      title 'Хранилище файлов'
+      technology 'Файловое хранилище'
+      description '''
+        Сами присланные сканы и картинки отдельных страниц, сделанные с них.
+
+        Файлы уходят туда прямо из браузера, минуя сервис проверки, — поэтому
+        толстый пакет не замедляет саму проверку.
+      '''
+    }
+
+    // ── чужое ─────────────────────────────────────────────────────────────
+    include openrouter with {
+      title 'Внешний сервис распознавания'
+      technology 'Чужой сервис в интернете'
+      description '''
+        Читает текст со сканов и помогает сопоставить данные между документами.
+
+        Каждое прочитанное значение приходит с оценкой уверенности. Всё, что
+        ниже 0,80, система показывает инспектору как вопрос, а не как факт.
+      '''
+    }
+
+    include archive with {
+      title 'Архивный реестр (чужая система)'
+      description '''
+        То, что зарегистрировано раньше: объекты, адреса, правообладатели,
+        документы. Формально это не наша система — сейчас её роль исполняет
+        наша временная замена, и когда появится настоящий государственный
+        реестр, эта часть заменяется на него.
+
+        Реестр отвечает только фактами — «вот что у нас записано об этом
+        объекте» — и никогда не выносит решение по заявке: он не знает, что
+        именно регистрируют.
+      '''
+    }
+
+    include archive.registryApi with {
+      title 'Служба архивного реестра'
+      technology 'Программа на сервере'
+      description '''
+        Отвечает на два разных вопроса.
+
+        Сервису проверки — «что в реестре записано об этом объекте и какие из
+        присланных бумаг у архива есть в подлиннике». Сотруднику реестра —
+        принимает **Excel-файл реестра** и раскладывает его по записям.
+
+        **Как загрузить Excel-файл:** главный экран → кнопка «Загрузить файл
+        реестра» вверху справа → «Выбрать файл» → файл `.xlsx` до 25 МБ →
+        «Загрузить». Дальше окно само покажет отчёт: сколько объектов
+        загружено, сколько отклонено и в каком листе, строке и столбце ошибка.
+        Исправьте эти строки и загрузите файл ещё раз — повторная загрузка
+        ничего не портит, объекты перезаписываются, а не задваиваются.
+
+        Никаких технических инструментов для этого не нужно, всё делается в
+        браузере. Подробнее — в описании самой схемы.
+      '''
+    }
+
+    include archive.registryDb with {
+      title 'База архивного реестра'
+      technology 'База данных'
+      description '''
+        Записи реестра: объект, его адреса, правообладатели, документы, иные
+        номера и места хранения. Именно сюда попадает то, что загружено из
+        Excel-файла.
+
+        Отдельная база, никак не связанная с базой проверок, — и так задумано:
+        свести заявку и запись реестра одним запросом нельзя, за фактом реестра
+        всегда надо сходить и спросить.
+      '''
+    }
+
+    // ── кто к кому обращается ─────────────────────────────────────────────
+    include inspector -> cadastre.web with {
+      title 'приносит пакет документов и читает отчёт'
+      technology 'в браузере'
+    }
+
+    // Steps 1–3 are the upload, drawn as the reader walks it. The file goes
+    // from the browser to the register and never through the verification
+    // service, which is why the arrow leaves the frame.
+    include registryOperator -> cadastre.web with {
+      title '1. открывает экран и жмёт «Загрузить файл реестра»'
+      technology 'в браузере'
+    }
+
+    include cadastre.web -> archive.registryApi with {
+      title '2. передаёт выбранный Excel-файл прямо в реестр'
+      technology 'по сети'
+    }
+
+    // Two writers roll up into this one edge, the same way they do in
+    // `containers`; say what it is rather than let it render as "[...]".
+    include archive.registryApi -> archive.registryDb with {
+      title '3. читает записи реестра — и пополняет их из загруженного файла'
+      technology 'запрос к базе'
+    }
+
+    include cadastre.web -> cadastre.core with {
+      title 'отправляет пакет на проверку, забирает готовый отчёт'
+      technology 'по сети'
+    }
+
+    include cadastre.web -> cadastre.files with {
+      title 'кладёт присланные файлы в хранилище'
+      technology 'по сети'
+    }
+
+    include cadastre.core -> cadastre.cadastreDb with {
+      title 'сохраняет ход и результат проверки'
+      technology 'запрос к базе'
+    }
+
+    include cadastre.core -> cadastre.files with {
+      title 'читает файлы и складывает картинки страниц'
+      technology 'по сети'
+      // The model relation carries 'S3 API' as its description; overridden, or
+      // it turns up in the details pane of a picture that has no protocols in it.
+      description 'Забирает присланный файл, режет его на страницы и кладёт картинки обратно.'
+    }
+
+    include cadastre.core -> openrouter with {
+      title 'просит прочитать страницы и сверить данные'
+      technology 'через интернет'
+    }
+
+    include cadastre.core -> archive.registryApi with {
+      title 'спрашивает: что в реестре записано об этом объекте?'
+      technology 'по сети'
+    }
+
+    style archive, archive.* {
+      color amber
+    }
+    style openrouter {
+      color red
+    }
+    autoLayout TopBottom 120 100
   }
 }

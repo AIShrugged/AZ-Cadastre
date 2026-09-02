@@ -81,6 +81,14 @@ type RegistryCheckDeclaration = {
   readonly documents?: readonly (readonly [string, string])[];
 };
 
+// A document type that no profile asks for, declared so it can be named rather
+// than bucketed. It answers no requirement and carries no fields, so it says
+// only what the thing is and what it is headed (ADR-0012).
+export type CatalogueDeclaration = Pick<
+  Declaration,
+  'key' | 'description' | 'hints'
+>;
+
 // One value the check reaches for, named by the document type that carries it.
 export class FieldRef {
   private constructor(
@@ -197,6 +205,21 @@ export class DocumentTypeSpec {
         declaration.fields.map(([key, label]) => FieldSpec.of(key, label)),
       ),
       declaration.required,
+    );
+  }
+
+  // An entry of the document catalogue: something the envelopes carry that no
+  // profile asks for. Shaped like a profile's own type because whoever
+  // classifies chooses between the two lists at once — but required of nothing
+  // and declaring no fields, so nothing is extracted from it and nothing counts
+  // it as missing (ADR-0012).
+  static catalogued(declaration: CatalogueDeclaration): DocumentTypeSpec {
+    return new DocumentTypeSpec(
+      DocumentType.create(declaration.key),
+      declaration.description,
+      [...declaration.hints],
+      FieldSchema.none(),
+      false,
     );
   }
 

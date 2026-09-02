@@ -633,6 +633,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
             document.id,
             document.sourceFileId,
             document.pages,
+            classification.knownAs,
           ),
         ];
       }

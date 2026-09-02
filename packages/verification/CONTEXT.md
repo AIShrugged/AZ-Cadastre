@@ -27,6 +27,10 @@ _Avoid_: category, kind
 A single structured value pulled from a Document: value + confidence + page reference.
 _Avoid_: attribute, property
 
+**Document Catalogue**:
+A reference list of Document Types that no Verification Profile asks for, but that arrive in the envelopes anyway: the registrar's routing sheet, a courier waybill, a covering letter. Matching one names an out-of-profile Document in the Verification Report instead of leaving it a generic "extra document"; it never places the Document, answers a requirement or carries fields (ADR-0012).
+_Avoid_: extra types, known documents, secondary profile
+
 **Verification Profile**:
 A declarative definition of what a valid Package looks like: which Document Types exist, their field schemas, which documents are required, and the cross-document rules. Domains (cadastre, …) are expressed as profiles; the engine only interprets them.
 _Avoid_: ruleset, config, template

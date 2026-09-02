@@ -17,6 +17,18 @@ model {
     '''
   }
 
+  registryOperator = person 'Register operator' {
+    summary "Loads the archive register's own Excel files — not the inspector's work"
+    description '''
+      Puts the archive's register workbooks into the archive register, a file at
+      a time, through the one control `apps/web` gives them
+      (`features/import-registry`). Never submits a package and never reads a
+      report: filling the register and verifying a submission are two errands,
+      and the register is not part of what a verification may load (ADR-0011 §1).
+    '''
+    link https://github.com/AIShrugged/AZ-Cadastre/blob/main/docs/adr/0011-the-register-loads-its-records-from-a-workbook.md 'ADR-0011'
+  }
+
   openrouter = softwareSystem 'OpenRouter' {
     #external
     summary 'The vision and language models every reading stage is served by'
@@ -186,8 +198,15 @@ model {
 
   // ── relationships ─────────────────────────────────────────────────────────
   inspector -[https]-> web 'submits packages, reads reports'
+  registryOperator -[https]-> web 'loads an archive register workbook'
   web -[https]-> gateway 'REST /api/packages, /api/documents/presign'
   web -[https]-> files 'PUTs the file bytes to a presigned URL'
+
+  // The one call apps/web makes that does not go through libs/api-gateway. The
+  // register's import is deliberately outside @cadastre/api-contracts — no
+  // verification of a submission ever loads a register file — so the surface
+  // that uses it addresses the register directly (ADR-0011 §1, TECH_DEBT §10).
+  web -[https]-> registryApi 'POST /api/import/records — the workbook, straight to the register'
 
   gateway -> facade 'VerificationClientPort — mirrors the published `…Api` interfaces'
   facade -> pipeline 'PackageSubmitted starts the run; the inspector is answered at once'

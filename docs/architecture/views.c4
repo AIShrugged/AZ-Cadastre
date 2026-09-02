@@ -17,6 +17,7 @@ views {
 
     include
       inspector,
+      registryOperator,
       cadastre,
       archive,
       openrouter
@@ -44,6 +45,7 @@ views {
 
     include
       inspector,
+      registryOperator,
       cadastre,
       cadastre.*,
       archive,

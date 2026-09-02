@@ -29,6 +29,11 @@ verification ever becomes its own service.
 
 Two databases, not one, and no edge between them.
 
+Two people, too. The register operator loads the archive's own Excel files
+through `apps/web` and never submits a package — which is why `apps/web` has one
+arrow that does not go through the gateway: the register's import is deliberately
+outside `@cadastre/api-contracts` (ADR-0011 §1, TECH_DEBT §10).
+
 [![Containers](exports/containers.png)](exports/containers.png)
 
 ## Components of `cadastre-core` — the ports-and-adapters seam

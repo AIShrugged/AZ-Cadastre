@@ -36,7 +36,7 @@ One of the Verification Profile's cross-document rules, applied to a Package: th
 _Avoid_: comparison, consistency rule, match
 
 **Validation Issue**:
-A single problem found during verification (missing document, mismatched fields, expired document, low confidence), always tied to the page and field it came from.
+A single problem found during verification (missing document, mismatched fields, a paper without the stamp or signature the profile expects of it, low confidence), always tied to the page and field it came from.
 _Avoid_: error, violation, warning
 
 **Verification Report**:

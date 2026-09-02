@@ -23,5 +23,10 @@ export const IssueKindSchema = z.enum([
   // coverage is partial and historical, so this is told to the inspector and
   // never counted against the package.
   'RegistryUnconfirmed',
+  // A paper that is only itself once an office has sealed or signed it came
+  // without the mark, or with one nothing could be read off. Not the same
+  // shortfall as UnreadableDocument, which is about the reading: the sheet was
+  // read, and what it holds is a document short of what makes it valid.
+  'MissingAttestation',
 ]);
 export type IssueKind = z.infer<typeof IssueKindSchema>;

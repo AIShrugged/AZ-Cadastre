@@ -214,6 +214,76 @@ export class ValidationIssue {
     });
   }
 
+  /*
+   * Filed against the paper the mark is absent from, and carrying the reading
+   * of the sheets it was looked for on: the whole claim is "the transcription
+   * of these sheets shows no seal", and a sheet read at 0.4 supports that no
+   * better than it supports anything else on it (docs/process-overview.md §5).
+   */
+  static unstampedDocument(
+    documentId: DocumentId,
+    sourceFileId: SourceFileId,
+    type: DocumentType,
+    pages: PageRange,
+    confidence: Confidence,
+  ): ValidationIssue {
+    return ValidationIssue.of({
+      kind: IssueKind.MISSING_ATTESTATION,
+      message:
+        `The "${type.value}" on sheets ${pages.first.value}–${pages.last.value} ` +
+        `carries no stamp, which this profile expects it to bear.`,
+      documentId,
+      sourceFileId,
+      documentType: type,
+      pageNumber: pages.first,
+      confidence,
+    });
+  }
+
+  // A sealed paper whose seal says nothing. Reported apart from an unsealed
+  // one because it is a different question for the inspector: not whether the
+  // office stamped it but which office did, and that is answered by looking at
+  // the sheet rather than by sending the paper back.
+  static illegibleStamp(
+    documentId: DocumentId,
+    sourceFileId: SourceFileId,
+    type: DocumentType,
+    pages: PageRange,
+    confidence: Confidence,
+  ): ValidationIssue {
+    return ValidationIssue.of({
+      kind: IssueKind.MISSING_ATTESTATION,
+      message:
+        `The stamp on the "${type.value}" on sheets ` +
+        `${pages.first.value}–${pages.last.value} could not be read.`,
+      documentId,
+      sourceFileId,
+      documentType: type,
+      pageNumber: pages.first,
+      confidence,
+    });
+  }
+
+  static unsignedDocument(
+    documentId: DocumentId,
+    sourceFileId: SourceFileId,
+    type: DocumentType,
+    pages: PageRange,
+    confidence: Confidence,
+  ): ValidationIssue {
+    return ValidationIssue.of({
+      kind: IssueKind.MISSING_ATTESTATION,
+      message:
+        `The "${type.value}" on sheets ${pages.first.value}–${pages.last.value} ` +
+        `carries no signature, which this profile expects it to bear.`,
+      documentId,
+      sourceFileId,
+      documentType: type,
+      pageNumber: pages.first,
+      confidence,
+    });
+  }
+
   static lowConfidenceType(
     documentId: DocumentId,
     sourceFileId: SourceFileId,

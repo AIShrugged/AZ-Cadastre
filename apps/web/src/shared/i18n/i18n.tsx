@@ -226,6 +226,7 @@ const en: Dict = {
   'detail.sec.registry_mismatch': 'Disagrees with the archive record',
   'detail.sec.registry_document_missing': 'Original not in the archive',
   'detail.sec.registry_unconfirmed': 'Not confirmed by the register',
+  'detail.sec.attestation': 'Stamp or signature missing',
   'detail.clean':
     'No issues found — every required document is present and read above the confidence threshold.',
   'detail.f.missing_sub': 'Not found in the package',
@@ -241,6 +242,7 @@ const en: Dict = {
   'detail.f.registry_document_missing_sub':
     'The archive keeps no original of this paper',
   'detail.f.registry_unconfirmed_sub': 'No record of it, or more than one',
+  'detail.f.attestation_sub': 'No stamp or signature was read on it',
   'detail.checks': 'Cross-document checks',
   'detail.checks_result': 'Document comparison results',
   'detail.checks_result_note':
@@ -604,6 +606,7 @@ const ru: Dict = {
   'detail.sec.registry_mismatch': 'Расходится с архивной записью',
   'detail.sec.registry_document_missing': 'Подлинника нет в архиве',
   'detail.sec.registry_unconfirmed': 'Реестр не подтвердил',
+  'detail.sec.attestation': 'Нет печати или подписи',
   'detail.clean':
     'Замечаний нет — все обязательные документы присутствуют и распознаны выше порога уверенности.',
   'detail.f.missing_sub': 'Не найден в пакете',
@@ -619,6 +622,7 @@ const ru: Dict = {
   'detail.f.registry_document_missing_sub':
     'Подлинник этого документа в архиве не хранится',
   'detail.f.registry_unconfirmed_sub': 'Записи нет или их несколько',
+  'detail.f.attestation_sub': 'Печать или подпись на нём не прочитаны',
   'detail.checks': 'Сверка документов',
   'detail.checks_result': 'Результаты сверки документов',
   'detail.checks_result_note':
@@ -980,6 +984,7 @@ const az: Dict = {
   'detail.sec.registry_mismatch': 'Arxiv qeydi ilə uyğunsuzluq',
   'detail.sec.registry_document_missing': 'Əsli arxivdə yoxdur',
   'detail.sec.registry_unconfirmed': 'Reyestr təsdiqləmədi',
+  'detail.sec.attestation': 'Möhür və ya imza yoxdur',
   'detail.clean':
     'Qüsur yoxdur — bütün tələb olunan sənədlər mövcuddur və etibar həddindən yuxarı oxunub.',
   'detail.f.missing_sub': 'Paketdə tapılmadı',
@@ -995,6 +1000,7 @@ const az: Dict = {
   'detail.f.registry_document_missing_sub':
     'Bu sənədin əsli arxivdə saxlanılmır',
   'detail.f.registry_unconfirmed_sub': 'Qeyd yoxdur və ya birdən çoxdur',
+  'detail.f.attestation_sub': 'Üzərində möhür və ya imza oxunmadı',
   'detail.checks': 'Sənədlərarası yoxlama',
   'detail.checks_result': 'Sənədlərin müqayisə nəticələri',
   'detail.checks_result_note':

@@ -37,6 +37,7 @@ import {
   SourceFileNotInPackageException,
   SourceFileNotSplitException,
 } from '../exceptions/index.js';
+import { attestationIn } from '../services/index.js';
 import {
   CheckedValue,
   Confidence,
@@ -531,6 +532,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       ...this.disagreements(),
       ...this.unreadable(),
       ...this.lowConfidence(),
+      ...this.unattested(),
       ...this.alsoInThePackage(),
       ...this.againstTheRecord(),
     ];
@@ -689,6 +691,89 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
 
       return [...placement, ...fields];
     });
+  }
+
+  /*
+   * Whether the papers that are only themselves once an office has sealed or
+   * signed them show it. The marks are read off the same transcription every
+   * other stage reads — the reader is asked to write [stamp: …] and
+   * [signature] where it sees one — so this asserts nothing the sheets do not
+   * already say, and it asserts it no more strongly than they were read
+   * (docs/process-overview.md §5, ADR-0012).
+   *
+   * One finding per absent mark, not one per document: an inspector confirms a
+   * seal and a signature by looking at different parts of the sheet, and
+   * answers them one at a time.
+   */
+  private unattested(): readonly ValidationIssue[] {
+    return this.#documents.flatMap(document => {
+      const classification = document.classification;
+      if (!classification?.isPlaced) return [];
+
+      const spec = this.#profile.specFor(classification.type);
+      if (!spec.expectsStamp && !spec.expectsSignature) return [];
+
+      const sheets = this.sheetsOf(document.id);
+      // Nothing on the paper was read, so there is nothing to have seen a seal
+      // in. The sheets are already reported as unread, and saying a mark is
+      // absent from a page nobody read would be a claim about the reading
+      // dressed up as a claim about the document.
+      if (!sheets.some(sheet => sheet.ocr?.isLegible === true)) return [];
+
+      const confidence = VerificationPackage.leastConfidentOf(sheets);
+      const marks = attestationIn(this.textOf(document.id).value);
+      const type = classification.type;
+      const findings: ValidationIssue[] = [];
+
+      if (spec.expectsStamp) {
+        if (marks.stamps.length === 0) {
+          findings.push(
+            ValidationIssue.unstampedDocument(
+              document.id,
+              document.sourceFileId,
+              type,
+              document.pages,
+              confidence,
+            ),
+          );
+        } else if (marks.stamps.every(legend => legend === '')) {
+          findings.push(
+            ValidationIssue.illegibleStamp(
+              document.id,
+              document.sourceFileId,
+              type,
+              document.pages,
+              confidence,
+            ),
+          );
+        }
+      }
+
+      if (spec.expectsSignature && !marks.isSigned) {
+        findings.push(
+          ValidationIssue.unsignedDocument(
+            document.id,
+            document.sourceFileId,
+            type,
+            document.pages,
+            confidence,
+          ),
+        );
+      }
+
+      return findings;
+    });
+  }
+
+  // A mark is only as certain as the reading of the sheets it was looked for
+  // on, and a sheet that was never read supports nothing at all — which is
+  // unassessed and not "probably fine" (docs/process-overview.md §5).
+  private static leastConfidentOf(sheets: readonly Page[]): Confidence {
+    return sheets.reduce<Confidence>((lowest, sheet) => {
+      const own = sheet.ocr?.confidence ?? Confidence.none();
+
+      return own.value < lowest.value ? own : lowest;
+    }, Confidence.of(1));
   }
 
   private guardCoverOf(file: SourceFile, documents: readonly Document[]): void {

@@ -29,14 +29,14 @@ model {
 
       See `docs/MODELS.md` before changing any of them.
     '''
-    link ../MODELS.md 'docs/MODELS.md'
+    link https://github.com/AIShrugged/AZ-Cadastre/blob/main/docs/MODELS.md 'docs/MODELS.md'
   }
 
   // ── the system ────────────────────────────────────────────────────────────
   cadastre = softwareSystem 'AZ-Cadastre' {
     #verification-context
     summary 'Reads a submitted package of papers and reports what it found'
-    link ../../CONTEXT-MAP.md 'CONTEXT-MAP.md'
+    link https://github.com/AIShrugged/AZ-Cadastre/blob/main/CONTEXT-MAP.md 'CONTEXT-MAP.md'
 
     web = container 'Inspector web client' {
       technology 'React SPA, nginx'
@@ -151,8 +151,8 @@ model {
       It is deleted rather than migrated when a real state register answers the
       same contract (ADR-0009, ADR-0010).
     '''
-    link ../adr/0009-the-archive-register-behind-a-port.md 'ADR-0009'
-    link ../adr/0010-the-register-holds-its-records-in-its-own-database.md 'ADR-0010'
+    link https://github.com/AIShrugged/AZ-Cadastre/blob/main/docs/adr/0009-the-archive-register-behind-a-port.md 'ADR-0009'
+    link https://github.com/AIShrugged/AZ-Cadastre/blob/main/docs/adr/0010-the-register-holds-its-records-in-its-own-database.md 'ADR-0010'
 
     registryApi = container 'cadastre-registry service' {
       technology 'NestJS, Node 26'

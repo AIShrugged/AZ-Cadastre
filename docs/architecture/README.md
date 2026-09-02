@@ -134,6 +134,24 @@ LikeC4 exports PNGs with a transparent background — they take the colour of
 whatever page they are read on, which is why they look right in both GitHub
 themes and wrong in an image viewer that paints alpha black.
 
+### One file, for the playground
+
+[playground.likec4.dev](https://playground.likec4.dev) takes a single document.
+The five files concatenated in this order are one — a `.c4` document may hold
+any number of `specification`, `model` and `views` blocks, so nothing has to be
+rewritten to join them:
+
+```bash
+cat docs/architecture/{specification,system,erd-cadastre-db,erd-cadastre-registry,views}.c4 \
+  > az-cadastre.c4
+```
+
+Paste the result into the playground and all seven views are there. This is a
+throwaway: edit the five files, never the concatenation. Links in the model are
+absolute GitHub URLs rather than repository-relative paths for the same reason —
+`../MODELS.md` resolves against the dev server in `likec4 start` and against
+nothing at all in the playground.
+
 ## Editing
 
 - The model is the whole tree, not one file per diagram: an element declared in

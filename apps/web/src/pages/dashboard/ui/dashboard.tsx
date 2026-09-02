@@ -31,6 +31,7 @@ import {
   type Segment,
   type VerificationPackage,
 } from '@/entities/verification-package';
+import { ImportRegistryButton } from '@/features/import-registry';
 import { paths } from '@/shared/config';
 import { formatDate, relativeShort, useI18n, type Locale } from '@/shared/i18n';
 import { cn } from '@/shared/lib/cn';
@@ -504,6 +505,10 @@ export function Dashboard() {
       {/* The register's one page action rides in the global app bar. */}
       <HeaderActions>
         <span aria-hidden className='mx-0.5 h-6 w-px bg-rule-strong' />
+        {/* Loading the archive register is an operator's errand, not the
+            inspector's work — so it sits beside the page action and not on it,
+            and keeps the register's one blue action to itself. */}
+        <ImportRegistryButton />
         <Button onClick={() => navigate(paths.new)}>
           <PlusIcon />{' '}
           <span className='hidden sm:inline'>{t('action.new')}</span>

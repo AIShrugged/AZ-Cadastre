@@ -1,0 +1,6 @@
+{
+  "$schema": "https://likec4.dev/schemas/config.json",
+  "name": "az-cadastre",
+  "title": "AZ-Cadastre",
+  "exclude": ["**/node_modules/**", "az-cadastre.c4"]
+}

@@ -85,6 +85,9 @@ model is wrong or the code is.
 | `erd-cadastre-db.c4`        | The tables of `cadastre-db`, nested inside its container                      |
 | `erd-cadastre-registry.c4`  | The tables of `cadastre-registry`, nested inside its container                |
 | `views.c4`                  | The seven views above                                                         |
+| `az-cadastre.c4`            | **Generated.** The five above as one document, for the playground             |
+| `bundle.sh`                 | Regenerates `az-cadastre.c4`                                                   |
+| `likec4.config.json`        | Names the project and keeps `az-cadastre.c4` out of the workspace              |
 
 The ERDs hang off the same elements the C4 views use: `cadastre.cadastreDb` is a
 container in `containers` and the parent of thirteen tables in `erdCadastreDb`.
@@ -136,21 +139,29 @@ themes and wrong in an image viewer that paints alpha black.
 
 ### One file, for the playground
 
-[playground.likec4.dev](https://playground.likec4.dev) takes a single document.
-The five files concatenated in this order are one — a `.c4` document may hold
-any number of `specification`, `model` and `views` blocks, so nothing has to be
-rewritten to join them:
+[playground.likec4.dev](https://playground.likec4.dev) takes a single document,
+so the five files are also committed joined, as
+[`az-cadastre.c4`](az-cadastre.c4). Copy that file, paste it there, and all
+seven views are in the list. Joining needs no rewriting: a `.c4` document may
+hold any number of `specification`, `model` and `views` blocks, and references
+resolve across the whole of it.
+
+It is **generated**. Edit the five sources and run:
 
 ```bash
-cat docs/architecture/{specification,system,erd-cadastre-db,erd-cadastre-registry,views}.c4 \
-  > az-cadastre.c4
+docs/architecture/bundle.sh
 ```
 
-Paste the result into the playground and all seven views are there. This is a
-throwaway: edit the five files, never the concatenation. Links in the model are
-absolute GitHub URLs rather than repository-relative paths for the same reason —
-`../MODELS.md` resolves against the dev server in `likec4 start` and against
-nothing at all in the playground.
+Two consequences worth knowing before you move it:
+
+- `likec4.config.json` lists it under `exclude`. Without that the tool loads the
+  bundle *and* its five sources, every element is declared twice, and the whole
+  workspace stops resolving — a subfolder does not help, the scan is recursive.
+  Note that setting `exclude` replaces the default, which is why
+  `**/node_modules/**` is spelled out again there.
+- Links in the model are absolute GitHub URLs rather than repository-relative
+  paths, because `../MODELS.md` resolves against the dev server in
+  `likec4 start` and against nothing at all in the playground.
 
 ## Editing
 

@@ -186,8 +186,9 @@ is what it does.
 **Not done.** `apps/web` speaks `@cadastre/api-contracts` through
 `libs/api-gateway` and nothing else (`CONTEXT-MAP.md`). The workbook import does
 not: `features/import-registry` posts straight to `apps/registry-stub`'s
-`POST /api/import/records`, proxied at `/registry` by the dev server, with the
-report's shape restated in the feature's own `model/types.ts`.
+`POST /api/import/records`, proxied at `/registry` by the dev server and by
+`apps/web/nginx.conf` in a deployment, with the report's shape restated in the
+feature's own `model/types.ts`.
 
 It is deliberate on both counts. The endpoint is not in the contract because no
 verification of a submission ever loads a register file, and publishing it would
@@ -197,10 +198,20 @@ decision rather than honour it. And it is reached from the browser at all
 because the testing phase needs records in the register that the seed does not
 carry, and the person with the register files does not have a terminal.
 
-**How it fires.** Two ways, and the second is the one that matters. The register
+**It has already fired once.** Not the dangerous way — the route existed in
+`vite.config.ts` and nowhere else, so on the deployed stack a POST fell to
+nginx's SPA fallback and came back `405 Not Allowed`, which says nothing about a
+missing route. That is fixed, and it is the shape of the mistake to expect from
+this entry: the crossing lives in two proxy configs plus a feature, and there is
+nothing that fails when one of the three is forgotten.
+
+**How it fires.** Two ways, and the first is the one that matters. The register
 answers with no authentication in front of it and none behind it (ADR-0011,
 consequences): the moment `apps/web` is served anywhere the register is also
-reachable, anyone who can open the page can write to the archive register. The
+reachable, anyone who can open the page can write to the archive register. On
+the demo host this is not hypothetical — `docker-compose.yml` publishes
+`registry` on `3100:3100`, so the register answers the open internet with or
+without the nginx route, and the import endpoint is the one that writes. The
 quieter one is drift — the register's Zod schemas change, the feature's restated
 `RegistryImportReport` does not, and the modal renders `undefined` for a count
 nobody notices. Nothing type-checks the two against each other. Two smaller
@@ -209,12 +220,18 @@ refused row are shown as they came, in English, on a trilingual surface (the
 same shortcut as §8), and the register's one refusal code is `VALIDATION_FAILED`
 for every fault, so there is nothing to key a translation on.
 
-**What to do.** Before this is deployed anywhere but a developer's machine, one
-of two things: put the register behind the same auth as everything else and give
-the import a caller it can name, or take the button out — it is a testing-phase
-convenience (COMM-19) and not a feature the inspector was promised. It is not a
-reason to publish the endpoint in `@cadastre/api-contracts`; the way to keep the
-shapes honest without doing that is an API-set case in `apps/registry-stub` that
-asserts the report against the same literal the feature restates. Whichever
-happens, the `/registry` proxy in `apps/web/vite.config.ts` and this entry go
-together — remove one and the other is a lie.
+**What to do.** First, and independently of everything below: drop the
+`3100:3100` port mapping from the `registry` service. Nothing outside the compose
+network needs it — the server reaches the register at `http://registry:3100` and
+the browser reaches it through nginx — and while it stands, the archive register
+takes writes from anybody who knows the address. Then one of two things, before
+this is shown to anyone but ourselves: put the register behind the same auth as
+everything else and give the import a caller it can name, or take the button
+out — it is a testing-phase convenience (COMM-19) and not a feature the
+inspector was promised. It is not a reason to publish the endpoint in
+`@cadastre/api-contracts`; the way to keep the shapes honest without doing that
+is an API-set case in `apps/registry-stub` that asserts the report against the
+same literal the feature restates. Whichever
+happens, the `/registry` proxies in `apps/web/vite.config.ts` and
+`apps/web/nginx.conf` and this entry go together — remove one and the rest are a
+lie.

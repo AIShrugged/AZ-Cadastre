@@ -1243,9 +1243,22 @@ function findingOf(
   // sub-line says what it is — not in the profile, or a second answer to a type
   // the package had already answered.
   if (issue.kind === 'ExtraDocument' || issue.kind === 'DuplicateDocument') {
+    // An extra document the catalogue recognised carries its own key rather
+    // than "out_of_profile", and then the sub-line can say what the paper is
+    // instead of only what it is not (ADR-0012).
+    const named =
+      issue.documentType !== null && issue.documentType !== 'out_of_profile';
     const where =
       issue.kind === 'ExtraDocument'
-        ? t('detail.f.extra_sub')
+        ? named
+          ? t('detail.f.extra_named_sub', {
+              type: translateOr(
+                t,
+                `doctype.${issue.documentType}`,
+                issue.documentType ?? '',
+              ),
+            })
+          : t('detail.f.extra_sub')
         : t('detail.f.duplicate_sub', {
             type: translateOr(
               t,

@@ -187,11 +187,13 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
         lastPage: document.lastPage,
         type: document.type,
         classificationConfidence: document.classificationConfidence,
+        knownAs: document.knownAs,
       },
       update: {
         lastPage: document.lastPage,
         type: document.type,
         classificationConfidence: document.classificationConfidence,
+        knownAs: document.knownAs,
       },
     });
 

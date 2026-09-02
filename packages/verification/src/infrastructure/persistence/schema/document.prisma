@@ -27,6 +27,14 @@ model Document {
   /// Classifier confidence for `type`, 0..1. Null until the Classify stage runs.
   classificationConfidence Float?
 
+  /// Which entry of the document catalogue the classifier recognised this
+  /// document as, when `type` is "out_of_profile" and it recognised one — e.g.
+  /// "courier_waybill" (ADR-0012). Null on every other reading, and null on a
+  /// document out of profile that the catalogue has no name for. A key and not
+  /// a name, for the reason `type` is: the catalogue lives in code, so a paper
+  /// added to it never needs a migration.
+  knownAs String?
+
   extractedFields         ExtractedField[]
   validationIssues        ValidationIssue[]
   crossCheckValues        CrossCheckValue[]

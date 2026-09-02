@@ -3,6 +3,7 @@ export { Confidence } from './confidence.vo.js';
 export { ContentType } from './content-type.vo.js';
 export { CrossCheckVerdict } from './cross-check-verdict.vo.js';
 export { CheckedValue, CrossCheck, CrossCheckKey } from './cross-check.vo.js';
+export { DocumentCatalogue } from './document-catalogue.vo.js';
 export { DocumentType } from './document-type.vo.js';
 export { FailureReason } from './failure-reason.vo.js';
 export { FieldKey, FieldValue } from './field.vo.js';
@@ -38,5 +39,6 @@ export {
   FieldRef,
   RegistryCheckSpec,
   VerificationProfile,
+  type CatalogueDeclaration,
 } from './verification-profile.vo.js';
 export { VerificationReport } from './verification-report.vo.js';

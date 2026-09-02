@@ -1133,6 +1133,70 @@ describe('VerificationPackage', () => {
       expect(kindsOf(verification)).toEqual([]);
     });
 
+    it('reports a document that read fine and is not of a type the profile asks for', () => {
+      const { verification, documents } = aSegmentedPackage(2);
+      verification.classify(documents[0]!.id, aClassification('identity_card'));
+      verification.classify(
+        documents[1]!.id,
+        Classification.outOfProfile(Confidence.of(0.9)),
+      );
+
+      verification.complete();
+
+      const extra = verification.report?.issues.find(
+        issue => issue.kind.value === 'ExtraDocument',
+      );
+      expect(extra?.documentId?.equals(documents[1]!.id)).toBe(true);
+      expect(extra?.documentType?.value).toBe('out_of_profile');
+      expect(extra?.message).toContain('not a type this profile asks for');
+    });
+
+    // The whole of what the catalogue buys: an inspector reading the finding is
+    // told what the paper is, not only that it is not on the list (ADR-0012).
+    it('names an extra document the classifier recognised, rather than bucketing it', () => {
+      const { verification, documents } = aSegmentedPackage(2);
+      verification.classify(documents[0]!.id, aClassification('identity_card'));
+      verification.classify(
+        documents[1]!.id,
+        Classification.outOfProfile(
+          Confidence.of(0.9),
+          DocumentType.create('courier_waybill'),
+        ),
+      );
+
+      verification.complete();
+
+      const extra = verification.report?.issues.find(
+        issue => issue.kind.value === 'ExtraDocument',
+      );
+      expect(extra?.documentType?.value).toBe('courier_waybill');
+      expect(extra?.message).toContain('courier_waybill');
+    });
+
+    // Informational, named or not: nothing here is a shortfall the inspector
+    // has to resolve before registering.
+    it('does not count a named extra document against the package', () => {
+      const built = aSegmentedPackage(REQUIRED_TYPES.length + 1);
+      REQUIRED_TYPES.forEach((type, index) => {
+        built.verification.classify(
+          built.documents[index]!.id,
+          aClassification(type),
+        );
+      });
+      built.verification.classify(
+        built.documents.at(-1)!.id,
+        Classification.outOfProfile(
+          Confidence.of(0.9),
+          DocumentType.create('covering_letter'),
+        ),
+      );
+
+      built.verification.complete();
+
+      expect(kindsOf(built.verification)).toEqual(['ExtraDocument']);
+      expect(built.verification.report?.status.value).toBe('OK');
+    });
+
     /*
      * One sheet, read as `text` and placed as `type`: the smallest package that
      * can be asked whether the paper carries the marks the office that issued

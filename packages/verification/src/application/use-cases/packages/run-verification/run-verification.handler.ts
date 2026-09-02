@@ -441,6 +441,10 @@ export class RunVerificationHandler implements ICommandHandler<
       filename: file.filename.value,
       sheets: describe(document.pages),
       type: classification.type.value,
+      // Which of the papers the catalogue knows this turned out to be, where it
+      // is one: "out_of_profile" says only what the document is not, and this
+      // is what the finding will name it by (ADR-0012).
+      knownAs: classification.knownAs?.value ?? null,
       confidence: round(classification.confidence.value),
       // A document the profile does not ask for is not a failure, but it is
       // the reason a required type ends up reported missing.

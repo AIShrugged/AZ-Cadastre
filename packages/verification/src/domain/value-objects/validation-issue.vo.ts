@@ -76,19 +76,36 @@ export class ValidationIssue {
     });
   }
 
+  /*
+   * A document the profile does not ask for. `knownAs` is the entry of the
+   * document catalogue the classifier recognised it as, where it recognised
+   * one: a finding that can say "courier waybill" is worth more to an
+   * inspector than six findings that all say "extra document", and the whole
+   * point of the catalogue is that some of them can (ADR-0012).
+   *
+   * The named finding carries the catalogue key as its type rather than
+   * `out_of_profile`, because that is what a reader renders the finding by.
+   * Unnamed, it carries `out_of_profile` as it always has — the catalogue adds
+   * a name where there is one and takes nothing away where there is not.
+   */
   static extraDocument(
     documentId: DocumentId,
     sourceFileId: SourceFileId,
     pages: PageRange,
+    knownAs: DocumentType | null = null,
   ): ValidationIssue {
+    const sheets = `sheets ${pages.first.value}–${pages.last.value}`;
+
     return ValidationIssue.of({
       kind: IssueKind.EXTRA_DOCUMENT,
-      message:
-        `The document on sheets ${pages.first.value}–${pages.last.value} ` +
-        `was read but is not a type this profile asks for.`,
+      message: knownAs
+        ? `The document on ${sheets} was read as "${knownAs.value}", which ` +
+          `this profile does not ask for.`
+        : `The document on ${sheets} was read but is not a type this profile ` +
+          `asks for.`,
       documentId,
       sourceFileId,
-      documentType: DocumentTypeRef.OUT_OF_PROFILE,
+      documentType: knownAs ?? DocumentTypeRef.OUT_OF_PROFILE,
       pageNumber: pages.first,
     });
   }

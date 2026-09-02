@@ -7,7 +7,11 @@ services:
       - '80:80'
     restart: unless-stopped
     depends_on:
+      # Both are proxied by nginx.conf, and nginx resolves an upstream named in
+      # a literal proxy_pass once, at start-up: a name that does not resolve yet
+      # takes the whole front end down rather than one route.
       - backend
+      - registry
 
   backend:
     image: ekalkutin/cadastre-core:latest

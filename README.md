@@ -109,6 +109,16 @@ full.
 
 - [Как работает программа — полный цикл](docs/process-overview.md) — полный цикл обработки
   пакета документов: от загрузки до отчёта инспектору.
+- [Architecture diagrams](docs/architecture/) — the C4 views and the ERD of both
+  databases, as a [LikeC4](https://likec4.dev) model. The `.c4` files are the
+  source; the PNGs are generated. `npx -y likec4@1 start docs/architecture` opens
+  them in a browser.
+
+What runs, in one picture — the system context, the components of
+`cadastre-core`, the verification run as a sequence and an ERD per database are
+all in [docs/architecture](docs/architecture/):
+
+[![Containers](docs/architecture/exports/containers.png)](docs/architecture/)
 
 ## Getting Started
 

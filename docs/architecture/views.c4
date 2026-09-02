@@ -1,0 +1,219 @@
+// The diagrams. Seven of them, and each one answers a question somebody
+// actually asked: what is this, what runs, what is inside the backend, what
+// happens to a package, and what is in each of the two databases.
+
+views {
+
+  // ── C4 ────────────────────────────────────────────────────────────────────
+
+  view index {
+    title 'System context — AZ-Cadastre'
+    description '''
+      Who uses it and what it depends on. The archive register is drawn outside
+      the system on purpose: `apps/registry-stub` is run by us today, but it
+      stands in for a system that is not ours and is deleted rather than
+      migrated when a real one answers the same contract (ADR-0009).
+    '''
+
+    include
+      inspector,
+      registryOperator,
+      cadastre,
+      archive,
+      openrouter
+
+    style archive {
+      color amber
+    }
+    style openrouter {
+      color red
+    }
+  }
+
+  view containers of cadastre {
+    title 'Containers — what runs'
+    description '''
+      Matches the relationship sketch in CONTEXT-MAP.md:
+      `apps/web` → `libs/api-gateway` → `packages/verification` →
+      `apps/registry-stub`. The gateway and the verification context are one
+      process, `cadastre-core`; the seam between them is
+      `@cadastre/api-contracts`, and it is the only thing that has to change if
+      verification ever becomes its own service.
+
+      Two databases, not one, and no edge between them.
+    '''
+
+    include
+      inspector,
+      registryOperator,
+      cadastre,
+      cadastre.*,
+      archive,
+      archive.*,
+      openrouter
+
+    // Two component-level writers roll up into one container edge; say what it
+    // is rather than let it render as the merged "[...]".
+    include archive.registryApi -> archive.registryDb with {
+      title 'reads and writes the register'
+    }
+
+    style archive, archive.* {
+      color amber
+    }
+    style openrouter {
+      color red
+    }
+    autoLayout TopBottom 120 100
+  }
+
+  view backend of cadastre.core {
+    title 'Components — cadastre-core'
+    description '''
+      The ports-and-adapters seam, which is the point of the layout: the
+      pipeline names a port, and `apps/server/src/infrastructure/index.ts` binds
+      it to one of these adapters. Every provider defaults to a `mock`
+      implementation of the same port, so the whole pipeline runs offline.
+
+      `domain/` reaches no sibling layer, no Nest, no Prisma and no provider
+      SDK, and that is enforced by `.oxlintrc.json` rather than remembered
+      (ADR-0007).
+    '''
+
+    include
+      *,
+      cadastre.cadastreDb,
+      cadastre.files,
+      cadastre.web,
+      archive.registryApi,
+      openrouter
+
+    // Without this the enclosing container is painted solid and nothing inside
+    // it can be read.
+    style cadastre.core {
+      color muted
+      opacity 8%
+    }
+    style cadastre.core.domain, cadastre.core.profiles {
+      color green
+    }
+    style archive.registryApi {
+      color amber
+    }
+    style openrouter {
+      color red
+    }
+    autoLayout TopBottom 110 90
+  }
+
+  dynamic view verificationProcess {
+    variant sequence
+    title 'The verification process, upload to report'
+    description '''
+      The narrative in `docs/process-overview.md`, as the code actually runs it
+      (`RunVerificationHandler.execute`).
+
+      Two rules govern the whole sequence. **No stage may stop the run** — a
+      file that will not split, a sheet the reader refuses, a document nothing
+      can place, an archive that does not answer: each becomes a line in the
+      report and the run goes on. Only losing the package itself ends it.
+      **Nothing below 0.80 confidence is a fact**; it is a question for the
+      inspector, and confidence is inherited downwards — a field is never surer
+      than the sheet it was read off, a check never surer than the weakest value
+      in it.
+    '''
+
+    inspector -> cadastre.web 'selects files (PDF / JPG / PNG, ≤ 50 MB each)'
+    cadastre.web -> cadastre.core.gateway 'POST /api/documents/presign'
+    cadastre.core.gateway -> cadastre.core.objectStorageAdapter 'a presigned PUT, one per file'
+    cadastre.web -> cadastre.files 'PUTs the bytes straight to storage — they never pass through cadastre-core'
+
+    cadastre.web -> cadastre.core.gateway 'POST /api/packages { profileKey, files }'
+    cadastre.core.gateway -> cadastre.core.facade 'VerificationClientPort'
+    cadastre.core.facade -> cadastre.core.pipeline 'PackageSubmitted — the run starts in the background and the inspector is answered at once'
+
+    cadastre.core.pipeline -> cadastre.core.pdfSplitter '1. split — every PDF sheet rendered to PNG at 300 dpi; an image file is one sheet'
+    cadastre.core.pipeline -> cadastre.core.readers '2. recognise — each sheet transcribed, up to three attempts; an unread sheet becomes a finding'
+    cadastre.core.pipeline -> cadastre.core.readers '3. segment — the file is cut into the documents it actually holds, back to back, no gaps'
+    cadastre.core.pipeline -> cadastre.core.readers '4. classify — exactly one document type per document, judged on content and never on the filename'
+    cadastre.core.pipeline -> cadastre.core.readers '5. extract — value + confidence + page number, each quoted from the sheet'
+    cadastre.core.pipeline -> cadastre.core.readers '6. cross-check — the profile’s five rules across documents: Match | Mismatch | Unclear'
+
+    cadastre.core.pipeline -> cadastre.core.registryClient '7. register — the only stage that leaves the submission'
+    cadastre.core.registryClient -> archive.registryApi.lookup 'the address off the plan-scheme, then the sketch design, then the application; plus owner, cadastral number, area, and which papers to ask about'
+    archive.registryApi.lookup -> archive.registryApi.matching 'do these two spellings mean one place?'
+    archive.registryApi.lookup -> archive.registryDb 'objects, addresses, right holders, papers, locations'
+    cadastre.core.registryClient <- archive.registryApi.lookup 'facts and never a verdict: Confirmed | Differs | Incomplete | NotFound | Ambiguous'
+
+    cadastre.core.pipeline -> cadastre.core.repository '8. complete — completeness is checked and the report is compiled afresh from every check above'
+    cadastre.core.repository -> cadastre.cadastreDb 'the package, its documents, its checks and the report'
+
+    inspector -> cadastre.web 'reloads the package screen: OK | Issues found | Incomplete package, every finding on a page of a scan'
+  }
+
+  // ── data ──────────────────────────────────────────────────────────────────
+
+  view erdCadastreDb of cadastre.cadastreDb {
+    title 'ERD — cadastre-db (verification context)'
+    description '''
+      Every table of
+      `packages/verification/src/infrastructure/persistence/schema/`. An edge
+      runs from the table holding the foreign key to the one it references; its
+      label is the column and what happens to the row when the referenced one
+      goes.
+
+      Verification Profiles are not here: they live in code, not the database
+      (ADR-0002).
+    '''
+
+    include *
+    autoLayout TopBottom 100 80
+  }
+
+  view erdCadastreRegistry of archive.registryDb {
+    title 'ERD — cadastre-registry (archive register)'
+    description '''
+      Every table of
+      `apps/registry-stub/src/infrastructure/persistence/schema/`. Everything
+      hangs off one object, keyed `(territorialOffice, registerNo)`.
+
+      This is not our data and this is not a bounded context — it is the shape
+      the archive's own registers have, held in a database so the stand-in can
+      be queried the way the real thing will be.
+    '''
+
+    include *
+    autoLayout TopBottom 100 80
+  }
+
+  view erdBothDatabases {
+    title 'ERD — both databases'
+    description '''
+      Both schemas in one picture and **deliberately without a single edge
+      between them**. `cadastre-db` belongs to the verification context;
+      `cadastre-registry` belongs to the archive register, which is a system
+      outside this one that happens to run on the same server.
+
+      A join between a submission and the record of a registration is the one
+      thing that must stay impossible — two databases make it a network call,
+      which is what it actually is (ADR-0010). If an edge ever appears across
+      this gap, the model is wrong or the code is.
+    '''
+
+    include
+      cadastre.cadastreDb,
+      cadastre.cadastreDb.*,
+      archive.registryDb,
+      archive.registryDb.*
+
+    style cadastre.cadastreDb {
+      color green
+      opacity 8%
+    }
+    style archive.registryDb {
+      color amber
+      opacity 8%
+    }
+    autoLayout LeftRight 120 60
+  }
+}

@@ -22,7 +22,8 @@
     "db:seed": "node build/infrastructure/persistence/seed.js",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate",
-    "fixtures:archive": "node fixtures/build-archive-fixtures.mjs"
+    "fixtures:archive": "node fixtures/build-archive-fixtures.mjs",
+    "fixtures:cases": "node fixtures/build-case-fixtures.mjs"
   },
   "license": "ISC",
   "nx": {

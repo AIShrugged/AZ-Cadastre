@@ -32,21 +32,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import ExcelJS from 'exceljs';
+import { buildRegisterFixture } from './lib/register-fixture.mjs';
 
-/** The customer's own files, from this script's place in the repository. */
-const SOURCES = path.join(
-  import.meta.dirname,
-  '..',
-  '..',
-  '..',
-  'Fedor Zhernovoy',
-);
 const OUT = path.join(import.meta.dirname, 'archive');
-
-/** What column A of a documented sheet says. Anything else is a record. */
-const LABEL = /^(column headers|column descriptions|example row|⚠|structural note|information on )/iu; // prettier-ignore
-const HEADER_LABEL = /^column headers/i;
 
 // ── The records ─────────────────────────────────────────────────────────────
 // Keyed by the sheet's own Azerbaijani header, so a column that moves moves with
@@ -349,99 +337,15 @@ const FIXTURES = [
   ['пасбаза 2  Smtn.xlsx', 'pasbaza.xlsx', PASBAZA_ROWS],
 ];
 
-/**
- * A header as these records name it. The office typed one of them across two
- * lines, and a line break inside a header is not a different column — the
- * lexicon folds every non-letter out of a header for the same reason.
- */
-function norm(header) {
-  return header.replaceAll(/\s+/gu, ' ').trim();
-}
-
-/** What a cell says, the way the reader reads one. */
-function textOf(value) {
-  if (value === null || value === undefined) return '';
-  if (typeof value === 'object') {
-    if (value.richText) return value.richText.map(part => part.text).join('');
-    if (value.result !== undefined) return textOf(value.result);
-    if (value.text !== undefined) return String(value.text);
-    if (value instanceof Date) return value.toISOString().slice(0, 10);
-    return '';
-  }
-
-  return String(value);
-}
-
-async function build(source, target, rowsBySheet) {
-  const read = new ExcelJS.Workbook();
-
-  await read.xlsx.readFile(path.join(SOURCES, source));
-
-  const written = new ExcelJS.Workbook();
-  let records = 0;
-
-  read.eachSheet(sheet => {
-    const out = written.addWorksheet(sheet.name);
-    const width = sheet.columnCount;
-    let headers = null;
-
-    for (let number = 1; number <= sheet.rowCount; number++) {
-      const row = sheet.getRow(number);
-      const cells = Array.from({ length: width }, (_, at) =>
-        textOf(row.getCell(at + 1).value).trim(),
-      );
-      const first = cells[0] ?? '';
-
-      // The sheet's own documentation, carried over exactly — except the
-      // example row, which is an illustration and in one sheet is not even
-      // aligned with the headers above it.
-      if (!LABEL.test(first)) continue;
-      if (/^example row/i.test(first)) continue;
-
-      out.addRow(cells);
-      if (HEADER_LABEL.test(first) && !headers) headers = cells;
-    }
-
-    const rows = rowsBySheet[sheet.name] ?? [];
-
-    if (rows.length === 0) return;
-
-    if (!headers) {
-      throw new Error(
-        `"${source}" sheet "${sheet.name}" has no header row to place records against.`,
-      );
-    }
-
-    for (const record of rows) {
-      for (const named of Object.keys(record)) {
-        if (!headers.some(header => norm(header) === norm(named))) {
-          throw new Error(
-            `"${source}" sheet "${sheet.name}" has no column "${named}". ` +
-              `It heads: ${headers.filter(one => one !== '').map(norm).join(', ')}.`,
-          );
-        }
-      }
-
-      // Column A stays blank: it is the label column, and a record is not a
-      // label. Everything else goes under the header that names it.
-      const at = new Map(Object.entries(record).map(([named, value]) => [norm(named), value])); // prettier-ignore
-
-      out.addRow(headers.map((header, column) => (column === 0 ? '' : at.get(norm(header)) ?? ''))); // prettier-ignore
-      records++;
-    }
-  });
-
-  const file = path.join(OUT, target);
-
-  await written.xlsx.writeFile(file);
-
-  return { file, records };
-}
-
 fs.mkdirSync(OUT, { recursive: true });
 
-for (const [source, target, rows] of FIXTURES) {
-  const { file, records } = await build(source, target, rows);
+for (const [source, target, rowsBySheet] of FIXTURES) {
+  const { file, records } = await buildRegisterFixture({
+    source,
+    target,
+    rowsBySheet,
+    out: OUT,
+  });
 
   process.stdout.write(`${path.relative(process.cwd(), file)} — ${records} records\n`); // prettier-ignore
 }

@@ -239,6 +239,35 @@ function Failure({ message }: { message: string }) {
   );
 }
 
+/**
+ * Which of the two workbooks the register read, and on whose word.
+ *
+ * The template settles itself — no other workbook carries an `Objects` sheet —
+ * so there is nothing to say about it beyond that. One of the archive's own five
+ * was recognised, and by whom matters: an answer from the model is an answer an
+ * operator may want to disagree with (ADR-0012 §3).
+ */
+function Recognised({ source }: { source: RegistryImportReport['source'] }) {
+  const { t } = useI18n();
+
+  if (source.kind === 'Template') {
+    return (
+      <p className='text-[0.8125rem] text-muted-foreground'>
+        {t('reg.import.src.template')}
+      </p>
+    );
+  }
+
+  return (
+    <p className='text-[0.8125rem] text-muted-foreground'>
+      <span className='text-foreground'>
+        {t('reg.import.src.register', { file: source.file ?? '' })}
+      </span>{' '}
+      {t(`reg.import.src.by.${source.detectedBy}`)} {source.reason}
+    </p>
+  );
+}
+
 function Report({ report }: { report: RegistryImportReport }) {
   const { t } = useI18n();
   return (
@@ -267,6 +296,8 @@ function Report({ report }: { report: RegistryImportReport }) {
       </dl>
 
       <p className='text-[0.8125rem] text-muted-foreground'>{report.note}</p>
+
+      <Recognised source={report.source} />
 
       {report.problems.length > 0 && (
         <div className='max-h-64 overflow-y-auto border border-rule'>

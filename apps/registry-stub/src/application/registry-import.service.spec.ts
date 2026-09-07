@@ -4,9 +4,11 @@ import { SilentLogger } from '@cadastre/logger';
 
 import {
   RegistryWriter,
+  WorkbookClassifier,
   WorkbookReader,
   WorkbookUnreadableError,
-  type SheetTable,
+  type SheetGrid,
+  type WorkbookClassification,
 } from './ports/index.js';
 import type { ObjectImport } from './registry-import.schema.js';
 import { RegistryImportService } from './registry-import.service.js';
@@ -17,23 +19,24 @@ const BUZOVNA = '003013067339-10301';
 const ARCHIVE = 'Bakı Əİ arxivi';
 
 /**
- * A sheet as the reader hands it over: the header row is already consumed, so
- * the first row of values is row 2 of the file — which is what a problem points
- * the operator at.
+ * A sheet as the reader hands it over: a grid, header row and all. The first row
+ * of values is therefore row 2 of the file — which is what a problem points the
+ * operator at.
  */
 function sheet(
   name: string,
   columns: readonly string[],
   rows: readonly (readonly string[])[],
-): SheetTable {
+): SheetGrid {
   return {
     name,
-    rows: rows.map((cells, index) => ({
-      number: index + 2,
-      cells: Object.fromEntries(
-        columns.map((column, at) => [column, cells[at] ?? '']),
-      ),
-    })),
+    rows: [
+      { number: 1, cells: [...columns] },
+      ...rows.map((cells, index) => ({
+        number: index + 2,
+        cells: columns.map((_, at) => cells[at] ?? ''),
+      })),
+    ],
   };
 }
 
@@ -45,7 +48,7 @@ const OBJECT_COLUMNS = [
   'buildYear',
 ];
 
-function objects(rows: readonly (readonly string[])[]): SheetTable {
+function objects(rows: readonly (readonly string[])[]): SheetGrid {
   return sheet('Objects', OBJECT_COLUMNS, rows);
 }
 
@@ -55,12 +58,32 @@ const BOTH_OBJECTS = objects([
 ]);
 
 class StubReader extends WorkbookReader {
-  constructor(private readonly sheets: readonly SheetTable[]) {
+  constructor(private readonly sheets: readonly SheetGrid[]) {
     super();
   }
 
-  async read(): Promise<readonly SheetTable[]> {
+  async read(): Promise<readonly SheetGrid[]> {
     return this.sheets;
+  }
+}
+
+/**
+ * Never asked anything here. Every workbook in this spec carries an `Objects`
+ * sheet, which is the register's own template and settles the question without
+ * anybody's opinion — and a classifier that answered would mean it had not.
+ */
+class UnaskedClassifier extends WorkbookClassifier {
+  asked = 0;
+
+  async classify(): Promise<WorkbookClassification> {
+    this.asked++;
+
+    return {
+      register: null,
+      confidence: null,
+      reason: 'not asked',
+      by: 'fingerprint',
+    };
   }
 }
 
@@ -72,19 +95,23 @@ class CapturingWriter extends RegistryWriter {
   }
 }
 
-function importing(sheets: readonly SheetTable[]): {
+function importing(sheets: readonly SheetGrid[]): {
   service: RegistryImportService;
   writer: CapturingWriter;
+  classifier: UnaskedClassifier;
 } {
   const writer = new CapturingWriter();
+  const classifier = new UnaskedClassifier();
 
   return {
     service: new RegistryImportService(
       new SilentLogger(),
       new StubReader(sheets),
+      classifier,
       writer,
     ),
     writer,
+    classifier,
   };
 }
 

@@ -222,6 +222,43 @@ export const ImportProblemSchema = z.object({
 export type ImportProblem = z.infer<typeof ImportProblemSchema>;
 
 /**
+ * Which workbook the operator uploaded.
+ *
+ * There are two, and the report says which was read rather than leaving the
+ * operator to infer it from the counts. `Template` is the register's own
+ * six-sheet workbook, recognised by the sheet named `Objects` and by nothing
+ * else. `ArchiveRegister` is one of the six files the archive actually keeps,
+ * recognised from its sheet names and column headers — by the rule, or by a
+ * model reading the same shape, and `detectedBy` says which of the two decided
+ * (ADR-0012).
+ */
+export const RegistryImportSourceSchema = z.object({
+  kind: z.enum(['Template', 'ArchiveRegister']),
+  /** The catalogue id of the register — "EMDK", "Hovsan". Null for the template. */
+  register: z.string().nullable(),
+  /** The file as the archive names it, so the operator can check it is the one they sent. */
+  file: z.string().nullable(),
+  detectedBy: z.enum(['sheets', 'fingerprint', 'model']),
+  /** 0 to 1, as whoever decided means it. Null where nobody offered one. */
+  confidence: z.number().min(0).max(1).nullable(),
+  /** One line, in English. Never quotes a cell. */
+  reason: z.string(),
+  /** What was made of each sheet: how many of its columns were read, and how many rows. */
+  sheets: z.array(
+    z.object({
+      name: z.string(),
+      rows: z.number().int().nonnegative(),
+      /** Columns the lexicon could name, out of the columns the sheet heads at all. */
+      columns: z.object({
+        named: z.number().int().nonnegative(),
+        read: z.number().int().nonnegative(),
+      }),
+    }),
+  ),
+});
+export type RegistryImportSource = z.infer<typeof RegistryImportSourceSchema>;
+
+/**
  * What the import did, whether or not it did all of it.
  *
  * The report is the answer and not an error body. `ErrorBody` — the register's
@@ -234,6 +271,8 @@ export type ImportProblem = z.infer<typeof ImportProblemSchema>;
 export const RegistryImportReportSchema = z.object({
   /** True when every row of the workbook was stored. */
   accepted: z.boolean(),
+  /** Which workbook this was, and who worked that out. */
+  source: RegistryImportSourceSchema,
   imported: z.number().int().nonnegative(),
   /** Objects the workbook named and the register did not store. */
   refused: z.number().int().nonnegative(),

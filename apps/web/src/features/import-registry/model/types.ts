@@ -30,10 +30,38 @@ export type ImportedRows = {
   locations: number;
 };
 
+/**
+ * Which workbook the operator uploaded, and who worked that out.
+ *
+ * Two shapes reach the register (ADR-0012): its own six-sheet template, which
+ * is recognised by the sheet named `Objects`, and one of the five files the
+ * archive actually keeps, which is recognised from its sheet names and column
+ * headers — by the register's own rule, or by a model reading the same shape.
+ * `detectedBy` is which of the two decided, because an operator should never be
+ * told a file is something on nobody's authority.
+ */
+export type ImportSource = {
+  kind: 'Template' | 'ArchiveRegister';
+  /** The catalogue id of the register — "EMDK", "Hovsan". Null for the template. */
+  register: string | null;
+  /** The file as the archive names it, so the operator can check it is the one they sent. */
+  file: string | null;
+  detectedBy: 'sheets' | 'fingerprint' | 'model';
+  /** 0 to 1, as whoever decided means it. Null where nobody offered one. */
+  confidence: number | null;
+  reason: string;
+  sheets: {
+    name: string;
+    rows: number;
+    columns: { named: number; read: number };
+  }[];
+};
+
 /** What the import did, whether or not it did all of it. */
 export type RegistryImportReport = {
   /** True when every object in the workbook was stored. */
   accepted: boolean;
+  source: ImportSource;
   imported: number;
   /** Objects the workbook named and the register did not store. */
   refused: number;

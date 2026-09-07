@@ -13,6 +13,15 @@ const post = vi.mocked(axios.post);
 
 const REPORT: RegistryImportReport = {
   accepted: false,
+  source: {
+    kind: 'Template',
+    register: null,
+    file: null,
+    detectedBy: 'sheets',
+    confidence: null,
+    reason: 'The workbook carries an "Objects" sheet.',
+    sheets: [{ name: 'Objects', rows: 3, columns: { named: 5, read: 5 } }],
+  },
   imported: 2,
   refused: 1,
   rows: {

@@ -2,6 +2,7 @@ import ExcelJS, { type CellValue } from 'exceljs';
 import { describe, expect, it } from 'vitest';
 
 import { WorkbookUnreadableError } from '../../application/ports/index.js';
+import { tableOf } from '../../domain/index.js';
 
 import { ExcelJsWorkbookReader } from './exceljs-workbook.reader.js';
 
@@ -35,13 +36,14 @@ describe('reading a workbook', () => {
     ]);
 
     // act
-    const [sheet] = await reader.read(bytes);
+    const [sheet] = (await reader.read(bytes)).map(tableOf);
 
     // assert
     expect(sheet?.name).toBe('Objects');
     expect(sheet?.rows).toEqual([
       {
         number: 2,
+        values: ['3-00219', '1 saylı Bakı Ərazi İdarəsi'],
         cells: {
           registerNo: '3-00219',
           territorialOffice: '1 saylı Bakı Ərazi İdarəsi',
@@ -69,7 +71,7 @@ describe('reading a workbook', () => {
     ]);
 
     // act
-    const [sheet] = await reader.read(bytes);
+    const [sheet] = (await reader.read(bytes)).map(tableOf);
 
     // assert
     expect(sheet?.rows[0]?.cells).toEqual({
@@ -90,7 +92,7 @@ describe('reading a workbook', () => {
     ]);
 
     // act
-    const [sheet] = await reader.read(bytes);
+    const [sheet] = (await reader.read(bytes)).map(tableOf);
 
     // assert
     expect(sheet?.rows[0]?.cells.issuedOn).toBe('15.04.1999');
@@ -106,7 +108,7 @@ describe('reading a workbook', () => {
     ]);
 
     // act
-    const [sheet] = await reader.read(bytes);
+    const [sheet] = (await reader.read(bytes)).map(tableOf);
 
     // assert
     expect(sheet?.rows.map(row => row.number)).toEqual([2, 3, 4]);
@@ -127,7 +129,7 @@ describe('reading a workbook', () => {
     ]);
 
     // act
-    const [sheet] = await reader.read(bytes);
+    const [sheet] = (await reader.read(bytes)).map(tableOf);
 
     // assert
     expect(sheet?.rows.map(row => row.cells.registerNo)).toEqual([
@@ -149,7 +151,7 @@ describe('reading a workbook', () => {
     ]);
 
     // act
-    const [sheet] = await reader.read(bytes);
+    const [sheet] = (await reader.read(bytes)).map(tableOf);
 
     // assert
     expect(sheet?.rows[0]?.cells).toEqual({
@@ -166,7 +168,7 @@ describe('reading a workbook', () => {
     ]);
 
     // act
-    const sheets = await reader.read(bytes);
+    const sheets = (await reader.read(bytes)).map(tableOf);
 
     // assert
     expect(sheets.map(sheet => sheet.name)).toEqual(['Objects', 'Addresses']);

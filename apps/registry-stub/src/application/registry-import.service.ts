@@ -4,11 +4,20 @@ import type { z } from 'zod';
 import { Logger } from '@cadastre/logger';
 
 import {
-  RegistryWriter,
-  WorkbookReader,
-  WorkbookUnreadableError,
+  registerNamed,
+  shapeOf,
+  tableOf,
+  type ArchiveRegister,
   type SheetRow,
   type SheetTable,
+} from '../domain/index.js';
+
+import { objectsFromSheet } from './native-register.mapping.js';
+import {
+  RegistryWriter,
+  WorkbookClassifier,
+  WorkbookReader,
+  WorkbookUnreadableError,
 } from './ports/index.js';
 import {
   AddressRowSchema,
@@ -27,6 +36,7 @@ import {
   type ObjectKey,
   type ObjectRow,
   type RegistryImportReport,
+  type RegistryImportSource,
   type RightHolderImport,
 } from './registry-import.schema.js';
 
@@ -35,9 +45,17 @@ import {
  *
  * It is not part of what the register answers. `ArchiveRegistryApi` is what a
  * caller verifying a submission may ask; this is the operator's side of the same
- * system — how the six archive registers get in, which today is by hand and
- * tomorrow is by whatever ingests the 55 files. That is why it is stub-local and
- * not in `@cadastre/api-contracts` (ADR-0011).
+ * system — how the archive registers get in, which today is by hand and tomorrow
+ * is by whatever ingests the 55 files. That is why it is stub-local and not in
+ * `@cadastre/api-contracts` (ADR-0011).
+ *
+ * Two workbooks arrive here and it decides which it is holding (ADR-0012). One
+ * is the register's own template — a sheet per model, joined on the object key —
+ * and it is recognised by the sheet named `Objects`, because nothing else has
+ * one. The other is one of the six files the archive actually keeps, in the
+ * shape the office that wrote it chose thirty years ago; those are recognised
+ * from their sheet names and column headers, and what a column means is the
+ * lexicon's answer, given once for all six.
  *
  * What it refuses, it refuses whole. The unit of an import is an object with the
  * rows that hang off it, so a bad address row refuses the object rather than
@@ -53,19 +71,24 @@ export class RegistryImportService {
   constructor(
     @Inject(Logger) logger: Logger,
     @Inject(WorkbookReader) private readonly workbooks: WorkbookReader,
+    @Inject(WorkbookClassifier) private readonly classifier: WorkbookClassifier,
     @Inject(RegistryWriter) private readonly writer: RegistryWriter,
   ) {
     this.logger = logger.child({ scope: RegistryImportService.name });
   }
 
   async import(bytes: Buffer): Promise<RegistryImportReport> {
-    const sheets = await this.workbooks.read(bytes);
-    const { objects, problems, read, rows } = collate(sheets);
+    const tables = (await this.workbooks.read(bytes)).map(tableOf);
+    const collated = sheetNamed(tables, SHEETS.objects)
+      ? fromTemplate(tables)
+      : await this.fromArchiveRegister(tables);
 
-    if (objects.length > 0) await this.writer.upsert(objects);
+    if (collated.objects.length > 0) await this.writer.upsert(collated.objects);
 
+    const { objects, problems, read, rows, source } = collated;
     const report: RegistryImportReport = {
       accepted: problems.length === 0,
+      source,
       imported: objects.length,
       refused: read - objects.length,
       rows,
@@ -78,6 +101,9 @@ export class RegistryImportService {
     // a log the register has no reason to hold them in (ADR-0008).
     this.logger.log('Register records imported', {
       accepted: report.accepted,
+      register: source.register,
+      detectedBy: source.detectedBy,
+      confidence: source.confidence,
       imported: report.imported,
       refused: report.refused,
       rows: report.rows,
@@ -89,6 +115,38 @@ export class RegistryImportService {
     });
 
     return report;
+  }
+
+  /**
+   * The archive's own file, once somebody has said which of the six it is.
+   *
+   * The classifier is shown the shape — sheet names and header rows — and never
+   * a record: recognising a file does not need anybody's property data, and
+   * sending it to a provider to be told what file this is would be sending it
+   * for nothing (ADR-0008).
+   */
+  private async fromArchiveRegister(
+    tables: readonly SheetTable[],
+  ): Promise<Collated> {
+    const answer = await this.classifier.classify(shapeOf(tables));
+    const register = answer.register ? registerNamed(answer.register) : null;
+
+    // Not a refusal reported row by row: a workbook that is neither the
+    // register's own template nor one of the six files the archive keeps is
+    // not a workbook of register records, and there is nothing in it to report
+    // against.
+    if (!register) {
+      throw new WorkbookUnreadableError(
+        'The workbook is neither the register import template — which carries a ' +
+          `"${SHEETS.objects}" sheet — nor one of the archive registers the ` +
+          `register knows how to read. ${answer.reason} It carries ` +
+          (tables.length === 0
+            ? 'no sheets at all.'
+            : `${tables.map(table => `"${table.name}"`).join(', ')}.`),
+      );
+    }
+
+    return collateNative(register, tables, answer);
   }
 }
 
@@ -113,27 +171,74 @@ type Collated = {
   /** Object rows the workbook carried, stored or not. */
   readonly read: number;
   readonly rows: RegistryImportReport['rows'];
+  readonly source: RegistryImportSource;
 };
 
 /**
- * The whole of the mapping, as a function rather than a method: what a workbook
- * says is decided before anything is written, and the decision is worth reading
- * on its own.
+ * One of the archive's own six files, sheet by sheet.
+ *
+ * Every sheet of it is read the same way, because the question "what does this
+ * column mean" has the same answer in all forty of them. What differs is the
+ * register: whose numbering its numbers are, and what kind of paper a row of it
+ * records — and that is a catalogue entry (ADR-0012 §2).
  */
-function collate(sheets: readonly SheetTable[]): Collated {
+function collateNative(
+  register: ArchiveRegister,
+  tables: readonly SheetTable[],
+  answer: { confidence: number | null; reason: string; by: 'fingerprint' | 'model' }, // prettier-ignore
+): Collated {
+  const objects: ObjectImport[] = [];
   const problems: ImportProblem[] = [];
-  const objectSheet = sheetNamed(sheets, SHEETS.objects);
+  const sheets: RegistryImportSource['sheets'] = [];
+  let read = 0;
 
-  // Not a refusal reported row by row: a workbook with no `Objects` sheet is not
-  // a workbook of register records, and there is nothing in it to report against.
-  if (!objectSheet) {
-    throw new WorkbookUnreadableError(
-      `The workbook has no "${SHEETS.objects}" sheet. It carries ` +
-        (sheets.length === 0
-          ? 'no sheets at all.'
-          : `${sheets.map(sheet => `"${sheet.name}"`).join(', ')}.`),
-    );
+  for (const table of tables) {
+    const result = objectsFromSheet(register, table);
+
+    sheets.push({
+      name: table.name,
+      rows: result.skipped ? 0 : result.read,
+      columns: result.columns,
+    });
+
+    if (result.skipped) continue;
+
+    objects.push(...result.objects);
+    problems.push(...result.problems);
+    read += result.read;
   }
+
+  return {
+    objects,
+    problems,
+    // What the file carried, so that a row the register merged into an object it
+    // already had is visible as the difference between the two.
+    read: Math.max(read, objects.length),
+    rows: countRows(objects),
+    source: {
+      kind: 'ArchiveRegister',
+      register: register.id,
+      file: register.file,
+      detectedBy: answer.by,
+      confidence: answer.confidence,
+      reason: answer.reason,
+      sheets,
+    },
+  };
+}
+
+/**
+ * The register's own template: a sheet per model, joined on the object key.
+ *
+ * Written as a function rather than a method for the same reason it always was:
+ * what a workbook says is decided before anything is written, and the decision
+ * is worth reading on its own.
+ */
+function fromTemplate(sheets: readonly SheetTable[]): Collated {
+  const problems: ImportProblem[] = [];
+  // The caller only reaches here having found it, so this is the type narrowing
+  // and not a check.
+  const objectSheet = sheetNamed(sheets, SHEETS.objects) as SheetTable;
 
   const objects = new Map<string, { row: number; object: ObjectRow }>();
   // An object the register will not store, for any reason. Its child rows are
@@ -241,13 +346,39 @@ function collate(sheets: readonly SheetTable[]): Collated {
     objects: imports,
     problems,
     read: objectSheet.rows.length,
-    rows: {
-      addresses: imports.reduce((sum, one) => sum + one.addresses.length, 0),
-      rightHolders: imports.reduce((sum, one) => sum + one.rightHolders.length, 0), // prettier-ignore
-      documents: imports.reduce((sum, one) => sum + one.documents.length, 0),
-      aliases: imports.reduce((sum, one) => sum + one.aliases.length, 0),
-      locations: imports.filter(one => one.location !== null).length,
+    rows: countRows(imports),
+    source: {
+      kind: 'Template',
+      register: null,
+      file: null,
+      // By the sheets and by nothing else: no other workbook carries `Objects`,
+      // so no model is asked a question that is already answered.
+      detectedBy: 'sheets',
+      confidence: null,
+      reason: `The workbook carries an "${SHEETS.objects}" sheet, which only the register's own import template does.`, // prettier-ignore
+      sheets: sheets.map(sheet => ({
+        name: sheet.name,
+        rows: sheet.rows.length,
+        columns: {
+          named: sheet.headers[0]?.filter(header => header.trim() !== '').length ?? 0, // prettier-ignore
+          read: sheet.headers[0]?.filter(header => header.trim() !== '').length ?? 0, // prettier-ignore
+        },
+      })),
     },
+  };
+}
+
+/** What was written under the objects, by sheet — what an operator counts against their file. */
+function countRows(
+  objects: readonly ObjectImport[],
+): RegistryImportReport['rows'] {
+  // prettier-ignore
+  return {
+    addresses: objects.reduce((sum, one) => sum + one.addresses.length, 0),
+    rightHolders: objects.reduce((sum, one) => sum + one.rightHolders.length, 0), // prettier-ignore
+    documents: objects.reduce((sum, one) => sum + one.documents.length, 0),
+    aliases: objects.reduce((sum, one) => sum + one.aliases.length, 0),
+    locations: objects.filter(one => one.location !== null).length,
   };
 }
 

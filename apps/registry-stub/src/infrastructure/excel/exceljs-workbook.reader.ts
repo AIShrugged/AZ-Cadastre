@@ -4,9 +4,8 @@ import ExcelJS, { type CellValue, type Worksheet } from 'exceljs';
 import {
   WorkbookReader,
   WorkbookUnreadableError,
-  type SheetRow,
-  type SheetTable,
 } from '../../application/ports/index.js';
+import type { GridRow, SheetGrid } from '../../domain/index.js';
 
 /**
  * Reads an `.xlsx` workbook with ExcelJS, and hands every cell back as text.
@@ -18,12 +17,16 @@ import {
  * first back as 3013067339 and lose the leading zero on the way in — which is
  * how some of the archive's own registers lost it.
  *
- * The only judgement it makes is which row is the header: the first, and its
- * cells are the column names the schemas are written against.
+ * It makes no judgement at all, not even about which row is the header. Five of
+ * the archive's files document themselves in their first four rows and one puts
+ * a merged title above that; deciding what that means is knowledge about those
+ * files and not about the format, so it lives in `domain/services/sheet-layout`
+ * where it can be read and tested with no spreadsheet library in the room
+ * (ADR-0012).
  */
 @Injectable()
 export class ExcelJsWorkbookReader extends WorkbookReader {
-  async read(bytes: Buffer): Promise<readonly SheetTable[]> {
+  async read(bytes: Buffer): Promise<readonly SheetGrid[]> {
     const workbook = new ExcelJS.Workbook();
 
     try {
@@ -35,13 +38,13 @@ export class ExcelJsWorkbookReader extends WorkbookReader {
       );
     }
 
-    const tables: SheetTable[] = [];
+    const grids: SheetGrid[] = [];
 
     workbook.eachSheet(sheet => {
-      tables.push(tableOf(sheet));
+      grids.push(gridOf(sheet));
     });
 
-    return tables;
+    return grids;
   }
 }
 
@@ -59,37 +62,20 @@ function asArrayBuffer(bytes: Buffer): ArrayBuffer {
   return copy;
 }
 
-function tableOf(sheet: Worksheet): SheetTable {
-  const headers = new Map<number, string>();
-
-  sheet.getRow(1).eachCell({ includeEmpty: false }, (cell, column) => {
-    const header = textOf(cell.value);
-
-    // A column with no header is a column no schema can name, so it is not read.
-    // It is where a clerk's tally or a colour key usually sits.
-    if (header !== '') headers.set(column, header);
-  });
-
-  const rows: SheetRow[] = [];
+function gridOf(sheet: Worksheet): SheetGrid {
+  const rows: GridRow[] = [];
 
   sheet.eachRow({ includeEmpty: false }, (row, number) => {
-    if (number === 1) return;
+    const cells: string[] = [];
 
-    const cells: Record<string, string> = {};
-    let written = false;
-
-    for (const [column, header] of headers.entries()) {
-      const text = textOf(row.getCell(column).value);
-
-      cells[header] = text;
-      if (text !== '') written = true;
+    // By column index and not by cell, because `eachCell` skips the blanks and
+    // a column that shifted left is a row read into the wrong fields. Every one
+    // of the archive's files has a sheet with a hole in the middle of it.
+    for (let column = 1; column <= sheet.columnCount; column++) {
+      cells.push(textOf(row.getCell(column).value));
     }
 
-    // A row with nothing in any named column is the spreadsheet's own padding —
-    // formatting carried past the last record, which every one of these files
-    // has. Reporting it as a record with no register number would fill the
-    // report with problems nobody wrote.
-    if (written) rows.push({ number, cells });
+    rows.push({ number, cells });
   });
 
   return { name: sheet.name, rows };

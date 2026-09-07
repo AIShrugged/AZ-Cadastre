@@ -347,7 +347,7 @@ const en: Dict = {
   'reg.import.action': 'Load register file',
   'reg.import.title': 'Load archive register records',
   'reg.import.subtitle':
-    'An .xlsx workbook in the template’s shape — one sheet per model. The register stores every object it can read and reports the rest.',
+    'An .xlsx workbook: the register’s own template, one sheet per model, or one of the archive’s own registers, which the register recognises for itself. It stores every object it can read and reports the rest.',
   'reg.import.no_file': 'No workbook chosen',
   'reg.import.choose': 'Choose workbook',
   'reg.import.change': 'Change',
@@ -357,6 +357,12 @@ const en: Dict = {
   'reg.import.close': 'Close',
   'reg.import.sending': 'Sending… {p}%',
   'reg.import.reading': 'The register is reading the workbook…',
+  'reg.import.src.template':
+    'Read as the register’s own import template — the only workbook with an “Objects” sheet.',
+  'reg.import.src.register': 'Recognised as {file}.',
+  'reg.import.src.by.sheets': 'By its sheet names.',
+  'reg.import.src.by.fingerprint': 'By the register’s own rule:',
+  'reg.import.src.by.model': 'By the model:',
   'reg.import.accepted': 'The register stored every object in the file.',
   'reg.import.partial':
     'The register stored what it could read and refused {n} objects — each one is below.',
@@ -722,7 +728,7 @@ const ru: Dict = {
   'reg.import.action': 'Загрузить файл реестра',
   'reg.import.title': 'Загрузка записей архивного реестра',
   'reg.import.subtitle':
-    'Файл .xlsx в форме шаблона — по листу на каждую модель. Реестр сохранит все объекты, которые сможет прочитать, и отчитается об остальных.',
+    'Файл .xlsx: собственный шаблон реестра, по листу на каждую модель, либо один из архивных реестров — реестр сам определит, какой именно. Он сохранит все объекты, которые сможет прочитать, и отчитается об остальных.',
   'reg.import.no_file': 'Файл не выбран',
   'reg.import.choose': 'Выбрать файл',
   'reg.import.change': 'Заменить',
@@ -732,6 +738,12 @@ const ru: Dict = {
   'reg.import.close': 'Закрыть',
   'reg.import.sending': 'Передача… {p}%',
   'reg.import.reading': 'Реестр читает файл…',
+  'reg.import.src.template':
+    'Прочитан как собственный шаблон реестра — единственный файл с листом «Objects».',
+  'reg.import.src.register': 'Распознан как {file}.',
+  'reg.import.src.by.sheets': 'По именам листов.',
+  'reg.import.src.by.fingerprint': 'По правилу самого реестра:',
+  'reg.import.src.by.model': 'По ответу модели:',
   'reg.import.accepted': 'Реестр сохранил все объекты из файла.',
   'reg.import.partial':
     'Реестр сохранил то, что смог прочитать, и отклонил объектов: {n} — каждый указан ниже.',
@@ -1097,7 +1109,7 @@ const az: Dict = {
   'reg.import.action': 'Reyestr faylını yüklə',
   'reg.import.title': 'Arxiv reyestrinin qeydlərinin yüklənməsi',
   'reg.import.subtitle':
-    'Şablon formasında .xlsx faylı — hər model üçün bir vərəq. Reyestr oxuya bildiyi bütün obyektləri saxlayır, qalanları barədə hesabat verir.',
+    'Bir .xlsx faylı: reyestrin öz şablonu — hər model üçün bir vərəq — və ya arxivin öz reyestrlərindən biri, hansı olduğunu reyestr özü tanıyır. Oxuya bildiyi bütün obyektləri saxlayır, qalanları barədə hesabat verir.',
   'reg.import.no_file': 'Fayl seçilməyib',
   'reg.import.choose': 'Fayl seç',
   'reg.import.change': 'Dəyiş',
@@ -1107,6 +1119,12 @@ const az: Dict = {
   'reg.import.close': 'Bağla',
   'reg.import.sending': 'Göndərilir… {p}%',
   'reg.import.reading': 'Reyestr faylı oxuyur…',
+  'reg.import.src.template':
+    'Reyestrin öz idxal şablonu kimi oxundu — “Objects” vərəqi olan yeganə fayl.',
+  'reg.import.src.register': '{file} kimi tanındı.',
+  'reg.import.src.by.sheets': 'Vərəq adlarına görə.',
+  'reg.import.src.by.fingerprint': 'Reyestrin öz qaydasına görə:',
+  'reg.import.src.by.model': 'Modelin cavabına görə:',
   'reg.import.accepted': 'Reyestr fayldakı bütün obyektləri saxladı.',
   'reg.import.partial':
     'Reyestr oxuya bildiyini saxladı, {n} obyekti qəbul etmədi — hər biri aşağıdadır.',

@@ -55,8 +55,9 @@ is no Nest CLI: it cannot load TypeScript 7 — see the rakes below.
 | Postgres | localhost:5432        | `postgres/postgres`                         |
 | RustFS   | localhost:9000        | `rustfsadmin/rustfsadmin` (console on 9001) |
 
-Every provider defaults to `mock`, so the whole pipeline runs with no API key
-and no network: the offline adapters run the same domain rules in
+Every provider defaults to `mock` — the six of the pipeline and the register's
+workbook classifier alike — so the whole thing runs with no API key and no
+network: the offline adapters run the same domain rules in
 `domain/services/` that the model-backed ones are checked against. Point one
 stage at OpenRouter at a time — `OCR_PROVIDER=openrouter` — rather than all of
 them, which is how a stage gets compared with its stand-in.
@@ -82,13 +83,33 @@ editing `apps/registry-stub/src/infrastructure/persistence/seed.ts` and running
 `db:seed` again.
 
 Records that are not the repository's own cases go in over HTTP instead:
-`POST /api/import/records` takes an `.xlsx` workbook, one sheet per model, and
-answers with a report naming the sheet, row and column of anything it refused
-(ADR-0011). `apps/registry-stub/fixtures/registry-import-template.xlsx` is the
-template to fill in — `pnpm --filter @cadastre/registry-stub fixtures:template`
-rebuilds it from the script beside it. The import is stub-local and not part of
-`@cadastre/api-contracts`: no verification of a submission ever loads a register
-file.
+`POST /api/import/records` takes an `.xlsx` workbook and answers with a report
+naming the sheet, row and column of anything it refused (ADR-0011). It takes two
+shapes and works out which it is holding (ADR-0012). One is the register's own
+template — a sheet per model — recognised by the sheet named `Objects`;
+`apps/registry-stub/fixtures/registry-import-template.xlsx` is the copy to fill
+in, and `pnpm --filter @cadastre/registry-stub fixtures:template` rebuilds it.
+
+The other is one of the six workbooks the archive actually keeps, in the shape
+the office that wrote it chose: those are recognised from their sheet names and
+column headers. `WORKBOOK_CLASSIFIER_PROVIDER` decides who recognises them —
+`mock` is the register's own rule, which scores a file against the catalogue in
+`apps/registry-stub/src/domain/archive-registers/` and needs no key and no
+network, and `openrouter` asks a model to recognise the same shape, which is what
+a file from an office that renamed a sheet needs. The model may only name a
+register the catalogue carries; anything else and the rule's answer stands, and
+the report's `detectedBy` says which of the two decided. What a column means is
+never the model's to say: that is the lexicon, one dictionary for all six files.
+
+`pnpm --filter @cadastre/registry-stub fixtures:archive` writes
+`fixtures/archive/*.xlsx` — the customer's own six files with records under
+their own documentation, off the application packages in
+`Fedor Zhernovoy/INPUTS/`. Every address in them is one no seeded record answers
+to, because two records at one address is an `Ambiguous` lookup and a fixture
+that caused one by accident would break the case it exists to prove.
+
+The import is stub-local and not part of `@cadastre/api-contracts`: no
+verification of a submission ever loads a register file.
 
 Secrets live in `packages/verification/.env.local`, `apps/server/.env.local` and
 `apps/registry-stub/.env.local`, none of which is in git. Note that

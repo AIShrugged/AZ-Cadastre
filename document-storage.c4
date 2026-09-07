@@ -1,0 +1,426 @@
+/**
+ * AZ-Cadastre — где живут документы, которые проверяет система.
+ *
+ * Один файл, одна модель, семь схем:
+ *   today       — как устроено сейчас у заказчика
+ *   variant-a   — если писать собственный индексатор файловой папки
+ *   variant-b   — если положить те же папки в объектное хранилище S3 (RustFS)
+ *   comparison  — сколько кода мы пишем сами в каждом варианте
+ *   flow-a      — путь одного документа в варианте A, шаг за шагом
+ *   flow-b      — путь одного документа в варианте B, шаг за шагом
+ *   migration   — как перейти, ничего не ломая
+ *
+ * Подписи внутри блоков намеренно короткие: схемы идут в записку для
+ * заказчика (document-storage-analysis.html), и объяснения живут там.
+ *
+ * Отрисовать:  npx likec4 start .        — интерактивно в браузере
+ *              npx likec4 export png .   — картинки рядом с этим файлом
+ */
+
+specification {
+
+  element person {
+    notation 'Человек'
+    style {
+      shape person
+      color secondary
+    }
+  }
+
+  element system {
+    notation 'Система'
+    style {
+      opacity 15%
+    }
+  }
+
+  element externalSystem {
+    notation 'Внешняя система заказчика'
+    style {
+      color secondary
+      opacity 15%
+    }
+  }
+
+  element service {
+    notation 'Служба / приложение'
+  }
+
+  element storage {
+    notation 'Хранилище данных'
+    style {
+      shape storage
+    }
+  }
+
+  element folder {
+    notation 'Файлы и папки'
+    style {
+      shape storage
+      color slate
+    }
+  }
+
+  element queue {
+    notation 'Очередь событий'
+    style {
+      shape queue
+    }
+  }
+
+  // Что придётся написать и бессрочно поддерживать нам.
+  tag we-build-it {
+    color red
+  }
+
+  // Что уже готово и поддерживается не нами.
+  tag ready-made {
+    color green
+  }
+
+  // Место, где всё ломается.
+  tag risk {
+    color amber
+  }
+
+  relationship reads
+  relationship writes
+  relationship notifies {
+    line dotted
+  }
+}
+
+model {
+
+  registrar = person 'Сотрудник архива' {
+    description 'Складывает сканы дел в папки — как делал всегда'
+  }
+
+  inspector = person 'Инспектор' {
+    description 'Ведёт проверку дела в AZ-Cadastre'
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Как есть сегодня
+  // ─────────────────────────────────────────────────────────────
+
+  fileShare = externalSystem 'Файловый сервер заказчика' {
+    #risk
+    description 'Сетевая папка, сотни тысяч файлов'
+
+    tree = folder 'Дерево папок и файлов' {
+      description 'Отдаёт файл по имени, но не сообщает об изменениях'
+    }
+  }
+
+  registrar -> fileShare.tree 'кладёт сканы дел'
+
+  // ─────────────────────────────────────────────────────────────
+  // AZ-Cadastre — то, ради чего всё затевается
+  // ─────────────────────────────────────────────────────────────
+
+  cadastre = system 'AZ-Cadastre' {
+    description 'Проверяет комплект документов по делу'
+
+    intake = service 'Приём документов' {
+      description 'Заводит карточку и ставит документ в работу'
+    }
+
+    pipeline = service 'Конвейер проверки' {
+      description 'Распознавание, классификация, сверка полей'
+    }
+
+    catalog = storage 'Каталог документов' {
+      description 'PostgreSQL: что за документ и что с ним сделано'
+    }
+
+    ui = service 'Рабочее место инспектора' {
+      style {
+        shape browser
+      }
+    }
+  }
+
+  // Ровно этот пунктир и есть задача: связи между папкой и системой сегодня нет.
+  fileShare.tree -> cadastre '?  как система узнаёт о новом документе'
+
+  cadastre.intake -> cadastre.catalog 'заводит карточку'
+  cadastre.intake -> cadastre.pipeline 'ставит в очередь'
+  cadastre.pipeline -> cadastre.catalog 'сохраняет результат'
+  cadastre.ui -> cadastre.catalog 'показывает дело и находки'
+  inspector -> cadastre.ui 'ведёт проверку'
+
+  // ─────────────────────────────────────────────────────────────
+  // Вариант A — писать собственный индексатор папки
+  // ─────────────────────────────────────────────────────────────
+
+  variantA = system 'Вариант A — собственный индексатор папки' {
+    #we-build-it
+    description 'Всё, что придётся написать и поддерживать нам'
+
+    mount = service 'Монтирование сетевого диска' {
+      #risk
+      description 'Пропал сетевой диск — встала вся проверка'
+    }
+
+    watcher = service 'Слежение за изменениями' {
+      #we-build-it
+      #risk
+      description 'На сетевых дисках события приходят не всегда'
+    }
+
+    crawler = service 'Полный обход дерева' {
+      #we-build-it
+      #risk
+      description 'Страховка: читать весь архив снова и снова'
+    }
+
+    settle = service 'Проверка «файл дописан»' {
+      #we-build-it
+      #risk
+      description 'Иначе прочитаем обрезанный PDF'
+    }
+
+    fingerprint = service 'Отпечатки файлов' {
+      #we-build-it
+      #risk
+      description 'Новый или уже виденный — только прочитав целиком'
+    }
+
+    stateDb = storage 'Своя таблица состояния' {
+      #we-build-it
+      description 'Что видели, что обработали, где остановились'
+    }
+
+    retry = service 'Очередь и повторы' {
+      #we-build-it
+      description 'Свой механизм повторной обработки после сбоя'
+    }
+  }
+
+  variantA.mount .reads fileShare.tree 'читает файлы по сети'
+  variantA.watcher -> variantA.mount 'слушает события'
+  variantA.crawler -> variantA.mount 'обходит дерево целиком'
+  variantA.watcher -> variantA.settle 'нашёлся новый файл'
+  variantA.crawler -> variantA.settle 'нашёлся новый файл'
+  variantA.settle -> variantA.fingerprint 'отдаёт дописанный файл'
+  variantA.fingerprint -> variantA.stateDb 'сверяет с уже виденным'
+  variantA.fingerprint -> variantA.retry 'ставит новое в очередь'
+  variantA.retry -> cadastre.intake 'передаёт документ'
+
+  // ─────────────────────────────────────────────────────────────
+  // Вариант B — объектное хранилище S3 (RustFS)
+  // ─────────────────────────────────────────────────────────────
+
+  variantB = system 'Вариант B — объектное хранилище S3 (RustFS)' {
+    #ready-made
+    description 'На сервере заказчика, наружу ничего не уходит'
+
+    gateway = service 'Доступ как к папке' {
+      #ready-made
+      description 'WebDAV / FTPS: сотрудник работает как раньше'
+    }
+
+    objects = folder 'Дерево документов' {
+      #ready-made
+      description 'Та же иерархия: год / район / дело / файл'
+    }
+
+    versions = storage 'Версии и защита от изменения' {
+      #ready-made
+      description 'Прежние версии и запрет удаления на срок'
+    }
+
+    events = queue 'Уведомления о событиях' {
+      #ready-made
+      description 'Недоставленные копятся и отправляются повторно'
+    }
+
+    audit = storage 'Журнал доступа' {
+      #ready-made
+      description 'Кто и когда открывал документ'
+    }
+  }
+
+  registrar -> variantB.gateway 'кладёт сканы дел'
+  variantB.gateway -> variantB.objects 'сохраняет документ целиком'
+  variantB.objects -> variantB.versions 'ведёт версии'
+  variantB.objects .notifies variantB.events 'появился документ'
+  variantB.objects -> variantB.audit 'пишет обращения'
+
+  indexer = service 'Приёмник уведомлений' {
+    #we-build-it
+    description 'Единственное, что пишем мы'
+  }
+
+  variantB.events .notifies indexer 'вызывает по HTTP'
+  indexer -> cadastre.intake 'передаёт документ'
+  cadastre.pipeline .reads variantB.objects 'забирает файл по временной ссылке'
+
+  // ─────────────────────────────────────────────────────────────
+  // Переход
+  // ─────────────────────────────────────────────────────────────
+
+  migration = service 'Разовая перекладка' {
+    description 'Копирование в одну сторону; исходная папка цела'
+  }
+
+  migration .reads fileShare.tree 'читает дерево один раз'
+  migration .writes variantB.objects 'переносит с сохранением структуры'
+}
+
+views {
+
+  view today {
+    title 'Как есть сегодня'
+    description '''
+Файлы лежат в сетевой папке. Система проверки должна как-то узнавать,
+что в папке появился новый документ, — а папка об этом сообщать не умеет.
+    '''
+
+    include
+      registrar,
+      inspector,
+      fileShare,
+      cadastre
+
+    style fileShare {
+      color amber
+    }
+    autoLayout LeftRight
+  }
+
+  view variant-a of variantA {
+    title 'Вариант A — собственный индексатор папки'
+    description '''
+Красным помечено то, что придётся написать нам и поддерживать бессрочно.
+Каждый прямоугольник — отдельный источник ошибок, который никто, кроме нас,
+не починит.
+    '''
+
+    include
+      registrar,
+      fileShare,
+      fileShare.*,
+      variantA,
+      variantA.*,
+      cadastre
+    exclude
+      fileShare.tree -> cadastre
+
+    style variantA.* {
+      color red
+    }
+    autoLayout TopBottom
+  }
+
+  view variant-b of variantB {
+    title 'Вариант B — объектное хранилище S3 (RustFS)'
+    description '''
+Зелёным помечено готовое: хранилище само хранит версии, само сообщает
+о каждом новом файле, само ведёт журнал доступа. Нам остаётся один
+небольшой приёмник уведомлений.
+    '''
+
+    include
+      registrar,
+      variantB,
+      variantB.*,
+      indexer,
+      cadastre
+
+    style variantB.* {
+      color green
+    }
+    style indexer {
+      color amber
+    }
+    autoLayout TopBottom
+  }
+
+  view comparison {
+    title 'Сколько кода мы пишем сами'
+    description '''
+Красное — семь механизмов, которые в варианте A придётся написать нам
+и поддерживать бессрочно. Зелёное — всё, что нужно написать в варианте B.
+    '''
+
+    include
+      variantA,
+      variantA.*,
+      indexer,
+      cadastre
+
+    style variantA {
+      color red
+      opacity 20%
+    }
+    style variantA.* {
+      color red
+    }
+    style indexer {
+      color green
+    }
+    style cadastre {
+      color slate
+    }
+    autoLayout TopBottom
+  }
+
+  dynamic view flow-a {
+    title 'Путь одного документа — вариант A'
+    description '''
+Восемь шагов, и на каждом втором — наш собственный код,
+который должен угадать то, что файловая папка не сообщает.
+    '''
+
+    registrar -> fileShare.tree 'кладёт скан в папку'
+    fileShare.tree -> variantA.watcher 'событие файловой системы (если дойдёт)'
+    variantA.watcher -> variantA.settle 'копирование закончилось?'
+    variantA.settle -> variantA.fingerprint 'читаем файл целиком, считаем хеш'
+    variantA.fingerprint -> variantA.stateDb 'видели ли мы его раньше?'
+    variantA.stateDb -> variantA.retry 'нет — в очередь'
+    variantA.retry -> cadastre.intake 'документ передан'
+    cadastre.intake -> cadastre.pipeline 'проверка началась'
+    variantA.crawler -> variantA.settle 'а ночью обходим всё дерево — вдруг что-то пропустили'
+
+    autoLayout TopBottom
+  }
+
+  dynamic view flow-b {
+    title 'Путь одного документа — вариант B'
+    description '''
+Пять шагов, и ни один не требует угадывать: хранилище показывает объект
+только когда он записан целиком, и само говорит, что он появился.
+    '''
+
+    registrar -> variantB.gateway 'кладёт скан в папку — интерфейс тот же'
+    variantB.gateway -> variantB.objects 'документ записан целиком'
+    variantB.objects -> variantB.events 'хранилище сообщает о событии'
+    variantB.events -> indexer 'уведомление по HTTP'
+    indexer -> cadastre.intake 'документ передан'
+    cadastre.intake -> cadastre.pipeline 'проверка началась'
+    cadastre.pipeline -> variantB.objects 'забирает файл по временной ссылке'
+
+    autoLayout TopBottom
+  }
+
+  view migration-view {
+    title 'Как переходим'
+    description '''
+Разовая перекладка дерева. Исходная папка остаётся на месте
+и может работать параллельно столько, сколько нужно заказчику.
+    '''
+
+    include
+      registrar,
+      fileShare,
+      migration,
+      variantB
+
+    style migration {
+      color amber
+    }
+    autoLayout LeftRight
+  }
+}

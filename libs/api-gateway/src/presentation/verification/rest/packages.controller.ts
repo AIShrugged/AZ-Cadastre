@@ -14,6 +14,7 @@ import {
   ApproveArchiveSearchRequestSchema,
   CreatePackageRequestSchema,
   ListPackagesRequestSchema,
+  PackagesOverviewRequestSchema,
   type AddFilesRequest,
   type ApproveArchiveSearchRequest,
   type CreatePackageRequest,
@@ -21,6 +22,8 @@ import {
   type ListPackagesResponse,
   type PackageDetailDto,
   type PackageDto,
+  type PackagesOverviewRequest,
+  type PackagesOverviewResponse,
 } from '@cadastre/api-contracts/verification';
 
 import { VerificationClientPort } from '../../../application/ports/index.js';
@@ -87,6 +90,25 @@ export class PackagesController {
     body: ApproveArchiveSearchRequest,
   ): Promise<PackageDetailDto> {
     return this.verification.packages.approveArchiveSearch(id, body);
+  }
+
+  /*
+   * Declared before `:id`, and it has to be: Nest matches routes in the order
+   * they are declared, so under the parameter route this path would arrive as
+   * a package whose id is the word "overview" and come back a 404.
+   *
+   * The whole period is the query string, and the schema is what says so — a
+   * bound that is not an ISO-8601 instant, or a period that ends before it
+   * starts, is a 400 from here and never a call into the context. Naming
+   * neither bound is every submission the office has ever taken in. What the
+   * four slices are and why they arrive together: ADR-0017.
+   */
+  @Get('overview')
+  async overview(
+    @Query({ schema: PackagesOverviewRequestSchema })
+    query: PackagesOverviewRequest,
+  ): Promise<PackagesOverviewResponse> {
+    return this.verification.packages.overview(query);
   }
 
   @Get(':id')

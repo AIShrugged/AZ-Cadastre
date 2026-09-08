@@ -5,6 +5,7 @@ import type {
 } from '../../../domain/value-objects/index.js';
 import type {
   PackageDetailView,
+  PackagesOverviewView,
   PackageSummaryView,
 } from '../../read-models/index.js';
 
@@ -41,6 +42,23 @@ export type PackageListPage = {
   readonly total: number;
 };
 
+/**
+ * The window a summary covers, over the moment a submission was accepted.
+ *
+ * One anchor for every slice of the answer, and deliberately not one per slice:
+ * counting the submissions by when they arrived and their findings by when the
+ * report was compiled would be two answers about two different sets, and a
+ * reader would be adding up numbers that were never about the same packages
+ * (ADR-0017).
+ */
+export type OverviewPeriod = {
+  // Inclusive. Null is every submission the office has ever taken in.
+  readonly from: Date | null;
+  // Exclusive, so two adjacent periods neither overlap nor leave a crack
+  // between them. Null is up to now.
+  readonly to: Date | null;
+};
+
 export abstract class PackageQueries {
   abstract listSummaries(
     criteria: PackageListCriteria,
@@ -49,4 +67,13 @@ export abstract class PackageQueries {
   abstract findSummary(id: PackageId): Promise<PackageSummaryView | null>;
 
   abstract findDetail(id: PackageId): Promise<PackageDetailView | null>;
+
+  /**
+   * The four tallies of a period, counted by the database in one transaction.
+   *
+   * One call and not four: numbers taken by separate calls are numbers from
+   * separate moments, and a submission that finishes between two of them is
+   * counted as under way by one and as reported on by the next.
+   */
+  abstract overview(period: OverviewPeriod): Promise<PackagesOverviewView>;
 }

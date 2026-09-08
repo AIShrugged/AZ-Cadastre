@@ -30,6 +30,7 @@ export {
 export { OcrProvider } from './ocr-provider.port.js';
 export {
   PackageQueries,
+  type OverviewPeriod,
   type PackageListCriteria,
   type PackageListPage,
 } from './package-queries.port.js';

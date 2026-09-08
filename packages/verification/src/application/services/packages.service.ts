@@ -10,6 +10,8 @@ import type {
   PackageDetailDto,
   PackageDto,
   PackagesApi,
+  PackagesOverviewRequest,
+  PackagesOverviewResponse,
 } from '@cadastre/api-contracts/verification';
 
 import {
@@ -17,12 +19,14 @@ import {
   ApproveArchiveSearchCommand,
   CreatePackageCommand,
   GetPackageQuery,
+  GetPackagesOverviewQuery,
   GetPackageSummaryQuery,
   ListPackagesQuery,
 } from '../use-cases/index.js';
 import {
   toDetailDto,
   toListDto,
+  toOverviewDto,
   toSummaryDto,
 } from '../use-cases/packages/index.js';
 
@@ -89,5 +93,15 @@ export class PackagesService implements PackagesApi {
 
   async findOne(id: string): Promise<PackageDetailDto> {
     return toDetailDto(await this.queries.execute(new GetPackageQuery(id)));
+  }
+
+  async overview(
+    request: PackagesOverviewRequest,
+  ): Promise<PackagesOverviewResponse> {
+    const view = await this.queries.execute(
+      new GetPackagesOverviewQuery(request.from, request.to),
+    );
+
+    return toOverviewDto(view, request);
   }
 }

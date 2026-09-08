@@ -2,6 +2,7 @@ import type { Provider } from '@nestjs/common';
 
 import { PresignUploadHandler } from './documents/index.js';
 import {
+  AddFilesHandler,
   CreatePackageHandler,
   GetPackageHandler,
   GetPackageSummaryHandler,
@@ -21,6 +22,7 @@ export * from './profiles/index.js';
  * has to get them registered.
  */
 export const VERIFICATION_CQRS_HANDLERS: Provider[] = [
+  AddFilesHandler,
   CreatePackageHandler,
   GetPackageHandler,
   GetPackageSummaryHandler,

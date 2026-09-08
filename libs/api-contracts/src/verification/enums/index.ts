@@ -13,7 +13,9 @@ export {
 export { IssueKindSchema, type IssueKind } from './issue-kind.enum.js';
 export {
   PackageStatusSchema,
+  PackageStatusTakingFilesSchema,
   type PackageStatus,
+  type PackageStatusTakingFiles,
 } from './package-status.enum.js';
 export {
   RegistryOutcomeSchema,

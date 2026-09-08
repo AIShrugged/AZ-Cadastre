@@ -31,6 +31,16 @@ export class PackageStatus {
     );
   }
 
+  /*
+   * Whether the package takes more files. Only a run under way refuses: the
+   * pipeline reads the list of files it started with, so a file added now would
+   * reach no stage of it, and the report the run is about to compile would
+   * describe a package that is no longer the one on file (ADR-0013).
+   */
+  get takesMoreFiles(): boolean {
+    return !this.equals(PackageStatus.PROCESSING);
+  }
+
   get isUnderWay(): boolean {
     return this.equals(PackageStatus.PROCESSING);
   }

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { SilentLogger } from '@cadastre/logger';
 
-import { PackageSubmitted } from '../../domain/events/index.js';
+import { FilesAdded, PackageSubmitted } from '../../domain/events/index.js';
 import {
   PackageId,
   VerificationProfile,
@@ -29,6 +29,10 @@ function submission(packageId: string): PackageSubmitted {
   );
 }
 
+function anArrival(packageId: string): FilesAdded {
+  return new FilesAdded(PackageId.of(packageId), 1);
+}
+
 describe('RunVerificationOnNewFilesHandler', () => {
   it('runs the pipeline over the package that was submitted', () => {
     const bus = new RecordingCommandBus();
@@ -39,6 +43,19 @@ describe('RunVerificationOnNewFilesHandler', () => {
     ).handle(submission('package-1'));
 
     expect(bus.executed).toEqual([new RunVerificationCommand('package-1')]);
+  });
+
+  // A file reaching a package that already exists is answered the same way,
+  // because the package has already discarded the report it had (ADR-0013).
+  it('runs the pipeline again over a package that gained a file', () => {
+    const bus = new RecordingCommandBus();
+
+    new RunVerificationOnNewFilesHandler(
+      bus as unknown as CommandBus,
+      new SilentLogger(),
+    ).handle(anArrival('package-4'));
+
+    expect(bus.executed).toEqual([new RunVerificationCommand('package-4')]);
   });
 
   it('does not wait for the pipeline it started', () => {

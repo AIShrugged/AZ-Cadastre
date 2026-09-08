@@ -1,4 +1,5 @@
 import type {
+  AddFilesRequest,
   CreatePackageRequest,
   PackageDetailDto,
   PackageDto,
@@ -13,4 +14,18 @@ export interface PackagesApi {
   create(request: CreatePackageRequest): Promise<PackageDto>;
   findMany(): Promise<PackageDto[]>;
   findOne(id: string): Promise<PackageDetailDto>;
+
+  /**
+   * Adds files to a package that already exists, and answers with the package
+   * as it now stands.
+   *
+   * Allowed in the states `PackageStatusTakingFilesSchema` names, and refused
+   * with `PACKAGE_NOT_TAKING_FILES` while a run is under way. A package that
+   * had been reported on is re-opened: the report, the cross-document checks
+   * and the register's answers were all worked out over an envelope that has
+   * since changed, so they are discarded and the package is verified afresh.
+   * What was read off each file on its own — its sheets, their text, the
+   * documents carved out of them — survives (ADR-0013).
+   */
+  addFiles(id: string, request: AddFilesRequest): Promise<PackageDto>;
 }

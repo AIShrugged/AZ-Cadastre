@@ -5,12 +5,14 @@ import {
   type ErrorBody,
 } from '@cadastre/api-contracts/shared';
 import {
+  AddFilesRequestSchema,
   CreatePackageRequestSchema,
   PackageDetailDtoSchema,
   PackageDtoSchema,
   PresignRequestSchema,
   PresignResponseSchema,
   ProfileDtoSchema,
+  type AddFilesRequest,
   type CreatePackageRequest,
   type PackageDetailDto,
   type PackageDto,
@@ -85,6 +87,25 @@ export class RestClient {
 
     createRaw: (body: unknown): Promise<ApiResponse<unknown>> =>
       this.request('POST', '/api/packages', z.unknown(), body),
+
+    addFiles: (
+      id: string,
+      request: AddFilesRequest,
+    ): Promise<ApiResponse<PackageDto>> =>
+      this.request(
+        'POST',
+        `/api/packages/${encodeURIComponent(id)}/files`,
+        PackageDtoSchema,
+        AddFilesRequestSchema.parse(request),
+      ),
+
+    addFilesRaw: (id: string, body: unknown): Promise<ApiResponse<unknown>> =>
+      this.request(
+        'POST',
+        `/api/packages/${encodeURIComponent(id)}/files`,
+        z.unknown(),
+        body,
+      ),
 
     findMany: (): Promise<ApiResponse<PackageDto[]>> =>
       this.request('GET', '/api/packages', z.array(PackageDtoSchema)),

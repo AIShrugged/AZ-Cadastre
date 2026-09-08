@@ -3,11 +3,19 @@ import { CommandBus, EventsHandler, type IEventHandler } from '@nestjs/cqrs';
 
 import { Logger } from '@cadastre/logger';
 
-import { PackageSubmitted } from '../../domain/events/index.js';
+import { FilesAdded, PackageSubmitted } from '../../domain/events/index.js';
 import { RunVerificationCommand } from '../use-cases/index.js';
 
-@EventsHandler(PackageSubmitted)
-export class RunVerificationOnNewFilesHandler implements IEventHandler<PackageSubmitted> {
+/**
+ * Both events, because the answer to both is the same one: files have arrived
+ * at a package, so read it. A package that gains a file has already discarded
+ * the report it had, and the run re-reads nothing it read before — every stage
+ * skips what is already done (ADR-0013).
+ */
+@EventsHandler(PackageSubmitted, FilesAdded)
+export class RunVerificationOnNewFilesHandler implements IEventHandler<
+  PackageSubmitted | FilesAdded
+> {
   private readonly logger: Logger;
 
   constructor(
@@ -19,14 +27,16 @@ export class RunVerificationOnNewFilesHandler implements IEventHandler<PackageSu
     });
   }
 
-  handle(event: PackageSubmitted): void {
-    // The request that submitted the package is answered before any of this
+  handle(event: PackageSubmitted | FilesAdded): void {
+    // The request that brought the files in is answered before any of this
     // happens, so the line below is the only place the two are tied together.
-    this.logger.log('Package submitted — starting verification', {
+    this.logger.log('Files arrived at a package — starting verification', {
       packageId: event.packageId.value,
+      because: event.type,
+      files: event.fileCount,
     });
 
-    // The pipeline outlives the request that submitted the package, so nothing
+    // The pipeline outlives the request that brought the files, so nothing
     // waits on it: a failure lands on the package's own status, which is where
     // the inspector reads it.
     void this.commands

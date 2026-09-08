@@ -1,3 +1,4 @@
+export { AddFilesCommand, AddFilesHandler } from './add-files/index.js';
 export {
   CreatePackageCommand,
   CreatePackageHandler,

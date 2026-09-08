@@ -1,7 +1,10 @@
 import { beforeAll, describe, expect, inject, it } from 'vitest';
 
 import { ApiError, RestClient } from '@cadastre/api-client';
-import type { PackageDto } from '@cadastre/api-contracts/verification';
+import type {
+  FileInput,
+  PackageDto,
+} from '@cadastre/api-contracts/verification';
 
 let api: RestClient;
 
@@ -9,9 +12,9 @@ beforeAll(() => {
   api = new RestClient(inject('baseUrl'));
 });
 
-/** A submission as the browser makes it: presign each file, then send the keys. */
-async function submit(names: readonly string[]): Promise<PackageDto> {
-  const files = await Promise.all(
+/** Files as the browser prepares them: presign each, then send the keys on. */
+async function presigned(names: readonly string[]): Promise<FileInput[]> {
+  return Promise.all(
     names.map(async name => {
       const { body } = await api.documents.presign({
         filename: name,
@@ -25,8 +28,14 @@ async function submit(names: readonly string[]): Promise<PackageDto> {
       };
     }),
   );
+}
 
-  const { body } = await api.packages.create({ profileKey: 'cadastre', files });
+/** A submission as the browser makes it. */
+async function submit(names: readonly string[]): Promise<PackageDto> {
+  const { body } = await api.packages.create({
+    profileKey: 'cadastre',
+    files: await presigned(names),
+  });
   return body;
 }
 
@@ -85,6 +94,75 @@ describe('the submission round trip over HTTP', () => {
     expect(body.status).toBe('Completed');
     expect(body.report).not.toBeNull();
     expect(body.files).toHaveLength(2);
+  });
+});
+
+/*
+ * The operation the report's own findings ask for: it says a document is
+ * missing, and the missing document is what the inspector then has (ADR-0013).
+ */
+describe('files added to a package over HTTP', () => {
+  it('takes the file in and answers with the package as it now stands', async () => {
+    // arrange
+    const created = await submit(['erize-qeydiyyat.pdf']);
+    await settled(created.id);
+
+    // act
+    const { status, body } = await api.packages.addFiles(created.id, {
+      files: await presigned(['sexsiyyet-vesiqe.pdf']),
+    });
+
+    // assert — 200 and the package, not 201 and a file with an address of its
+    // own: the package is the only thing a caller can go and read
+    expect(status).toBe(200);
+    expect(body.id).toBe(created.id);
+    expect(body.filesCount).toBe(2);
+  });
+
+  it('verifies the package afresh, and the detail shows both files', async () => {
+    // arrange
+    const created = await submit(['erize-qeydiyyat.pdf']);
+    await settled(created.id);
+
+    // act
+    await api.packages.addFiles(created.id, {
+      files: await presigned(['sexsiyyet-vesiqe.pdf']),
+    });
+    await settled(created.id);
+
+    // assert
+    const { body } = await api.packages.findOne(created.id);
+    expect(body.status).toBe('Completed');
+    expect(body.files).toHaveLength(2);
+    expect(body.report).not.toBeNull();
+  });
+
+  it('answers 404 with PACKAGE_NOT_FOUND for a package nobody submitted', async () => {
+    // act / assert
+    const failure = await api.packages
+      .addFiles('00000000-0000-4000-8000-000000000000', {
+        files: await presigned(['erize-qeydiyyat.pdf']),
+      })
+      .catch((error: unknown) => error as ApiError);
+
+    expect(failure).toBeInstanceOf(ApiError);
+    expect((failure as ApiError).status).toBe(404);
+    expect((failure as ApiError).body.code).toBe('PACKAGE_NOT_FOUND');
+  });
+
+  it('refuses a request that adds no file at all', async () => {
+    // arrange
+    const created = await submit(['erize-qeydiyyat.pdf']);
+    await settled(created.id);
+
+    // act / assert — the published schema asks for one, so the edge answers
+    // before the context is troubled
+    const failure = await api.packages
+      .addFilesRaw(created.id, { files: [] })
+      .catch((error: unknown) => error as ApiError);
+
+    expect(failure).toBeInstanceOf(ApiError);
+    expect((failure as ApiError).status).toBe(400);
   });
 });
 

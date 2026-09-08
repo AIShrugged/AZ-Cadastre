@@ -1,4 +1,10 @@
 export {
+  AddFilesRequestSchema,
+  AddFilesResponseSchema,
+  type AddFilesRequest,
+  type AddFilesResponse,
+} from './add-files.dto.js';
+export {
   CreatePackageRequestSchema,
   CreatePackageResponseSchema,
   FileInputSchema,

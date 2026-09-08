@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 
 import type {
+  AddFilesRequest,
   CreatePackageRequest,
   PackageDetailDto,
   PackageDto,
@@ -9,6 +10,7 @@ import type {
 } from '@cadastre/api-contracts/verification';
 
 import {
+  AddFilesCommand,
   CreatePackageCommand,
   GetPackageQuery,
   GetPackageSummaryQuery,
@@ -30,6 +32,16 @@ export class PackagesService implements PackagesApi {
   async create(request: CreatePackageRequest): Promise<PackageDto> {
     const packageId = await this.commands.execute(
       new CreatePackageCommand(request.profileKey, request.files),
+    );
+
+    return toSummaryDto(
+      await this.queries.execute(new GetPackageSummaryQuery(packageId.value)),
+    );
+  }
+
+  async addFiles(id: string, request: AddFilesRequest): Promise<PackageDto> {
+    const packageId = await this.commands.execute(
+      new AddFilesCommand(id, request.files),
     );
 
     return toSummaryDto(

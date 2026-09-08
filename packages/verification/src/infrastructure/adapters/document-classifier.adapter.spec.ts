@@ -110,6 +110,40 @@ describe('DocumentClassifierAdapter', () => {
     expect(classification.type.value).toBe('identity_card');
   });
 
+  it('names a paper the catalogue knows and the profile does not, rather than bucketing it', async () => {
+    const classification = await classify(
+      ['KURYER XİDMƏTİNİN BİLDİRİŞİ', 'Göndərən: "AzPost" MMC'].join('\n'),
+    );
+
+    expect(classification.type.value).toBe('out_of_profile');
+    expect(classification.knownAs?.value).toBe('courier_waybill');
+  });
+
+  it("reads the registry's own routing sheet as the service sheet it is", async () => {
+    const classification = await classify(
+      ['DÖVRİYYƏ VƏRƏQİ', 'Şöbə: Qeydiyyat'].join('\n'),
+    );
+
+    expect(classification.knownAs?.value).toBe('registrar_routing_sheet');
+  });
+
+  it('reads a catalogued paper written in Russian as readily as one in Azerbaijani', async () => {
+    const classification = await classify('СОПРОВОДИТЕЛЬНОЕ ПИСЬМО');
+
+    expect(classification.knownAs?.value).toBe('covering_letter');
+  });
+
+  // The catalogue is a fallback and never a rival: only the profile's own types
+  // answer a requirement, so a heading it knows wins outright.
+  it('answers with the profile even when a catalogued heading appears first on the sheet', async () => {
+    const classification = await classify(
+      ['MÜŞAYİƏT MƏKTUBU', 'DÖVLƏT QEYDİYYATI HAQQINDA ƏRİZƏ'].join('\n'),
+    );
+
+    expect(classification.type.value).toBe('application');
+    expect(classification.knownAs).toBeNull();
+  });
+
   it("leaves the document unplaced when no candidate's heading appears at all", async () => {
     const classification = await classify(
       'A LETTER ABOUT NOTHING IN PARTICULAR',
@@ -122,6 +156,17 @@ describe('DocumentClassifierAdapter', () => {
     const classification = await classify('');
 
     expect(classification.type.isKnown).toBe(false);
+    expect(classification.knownAs).toBeNull();
+  });
+
+  // A document the catalogue has no name for is still reported, as the extra
+  // document it has always been.
+  it('leaves a document neither list knows unnamed rather than guessing at one', async () => {
+    const classification = await classify(
+      'A LETTER ABOUT NOTHING IN PARTICULAR',
+    );
+
+    expect(classification.knownAs).toBeNull();
   });
 
   it('is sure of a heading hit and unsure of a miss', async () => {

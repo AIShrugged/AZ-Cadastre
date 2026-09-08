@@ -10,9 +10,10 @@ import {
   type SegmentationRequest,
 } from '../../../application/ports/outbound/index.js';
 import { BLANK_PAGE, tileIntoRanges } from '../../../domain/services/index.js';
-import type {
-  DocumentTypeSpec,
-  PageRange,
+import {
+  DocumentCatalogue,
+  type DocumentTypeSpec,
+  type PageRange,
 } from '../../../domain/value-objects/index.js';
 import {
   VERIFICATION_OPTIONS,
@@ -40,14 +41,16 @@ const MAX_TAIL_PER_PAGE = 320;
 // document, which is what happened before they were named here. Naming them
 // costs nothing and it is the classifier, not this stage, that decides they are
 // out of profile.
-const ALSO_EXPECTED = [
-  "Dövriyyə vərəqi — the registry's own routing sheet, a table of departments",
-  "Ekspertiza vərəqi — the registry's own examination sheet, often left blank",
-  "Lisenziya and Lisenziyanın əlavəsi — a design firm's licence and its annex",
-  'Müqavilə — a contract, e.g. for valuation of the property',
-  'Kuryer xidmətinin bildirişi — a courier waybill',
-  'Müşayiət məktubu — a covering letter',
-];
+//
+// The list is the document catalogue's own (ADR-0012): the stage that has to
+// see these sheets apart and the stage that names them read from one place, so
+// a paper added to the catalogue cannot end up known to only one of them.
+const ALSO_EXPECTED = DocumentCatalogue.KNOWN.entries.map(entry =>
+  [
+    entry.description,
+    `Usually headed: ${entry.hints.map(hint => `"${hint}"`).join(', ')}.`,
+  ].join(' '),
+);
 
 const AnswerSchema = z.object({
   documents: z

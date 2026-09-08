@@ -149,6 +149,7 @@ export type DocumentRow = {
   readonly lastPage: number;
   readonly type: string | null;
   readonly classificationConfidence: number | null;
+  readonly knownAs: string | null;
   readonly extractedFields: readonly FieldRow[];
 };
 
@@ -274,6 +275,7 @@ export type DocumentWrite = {
   readonly lastPage: number;
   readonly type: string | null;
   readonly classificationConfidence: number | null;
+  readonly knownAs: string | null;
   readonly fields: readonly FieldWrite[];
 };
 
@@ -353,6 +355,7 @@ export class VerificationPackageMapper {
         type: document.classification?.type.value ?? null,
         classificationConfidence:
           document.classification?.confidence.value ?? null,
+        knownAs: document.classification?.knownAs?.value ?? null,
         fields: document.fields.map(field => ({
           name: field.key.value,
           value: field.value.value,
@@ -630,7 +633,19 @@ export class VerificationPackageMapper {
         ? Confidence.none()
         : Confidence.of(row.classificationConfidence);
 
-    return Classification.of(DocumentType.create(row.type), confidence);
+    const type = DocumentType.create(row.type);
+
+    // Only an out-of-profile reading carries a catalogue name, and a row
+    // written before the column existed carries none — which is the same thing
+    // as a document the catalogue had no name for (ADR-0012).
+    if (type.isOutOfProfile) {
+      return Classification.outOfProfile(
+        confidence,
+        row.knownAs === null ? null : DocumentType.create(row.knownAs),
+      );
+    }
+
+    return Classification.of(type, confidence);
   }
 
   private static pageToDomain(row: PageRow): Page {

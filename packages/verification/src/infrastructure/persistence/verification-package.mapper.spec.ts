@@ -71,6 +71,7 @@ function aDocumentRow(overrides: Partial<DocumentRow> = {}): DocumentRow {
     lastPage: 1,
     type: 'passport',
     classificationConfidence: 0.94,
+    knownAs: null,
     extractedFields: [
       { name: 'first_name', value: 'ELCHIN', confidence: 0.92, pageNumber: 1 },
     ],
@@ -403,6 +404,55 @@ describe('VerificationPackageMapper', () => {
       expect(typed.documents[0]?.classificationConfidence).toBe(0.94);
       expect(untyped.documents[0]?.type).toBeNull();
       expect(untyped.documents[0]?.classificationConfidence).toBeNull();
+    });
+
+    it('carries the catalogue name of an out-of-profile document both ways', () => {
+      const row = aDocumentRow({
+        type: 'out_of_profile',
+        classificationConfidence: 0.9,
+        knownAs: 'courier_waybill',
+        extractedFields: [],
+      });
+
+      const aggregate = VerificationPackageMapper.toDomain(
+        aPackageRow({ documents: [row] }),
+      );
+
+      expect(aggregate.documents[0]?.classification?.knownAs?.value).toBe(
+        'courier_waybill',
+      );
+      expect(
+        VerificationPackageMapper.toRow(aggregate).documents[0]?.knownAs,
+      ).toBe('courier_waybill');
+    });
+
+    // A row written before the column existed, and a document out of profile
+    // the catalogue had no name for, are the same thing to a reader.
+    it('reads an out-of-profile row with no catalogue name as one without a name', () => {
+      const aggregate = VerificationPackageMapper.toDomain(
+        aPackageRow({
+          documents: [
+            aDocumentRow({
+              type: 'out_of_profile',
+              knownAs: null,
+              extractedFields: [],
+            }),
+          ],
+        }),
+      );
+
+      const classification = aggregate.documents[0]?.classification;
+
+      expect(classification?.isOutOfProfile).toBe(true);
+      expect(classification?.knownAs).toBeNull();
+    });
+
+    it('leaves a placed document unnamed, because only an out-of-profile reading carries a catalogue name', () => {
+      const aggregate = VerificationPackageMapper.toDomain(aPackageRow());
+
+      expect(
+        VerificationPackageMapper.toRow(aggregate).documents[0]?.knownAs,
+      ).toBeNull();
     });
 
     it('writes the missing confidence of an older typed row back as nothing-was-known, not as absent', () => {

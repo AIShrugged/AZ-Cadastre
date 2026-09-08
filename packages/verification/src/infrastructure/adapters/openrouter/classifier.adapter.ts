@@ -11,6 +11,7 @@ import {
 import {
   Classification,
   Confidence,
+  DocumentCatalogue,
   DocumentType,
   type DocumentTypeSpec,
 } from '../../../domain/value-objects/index.js';
@@ -92,12 +93,14 @@ export class OpenRouterClassifierAdapter extends DocumentClassifier {
 
     const raw = answerOf(this.model, completion).message?.content?.trim() ?? '';
     const answer = this.parse(raw);
+    const catalogue = DocumentCatalogue.KNOWN;
     const allowed = [
       ...request.candidates.map(candidate => candidate.type),
+      ...catalogue.types,
       DocumentType.OUT_OF_PROFILE,
       DocumentType.UNKNOWN,
     ];
-    const type = this.match(answer?.type ?? raw, allowed);
+    const answered = this.match(answer?.type ?? raw, allowed);
 
     // The route's certainty about the tokens it wrote, and the model's own
     // account of how sure it is, are different things and both can flatter. The
@@ -108,8 +111,16 @@ export class OpenRouterClassifierAdapter extends DocumentClassifier {
     const stated = answer?.confidence ?? null;
     const confidence = leastOf(scored, stated);
 
+    // A catalogued key is an out-of-profile reading that happens to have a
+    // name. It never becomes the document's type: the type is what answers a
+    // requirement, and none of these answer one (ADR-0012).
+    const classification = catalogue.recognises(answered)
+      ? Classification.outOfProfile(Confidence.of(confidence), answered)
+      : Classification.of(answered, Confidence.of(confidence));
+
     this.logger.log('Document classified', {
-      type: type.value,
+      type: classification.type.value,
+      knownAs: classification.knownAs?.value ?? null,
       // What the model answered, beside what that was read as: a type that
       // came back misspelled and a type that was matched loosely look the same
       // in the result and are not the same problem.
@@ -122,7 +133,7 @@ export class OpenRouterClassifierAdapter extends DocumentClassifier {
       ...telemetryOf(completion),
     });
 
-    return Classification.of(type, Confidence.of(confidence));
+    return classification;
   }
 
   private instructions(candidates: readonly DocumentTypeSpec[]): string {
@@ -143,12 +154,18 @@ export class OpenRouterClassifierAdapter extends DocumentClassifier {
       '',
       ...candidates.map(candidate => this.describe(candidate)),
       '',
+      'The keys below are NOT what the profile asks for. They are the papers',
+      'that arrive in the same envelope anyway, and naming one of them is a',
+      'correct answer, not a failure — it tells the inspector what the sheet',
+      'is instead of only what it is not:',
+      '',
+      ...DocumentCatalogue.KNOWN.entries.map(entry => this.describe(entry)),
+      '',
       `- ${DocumentType.OUT_OF_PROFILE.value}`,
-      '  You can tell what this document is, and it is none of the above. The',
-      "  registry's own service sheets (dövriyyə vərəqi, ekspertiza vərəqi), a",
-      '  courier waybill, a covering letter, a valuation contract, a document',
-      '  belonging to another matter entirely. The package is expected to carry',
-      '  such documents; saying so is a correct answer, not a failure.',
+      '  You can tell what this document is, it is none of the above, and none',
+      '  of the keys just listed names it either — a document belonging to',
+      '  another matter entirely. The package is expected to carry such',
+      '  documents; saying so is a correct answer, not a failure.',
       '',
       `- ${DocumentType.UNKNOWN.value}`,
       '  You cannot tell what it is: the text is too damaged, too sparse, or',

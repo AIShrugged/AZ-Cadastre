@@ -85,7 +85,7 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
       }
 
       for (const file of row.sourceFiles) {
-        await this.writeSourceFile(tx, file);
+        await this.writeSourceFile(tx, row.id, file);
       }
 
       for (const document of row.documents) {
@@ -101,6 +101,23 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
       }
 
       await this.writeReport(tx, row.id, row.report);
+
+      // What the aggregate no longer holds is no longer in the package. Adding
+      // a file discards every answer that was worked out across the package
+      // (ADR-0013), and without this the discarded ones would sit in the
+      // database describing an envelope that has since changed.
+      await tx.crossCheck.deleteMany({
+        where: {
+          packageId: row.id,
+          key: { notIn: row.crossChecks.map(check => check.key) },
+        },
+      });
+      await tx.registryCheck.deleteMany({
+        where: {
+          packageId: row.id,
+          key: { notIn: row.registryChecks.map(check => check.key) },
+        },
+      });
     });
 
     // After the write has landed, never before: an event names something that
@@ -112,20 +129,15 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
     tx: Prisma.TransactionClient,
     row: PackageWrite,
   ): Promise<void> {
+    // Without its files: they are written below by the same code that writes a
+    // file arriving later, so there is one way a source file reaches the
+    // database rather than two that have to be kept in step (ADR-0013).
     await tx.verificationPackage.create({
       data: {
         id: row.id,
         status: row.status,
         profileKey: row.profileKey,
         version: FIRST_STORED_VERSION,
-        sourceFiles: {
-          create: row.sourceFiles.map(file => ({
-            id: file.id,
-            originalFilename: file.originalFilename,
-            contentType: file.contentType,
-            storageKey: file.storageKey,
-          })),
-        },
       },
     });
   }
@@ -155,10 +167,27 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
     }
   }
 
+  // Upserted rather than created once with the package: a file may reach a
+  // package that already exists, and the pages below hang off a row that has to
+  // be there by then. Nothing about a stored file is ever updated — the name,
+  // the type and the object it points at are what the inspector uploaded.
   private async writeSourceFile(
     tx: Prisma.TransactionClient,
+    packageId: string,
     file: SourceFileWrite,
   ): Promise<void> {
+    await tx.sourceFile.upsert({
+      where: { id: file.id },
+      create: {
+        id: file.id,
+        packageId,
+        originalFilename: file.originalFilename,
+        contentType: file.contentType,
+        storageKey: file.storageKey,
+      },
+      update: {},
+    });
+
     for (const page of file.pages) {
       await this.writePage(tx, file.id, page);
     }
@@ -295,7 +324,14 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
     packageId: string,
     report: ReportWrite | null,
   ): Promise<void> {
-    if (!report) return;
+    // A package with no report is either one that has not been verified yet or
+    // one whose report a later file made obsolete (ADR-0013). The row goes
+    // either way: the aggregate is what the package is, and a report nobody
+    // can reach from it would still be served by the read side.
+    if (!report) {
+      await tx.report.deleteMany({ where: { packageId } });
+      return;
+    }
 
     const stored = await tx.report.upsert({
       where: { packageId },

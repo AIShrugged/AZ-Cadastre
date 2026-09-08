@@ -57,6 +57,22 @@ describe('PackageStatus', () => {
     expect(PackageStatus.COMPLETED.canStart).toBe(false);
   });
 
+  it('takes more files before a run has read it', () => {
+    expect(PackageStatus.PENDING.takesMoreFiles).toBe(true);
+  });
+
+  it('takes more files once a run has reported on it', () => {
+    expect(PackageStatus.COMPLETED.takesMoreFiles).toBe(true);
+  });
+
+  it('takes more files after a run that could not finish', () => {
+    expect(PackageStatus.FAILED.takesMoreFiles).toBe(true);
+  });
+
+  it('takes no file while a run is reading the list it started with', () => {
+    expect(PackageStatus.PROCESSING.takesMoreFiles).toBe(false);
+  });
+
   it('is under way only while it is processing', () => {
     expect(PackageStatus.PROCESSING.isUnderWay).toBe(true);
     expect(PackageStatus.PENDING.isUnderWay).toBe(false);

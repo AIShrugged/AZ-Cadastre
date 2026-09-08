@@ -1,6 +1,7 @@
 export { CrossCheckMade } from './cross-check-made.event.js';
 export { DocumentClassified } from './document-classified.event.js';
 export { FieldsExtracted } from './fields-extracted.event.js';
+export { FilesAdded } from './files-added.event.js';
 export { PackageSubmitted } from './package-submitted.event.js';
 export { PageRecognised } from './page-recognised.event.js';
 export { RegistryCheckMade } from './registry-check-made.event.js';

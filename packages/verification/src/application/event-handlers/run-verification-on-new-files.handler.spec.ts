@@ -3,14 +3,14 @@ import { describe, expect, it } from 'vitest';
 
 import { SilentLogger } from '@cadastre/logger';
 
-import { PackageSubmitted } from '../../domain/events/index.js';
+import { FilesAdded, PackageSubmitted } from '../../domain/events/index.js';
 import {
   PackageId,
   VerificationProfile,
 } from '../../domain/value-objects/index.js';
 import { RunVerificationCommand } from '../use-cases/index.js';
 
-import { RunVerificationOnSubmissionHandler } from './run-verification-on-submission.handler.js';
+import { RunVerificationOnNewFilesHandler } from './run-verification-on-new-files.handler.js';
 
 class RecordingCommandBus {
   readonly executed: RunVerificationCommand[] = [];
@@ -29,11 +29,15 @@ function submission(packageId: string): PackageSubmitted {
   );
 }
 
-describe('RunVerificationOnSubmissionHandler', () => {
+function anArrival(packageId: string): FilesAdded {
+  return new FilesAdded(PackageId.of(packageId), 1);
+}
+
+describe('RunVerificationOnNewFilesHandler', () => {
   it('runs the pipeline over the package that was submitted', () => {
     const bus = new RecordingCommandBus();
 
-    new RunVerificationOnSubmissionHandler(
+    new RunVerificationOnNewFilesHandler(
       bus as unknown as CommandBus,
       new SilentLogger(),
     ).handle(submission('package-1'));
@@ -41,11 +45,24 @@ describe('RunVerificationOnSubmissionHandler', () => {
     expect(bus.executed).toEqual([new RunVerificationCommand('package-1')]);
   });
 
+  // A file reaching a package that already exists is answered the same way,
+  // because the package has already discarded the report it had (ADR-0013).
+  it('runs the pipeline again over a package that gained a file', () => {
+    const bus = new RecordingCommandBus();
+
+    new RunVerificationOnNewFilesHandler(
+      bus as unknown as CommandBus,
+      new SilentLogger(),
+    ).handle(anArrival('package-4'));
+
+    expect(bus.executed).toEqual([new RunVerificationCommand('package-4')]);
+  });
+
   it('does not wait for the pipeline it started', () => {
     const started = new Promise<void>(() => undefined);
     const bus = { execute: () => started } as unknown as CommandBus;
 
-    const handled = new RunVerificationOnSubmissionHandler(
+    const handled = new RunVerificationOnNewFilesHandler(
       bus,
       new SilentLogger(),
     ).handle(submission('package-2'));
@@ -59,7 +76,7 @@ describe('RunVerificationOnSubmissionHandler', () => {
     } as unknown as CommandBus;
 
     expect(() =>
-      new RunVerificationOnSubmissionHandler(bus, new SilentLogger()).handle(
+      new RunVerificationOnNewFilesHandler(bus, new SilentLogger()).handle(
         submission('package-3'),
       ),
     ).not.toThrow();

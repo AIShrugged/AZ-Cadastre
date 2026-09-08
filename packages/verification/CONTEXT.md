@@ -5,7 +5,7 @@ AI-assisted verification of document packages submitted for government registrat
 ## Language
 
 **Verification Package**:
-A set of files uploaded together for one verification. The unit the inspector works with.
+A set of files submitted for one verification. The unit the inspector works with. Files may reach it after it was created — the document the report said was missing — in every state but while a run is reading it, and a file that arrives discards the report the package had (ADR-0013).
 _Avoid_: submission, case, batch
 
 **Source File**:

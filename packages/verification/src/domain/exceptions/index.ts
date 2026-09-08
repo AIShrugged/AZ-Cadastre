@@ -26,8 +26,10 @@ export { InvalidRegistryOutcomeException } from './invalid-registry-outcome.exce
 export { InvalidReportStatusException } from './invalid-report-status.exception.js';
 export { InvalidStorageKeyException } from './invalid-storage-key.exception.js';
 export { PackageAlreadyFinishedException } from './package-already-finished.exception.js';
+export { PackageMustGainAFileException } from './package-must-gain-a-file.exception.js';
 export { PackageMustHaveAFileException } from './package-must-have-a-file.exception.js';
 export { PackageNotStartableException } from './package-not-startable.exception.js';
+export { PackageNotTakingFilesException } from './package-not-taking-files.exception.js';
 export { PackageNotUnderWayException } from './package-not-under-way.exception.js';
 export { PageAlreadyRecognisedException } from './page-already-recognised.exception.js';
 export { PageNotInSourceFileException } from './page-not-in-source-file.exception.js';

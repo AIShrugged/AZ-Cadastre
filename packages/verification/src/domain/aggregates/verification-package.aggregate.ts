@@ -10,6 +10,7 @@ import {
   CrossCheckMade,
   DocumentClassified,
   FieldsExtracted,
+  FilesAdded,
   PackageSubmitted,
   PageRecognised,
   RegistryCheckMade,
@@ -28,8 +29,10 @@ import {
   DuplicateStorageKeyException,
   FieldNotInSchemaException,
   PackageAlreadyFinishedException,
+  PackageMustGainAFileException,
   PackageMustHaveAFileException,
   PackageNotStartableException,
+  PackageNotTakingFilesException,
   PackageNotUnderWayException,
   RegistryCheckNotInProfileException,
   SourceFileAlreadySegmentedException,
@@ -102,13 +105,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   ): VerificationPackage {
     if (files.length === 0) throw new PackageMustHaveAFileException();
 
-    const seen = new Set<string>();
-    for (const file of files) {
-      if (seen.has(file.storageKey.value)) {
-        throw new DuplicateStorageKeyException(file.storageKey.value);
-      }
-      seen.add(file.storageKey.value);
-    }
+    VerificationPackage.guardOneObjectEach(files);
 
     const submitted = new VerificationPackage({
       id,
@@ -396,6 +393,63 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
         spec => this.hasAsked(spec.key) || !this.canAsk(spec),
       )
     );
+  }
+
+  /*
+   * Files that reached the package after it was submitted: the document the
+   * report said was missing, or a readable scan of a sheet nobody could read.
+   *
+   * They join this package rather than starting a second one. What the
+   * inspector holds is one submission, and two half-packages would be two
+   * reports neither of which describes it.
+   *
+   * A package that had already been reported on is re-opened by this, and
+   * everything worked out *across* the package goes with the report: the
+   * cross-document checks and the register's answers were made over an envelope
+   * that has since changed, and a report compiled from them would be a report
+   * about a package nobody submitted. What was read off each file on its own —
+   * its sheets, their text, the documents carved out of them — stands, because
+   * another file arriving does not change what this one says. That is what
+   * makes the fresh run cheap: it re-reads nothing it has already read
+   * (ADR-0013).
+   */
+  addFiles(files: readonly SourceFile[]): void {
+    if (files.length === 0) {
+      throw new PackageMustGainAFileException(this.id.value);
+    }
+
+    if (!this.#status.takesMoreFiles) {
+      throw new PackageNotTakingFilesException(
+        this.id.value,
+        this.#status.value,
+      );
+    }
+
+    VerificationPackage.guardOneObjectEach(files, this.#files);
+
+    this.#files = [...this.#files, ...files];
+    this.#crossChecks = [];
+    this.#registryChecks = [];
+    this.#report = null;
+    this.#status = PackageStatus.PENDING;
+
+    this.apply(new FilesAdded(this.id, files.length));
+  }
+
+  // Two files pointing at one object are one file counted twice: a package that
+  // held both would report a document it does not have.
+  private static guardOneObjectEach(
+    files: readonly SourceFile[],
+    already: readonly SourceFile[] = [],
+  ): void {
+    const seen = new Set(already.map(file => file.storageKey.value));
+
+    for (const file of files) {
+      if (seen.has(file.storageKey.value)) {
+        throw new DuplicateStorageKeyException(file.storageKey.value);
+      }
+      seen.add(file.storageKey.value);
+    }
   }
 
   start(): void {

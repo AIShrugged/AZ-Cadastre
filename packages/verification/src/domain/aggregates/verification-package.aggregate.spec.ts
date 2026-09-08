@@ -9,6 +9,7 @@ import {
 import {
   DocumentClassified,
   FieldsExtracted,
+  FilesAdded,
   PackageSubmitted,
   PageRecognised,
   SourceFileSegmented,
@@ -27,8 +28,10 @@ import {
   DuplicateStorageKeyException,
   FieldNotInSchemaException,
   PackageAlreadyFinishedException,
+  PackageMustGainAFileException,
   PackageMustHaveAFileException,
   PackageNotStartableException,
+  PackageNotTakingFilesException,
   PackageNotUnderWayException,
   PageAlreadyRecognisedException,
   PageNotInSourceFileException,
@@ -254,6 +257,208 @@ describe('VerificationPackage', () => {
       files.push(aFile());
 
       expect(verification.files).toHaveLength(1);
+    });
+  });
+
+  describe('when files arrive after it was submitted', () => {
+    const IDENTITY = VerificationProfile.CADASTRE.crossChecks[0]!;
+    const OF_RECORD = VerificationProfile.CADASTRE.registryChecks[0]!;
+
+    function valued(key: string, value: string): ExtractedField {
+      return ExtractedField.of(
+        FieldKey.create(key),
+        FieldValue.create(value),
+        Confidence.of(0.9),
+        PageNumber.first(),
+      );
+    }
+
+    /*
+     * A package the pipeline has been all the way over: two documents read and
+     * placed, the identity check made across them, the register asked, and a
+     * report compiled. This is the state the operation exists for — the report
+     * says something is missing, and the missing paper is what arrives.
+     */
+    function aReportedPackage() {
+      const built = aSegmentedPackage(2);
+      const [card, application] = built.documents as [Document, Document];
+
+      built.verification.classify(card.id, aClassification('identity_card'));
+      built.verification.recordExtractedFields(card.id, [
+        valued('last_name', 'ƏLİYEVA'),
+        valued('first_name', 'Rübabə'),
+      ]);
+      built.verification.classify(
+        application.id,
+        aClassification('application'),
+      );
+      built.verification.recordExtractedFields(application.id, [
+        valued('applicant_name', 'Əliyeva Rübabə'),
+        valued('property_address', 'Zığ qəsəbəsi, Əliyev küçəsi 12'),
+      ]);
+
+      built.verification.recordCrossCheck(
+        CrossCheck.of({
+          key: IDENTITY.key,
+          verdict: CrossCheckVerdict.MATCH,
+          confidence: Confidence.of(0.9),
+          note: 'compared in a test',
+          values: built.verification.valuesFor(IDENTITY),
+        }),
+      );
+      built.verification.recordRegistryCheck(
+        RegistryCheck.of({
+          key: OF_RECORD.key,
+          outcome: RegistryOutcome.CONFIRMED,
+          confidence: Confidence.of(0.95),
+          note: 'the register holds this address',
+          asked: built.verification.askedOf(OF_RECORD)!,
+          reference: 'folder 14, pp. 01-dən 30',
+          attributes: [],
+        }),
+      );
+
+      built.verification.complete();
+      built.verification.commit();
+
+      return built;
+    }
+
+    it('takes a file into a package nothing has read yet', () => {
+      const { verification } = aPackage();
+
+      verification.addFiles([aFile()]);
+
+      expect(verification.files).toHaveLength(2);
+    });
+
+    it('takes a file into a package a run could not finish', () => {
+      const { verification } = aStartedPackage();
+      verification.fail(FailureReason.create('the reader is down'));
+
+      verification.addFiles([aFile()]);
+
+      expect(verification.files).toHaveLength(2);
+    });
+
+    it('takes a file into a package that has been reported on', () => {
+      const { verification } = aReportedPackage();
+
+      verification.addFiles([aFile()]);
+
+      expect(verification.files).toHaveLength(2);
+    });
+
+    it('refuses a file while a run is reading the package', () => {
+      const { verification } = aStartedPackage();
+
+      expect(() => verification.addFiles([aFile()])).toThrow(
+        PackageNotTakingFilesException,
+      );
+    });
+
+    // The refusal has to be readable on its own: the caller is told what the
+    // package is doing and when to come back, not only that the answer is no.
+    it('says why it refuses and what to do about it', () => {
+      const { verification } = aStartedPackage();
+
+      expect(() => verification.addFiles([aFile()])).toThrow(
+        /reads the files it started with.*once the run has finished/s,
+      );
+    });
+
+    it('leaves a running package exactly as it was', () => {
+      const { verification, file } = aStartedPackage();
+
+      expect(() => verification.addFiles([aFile()])).toThrow();
+
+      expect(verification.files.map(one => one.id.value)).toEqual([
+        file.id.value,
+      ]);
+      expect(verification.status.equals(PackageStatus.PROCESSING)).toBe(true);
+    });
+
+    it('refuses to add nothing, which would re-open the package for no reason', () => {
+      const { verification } = aReportedPackage();
+
+      expect(() => verification.addFiles([])).toThrow(
+        PackageMustGainAFileException,
+      );
+      expect(verification.report).not.toBeNull();
+    });
+
+    it('refuses a file pointing at an object the package already holds', () => {
+      const twice = 'uploads/the-same-object.pdf';
+      const { verification } = aPackage({ files: [aFile(twice)] });
+
+      expect(() => verification.addFiles([aFile(twice)])).toThrow(
+        DuplicateStorageKeyException,
+      );
+    });
+
+    it('puts a package that had been reported on back in the queue', () => {
+      const { verification } = aReportedPackage();
+
+      verification.addFiles([aFile()]);
+
+      expect(verification.status.equals(PackageStatus.PENDING)).toBe(true);
+      expect(verification.status.canStart).toBe(true);
+    });
+
+    // The report described the envelope as it was. It is discarded rather than
+    // kept and marked stale: a report nobody may act on is not a report, and a
+    // second one is compiled the moment the fresh run finishes (ADR-0013).
+    it('discards the report, which no longer describes the package', () => {
+      const { verification } = aReportedPackage();
+
+      verification.addFiles([aFile()]);
+
+      expect(verification.report).toBeNull();
+    });
+
+    it('discards what was worked out across the package, so it is asked again', () => {
+      const { verification } = aReportedPackage();
+
+      verification.addFiles([aFile()]);
+
+      expect(verification.crossChecks).toEqual([]);
+      expect(verification.registryChecks).toEqual([]);
+      expect(verification.hasMade(IDENTITY.key)).toBe(false);
+      expect(verification.hasAsked(OF_RECORD.key)).toBe(false);
+    });
+
+    // Another file arriving does not change what this one says, and re-reading
+    // it would be paid for twice.
+    it('keeps what was read off the files that were already there', () => {
+      const built = aReportedPackage();
+
+      built.verification.addFiles([aFile()]);
+
+      expect(built.verification.fileWith(built.file.id).pages).toHaveLength(2);
+      expect(built.verification.documentsIn(built.file.id)).toHaveLength(2);
+      expect(
+        built.verification.documents.every(document => document.isClassified),
+      ).toBe(true);
+    });
+
+    it('says how many files arrived', () => {
+      const { verification } = aReportedPackage();
+
+      verification.addFiles([aFile(), aFile()]);
+
+      const event = verification.getUncommittedEvents().at(-1);
+      expect(event).toBeInstanceOf(FilesAdded);
+      expect((event as FilesAdded).fileCount).toBe(2);
+    });
+
+    it('keeps its own copy of the files it was handed', () => {
+      const { verification } = aPackage();
+      const arriving = [aFile()];
+
+      verification.addFiles(arriving);
+      arriving.push(aFile());
+
+      expect(verification.files).toHaveLength(2);
     });
   });
 

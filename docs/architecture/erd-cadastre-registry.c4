@@ -1,0 +1,135 @@
+// ERD — `cadastre-registry`, the archive register's own database.
+//
+// A different database on the same server, and not a schema of `cadastre-db`
+// (ADR-0010). Source of truth:
+// `apps/registry-stub/src/infrastructure/persistence/schema/*.prisma`.
+//
+// Read the same way as `erd-cadastre-db.c4`: title = table, `technology` = keys,
+// `summary` = columns (`?` marks nullable), `description` = why. `id`,
+// `createdAt` and `updatedAt` are left out of the column lists.
+//
+// Every model here is the persistence view of a *legacy* register, so its
+// oddities are deliberate: numbers that are not arithmetic — folder, page range,
+// storey count, area with its unit — are text, because the sources hold
+// "01-dən 30", "2 (ики)" and "0,05 ha" in those columns. Almost every row
+// carries `sourceDatabase`, because there are six of these registers, they
+// overlap, and where they disagree somebody has to be told which one said what.
+
+model {
+  extend archive.registryDb {
+
+    registryObjects = table 'registry_objects' {
+      // Twenty-two columns against a node body that clips at five rendered
+      // lines: the ten area and ownership/right columns are counted here and
+      // spelled out one by one in the description, which is the one place the
+      // list is complete.
+      technology 'PK id · unique (territorialOffice, registerNo)'
+      summary 'registerNo · territorialOffice · inventoryNo? · cadastralNumber? · propertyType? · district? · floors? · buildYear? · 5 area columns · 5 right/ownership columns · registryBookNo? · registryBookSheet? · sourceDatabase'
+      description '''
+        One immovable-property object as the archive registers hold it.
+
+        The register number is unique **per territorial office and not
+        globally**. That is not a modelling choice: the Hövsan handover
+        registers carry, for one physical object, an Absheron office pair *and*
+        a Baku office pair, because the case moved between offices in 2008.
+
+        The columns in full: `registerNo` · `territorialOffice` ·
+        `inventoryNo?` · `cadastralNumber?` · `propertyType?` · `district?` ·
+        `plotArea?` · `totalArea?` · `mainArea?` · `auxiliaryArea?` ·
+        `footprintArea?` · `floors?` · `buildYear?` · `ownershipType?` ·
+        `rightType?` · `landOwnershipType?` · `landRightType?` ·
+        `landCategory?` · `registryBookNo?` · `registryBookSheet?` ·
+        `sourceDatabase`.
+
+        The address is not the key and never was — see `registry_addresses`.
+        Every area is text with its unit as written; `buildYear` is the one
+        arithmetic column in the whole schema, and it refuses `1984-cü il`
+        rather than guessing at it (ADR-0011 §3).
+      '''
+    }
+
+    registryAddresses = table 'registry_addresses' {
+      technology 'PK id · FK objectId · index (objectId)'
+      summary 'objectId · kind · value · sourceDatabase? · position'
+      description '''
+        How the archive spells where a property is — one row per spelling.
+        `kind` is Current | Legacy | Register.
+
+        There is never only one. The state register extract prints the
+        URIS-assigned form and, after `Köhnə ünvan:`, the one it carried before;
+        the legacy registers hold a third and a fourth, some in the Azerbaijani
+        legacy Cyrillic code page. A submission written against any of them is
+        about the same property, so all of them are searchable.
+      '''
+    }
+
+    registryRightHolders = table 'registry_right_holders' {
+      technology 'PK id · FK objectId · index (objectId)'
+      summary 'objectId · name · kind · share? · registrationNo? · registeredOn? · previousOwner? · taxOrDocumentNo? · position'
+      description '''
+        Who the register says holds the property. `kind` is Individual |
+        LegalEntity.
+
+        One free-text `name` column for people and firms alike, because that is
+        what every source has. Names are never reordered or transliterated on
+        the way in: what the record says is the evidence, and the matching rules
+        in `libs/matching-engine` are what forgive the spelling.
+      '''
+    }
+
+    registryDocuments = table 'registry_documents' {
+      technology 'PK id · FK objectId · unique (objectId, name)'
+      summary 'objectId · name · holding · taxonomyRef? · number? · issuedOn? · issuingAuthority? · folder? · pages? · sourceDatabase · position'
+      description '''
+        What papers the archive holds for a property — the presence registers,
+        normalised. `holding` is Held | NotHeld | Unknown.
+
+        Rows and not columns: a kind of paper is `Ərizə` / `Texniki Pasport` /
+        `Arayış` / `Sərəncam çıxarışı`, and the column set differs from
+        settlement to settlement — a schema with one column per kind would need
+        a migration every time a new register turned up.
+
+        Three states and not a boolean, because the sources have three: `+`,
+        `-`, and a column that area’s register never carried. Load-bearing: a
+        title relied on under Decree 439 is a valid ground only if the original
+        is in the National Archive Fund.
+      '''
+    }
+
+    registryAliases = table 'registry_aliases' {
+      technology 'PK id · FK objectId · index (objectId), (kind, value)'
+      summary 'objectId · kind · value · issuingOffice? · sourceDatabase · position'
+      description '''
+        Every other number one property answers to. `kind` is Registration |
+        Inventory | RegisterCode | StateAct | Certificate | TechnicalPassport |
+        Application.
+
+        Aliases and not columns because the set is open: every register found so
+        far has added one, and the next one will too. `issuingOffice` is what
+        keeps an Absheron pair and a Baku pair from being four numbers with no
+        story.
+      '''
+    }
+
+    archiveLocations = table 'archive_locations' {
+      technology 'PK id · FK objectId, unique — 1:1 with the object'
+      summary 'objectId · folder · pages · bookNo? · sheetNo? · fundReference? · sourceDatabase'
+      description '''
+        Where the paper physically is — the most useful thing the register has
+        for an inspector, and the one they cannot work out for themselves.
+
+        Every column is text: `Qovluq` holds "01-ƏMDK" as well as "14", `Səhifə`
+        holds "01-dən 30" and "06-DƏK səh. 48", and the fund reference is
+        Russian in the older files ("Ф.11165, оп.1, ед.хр.159") and Azerbaijani
+        in the newer ones.
+      '''
+    }
+
+    // ── foreign keys — everything hangs off the object ──────────────────────
+    registryAddresses -[fk]-> registryObjects 'objectId · Cascade'
+    registryRightHolders -[fk]-> registryObjects 'objectId · Cascade'
+    registryDocuments -[fk]-> registryObjects 'objectId · Cascade'
+    registryAliases -[fk]-> registryObjects 'objectId · Cascade'
+    archiveLocations -[fk]-> registryObjects 'objectId · Cascade · 1:1'
+  }
+}

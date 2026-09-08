@@ -1,0 +1,212 @@
+// ERD — `cadastre-db`, the database the verification context owns.
+//
+// One element per Prisma model, nested inside the `cadastreDb` container of
+// system.c4, so the tables are the inside of a container the C4 views already
+// show. Source of truth:
+// `packages/verification/src/infrastructure/persistence/schema/*.prisma`.
+//
+// Each table reads: title = the table name, `technology` = its keys, `summary` =
+// its columns (`?` marks nullable), `description` = why it is shaped that way.
+// `id`, `createdAt` and `updatedAt` are left out of the column lists — every
+// table has them and printing them six times says nothing.
+//
+// An edge runs from the table that holds the foreign key to the one it
+// references, labelled with the column and what happens to the row when the
+// referenced one goes: `Cascade` deletes it, `SetNull` keeps it and forgets what
+// it pointed at. Nothing here points at a table in `cadastre-registry`, and
+// nothing ever may (ADR-0010).
+
+model {
+  extend cadastre.cadastreDb {
+
+    verificationPackages = table 'verification_packages' {
+      technology 'PK id'
+      summary 'status · profileKey · version'
+      description '''
+        The aggregate root — one upload of one or more files.
+
+        `status` runs Pending → Processing → Completed | Failed. `version` is
+        optimistic concurrency: every update names the version it was loaded at
+        and bumps it, so a concurrent write is refused rather than silently
+        overwritten.
+
+        The Verification Profile itself is **not** here — it lives in code
+        (ADR-0002); `profileKey` only records which one was chosen at upload.
+      '''
+    }
+
+    sourceFiles = table 'source_files' {
+      technology 'PK id · FK packageId · unique storageKey'
+      summary 'packageId · originalFilename · contentType · storageKey'
+      description '''
+        One file the inspector uploaded — a **container**, not a document. One
+        PDF may hold a passport on sheet 1 and a title deed on sheets 2–4.
+
+        The bytes live in object storage; only the key that locates them is
+        kept.
+      '''
+    }
+
+    pages = table 'pages' {
+      technology 'PK id · FK sourceFileId · unique (sourceFileId, pageNumber)'
+      summary 'sourceFileId · pageNumber · imageStorageKey · imageContentType'
+      description '''
+        A single sheet of a source file. `pageNumber` is 1-based within the
+        whole file; a single-image file has one page.
+
+        Which document a sheet belongs to is the Document’s page range, not a
+        column here.
+      '''
+    }
+
+    ocrResults = table 'ocr_results' {
+      technology 'PK id · FK pageId, unique — 1:1 with the page'
+      summary 'pageId · text · confidence · boxes?'
+      description '''
+        One page’s transcription. `confidence` is page-level and everything read
+        off the sheet inherits it as a ceiling.
+
+        Bounding boxes are stored as the `OcrProvider` port returned them —
+        display only for the MVP, so `Json?` rather than a table of its own.
+      '''
+    }
+
+    documents = table 'documents' {
+      technology 'PK id · FK sourceFileId, packageId · unique (sourceFileId, firstPage)'
+      summary 'sourceFileId · packageId · firstPage · lastPage · type? · classificationConfidence?'
+      description '''
+        A logical document: a run of one file’s sheets carrying one document
+        type.
+
+        Where a document starts is what a re-run of segmentation identifies it
+        by, which is what makes the stage an idempotent upsert. `packageId` is
+        denormalised from the owning file so a package’s documents can be listed
+        without walking every file. `type` is a profile string key and stays
+        null until the classify stage runs.
+      '''
+    }
+
+    extractedFields = table 'extracted_fields' {
+      technology 'PK id · FK documentId · unique (documentId, name)'
+      summary 'documentId · name · value · confidence · pageNumber'
+      description '''
+        One value read off a document, with how sure the reading was and which
+        sheet it came from.
+
+        One value per field per document, so extraction is an idempotent upsert.
+        Values are text; validation parses them.
+      '''
+    }
+
+    crossChecks = table 'cross_checks' {
+      technology 'PK id · FK packageId · unique (packageId, key)'
+      summary 'packageId · key · verdict · confidence · note'
+      description '''
+        One profile cross-document rule, applied to this package.
+        `verdict` is Match | Mismatch | Unclear, and `confidence` is never
+        higher than the least confident value below it.
+
+        Kept whole rather than reduced to the findings it produced: a check that
+        agreed is what the inspector does not have to redo.
+      '''
+    }
+
+    crossCheckValues = table 'cross_check_values' {
+      technology 'PK id · FK crossCheckId, documentId?'
+      summary 'crossCheckId · documentId? · documentType · fieldName · value · pageNumber · confidence · position'
+      description 'One value a cross-check weighed, and where it was read — so a verdict can be taken apart back to the sheets it was made from.'
+    }
+
+    registryChecks = table 'registry_checks' {
+      technology 'PK id · FK packageId, documentId? · unique (packageId, key)'
+      summary 'packageId · key · outcome · confidence · note · reference? · documentId? · documentType · fieldName · value · pageNumber · valueConfidence'
+      description '''
+        One profile registry check — what the archive register said.
+        `outcome` is Confirmed | Differs | Incomplete | NotFound | Ambiguous.
+
+        A table of its own and not a flavour of `cross_checks`: a cross-check
+        holds the papers of one submission against each other, this holds one of
+        them against the record of a registration. `reference` is text because
+        "folder 14, pp. 01-dən 30" is not a number.
+      '''
+    }
+
+    registryCheckAttributes = table 'registry_check_attributes' {
+      technology 'PK id · FK registryCheckId, documentId?'
+      summary 'registryCheckId · name · agrees · recorded? · documentId? · documentType · fieldName · value · pageNumber · confidence · position'
+      description '''
+        One thing the package said about the property, held against the record.
+
+        `recorded` is null where the register is silent — a column an area’s
+        register never carried is silence, not a disagreement.
+      '''
+    }
+
+    registryCheckDocuments = table 'registry_check_documents' {
+      technology 'PK id · FK registryCheckId, documentId?'
+      summary 'registryCheckId · name · holding · recordedNumber? · recordedDate? · reference? · documentId? · documentType · pageNumber · position'
+      description '''
+        One paper the package rests on, held against what the archive keeps.
+        `holding` is Held | NotHeld | Unknown.
+
+        Two names and not one: `name` is the register’s own word for the kind of
+        paper, `documentType` is the profile’s. Neither vocabulary may borrow
+        the other’s (ADR-0010).
+      '''
+    }
+
+    reports = table 'reports' {
+      technology 'PK id · FK packageId, unique — 1:1 with the package'
+      summary 'packageId · status · generatedAt'
+      description '''
+        The final output for a package. `status` is OK | IssuesFound |
+        IncompletePackage.
+
+        The report is compiled afresh every time it is written, so `generatedAt`
+        is when the findings were last worked out, not when the row appeared.
+      '''
+    }
+
+    validationIssues = table 'validation_issues' {
+      technology 'PK id · FK reportId, documentId?, sourceFileId?'
+      summary 'reportId · kind · message · documentId? · sourceFileId? · documentType? · fieldName? · checkKey? · pageNumber? · confidence?'
+      description '''
+        One finding in a report.
+
+        `kind` is a database enum and not a profile key, because the kinds are
+        fixed by the validation engine: MissingDocument · UnreadableDocument ·
+        FieldMismatch · Expired · LowConfidence · ExtraDocument ·
+        DuplicateDocument · RegistryMismatch · RegistryDocumentMissing ·
+        RegistryUnconfirmed.
+
+        The nullable descriptor columns are what let one table carry every kind
+        without a table per kind — and what put every finding on a page of a
+        scan.
+      '''
+    }
+
+    // ── foreign keys ────────────────────────────────────────────────────────
+    sourceFiles -[fk]-> verificationPackages 'packageId · Cascade'
+    pages -[fk]-> sourceFiles 'sourceFileId · Cascade'
+    ocrResults -[fk]-> pages 'pageId · Cascade · 1:1'
+    documents -[fk]-> sourceFiles 'sourceFileId · Cascade'
+    documents -[fk]-> verificationPackages 'packageId · Cascade'
+    extractedFields -[fk]-> documents 'documentId · Cascade'
+
+    crossChecks -[fk]-> verificationPackages 'packageId · Cascade'
+    crossCheckValues -[fk]-> crossChecks 'crossCheckId · Cascade'
+    crossCheckValues -[fk]-> documents 'documentId? · SetNull'
+
+    registryChecks -[fk]-> verificationPackages 'packageId · Cascade'
+    registryChecks -[fk]-> documents 'documentId? · SetNull'
+    registryCheckAttributes -[fk]-> registryChecks 'registryCheckId · Cascade'
+    registryCheckAttributes -[fk]-> documents 'documentId? · SetNull'
+    registryCheckDocuments -[fk]-> registryChecks 'registryCheckId · Cascade'
+    registryCheckDocuments -[fk]-> documents 'documentId? · SetNull'
+
+    reports -[fk]-> verificationPackages 'packageId · Cascade · 1:1'
+    validationIssues -[fk]-> reports 'reportId · Cascade'
+    validationIssues -[fk]-> documents 'documentId? · SetNull'
+    validationIssues -[fk]-> sourceFiles 'sourceFileId? · SetNull'
+  }
+}

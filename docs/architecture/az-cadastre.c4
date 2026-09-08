@@ -1,0 +1,1198 @@
+// AZ-Cadastre — the whole architecture model in one file. GENERATED; DO NOT EDIT.
+//
+// specification.c4, system.c4, erd-cadastre-db.c4, erd-cadastre-registry.c4,
+// views.c4 and po.c4, concatenated in that order and nothing else. Regenerate
+// with `docs/architecture/bundle.sh` after editing any of them; edit those six,
+// not this.
+//
+// It exists for https://playground.likec4.dev, which takes a single document:
+// copy this whole file, paste it there, and all eight views are in the list.
+//
+// `likec4.config.json` excludes this file from the workspace — the tool would
+// otherwise load both it and its six sources, and every element would be
+// declared twice.
+//
+// https://github.com/AIShrugged/AZ-Cadastre/tree/main/docs/architecture
+
+// The vocabulary the rest of these files are written in.
+//
+// Two vocabularies, on purpose. The C4 kinds (person, softwareSystem,
+// container, component) describe what runs; the data kinds (database, table)
+// describe what is stored. They never mix in one view: a table belongs to
+// exactly one database, and the C4 views stop at the container that owns it.
+
+specification {
+  // ── C4 ────────────────────────────────────────────────────────────────────
+  element person {
+    style {
+      shape person
+      color secondary
+    }
+  }
+
+  element softwareSystem {
+    style {
+      shape rectangle
+    }
+  }
+
+  element container {
+    style {
+      shape rectangle
+    }
+  }
+
+  element component {
+    style {
+      shape component
+      color secondary
+    }
+  }
+
+  element storage {
+    style {
+      shape storage
+      color green
+    }
+  }
+
+  // ── data ──────────────────────────────────────────────────────────────────
+  element database {
+    style {
+      shape cylinder
+      color green
+    }
+  }
+
+  element table {
+    notation 'Table'
+    style {
+      shape rectangle
+      color muted
+      // Large, because a table node has to hold its whole column list without
+      // the renderer clipping it to an ellipsis.
+      size large
+    }
+  }
+
+  // ── tags ──────────────────────────────────────────────────────────────────
+  tag external {
+    color #c92a2a
+  }
+
+  // A system outside this one that we happen to run: apps/registry-stub stands
+  // in for the archive register until a real one answers the same contract
+  // (ADR-0009). Tagged rather than modelled as ours, because the boundary is
+  // what matters and it is the boundary that survives the stand-in.
+  tag stand-in {
+    color #e8a33d
+  }
+
+  tag verification-context
+  tag archive-register
+
+  // ── relationship kinds ────────────────────────────────────────────────────
+  relationship https {
+    technology 'HTTPS/JSON'
+  }
+
+  relationship sql {
+    technology 'Prisma / SQL'
+    line dotted
+  }
+
+  // A foreign key. Dashed and open-headed so an ERD edge never reads like a
+  // call: nothing here invokes anything, one row references another.
+  relationship fk {
+    line dashed
+    head vee
+    color muted
+  }
+}
+// What runs, and what talks to what.
+//
+// Follows CONTEXT-MAP.md: apps/web → libs/api-gateway → packages/verification →
+// apps/registry-stub. The component names are package paths and class names, so
+// a diagram that has drifted from the code can be told from one that has not.
+
+model {
+  inspector = person 'Inspector' {
+    summary 'Officer of the Real Estate Registration Authority'
+    description '''
+      Submits a citizen's package of papers for a first state registration of
+      an individual dwelling house, and reads what the system found.
+
+      **The system never approves or rejects.** It prepares evidence — what was
+      found, what did not agree, how confidently each thing was read and on
+      which sheet it sits. The decision is the inspector's.
+    '''
+  }
+
+  registryOperator = person 'Register operator' {
+    summary "Loads the archive register's own Excel files — not the inspector's work"
+    description '''
+      Puts the archive's register workbooks into the archive register, a file at
+      a time, through the one control `apps/web` gives them
+      (`features/import-registry`). Never submits a package and never reads a
+      report: filling the register and verifying a submission are two errands,
+      and the register is not part of what a verification may load (ADR-0011 §1).
+    '''
+    link https://github.com/AIShrugged/AZ-Cadastre/blob/main/docs/adr/0011-the-register-loads-its-records-from-a-workbook.md 'ADR-0011'
+  }
+
+  openrouter = softwareSystem 'OpenRouter' {
+    #external
+    summary 'The vision and language models every reading stage is served by'
+    technology 'HTTPS/JSON'
+    description '''
+      One route per stage — OCR, segmentation, classification, field extraction
+      and cross-checking — each pinned to a model observed to return real token
+      logprobs, because the confidence a reading carries is taken as the lower
+      of the logprobs and the model's own stated certainty.
+
+      See `docs/MODELS.md` before changing any of them.
+    '''
+    link https://github.com/AIShrugged/AZ-Cadastre/blob/main/docs/MODELS.md 'docs/MODELS.md'
+  }
+
+  // ── the system ────────────────────────────────────────────────────────────
+  cadastre = softwareSystem 'AZ-Cadastre' {
+    #verification-context
+    summary 'Reads a submitted package of papers and reports what it found'
+    link https://github.com/AIShrugged/AZ-Cadastre/blob/main/CONTEXT-MAP.md 'CONTEXT-MAP.md'
+
+    web = container 'Inspector web client' {
+      technology 'React SPA, nginx'
+      summary 'apps/web — upload, package list, report. Trilingual: ru / en / az'
+      description '''
+        Speaks `@cadastre/api-contracts` and never the domain model. No live
+        updates: the inspector reloads the package screen to see progress.
+      '''
+    }
+
+    core = container 'cadastre-core' {
+      technology 'NestJS, Node 26'
+      summary 'apps/server — the composition root: the HTTP edge and the verification context in one process'
+      description '''
+        `apps/server` validates the environment, mounts the context module and
+        binds every port to an implementation in
+        `src/infrastructure/index.ts` — the one place that changes if
+        verification becomes its own service.
+      '''
+
+      gateway = component 'libs/api-gateway' {
+        technology 'NestJS controllers, Zod'
+        summary 'Transport: HTTP in, port calls out, status codes back'
+        description 'type:edge. Holds no word the contracts do not have (CONTEXT-MAP.md).'
+      }
+
+      facade = component 'VerificationService' {
+        technology 'packages/verification/src/application/services'
+        summary 'The context façade — implements the `…Api` interfaces the gateway mirrors'
+      }
+
+      pipeline = component 'RunVerificationHandler' {
+        technology 'packages/verification/…/use-cases/packages/run-verification'
+        summary 'The eight stages, in order, and the rule that none of them may stop the run'
+        description '''
+          Every stage is wrapped in `despite(...)`: a file that will not split,
+          a sheet the reader refuses, a document nothing can place — each is
+          carried into the report rather than raised. Only losing the package
+          itself ends a run.
+        '''
+      }
+
+      profiles = component 'Verification profiles' {
+        technology 'packages/verification/src/domain — code, not the database'
+        summary 'Which papers are required, which fields to read, which checks to make (ADR-0002)'
+      }
+
+      domain = component 'Domain model' {
+        technology 'Aggregates, entities, value objects, events'
+        summary 'VerificationPackage and everything under it. Imports no framework, no Prisma, no provider SDK'
+      }
+
+      repository = component 'Prisma repository' {
+        technology 'packages/verification/src/infrastructure/persistence'
+        summary 'VerificationPackageRepository and the read models — the only writer of cadastre-db'
+      }
+
+      objectStorageAdapter = component 'Object-storage adapter' {
+        technology 'AWS SDK v3, S3-compatible'
+        summary 'Presigns the browser upload and reads the bytes back for splitting'
+      }
+
+      pdfSplitter = component 'PDF splitter' {
+        technology 'pdf rendering at 300 dpi'
+        summary 'Stage 1 — a PDF becomes one PNG per sheet; an image file is one sheet'
+      }
+
+      readers = component 'OpenRouter adapters' {
+        technology 'packages/verification/src/infrastructure/adapters/openrouter'
+        summary 'OcrProvider, DocumentSegmenter, DocumentClassifier, FieldExtractor, CrossChecker'
+        description '''
+          Five ports, five adapters, one HTTP client. Each records a confidence
+          taken as the *lower* of the route's token logprobs and the model's own
+          stated certainty; a route that offers neither makes the reading
+          **unscored**, which puts it below the 0.80 floor and in front of a
+          human.
+        '''
+      }
+
+      registryClient = component 'HTTP archive-registry adapter' {
+        technology 'ArchiveRegistryPort over HTTPS'
+        summary 'The one call that leaves the submission (ADR-0009)'
+        description 'A register that does not answer never fails a verification — the stage is abandoned and the report says the property was not confirmed.'
+      }
+    }
+
+    cadastreDb = database 'cadastre-db' {
+      #verification-context
+      technology 'PostgreSQL'
+      summary 'The verification context owns it — schema, migrations and client under src/infrastructure/persistence'
+      description 'Its tables are in `erd-cadastre-db.c4`. Nothing outside the verification context reads it (ADR-0010).'
+    }
+
+    files = storage 'Document storage' {
+      technology 'RustFS (S3-compatible)'
+      summary 'The uploaded files and the page images rendered off them'
+      description 'The bytes never pass through cadastre-core on the way in: the browser PUTs them to a presigned URL.'
+    }
+  }
+
+  // ── outside the system, and run by us until it is not ─────────────────────
+  archive = softwareSystem 'Archive register' {
+    #stand-in
+    #archive-register
+    summary 'apps/registry-stub — the stand-in for the cadastre archive register'
+    description '''
+      Not a bounded context and not our data. It states **facts** — what the
+      register holds about a property and which of the package's papers the
+      archive has the original of — and never a verdict about a submission,
+      because it does not know what is being registered.
+
+      It is deleted rather than migrated when a real state register answers the
+      same contract (ADR-0009, ADR-0010).
+    '''
+    link https://github.com/AIShrugged/AZ-Cadastre/blob/main/docs/adr/0009-the-archive-register-behind-a-port.md 'ADR-0009'
+    link https://github.com/AIShrugged/AZ-Cadastre/blob/main/docs/adr/0010-the-register-holds-its-records-in-its-own-database.md 'ADR-0010'
+
+    registryApi = container 'cadastre-registry service' {
+      technology 'NestJS, Node 26'
+      summary 'apps/registry-stub — answers @cadastre/api-contracts/registry over HTTP'
+
+      lookup = component 'Address lookup' {
+        technology 'apps/registry-stub/src/application'
+        summary 'Finds the object an address answers to and reports what the register holds about it'
+        description 'Reads the whole address table on every call, because the rule that decides whether two spellings mean one place is JavaScript and not a SQL predicate (TECH_DEBT.md §9).'
+      }
+
+      matching = component 'libs/matching-engine' {
+        technology 'Pure rules, no dependencies'
+        summary 'Whether two ways of writing an address, a name, an area or a reference number mean the same thing'
+        description 'Includes the Azerbaijani legacy Cyrillic table the archive files need. No dependencies, so the stand-in and whatever replaces it answer from one source.'
+      }
+
+      workbookImport = component 'Workbook import' {
+        technology 'POST /api/import/records — stub-local, not in the published contract'
+        summary 'Puts the archive Excel registers into the database, a sheet per model (ADR-0011)'
+      }
+    }
+
+    registryDb = database 'cadastre-registry' {
+      #archive-register
+      technology 'PostgreSQL'
+      summary "The register's own database, and deliberately not cadastre-db (ADR-0010)"
+      description 'Its tables are in `erd-cadastre-registry.c4`. Two databases are what make a join between a submission and the record of a registration a network call rather than a query somebody can write by accident.'
+    }
+  }
+
+  // ── relationships ─────────────────────────────────────────────────────────
+  inspector -[https]-> web 'submits packages, reads reports'
+  registryOperator -[https]-> web 'loads an archive register workbook'
+  web -[https]-> gateway 'REST /api/packages, /api/documents/presign'
+  web -[https]-> files 'PUTs the file bytes to a presigned URL'
+
+  // The one call apps/web makes that does not go through libs/api-gateway. The
+  // register's import is deliberately outside @cadastre/api-contracts — no
+  // verification of a submission ever loads a register file — so the surface
+  // that uses it addresses the register directly (ADR-0011 §1, TECH_DEBT §10).
+  web -[https]-> registryApi 'POST /api/import/records — the workbook, straight to the register'
+
+  gateway -> facade 'VerificationClientPort — mirrors the published `…Api` interfaces'
+  facade -> pipeline 'PackageSubmitted starts the run; the inspector is answered at once'
+  facade -> repository 'read models for the package list and the report'
+  facade -> profiles 'which profiles a package may be submitted under'
+  facade -> objectStorageAdapter 'presigns the upload'
+
+  pipeline -> domain 'loads the aggregate, records what each stage found'
+  pipeline -> profiles 'what to require, what to read, what to check'
+  pipeline -> repository 'saves the package after every stage'
+  pipeline -> objectStorageAdapter 'reads the uploaded bytes, stores the page images'
+  pipeline -> pdfSplitter 'PdfSplitter'
+  pipeline -> readers 'OcrProvider, DocumentSegmenter, DocumentClassifier, FieldExtractor, CrossChecker'
+  pipeline -> registryClient 'ArchiveRegistryPort'
+
+  repository -[sql]-> cadastreDb 'the verification package and everything under it'
+  objectStorageAdapter -> files 'presign, get, put' 'S3 API'
+  readers -[https]-> openrouter 'one route per stage, images and text'
+  registryClient -[https]-> registryApi '@cadastre/api-contracts/registry'
+
+  lookup -> matching 'do these two spellings mean one place?'
+  lookup -[sql]-> registryDb 'objects, addresses, right holders, papers, locations'
+  workbookImport -[sql]-> registryDb 'one object with its children per import unit'
+}
+// ERD — `cadastre-db`, the database the verification context owns.
+//
+// One element per Prisma model, nested inside the `cadastreDb` container of
+// system.c4, so the tables are the inside of a container the C4 views already
+// show. Source of truth:
+// `packages/verification/src/infrastructure/persistence/schema/*.prisma`.
+//
+// Each table reads: title = the table name, `technology` = its keys, `summary` =
+// its columns (`?` marks nullable), `description` = why it is shaped that way.
+// `id`, `createdAt` and `updatedAt` are left out of the column lists — every
+// table has them and printing them six times says nothing.
+//
+// An edge runs from the table that holds the foreign key to the one it
+// references, labelled with the column and what happens to the row when the
+// referenced one goes: `Cascade` deletes it, `SetNull` keeps it and forgets what
+// it pointed at. Nothing here points at a table in `cadastre-registry`, and
+// nothing ever may (ADR-0010).
+
+model {
+  extend cadastre.cadastreDb {
+
+    verificationPackages = table 'verification_packages' {
+      technology 'PK id'
+      summary 'status · profileKey · version'
+      description '''
+        The aggregate root — one upload of one or more files.
+
+        `status` runs Pending → Processing → Completed | Failed. `version` is
+        optimistic concurrency: every update names the version it was loaded at
+        and bumps it, so a concurrent write is refused rather than silently
+        overwritten.
+
+        The Verification Profile itself is **not** here — it lives in code
+        (ADR-0002); `profileKey` only records which one was chosen at upload.
+      '''
+    }
+
+    sourceFiles = table 'source_files' {
+      technology 'PK id · FK packageId · unique storageKey'
+      summary 'packageId · originalFilename · contentType · storageKey'
+      description '''
+        One file the inspector uploaded — a **container**, not a document. One
+        PDF may hold a passport on sheet 1 and a title deed on sheets 2–4.
+
+        The bytes live in object storage; only the key that locates them is
+        kept.
+      '''
+    }
+
+    pages = table 'pages' {
+      technology 'PK id · FK sourceFileId · unique (sourceFileId, pageNumber)'
+      summary 'sourceFileId · pageNumber · imageStorageKey · imageContentType'
+      description '''
+        A single sheet of a source file. `pageNumber` is 1-based within the
+        whole file; a single-image file has one page.
+
+        Which document a sheet belongs to is the Document’s page range, not a
+        column here.
+      '''
+    }
+
+    ocrResults = table 'ocr_results' {
+      technology 'PK id · FK pageId, unique — 1:1 with the page'
+      summary 'pageId · text · confidence · boxes?'
+      description '''
+        One page’s transcription. `confidence` is page-level and everything read
+        off the sheet inherits it as a ceiling.
+
+        Bounding boxes are stored as the `OcrProvider` port returned them —
+        display only for the MVP, so `Json?` rather than a table of its own.
+      '''
+    }
+
+    documents = table 'documents' {
+      technology 'PK id · FK sourceFileId, packageId · unique (sourceFileId, firstPage)'
+      summary 'sourceFileId · packageId · firstPage · lastPage · type? · classificationConfidence?'
+      description '''
+        A logical document: a run of one file’s sheets carrying one document
+        type.
+
+        Where a document starts is what a re-run of segmentation identifies it
+        by, which is what makes the stage an idempotent upsert. `packageId` is
+        denormalised from the owning file so a package’s documents can be listed
+        without walking every file. `type` is a profile string key and stays
+        null until the classify stage runs.
+      '''
+    }
+
+    extractedFields = table 'extracted_fields' {
+      technology 'PK id · FK documentId · unique (documentId, name)'
+      summary 'documentId · name · value · confidence · pageNumber'
+      description '''
+        One value read off a document, with how sure the reading was and which
+        sheet it came from.
+
+        One value per field per document, so extraction is an idempotent upsert.
+        Values are text; validation parses them.
+      '''
+    }
+
+    crossChecks = table 'cross_checks' {
+      technology 'PK id · FK packageId · unique (packageId, key)'
+      summary 'packageId · key · verdict · confidence · note'
+      description '''
+        One profile cross-document rule, applied to this package.
+        `verdict` is Match | Mismatch | Unclear, and `confidence` is never
+        higher than the least confident value below it.
+
+        Kept whole rather than reduced to the findings it produced: a check that
+        agreed is what the inspector does not have to redo.
+      '''
+    }
+
+    crossCheckValues = table 'cross_check_values' {
+      technology 'PK id · FK crossCheckId, documentId?'
+      summary 'crossCheckId · documentId? · documentType · fieldName · value · pageNumber · confidence · position'
+      description 'One value a cross-check weighed, and where it was read — so a verdict can be taken apart back to the sheets it was made from.'
+    }
+
+    registryChecks = table 'registry_checks' {
+      technology 'PK id · FK packageId, documentId? · unique (packageId, key)'
+      summary 'packageId · key · outcome · confidence · note · reference? · documentId? · documentType · fieldName · value · pageNumber · valueConfidence'
+      description '''
+        One profile registry check — what the archive register said.
+        `outcome` is Confirmed | Differs | Incomplete | NotFound | Ambiguous.
+
+        A table of its own and not a flavour of `cross_checks`: a cross-check
+        holds the papers of one submission against each other, this holds one of
+        them against the record of a registration. `reference` is text because
+        "folder 14, pp. 01-dən 30" is not a number.
+      '''
+    }
+
+    registryCheckAttributes = table 'registry_check_attributes' {
+      technology 'PK id · FK registryCheckId, documentId?'
+      summary 'registryCheckId · name · agrees · recorded? · documentId? · documentType · fieldName · value · pageNumber · confidence · position'
+      description '''
+        One thing the package said about the property, held against the record.
+
+        `recorded` is null where the register is silent — a column an area’s
+        register never carried is silence, not a disagreement.
+      '''
+    }
+
+    registryCheckDocuments = table 'registry_check_documents' {
+      technology 'PK id · FK registryCheckId, documentId?'
+      summary 'registryCheckId · name · holding · recordedNumber? · recordedDate? · reference? · documentId? · documentType · pageNumber · position'
+      description '''
+        One paper the package rests on, held against what the archive keeps.
+        `holding` is Held | NotHeld | Unknown.
+
+        Two names and not one: `name` is the register’s own word for the kind of
+        paper, `documentType` is the profile’s. Neither vocabulary may borrow
+        the other’s (ADR-0010).
+      '''
+    }
+
+    reports = table 'reports' {
+      technology 'PK id · FK packageId, unique — 1:1 with the package'
+      summary 'packageId · status · generatedAt'
+      description '''
+        The final output for a package. `status` is OK | IssuesFound |
+        IncompletePackage.
+
+        The report is compiled afresh every time it is written, so `generatedAt`
+        is when the findings were last worked out, not when the row appeared.
+      '''
+    }
+
+    validationIssues = table 'validation_issues' {
+      technology 'PK id · FK reportId, documentId?, sourceFileId?'
+      summary 'reportId · kind · message · documentId? · sourceFileId? · documentType? · fieldName? · checkKey? · pageNumber? · confidence?'
+      description '''
+        One finding in a report.
+
+        `kind` is a database enum and not a profile key, because the kinds are
+        fixed by the validation engine: MissingDocument · UnreadableDocument ·
+        FieldMismatch · Expired · LowConfidence · ExtraDocument ·
+        DuplicateDocument · RegistryMismatch · RegistryDocumentMissing ·
+        RegistryUnconfirmed.
+
+        The nullable descriptor columns are what let one table carry every kind
+        without a table per kind — and what put every finding on a page of a
+        scan.
+      '''
+    }
+
+    // ── foreign keys ────────────────────────────────────────────────────────
+    sourceFiles -[fk]-> verificationPackages 'packageId · Cascade'
+    pages -[fk]-> sourceFiles 'sourceFileId · Cascade'
+    ocrResults -[fk]-> pages 'pageId · Cascade · 1:1'
+    documents -[fk]-> sourceFiles 'sourceFileId · Cascade'
+    documents -[fk]-> verificationPackages 'packageId · Cascade'
+    extractedFields -[fk]-> documents 'documentId · Cascade'
+
+    crossChecks -[fk]-> verificationPackages 'packageId · Cascade'
+    crossCheckValues -[fk]-> crossChecks 'crossCheckId · Cascade'
+    crossCheckValues -[fk]-> documents 'documentId? · SetNull'
+
+    registryChecks -[fk]-> verificationPackages 'packageId · Cascade'
+    registryChecks -[fk]-> documents 'documentId? · SetNull'
+    registryCheckAttributes -[fk]-> registryChecks 'registryCheckId · Cascade'
+    registryCheckAttributes -[fk]-> documents 'documentId? · SetNull'
+    registryCheckDocuments -[fk]-> registryChecks 'registryCheckId · Cascade'
+    registryCheckDocuments -[fk]-> documents 'documentId? · SetNull'
+
+    reports -[fk]-> verificationPackages 'packageId · Cascade · 1:1'
+    validationIssues -[fk]-> reports 'reportId · Cascade'
+    validationIssues -[fk]-> documents 'documentId? · SetNull'
+    validationIssues -[fk]-> sourceFiles 'sourceFileId? · SetNull'
+  }
+}
+// ERD — `cadastre-registry`, the archive register's own database.
+//
+// A different database on the same server, and not a schema of `cadastre-db`
+// (ADR-0010). Source of truth:
+// `apps/registry-stub/src/infrastructure/persistence/schema/*.prisma`.
+//
+// Read the same way as `erd-cadastre-db.c4`: title = table, `technology` = keys,
+// `summary` = columns (`?` marks nullable), `description` = why. `id`,
+// `createdAt` and `updatedAt` are left out of the column lists.
+//
+// Every model here is the persistence view of a *legacy* register, so its
+// oddities are deliberate: numbers that are not arithmetic — folder, page range,
+// storey count, area with its unit — are text, because the sources hold
+// "01-dən 30", "2 (ики)" and "0,05 ha" in those columns. Almost every row
+// carries `sourceDatabase`, because there are six of these registers, they
+// overlap, and where they disagree somebody has to be told which one said what.
+
+model {
+  extend archive.registryDb {
+
+    registryObjects = table 'registry_objects' {
+      // Twenty-two columns against a node body that clips at five rendered
+      // lines: the ten area and ownership/right columns are counted here and
+      // spelled out one by one in the description, which is the one place the
+      // list is complete.
+      technology 'PK id · unique (territorialOffice, registerNo)'
+      summary 'registerNo · territorialOffice · inventoryNo? · cadastralNumber? · propertyType? · district? · floors? · buildYear? · 5 area columns · 5 right/ownership columns · registryBookNo? · registryBookSheet? · sourceDatabase'
+      description '''
+        One immovable-property object as the archive registers hold it.
+
+        The register number is unique **per territorial office and not
+        globally**. That is not a modelling choice: the Hövsan handover
+        registers carry, for one physical object, an Absheron office pair *and*
+        a Baku office pair, because the case moved between offices in 2008.
+
+        The columns in full: `registerNo` · `territorialOffice` ·
+        `inventoryNo?` · `cadastralNumber?` · `propertyType?` · `district?` ·
+        `plotArea?` · `totalArea?` · `mainArea?` · `auxiliaryArea?` ·
+        `footprintArea?` · `floors?` · `buildYear?` · `ownershipType?` ·
+        `rightType?` · `landOwnershipType?` · `landRightType?` ·
+        `landCategory?` · `registryBookNo?` · `registryBookSheet?` ·
+        `sourceDatabase`.
+
+        The address is not the key and never was — see `registry_addresses`.
+        Every area is text with its unit as written; `buildYear` is the one
+        arithmetic column in the whole schema, and it refuses `1984-cü il`
+        rather than guessing at it (ADR-0011 §3).
+      '''
+    }
+
+    registryAddresses = table 'registry_addresses' {
+      technology 'PK id · FK objectId · index (objectId)'
+      summary 'objectId · kind · value · sourceDatabase? · position'
+      description '''
+        How the archive spells where a property is — one row per spelling.
+        `kind` is Current | Legacy | Register.
+
+        There is never only one. The state register extract prints the
+        URIS-assigned form and, after `Köhnə ünvan:`, the one it carried before;
+        the legacy registers hold a third and a fourth, some in the Azerbaijani
+        legacy Cyrillic code page. A submission written against any of them is
+        about the same property, so all of them are searchable.
+      '''
+    }
+
+    registryRightHolders = table 'registry_right_holders' {
+      technology 'PK id · FK objectId · index (objectId)'
+      summary 'objectId · name · kind · share? · registrationNo? · registeredOn? · previousOwner? · taxOrDocumentNo? · position'
+      description '''
+        Who the register says holds the property. `kind` is Individual |
+        LegalEntity.
+
+        One free-text `name` column for people and firms alike, because that is
+        what every source has. Names are never reordered or transliterated on
+        the way in: what the record says is the evidence, and the matching rules
+        in `libs/matching-engine` are what forgive the spelling.
+      '''
+    }
+
+    registryDocuments = table 'registry_documents' {
+      technology 'PK id · FK objectId · unique (objectId, name)'
+      summary 'objectId · name · holding · taxonomyRef? · number? · issuedOn? · issuingAuthority? · folder? · pages? · sourceDatabase · position'
+      description '''
+        What papers the archive holds for a property — the presence registers,
+        normalised. `holding` is Held | NotHeld | Unknown.
+
+        Rows and not columns: a kind of paper is `Ərizə` / `Texniki Pasport` /
+        `Arayış` / `Sərəncam çıxarışı`, and the column set differs from
+        settlement to settlement — a schema with one column per kind would need
+        a migration every time a new register turned up.
+
+        Three states and not a boolean, because the sources have three: `+`,
+        `-`, and a column that area’s register never carried. Load-bearing: a
+        title relied on under Decree 439 is a valid ground only if the original
+        is in the National Archive Fund.
+      '''
+    }
+
+    registryAliases = table 'registry_aliases' {
+      technology 'PK id · FK objectId · index (objectId), (kind, value)'
+      summary 'objectId · kind · value · issuingOffice? · sourceDatabase · position'
+      description '''
+        Every other number one property answers to. `kind` is Registration |
+        Inventory | RegisterCode | StateAct | Certificate | TechnicalPassport |
+        Application.
+
+        Aliases and not columns because the set is open: every register found so
+        far has added one, and the next one will too. `issuingOffice` is what
+        keeps an Absheron pair and a Baku pair from being four numbers with no
+        story.
+      '''
+    }
+
+    archiveLocations = table 'archive_locations' {
+      technology 'PK id · FK objectId, unique — 1:1 with the object'
+      summary 'objectId · folder · pages · bookNo? · sheetNo? · fundReference? · sourceDatabase'
+      description '''
+        Where the paper physically is — the most useful thing the register has
+        for an inspector, and the one they cannot work out for themselves.
+
+        Every column is text: `Qovluq` holds "01-ƏMDK" as well as "14", `Səhifə`
+        holds "01-dən 30" and "06-DƏK səh. 48", and the fund reference is
+        Russian in the older files ("Ф.11165, оп.1, ед.хр.159") and Azerbaijani
+        in the newer ones.
+      '''
+    }
+
+    // ── foreign keys — everything hangs off the object ──────────────────────
+    registryAddresses -[fk]-> registryObjects 'objectId · Cascade'
+    registryRightHolders -[fk]-> registryObjects 'objectId · Cascade'
+    registryDocuments -[fk]-> registryObjects 'objectId · Cascade'
+    registryAliases -[fk]-> registryObjects 'objectId · Cascade'
+    archiveLocations -[fk]-> registryObjects 'objectId · Cascade · 1:1'
+  }
+}
+// The diagrams. Seven of them, and each one answers a question somebody
+// actually asked: what is this, what runs, what is inside the backend, what
+// happens to a package, and what is in each of the two databases.
+
+views {
+
+  // ── C4 ────────────────────────────────────────────────────────────────────
+
+  view index {
+    title 'System context — AZ-Cadastre'
+    description '''
+      Who uses it and what it depends on. The archive register is drawn outside
+      the system on purpose: `apps/registry-stub` is run by us today, but it
+      stands in for a system that is not ours and is deleted rather than
+      migrated when a real one answers the same contract (ADR-0009).
+    '''
+
+    include
+      inspector,
+      registryOperator,
+      cadastre,
+      archive,
+      openrouter
+
+    style archive {
+      color amber
+    }
+    style openrouter {
+      color red
+    }
+  }
+
+  view containers of cadastre {
+    title 'Containers — what runs'
+    description '''
+      Matches the relationship sketch in CONTEXT-MAP.md:
+      `apps/web` → `libs/api-gateway` → `packages/verification` →
+      `apps/registry-stub`. The gateway and the verification context are one
+      process, `cadastre-core`; the seam between them is
+      `@cadastre/api-contracts`, and it is the only thing that has to change if
+      verification ever becomes its own service.
+
+      Two databases, not one, and no edge between them.
+    '''
+
+    include
+      inspector,
+      registryOperator,
+      cadastre,
+      cadastre.*,
+      archive,
+      archive.*,
+      openrouter
+
+    // Two component-level writers roll up into one container edge; say what it
+    // is rather than let it render as the merged "[...]".
+    include archive.registryApi -> archive.registryDb with {
+      title 'reads and writes the register'
+    }
+
+    style archive, archive.* {
+      color amber
+    }
+    style openrouter {
+      color red
+    }
+    autoLayout TopBottom 120 100
+  }
+
+  view backend of cadastre.core {
+    title 'Components — cadastre-core'
+    description '''
+      The ports-and-adapters seam, which is the point of the layout: the
+      pipeline names a port, and `apps/server/src/infrastructure/index.ts` binds
+      it to one of these adapters. Every provider defaults to a `mock`
+      implementation of the same port, so the whole pipeline runs offline.
+
+      `domain/` reaches no sibling layer, no Nest, no Prisma and no provider
+      SDK, and that is enforced by `.oxlintrc.json` rather than remembered
+      (ADR-0007).
+    '''
+
+    include
+      *,
+      cadastre.cadastreDb,
+      cadastre.files,
+      cadastre.web,
+      archive.registryApi,
+      openrouter
+
+    // Without this the enclosing container is painted solid and nothing inside
+    // it can be read.
+    style cadastre.core {
+      color muted
+      opacity 8%
+    }
+    style cadastre.core.domain, cadastre.core.profiles {
+      color green
+    }
+    style archive.registryApi {
+      color amber
+    }
+    style openrouter {
+      color red
+    }
+    autoLayout TopBottom 110 90
+  }
+
+  dynamic view verificationProcess {
+    variant sequence
+    title 'The verification process, upload to report'
+    description '''
+      The narrative in `docs/process-overview.md`, as the code actually runs it
+      (`RunVerificationHandler.execute`).
+
+      Two rules govern the whole sequence. **No stage may stop the run** — a
+      file that will not split, a sheet the reader refuses, a document nothing
+      can place, an archive that does not answer: each becomes a line in the
+      report and the run goes on. Only losing the package itself ends it.
+      **Nothing below 0.80 confidence is a fact**; it is a question for the
+      inspector, and confidence is inherited downwards — a field is never surer
+      than the sheet it was read off, a check never surer than the weakest value
+      in it.
+    '''
+
+    inspector -> cadastre.web 'selects files (PDF / JPG / PNG, ≤ 50 MB each)'
+    cadastre.web -> cadastre.core.gateway 'POST /api/documents/presign'
+    cadastre.core.gateway -> cadastre.core.objectStorageAdapter 'a presigned PUT, one per file'
+    cadastre.web -> cadastre.files 'PUTs the bytes straight to storage — they never pass through cadastre-core'
+
+    cadastre.web -> cadastre.core.gateway 'POST /api/packages { profileKey, files }'
+    cadastre.core.gateway -> cadastre.core.facade 'VerificationClientPort'
+    cadastre.core.facade -> cadastre.core.pipeline 'PackageSubmitted — the run starts in the background and the inspector is answered at once'
+
+    cadastre.core.pipeline -> cadastre.core.pdfSplitter '1. split — every PDF sheet rendered to PNG at 300 dpi; an image file is one sheet'
+    cadastre.core.pipeline -> cadastre.core.readers '2. recognise — each sheet transcribed, up to three attempts; an unread sheet becomes a finding'
+    cadastre.core.pipeline -> cadastre.core.readers '3. segment — the file is cut into the documents it actually holds, back to back, no gaps'
+    cadastre.core.pipeline -> cadastre.core.readers '4. classify — exactly one document type per document, judged on content and never on the filename'
+    cadastre.core.pipeline -> cadastre.core.readers '5. extract — value + confidence + page number, each quoted from the sheet'
+    cadastre.core.pipeline -> cadastre.core.readers '6. cross-check — the profile’s five rules across documents: Match | Mismatch | Unclear'
+
+    cadastre.core.pipeline -> cadastre.core.registryClient '7. register — the only stage that leaves the submission'
+    cadastre.core.registryClient -> archive.registryApi.lookup 'the address off the plan-scheme, then the sketch design, then the application; plus owner, cadastral number, area, and which papers to ask about'
+    archive.registryApi.lookup -> archive.registryApi.matching 'do these two spellings mean one place?'
+    archive.registryApi.lookup -> archive.registryDb 'objects, addresses, right holders, papers, locations'
+    cadastre.core.registryClient <- archive.registryApi.lookup 'facts and never a verdict: Confirmed | Differs | Incomplete | NotFound | Ambiguous'
+
+    cadastre.core.pipeline -> cadastre.core.repository '8. complete — completeness is checked and the report is compiled afresh from every check above'
+    cadastre.core.repository -> cadastre.cadastreDb 'the package, its documents, its checks and the report'
+
+    inspector -> cadastre.web 'reloads the package screen: OK | Issues found | Incomplete package, every finding on a page of a scan'
+  }
+
+  // ── data ──────────────────────────────────────────────────────────────────
+
+  view erdCadastreDb of cadastre.cadastreDb {
+    title 'ERD — cadastre-db (verification context)'
+    description '''
+      Every table of
+      `packages/verification/src/infrastructure/persistence/schema/`. An edge
+      runs from the table holding the foreign key to the one it references; its
+      label is the column and what happens to the row when the referenced one
+      goes.
+
+      Verification Profiles are not here: they live in code, not the database
+      (ADR-0002).
+    '''
+
+    include *
+    autoLayout TopBottom 100 80
+  }
+
+  view erdCadastreRegistry of archive.registryDb {
+    title 'ERD — cadastre-registry (archive register)'
+    description '''
+      Every table of
+      `apps/registry-stub/src/infrastructure/persistence/schema/`. Everything
+      hangs off one object, keyed `(territorialOffice, registerNo)`.
+
+      This is not our data and this is not a bounded context — it is the shape
+      the archive's own registers have, held in a database so the stand-in can
+      be queried the way the real thing will be.
+    '''
+
+    include *
+    autoLayout TopBottom 100 80
+  }
+
+  view erdBothDatabases {
+    title 'ERD — both databases'
+    description '''
+      Both schemas in one picture and **deliberately without a single edge
+      between them**. `cadastre-db` belongs to the verification context;
+      `cadastre-registry` belongs to the archive register, which is a system
+      outside this one that happens to run on the same server.
+
+      A join between a submission and the record of a registration is the one
+      thing that must stay impossible — two databases make it a network call,
+      which is what it actually is (ADR-0010). If an edge ever appears across
+      this gap, the model is wrong or the code is.
+    '''
+
+    include
+      cadastre.cadastreDb,
+      cadastre.cadastreDb.*,
+      archive.registryDb,
+      archive.registryDb.*
+
+    style cadastre.cadastreDb {
+      color green
+      opacity 8%
+    }
+    style archive.registryDb {
+      color amber
+      opacity 8%
+    }
+    autoLayout LeftRight 120 60
+  }
+}
+// The container diagram told a second time, for a reader who does not write
+// code — a product owner, an analyst, whoever has to know what is running
+// without knowing what a gateway is.
+//
+// It declares **no model of its own**. Every block below is the same element
+// `system.c4` declares, with its title, technology and description replaced for
+// the length of this one view (`include … with { … }`). That is the whole
+// point: a container that leaves the system leaves both pictures, and these two
+// cannot drift apart the way two separately drawn diagrams do. Nothing here is
+// a simplification of the truth — it is the same truth in other words.
+//
+// The rendered strings are Russian because the reader this view is written for
+// is. Identifiers and these comments stay English, like everywhere else in the
+// repository: the file is maintained by engineers and read by everybody else
+// through `likec4 start`.
+//
+// Two things the tool does that shaped this file. An element's `summary` is
+// dropped from a customised node, so the short line a reader sees is the
+// overridden `description`. And a blank `technology ''` is trimmed to nothing
+// and falls back to the relationship kind's own — 'HTTPS/JSON', 'Prisma / SQL'
+// — so every edge here names its transport in words instead.
+//
+// `likec4 format` reflows this file into a style the rest of the folder is not
+// written in; the .c4 files here are hand-formatted, and prettier does not
+// cover them.
+//
+// When `containers` in views.c4 changes, this changes with it in the same
+// commit. It is one `include` per block on purpose: a block added to the system
+// and not to this file is missing from the picture rather than silently
+// labelled with its package path.
+
+views {
+
+  view po of cadastre {
+    title 'Что запущено — простыми словами'
+    description '''
+      Что работает в системе и кто к кому обращается, без внутренних названий.
+      Каждая рамка — отдельно работающая программа или хранилище; стрелка —
+      кто кого о чём просит.
+
+      Оранжевым обведено чужое: архивный реестр — не наша система, сейчас его
+      роль исполняет наша временная замена. Красным — чужой сервис в интернете.
+      Всё остальное — то, что мы делаем и запускаем сами.
+
+      ## Как загрузить Excel-файл, чтобы наполнить архивный реестр
+
+      Нужен только браузер: ни программиста, ни доступа к серверу, ни каких-либо
+      технических инструментов. Шаги 1–3 на схеме — это и есть этот путь.
+
+      1. Откройте главный экран — **«Реестр проверок»**, список проверок.
+      2. Вверху справа, слева от синей кнопки «Новая проверка», нажмите
+         **«Загрузить файл реестра»**.
+      3. В открывшемся окне нажмите **«Выбрать файл»** и укажите файл `.xlsx`
+         размером до 25 МБ.
+      4. Нажмите **«Загрузить»**. Сначала идёт «Передача… %», затем «Реестр
+         читает файл…» — на этом шаге нужно подождать, окно закрывать не надо.
+      5. Прочитайте отчёт: **«Загружено»** и **«Отклонено»**, а под ними таблица
+         «Лист / Строка / Столбец / Что не так» по каждому непринятому объекту.
+         Исправьте эти строки в Excel и нажмите **«Загрузить ещё раз»**.
+
+      Что стоит знать заранее:
+
+      - **Загрузить тот же файл повторно безопасно.** Объект узнают по паре
+        «территориальный отдел + номер по реестру» и перезаписывают — дубли не
+        появляются, поэтому исправленный файл можно слать целиком.
+      - **Одна ошибка не отменяет весь файл.** Объект, в строках которого есть
+        ошибка, реестр не берёт целиком — но все остальные объекты из файла
+        загружает. Отчёт покажет, сколько чего.
+      - **Форма файла — по листу на каждый вид данных**: `Objects`, `Addresses`,
+        `RightHolders`, `Documents`, `Aliases`, `Locations`. Пустой шаблон с
+        нужными столбцами лежит в проекте — файл
+        [registry-import-template.xlsx](https://github.com/AIShrugged/AZ-Cadastre/blob/main/apps/registry-stub/fixtures/registry-import-template.xlsx).
+      - **Отчёт называет место, а не значение** — лист, строку и столбец. Ничего
+        из чужих персональных данных он обратно не показывает, поэтому смотреть
+        придётся в свой же файл.
+      - **Ограничение на размер — 25 МБ**, это один реестр за раз, а не все сразу.
+    '''
+
+    // ── кто этим пользуется ───────────────────────────────────────────────
+    include inspector with {
+      title 'Инспектор'
+      description '''
+        Принимает у гражданина пакет документов на регистрацию дома и читает,
+        что нашла система.
+
+        **Система ничего не одобряет и не отклоняет.** Она собирает
+        доказательства: что нашлось, что не сошлось, насколько уверенно
+        прочитано и на какой странице это видно. Решение принимает инспектор.
+      '''
+    }
+
+    include registryOperator with {
+      title 'Сотрудник, который ведёт реестр'
+      description '''
+        Наполняет архивный реестр: берёт Excel-файлы реестра и загружает их
+        кнопкой в том же веб-приложении. Проверками пакетов не занимается — это
+        другая работа и другой человек.
+      '''
+    }
+
+    // ── наше ──────────────────────────────────────────────────────────────
+    include cadastre with {
+      title 'Система проверки документов'
+      description '''
+        То, что мы делаем и запускаем. Всё, что внутри этой рамки, — наше; всё,
+        что снаружи, принадлежит кому-то другому.
+      '''
+    }
+
+    include cadastre.web with {
+      title 'Рабочий экран (веб-приложение)'
+      technology 'Открывается в браузере'
+      description '''
+        Единственное, что человек видит своими глазами. Здесь загружают пакет
+        документов, следят за списком проверок и читают отчёт — и здесь же
+        кнопка загрузки Excel-файла реестра.
+
+        Три языка: русский, английский, азербайджанский. Готовый результат
+        появляется после обновления страницы — сам он не «прилетает».
+      '''
+    }
+
+    include cadastre.core with {
+      title 'Основной сервис проверки'
+      technology 'Программа на сервере'
+      description '''
+        Делает всю работу. Разбирает присланный пакет на отдельные документы,
+        вытаскивает нужные поля, сверяет их между документами, спрашивает
+        архивный реестр и собирает итоговый отчёт.
+
+        Ни одна неудача не останавливает проверку: непрочитанная страница,
+        непонятный документ, молчащий реестр — каждое становится строкой в
+        отчёте, а проверка идёт дальше.
+      '''
+    }
+
+    include cadastre.cadastreDb with {
+      title 'База данных проверок'
+      technology 'База данных'
+      description '''
+        Что прислали, что распознали, что сошлось и что нет, и готовые отчёты.
+
+        Здесь лежат только проверки. Данных архивного реестра здесь нет и не
+        должно быть — это соседняя, отдельная база.
+      '''
+    }
+
+    include cadastre.files with {
+      title 'Хранилище файлов'
+      technology 'Файловое хранилище'
+      description '''
+        Сами присланные сканы и картинки отдельных страниц, сделанные с них.
+
+        Файлы уходят туда прямо из браузера, минуя сервис проверки, — поэтому
+        толстый пакет не замедляет саму проверку.
+      '''
+    }
+
+    // ── чужое ─────────────────────────────────────────────────────────────
+    include openrouter with {
+      title 'Внешний сервис распознавания'
+      technology 'Чужой сервис в интернете'
+      description '''
+        Читает текст со сканов и помогает сопоставить данные между документами.
+
+        Каждое прочитанное значение приходит с оценкой уверенности. Всё, что
+        ниже 0,80, система показывает инспектору как вопрос, а не как факт.
+      '''
+    }
+
+    include archive with {
+      title 'Архивный реестр (чужая система)'
+      description '''
+        То, что зарегистрировано раньше: объекты, адреса, правообладатели,
+        документы. Формально это не наша система — сейчас её роль исполняет
+        наша временная замена, и когда появится настоящий государственный
+        реестр, эта часть заменяется на него.
+
+        Реестр отвечает только фактами — «вот что у нас записано об этом
+        объекте» — и никогда не выносит решение по заявке: он не знает, что
+        именно регистрируют.
+      '''
+    }
+
+    include archive.registryApi with {
+      title 'Служба архивного реестра'
+      technology 'Программа на сервере'
+      description '''
+        Отвечает на два разных вопроса.
+
+        Сервису проверки — «что в реестре записано об этом объекте и какие из
+        присланных бумаг у архива есть в подлиннике». Сотруднику реестра —
+        принимает **Excel-файл реестра** и раскладывает его по записям.
+
+        **Как загрузить Excel-файл:** главный экран → кнопка «Загрузить файл
+        реестра» вверху справа → «Выбрать файл» → файл `.xlsx` до 25 МБ →
+        «Загрузить». Дальше окно само покажет отчёт: сколько объектов
+        загружено, сколько отклонено и в каком листе, строке и столбце ошибка.
+        Исправьте эти строки и загрузите файл ещё раз — повторная загрузка
+        ничего не портит, объекты перезаписываются, а не задваиваются.
+
+        Никаких технических инструментов для этого не нужно, всё делается в
+        браузере. Подробнее — в описании самой схемы.
+      '''
+    }
+
+    include archive.registryDb with {
+      title 'База архивного реестра'
+      technology 'База данных'
+      description '''
+        Записи реестра: объект, его адреса, правообладатели, документы, иные
+        номера и места хранения. Именно сюда попадает то, что загружено из
+        Excel-файла.
+
+        Отдельная база, никак не связанная с базой проверок, — и так задумано:
+        свести заявку и запись реестра одним запросом нельзя, за фактом реестра
+        всегда надо сходить и спросить.
+      '''
+    }
+
+    // ── кто к кому обращается ─────────────────────────────────────────────
+    include inspector -> cadastre.web with {
+      title 'приносит пакет документов и читает отчёт'
+      technology 'в браузере'
+    }
+
+    // Steps 1–3 are the upload, drawn as the reader walks it. The file goes
+    // from the browser to the register and never through the verification
+    // service, which is why the arrow leaves the frame.
+    include registryOperator -> cadastre.web with {
+      title '1. открывает экран и жмёт «Загрузить файл реестра»'
+      technology 'в браузере'
+    }
+
+    include cadastre.web -> archive.registryApi with {
+      title '2. передаёт выбранный Excel-файл прямо в реестр'
+      technology 'по сети'
+    }
+
+    // Two writers roll up into this one edge, the same way they do in
+    // `containers`; say what it is rather than let it render as "[...]".
+    include archive.registryApi -> archive.registryDb with {
+      title '3. читает записи реестра — и пополняет их из загруженного файла'
+      technology 'запрос к базе'
+    }
+
+    include cadastre.web -> cadastre.core with {
+      title 'отправляет пакет на проверку, забирает готовый отчёт'
+      technology 'по сети'
+    }
+
+    include cadastre.web -> cadastre.files with {
+      title 'кладёт присланные файлы в хранилище'
+      technology 'по сети'
+    }
+
+    include cadastre.core -> cadastre.cadastreDb with {
+      title 'сохраняет ход и результат проверки'
+      technology 'запрос к базе'
+    }
+
+    include cadastre.core -> cadastre.files with {
+      title 'читает файлы и складывает картинки страниц'
+      technology 'по сети'
+      // The model relation carries 'S3 API' as its description; overridden, or
+      // it turns up in the details pane of a picture that has no protocols in it.
+      description 'Забирает присланный файл, режет его на страницы и кладёт картинки обратно.'
+    }
+
+    include cadastre.core -> openrouter with {
+      title 'просит прочитать страницы и сверить данные'
+      technology 'через интернет'
+    }
+
+    include cadastre.core -> archive.registryApi with {
+      title 'спрашивает: что в реестре записано об этом объекте?'
+      technology 'по сети'
+    }
+
+    style archive, archive.* {
+      color amber
+    }
+    style openrouter {
+      color red
+    }
+    autoLayout TopBottom 120 100
+  }
+}

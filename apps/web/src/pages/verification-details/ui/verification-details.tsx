@@ -1556,11 +1556,14 @@ const VERDICT_LABEL: Record<CrossCheckVerdict, string> = {
   Unclear: 'detail.check_unclear',
 };
 
-/** How a check stands, as a pill. Shared by the two panels that report one, so
- *  that "agreed" reads alike whether the papers were held against each other or
- *  against the archive record — a reader should not have to learn two vocabularies
- *  for the same three tones. */
-function StandingMark({ tone, label }: { tone: Tone; label: string }) {
+/** How a check came out, as a pill. Shared by the two panels that report one,
+ *  so that "agreed" reads alike whether the papers were held against each other
+ *  or against the archive record — a reader should not have to learn two
+ *  vocabularies for the same three tones.
+ *
+ *  Named for the outcome and not the standing: a Package Standing is where the
+ *  whole submission stands, which the contract names and the entity draws. */
+function OutcomeMark({ tone, label }: { tone: Tone; label: string }) {
   return (
     <span
       className={cn(
@@ -1588,7 +1591,7 @@ function VerdictMark({ verdict }: { verdict: CrossCheckVerdict }) {
   const { t } = useI18n();
 
   return (
-    <StandingMark
+    <OutcomeMark
       tone={VERDICT_TONE[verdict]}
       label={t(VERDICT_LABEL[verdict])}
     />
@@ -2002,7 +2005,7 @@ function RegistryCheckEntry({
           {translateOr(t, `check.${check.key}`, check.key)}
         </span>
         <span className='ml-auto flex shrink-0 items-baseline gap-2'>
-          <StandingMark
+          <OutcomeMark
             tone={OUTCOME_TONE[check.outcome]}
             label={t(OUTCOME_LABEL[check.outcome])}
           />

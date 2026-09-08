@@ -38,7 +38,11 @@ export {
   DocumentTypeSpec,
   FieldRef,
   RegistryCheckSpec,
+  RequirementBand,
+  SupportingDocumentsSpec,
   VerificationProfile,
   type CatalogueDeclaration,
+  type RequirementBandDeclaration,
+  type SupportingDocumentsDeclaration,
 } from './verification-profile.vo.js';
 export { VerificationReport } from './verification-report.vo.js';

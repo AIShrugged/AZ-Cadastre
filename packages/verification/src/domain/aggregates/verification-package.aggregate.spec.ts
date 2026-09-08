@@ -70,6 +70,7 @@ import {
   RegistryOutcome,
   SourceFileId,
   StorageKey,
+  ValidationIssue,
   VerificationProfile,
 } from '../value-objects/index.js';
 
@@ -1231,13 +1232,19 @@ describe('VerificationPackage', () => {
       expect(verification.report).not.toBeNull();
     });
 
+    /*
+     * "Clean" is about what is held against the package, not about the report
+     * being empty. Since ADR-0013 a good package still carries one message —
+     * which supporting documents this case needs — and that is stated for the
+     * applicant, so the outcome is still OK.
+     */
     it('reads as clean when every required document was found', () => {
       const { verification } = aCompletePackage();
 
       verification.complete();
 
       expect(verification.report?.status.value).toBe('OK');
-      expect(verification.report?.isClean).toBe(true);
+      expect(kindsOf(verification)).toEqual(['SupportingDocumentsRequired']);
     });
 
     it('names every required document nobody supplied', () => {
@@ -1247,7 +1254,9 @@ describe('VerificationPackage', () => {
       verification.complete();
 
       expect(
-        verification.report?.issues.map(issue => issue.documentType?.value),
+        verification.report?.issues
+          .filter(issue => issue.kind.value === 'MissingDocument')
+          .map(issue => issue.documentType?.value),
       ).toEqual(REQUIRED_TYPES.filter(type => type !== 'identity_card'));
     });
 
@@ -1335,7 +1344,7 @@ describe('VerificationPackage', () => {
 
       verification.complete();
 
-      expect(kindsOf(verification)).toEqual([]);
+      expect(kindsOf(verification)).toEqual(['SupportingDocumentsRequired']);
     });
 
     it('reports a document that read fine and is not of a type the profile asks for', () => {
@@ -1398,7 +1407,10 @@ describe('VerificationPackage', () => {
 
       built.verification.complete();
 
-      expect(kindsOf(built.verification)).toEqual(['ExtraDocument']);
+      expect(kindsOf(built.verification)).toEqual([
+        'ExtraDocument',
+        'SupportingDocumentsRequired',
+      ]);
       expect(built.verification.report?.status.value).toBe('OK');
     });
 
@@ -1662,6 +1674,278 @@ describe('VerificationPackage', () => {
       reread.complete();
 
       expect(kindsOf(reread)).not.toContain('UnreadableDocument');
+    });
+  });
+
+  /*
+   * Which supporting documents this case needs, worked out from how tall the
+   * building is and what year it is dated by (ADR-0013).
+   *
+   * The thresholds and the sets the assertions below name are the profile's
+   * provisional table — `supporting-documents.table.ts`, whose values are ours
+   * and not the customer's. What is under test is the mechanism: that the right
+   * band is chosen, that a figure nobody could read never chooses one, and that
+   * the message is told either way and counts against nothing.
+   */
+  describe('the supporting documents it says the applicant must bring', () => {
+    function aValue(
+      key: string,
+      value: string,
+      confidence = 0.9,
+    ): ExtractedField {
+      return ExtractedField.of(
+        FieldKey.create(key),
+        FieldValue.create(value),
+        Confidence.of(confidence),
+        PageNumber.first(),
+      );
+    }
+
+    // A package holding one sketch design and whatever it was read to state.
+    function aDesignStating(
+      fields: readonly (readonly [string, string, number?])[],
+    ): VerificationPackage {
+      const built = aSegmentedPackage();
+      built.verification.classify(
+        built.document.id,
+        aClassification('sketch_project'),
+      );
+      if (fields.length > 0) {
+        built.verification.recordExtractedFields(
+          built.document.id,
+          fields.map(([key, value, confidence]) =>
+            aValue(key, value, confidence),
+          ),
+        );
+      }
+      built.verification.complete();
+
+      return built.verification;
+    }
+
+    function messageOf(verification: VerificationPackage): ValidationIssue {
+      const told = (verification.report?.issues ?? []).filter(
+        issue => issue.kind.value === 'SupportingDocumentsRequired',
+      );
+
+      expect(told).toHaveLength(1);
+
+      return told[0]!;
+    }
+
+    it('places a low house dated by a recent year in the band for one', () => {
+      const verification = aDesignStating([
+        ['building_height', '9,4 m'],
+        ['approval_date', '18.12.2025'],
+      ]);
+
+      expect(messageOf(verification).message).toContain('low_rise_recent');
+    });
+
+    it('places a low house dated before the notification regime in the band for one', () => {
+      const verification = aDesignStating([
+        ['building_height', '9,4 m'],
+        ['approval_date', '04.06.2005'],
+      ]);
+
+      expect(messageOf(verification).message).toContain('low_rise_legacy');
+    });
+
+    it('places a house tall enough to have needed a permit in the band for one', () => {
+      const verification = aDesignStating([
+        ['building_height', '18 m'],
+        ['approval_date', '18.12.2025'],
+      ]);
+
+      expect(messageOf(verification).message).toContain('mid_rise');
+    });
+
+    it('places a house tall enough to have needed the design examined in the band for one', () => {
+      const verification = aDesignStating([
+        ['building_height', '31 m'],
+        ['approval_date', '18.12.2025'],
+      ]);
+
+      expect(messageOf(verification).message).toContain('high_rise');
+    });
+
+    // A bound is inclusive at the bottom and exclusive at the top, so the two
+    // bands either side of twelve metres do not argue over twelve itself.
+    it('reads a height exactly on a threshold as the band the threshold opens', () => {
+      const verification = aDesignStating([
+        ['building_height', '12 m'],
+        ['approval_date', '18.12.2025'],
+      ]);
+
+      expect(messageOf(verification).message).toContain('mid_rise');
+    });
+
+    it('names the papers of the band it placed the case in', () => {
+      const verification = aDesignStating([
+        ['building_height', '18 m'],
+        ['approval_date', '18.12.2025'],
+      ]);
+
+      expect(messageOf(verification).message).toContain('Construction permit');
+      expect(messageOf(verification).message).toContain('Act of commissioning');
+    });
+
+    // A band that says nothing about the year answers whatever year is read,
+    // including none: a rule that holds in every year holds when nobody could
+    // read the year.
+    it('decides a band whose rule does not turn on the year without one', () => {
+      const verification = aDesignStating([['building_height', '18 m']]);
+
+      expect(messageOf(verification).message).toContain('mid_rise');
+    });
+
+    it('falls back to the next paper of the profile ordering for the year', () => {
+      const built = aSegmentedPackage(2);
+      built.verification.classify(
+        built.documents[0]!.id,
+        aClassification('sketch_project'),
+      );
+      built.verification.classify(
+        built.documents[1]!.id,
+        aClassification('disposal_order'),
+      );
+      built.verification.recordExtractedFields(built.documents[0]!.id, [
+        aValue('building_height', '9,4 m'),
+      ]);
+      built.verification.recordExtractedFields(built.documents[1]!.id, [
+        aValue('issue_date', '04.06.2005'),
+      ]);
+      built.verification.complete();
+
+      expect(messageOf(built.verification).message).toContain(
+        'low_rise_legacy',
+      );
+    });
+
+    it('files the message against the reading it was decided on', () => {
+      const built = aSegmentedPackage();
+      built.verification.classify(
+        built.document.id,
+        aClassification('sketch_project'),
+      );
+      built.verification.recordExtractedFields(built.document.id, [
+        aValue('building_height', '18 m', 0.82),
+        aValue('approval_date', '18.12.2025', 0.91),
+      ]);
+      built.verification.complete();
+
+      const told = messageOf(built.verification);
+      expect(told.documentId?.equals(built.document.id)).toBe(true);
+      expect(told.documentType?.value).toBe('sketch_project');
+      expect(told.fieldKey?.value).toBe('building_height');
+      // A set is only as certain as the least certain figure it was chosen on.
+      expect(told.confidence?.value).toBe(0.82);
+    });
+
+    /*
+     * The half that is easy to forget. A height nobody could read must not
+     * choose a band — the applicant would be sent for the wrong papers — but it
+     * must not silence the message either: the applicant still has papers to
+     * bring, and the inspector has to be able to see that the engine could not
+     * work out which.
+     */
+    it('decides no band when the height could not be read', () => {
+      const verification = aDesignStating([
+        // Storeys, not metres. Reading it as metres would place a two-storey
+        // house in the lowest band with a straight face.
+        ['building_height', '2 mərtəbə'],
+        ['approval_date', '18.12.2025'],
+      ]);
+
+      expect(messageOf(verification).message).toContain('could not be decided');
+      expect(messageOf(verification).message).toContain(
+        'the height of the building could not be read',
+      );
+    });
+
+    it('decides no band when the package states neither figure', () => {
+      const verification = aDesignStating([]);
+
+      expect(messageOf(verification).message).toContain(
+        'neither the height of the building nor the year',
+      );
+    });
+
+    it('decides no band when the year is needed and the package states none', () => {
+      const verification = aDesignStating([['building_height', '9,4 m']]);
+
+      expect(messageOf(verification).message).toContain('could not be decided');
+    });
+
+    // Undecided is not silent: which set applies is exactly what is unknown, so
+    // every set is named and the applicant learns what they may be asked for.
+    it('names every set when it could decide on none of them', () => {
+      const message = messageOf(aDesignStating([])).message;
+
+      for (const band of VerificationProfile.CADASTRE.supportingDocuments[0]!
+        .bands) {
+        expect(message).toContain(band.key);
+      }
+    });
+
+    /*
+     * What tells the two apart on the wire. A message that placed the case
+     * carries the reading it was placed on; one that could not carries no
+     * document, no sheet and no confidence — "we could not work this out" must
+     * never read like "we worked it out and all is well".
+     */
+    it('carries no reading when it could decide no band', () => {
+      const told = messageOf(aDesignStating([]));
+
+      expect(told.documentId).toBeNull();
+      expect(told.documentType).toBeNull();
+      expect(told.fieldKey).toBeNull();
+      expect(told.pageNumber).toBeNull();
+      expect(told.confidence).toBeNull();
+    });
+
+    it('is stated for the applicant and never against the package', () => {
+      const built = aSegmentedPackage(REQUIRED_TYPES.length);
+      REQUIRED_TYPES.forEach((type, index) => {
+        built.verification.classify(
+          built.documents[index]!.id,
+          aClassification(type),
+        );
+      });
+      built.verification.complete();
+
+      expect(messageOf(built.verification).kind.isInformational).toBe(true);
+      expect(built.verification.report?.status.value).toBe('OK');
+    });
+
+    // Absence of data is not a violation: a package that is otherwise in order
+    // and whose height nobody could read still reads OK.
+    it('does not spoil the outcome when it could decide no band', () => {
+      const built = aSegmentedPackage(REQUIRED_TYPES.length);
+      REQUIRED_TYPES.forEach((type, index) => {
+        built.verification.classify(
+          built.documents[index]!.id,
+          aClassification(type),
+        );
+      });
+      built.verification.complete();
+
+      expect(messageOf(built.verification).message).toContain(
+        'could not be decided',
+      );
+      expect(built.verification.report?.status.value).toBe('OK');
+    });
+
+    // One message per branch the profile declares, and the profile declares
+    // one: a re-run works the report out from scratch, so this cannot double up.
+    it('tells it once per branch the profile declares', () => {
+      const verification = aDesignStating([['building_height', '18 m']]);
+
+      expect(
+        (verification.report?.issues ?? []).filter(
+          issue => issue.kind.value === 'SupportingDocumentsRequired',
+        ),
+      ).toHaveLength(VerificationProfile.CADASTRE.supportingDocuments.length);
     });
   });
 

@@ -40,7 +40,7 @@ import {
   SourceFileNotInPackageException,
   SourceFileNotSplitException,
 } from '../exceptions/index.js';
-import { attestationIn } from '../services/index.js';
+import { attestationIn, heightInMetres, yearIn } from '../services/index.js';
 import {
   CheckedValue,
   Confidence,
@@ -63,6 +63,7 @@ import {
   type RegistryCheckKey,
   type RegistryCheckSpec,
   type SourceFileId,
+  type SupportingDocumentsSpec,
   type VerificationProfile,
 } from '../value-objects/index.js';
 
@@ -246,8 +247,16 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
    * on several of the papers and they are not equally trustworthy (ADR-0010).
    */
   askedOf(spec: RegistryCheckSpec): CheckedValue | null {
-    for (const subject of spec.subjects) {
-      const [value] = this.valuesOf(subject);
+    return this.firstStated(spec.subjects);
+  }
+
+  // The first of an ordered list of places a value is printed that this package
+  // actually states. Shared by every rule that reads one figure off whichever
+  // of several papers carries it, because the ordering is the profile's and the
+  // walk is always the same.
+  private firstStated(references: readonly FieldRef[]): CheckedValue | null {
+    for (const reference of references) {
+      const [value] = this.valuesOf(reference);
 
       if (value) return value;
     }
@@ -589,6 +598,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       ...this.unattested(),
       ...this.alsoInThePackage(),
       ...this.againstTheRecord(),
+      ...this.supportingDocuments(),
     ];
 
     this.#report = VerificationReport.of(issues);
@@ -639,6 +649,56 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
 
         return [ValidationIssue.registryUnconfirmed(check)];
       });
+  }
+
+  /*
+   * What the applicant must bring beyond the envelope, and which of the
+   * profile's sets this case needs.
+   *
+   * Stated on every report the profile declares a branch on, decided or not.
+   * That is the point of it: the message is about what happens next, not about
+   * what arrived, and a case whose height nobody could read still has papers to
+   * bring. Where the branch could not be decided the report says so and names
+   * every set, which is a different thing from a report that decided and is
+   * content — and the two must not read alike (ADR-0013).
+   *
+   * Never held against the package: the thresholds are read off the papers, not
+   * checked against them, and none of the papers named is in the envelope.
+   */
+  private supportingDocuments(): readonly ValidationIssue[] {
+    return this.#profile.supportingDocuments.map(spec => {
+      const stated = this.figuresFor(spec);
+      const band = spec.bandFor(stated.metres, stated.year);
+
+      return band
+        ? ValidationIssue.supportingDocuments(band, stated.decidedOn)
+        : ValidationIssue.supportingDocumentsUndecided(spec, stated);
+    });
+  }
+
+  // The two figures the branch turns on, each off the first paper of the
+  // profile's ordering that states it, and the readings they came from — kept
+  // so the message can be filed against a sheet the inspector can open.
+  private figuresFor(spec: SupportingDocumentsSpec): {
+    readonly metres: number | null;
+    readonly year: number | null;
+    readonly decidedOn: readonly CheckedValue[];
+  } {
+    const height = this.firstStated(spec.height);
+    const dated = this.firstStated(spec.builtIn);
+    const metres = height ? heightInMetres(height.value.value) : null;
+    const year = dated ? yearIn(dated.value.value) : null;
+
+    // Only the readings a figure actually came out of. A field that was read
+    // and could not be understood as a height told the branch nothing, and
+    // anchoring the message to it would point the inspector at a value that
+    // decided none of this.
+    const decidedOn = [
+      metres === null ? null : height,
+      year === null ? null : dated,
+    ].filter((value): value is CheckedValue => value !== null);
+
+    return { metres, year, decidedOn };
   }
 
   private unreadable(): readonly ValidationIssue[] {

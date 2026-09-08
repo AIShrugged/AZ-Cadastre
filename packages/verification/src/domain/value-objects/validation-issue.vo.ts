@@ -1,6 +1,10 @@
 import type { Confidence } from './confidence.vo.js';
 import { CrossCheckVerdict } from './cross-check-verdict.vo.js';
-import type { CrossCheck, CrossCheckKey } from './cross-check.vo.js';
+import type {
+  CheckedValue,
+  CrossCheck,
+  CrossCheckKey,
+} from './cross-check.vo.js';
 import { DocumentType as DocumentTypeRef } from './document-type.vo.js';
 import type { DocumentType } from './document-type.vo.js';
 import type { DocumentId, SourceFileId } from './entity-ids/index.js';
@@ -9,6 +13,10 @@ import { IssueKind } from './issue-kind.vo.js';
 import type { PageNumber } from './page-number.vo.js';
 import type { PageRange } from './page-range.vo.js';
 import type { RegistryCheck, RegistryDocument } from './registry-check.vo.js';
+import type {
+  RequirementBand,
+  SupportingDocumentsSpec,
+} from './verification-profile.vo.js';
 
 type Finding = {
   readonly kind: IssueKind;
@@ -299,6 +307,105 @@ export class ValidationIssue {
       pageNumber: pages.first,
       confidence,
     });
+  }
+
+  /*
+   * What the applicant must bring, for the case this package turned out to be.
+   *
+   * Filed against the value the branch was decided on, and carrying that
+   * reading's own confidence: a set chosen on a height read at 0.4 is a set
+   * chosen on a guess, and an inspector settling it opens the sheet the figure
+   * was read off. `decidedOn` is in the order the branch read the figures, so
+   * the first of them is the one the message is anchored to.
+   *
+   * Never a finding against the package. None of these papers is in the
+   * envelope and none of them was checked — the message says what to bring, and
+   * the report's own status is decided without it (ADR-0013).
+   */
+  static supportingDocuments(
+    band: RequirementBand,
+    decidedOn: readonly CheckedValue[],
+  ): ValidationIssue {
+    const [anchor] = decidedOn;
+    const read = decidedOn.map(value => value.cited).join(', ');
+
+    return ValidationIssue.of({
+      kind: IssueKind.SUPPORTING_DOCUMENTS_REQUIRED,
+      message:
+        `This case falls under "${band.key}" (${band.bounds})` +
+        `${read ? `, read off ${read}` : ''}. The applicant must bring: ` +
+        `${band.cited}.`,
+      documentId: anchor?.documentId,
+      documentType: anchor?.documentType,
+      fieldKey: anchor?.fieldKey,
+      pageNumber: anchor?.foundOn,
+      confidence: ValidationIssue.leastConfidentOf(decidedOn),
+    });
+  }
+
+  /*
+   * The same message where the case could not be placed: because a figure the
+   * branch turns on could not be read off the package, or because the profile's
+   * bands leave a hole this case fell into.
+   *
+   * It still names the papers — every set of them, since which one applies is
+   * exactly what is unknown. An applicant learning that they must bring one of
+   * three sets is better served than one told nothing, and an inspector reading
+   * this knows the engine did not check rather than that it checked and was
+   * content.
+   *
+   * Carries no document, no sheet and no confidence, which is what a reader
+   * tells it apart by: there was no reading to file it against.
+   */
+  static supportingDocumentsUndecided(
+    spec: SupportingDocumentsSpec,
+    read: { readonly metres: number | null; readonly year: number | null },
+  ): ValidationIssue {
+    const sets = spec.bands
+      .map(band => `"${band.key}" (${band.bounds}) — ${band.cited}`)
+      .join('; ');
+
+    return ValidationIssue.of({
+      kind: IssueKind.SUPPORTING_DOCUMENTS_REQUIRED,
+      message:
+        `Which supporting documents this case needs could not be decided: ` +
+        `${ValidationIssue.whyUndecided(read)}. Whichever it is, the ` +
+        `applicant must bring one of these sets: ${sets}.`,
+    });
+  }
+
+  private static whyUndecided(read: {
+    readonly metres: number | null;
+    readonly year: number | null;
+  }): string {
+    if (read.metres === null && read.year === null) {
+      return 'neither the height of the building nor the year it is dated by could be read off this package';
+    }
+    if (read.metres === null) {
+      return 'the height of the building could not be read off this package';
+    }
+    if (read.year === null) {
+      return 'the year this case is dated by could not be read off this package';
+    }
+
+    return (
+      `no band of this profile covers a building of ${read.metres} m dated ` +
+      `${read.year}`
+    );
+  }
+
+  // A set is only as certain as the least certain reading it was chosen on. No
+  // reading at all is no claim, which is null rather than a confident nothing.
+  private static leastConfidentOf(
+    values: readonly CheckedValue[],
+  ): Confidence | null {
+    return values.reduce<Confidence | null>(
+      (lowest, value) =>
+        lowest === null || value.confidence.value < lowest.value
+          ? value.confidence
+          : lowest,
+      null,
+    );
   }
 
   static lowConfidenceType(

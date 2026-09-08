@@ -357,6 +357,97 @@ describe('VerificationProfile', () => {
     });
   });
 
+  /*
+   * The branch that decides which supporting documents a case needs. What is
+   * under test is the mechanism, not the numbers: the thresholds it is exercised
+   * with come from `supporting-documents.table.ts`, which says of itself that
+   * they are provisional and unconfirmed by the customer (ADR-0013).
+   */
+  describe('the supporting documents it branches into', () => {
+    const BRANCH = VerificationProfile.CADASTRE.supportingDocuments[0]!;
+
+    it('declares one branch, decided on the building and not on the papers', () => {
+      expect(VerificationProfile.CADASTRE.supportingDocuments).toHaveLength(1);
+      expect(BRANCH.key).toBe('building_supporting_documents');
+    });
+
+    it('reads the height off the paper that describes the building', () => {
+      expect(
+        BRANCH.height[0]?.matches(
+          DocumentType.create('sketch_project'),
+          FieldKey.create('building_height'),
+        ),
+      ).toBe(true);
+    });
+
+    // In the order the papers are believed, like a registry check's subject:
+    // the first the package states is the one read.
+    it('names more than one place the year may be printed', () => {
+      expect(BRANCH.builtIn.length).toBeGreaterThan(1);
+      expect(
+        BRANCH.builtIn[0]?.matches(
+          DocumentType.create('sketch_project'),
+          FieldKey.create('approval_date'),
+        ),
+      ).toBe(true);
+    });
+
+    it('declares only bands with keys of their own', () => {
+      const keys = BRANCH.bands.map(band => band.key);
+
+      expect(new Set(keys).size).toBe(keys.length);
+    });
+
+    it('asks for at least one paper in every band it declares', () => {
+      for (const band of BRANCH.bands) {
+        expect(band.documents.length).toBeGreaterThan(0);
+      }
+    });
+
+    it('places a case in the band that covers it', () => {
+      expect(BRANCH.bandFor(9.4, 2025)?.key).toBe('low_rise_recent');
+      expect(BRANCH.bandFor(9.4, 2005)?.key).toBe('low_rise_legacy');
+      expect(BRANCH.bandFor(18, 2025)?.key).toBe('mid_rise');
+      expect(BRANCH.bandFor(31, 2025)?.key).toBe('high_rise');
+    });
+
+    // Inclusive at the bottom, exclusive at the top, so neighbouring bands can
+    // be written the way they are spoken without arguing over the boundary.
+    it('gives a figure exactly on a bound to the band that bound opens', () => {
+      expect(BRANCH.bandFor(12, 2025)?.key).toBe('mid_rise');
+      expect(BRANCH.bandFor(11.99, 2025)?.key).toBe('low_rise_recent');
+      expect(BRANCH.bandFor(25, 2025)?.key).toBe('high_rise');
+      expect(BRANCH.bandFor(9.4, 2010)?.key).toBe('low_rise_recent');
+      expect(BRANCH.bandFor(9.4, 2009)?.key).toBe('low_rise_legacy');
+    });
+
+    it('places a case on a rule that does not turn on the year without one', () => {
+      expect(BRANCH.bandFor(18, null)?.key).toBe('mid_rise');
+    });
+
+    /*
+     * The whole reason a measure that could not be read is null rather than a
+     * default: a band whose rule turns on that measure must not answer, because
+     * answering means guessing which side of a threshold the case falls on.
+     */
+    it('places no case on a rule that turns on a figure nobody could read', () => {
+      expect(BRANCH.bandFor(null, 2025)).toBeNull();
+      expect(BRANCH.bandFor(9.4, null)).toBeNull();
+      expect(BRANCH.bandFor(null, null)).toBeNull();
+    });
+
+    it('says what each band answers for, so the report can quote the rule', () => {
+      expect(BRANCH.bandFor(18, 2025)?.bounds).toBe('12 m to below 25 m');
+      expect(BRANCH.bandFor(31, 2025)?.bounds).toBe('25 m and above');
+      expect(BRANCH.bandFor(9.4, 2025)?.bounds).toBe(
+        'below 12 m, built 2010 and above',
+      );
+      expect(BRANCH.bandFor(9.4, 2005)?.bounds).toBe(
+        'below 12 m, built below 2010',
+      );
+    });
+  });
+
   it('is equal to another handle on the same profile', () => {
     expect(
       VerificationProfile.CADASTRE.equals(VerificationProfile.of('cadastre')),

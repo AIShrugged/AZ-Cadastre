@@ -42,6 +42,13 @@ export class VerificationReport {
     return this.#issues;
   }
 
+  /*
+   * Whether the report holds nothing at all — which since ADR-0013 is not the
+   * same question as whether anything is wrong. A profile that declares a
+   * supporting-documents branch puts a message on every report it compiles,
+   * and that message is about what the applicant must bring next rather than
+   * about the package. `status` is what says the package is in order.
+   */
   get isClean(): boolean {
     return this.#issues.length === 0;
   }

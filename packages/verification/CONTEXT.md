@@ -39,6 +39,10 @@ _Avoid_: ruleset, config, template
 One of the Verification Profile's cross-document rules, applied to a Package: the values several Documents must state alike (the name on the identity document against the applicant on the application), the verdict — Match, Mismatch or Unclear — and every value it weighed. A check that agreed is kept, not only the ones that failed.
 _Avoid_: comparison, consistency rule, match
 
+**Supporting Documents**:
+The papers an applicant must bring beyond the Verification Package, for the case the package turned out to be. Which set is needed depends on the building — how tall it is and what year it is dated by — so a Verification Profile declares the bands and the engine says which one this case falls in. The engine never reads these papers: they are not in the envelope, and naming them is the whole of what it does with them (ADR-0013). The thresholds and the sets shipped today are provisional and unconfirmed by the customer.
+_Avoid_: additional documents, attachments, required documents (which is the profile's own list)
+
 **Validation Issue**:
 A single problem found during verification (missing document, mismatched fields, a paper without the stamp or signature the profile expects of it, low confidence), always tied to the page and field it came from.
 _Avoid_: error, violation, warning

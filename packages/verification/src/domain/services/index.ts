@@ -13,10 +13,12 @@ export { looksLike } from './document-hints.service.js';
 export { tileIntoRanges } from './page-tiling.service.js';
 export { quotedIn } from './quotation-evidence.service.js';
 export {
+  attestationIn,
   BLANK_PAGE,
   isBlank,
   legibilityOf,
   readAsFarAsItGot,
+  type Attestation,
   type Transcription,
 } from './transcription-marks.service.js';
 export { looksLikeTheSameValue, tokensOf } from './value-agreement.service.js';

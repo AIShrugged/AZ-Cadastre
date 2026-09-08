@@ -33,8 +33,10 @@ export class OcrProviderAdapter extends OcrProvider {
 }
 
 // Keyed off the uploaded filename, and written the way the real papers read —
-// Azerbaijani headings, Russian subtitles — so a mocked run exercises the same
-// classification the live providers are asked to do.
+// Azerbaijani headings, Russian subtitles, and the seals and signatures the
+// office that issued each of them presses on it, marked as the reader is asked
+// to mark them — so a mocked run exercises the same classification and the same
+// attestation check the live providers are asked to answer (ADR-0012).
 function fakeText(key: string): string {
   const name = key.toLowerCase();
 
@@ -67,6 +69,8 @@ function fakeText(key: string): string {
       'Sahə: 642 m2',
       'Sahibi: ELÇİN ƏLİYEV',
       'Tarix: 27.09.2025',
+      '[stamp: BAKI ŞƏHƏR DÖVLƏT TORPAQ VƏ XƏRİTƏÇƏKMƏ KOMİTƏSİ]',
+      '[signature]',
     ].join('\n');
   }
   if (
@@ -84,6 +88,8 @@ function fakeText(key: string): string {
       'Ərizəçi: ELÇİN ƏLİYEV',
       'Ünvan: Bakı ş., Nəsimi r., Azadlıq pr. 12',
       'Sahə: 642 m2',
+      '[stamp: BAKI ŞƏHƏR İCRA HAKİMİYYƏTİ]',
+      '[signature]',
     ].join('\n');
   }
   if (
@@ -118,6 +124,8 @@ function fakeText(key: string): string {
       'Ümumi sahə: 248 m2',
       'Mərtəbələrin sayı: 2',
       'Təsdiq tarixi: 18.12.2025',
+      '[stamp: "AzMemarLayihə" MMC]',
+      '[signature]',
     ].join('\n');
   }
   if (
@@ -134,6 +142,8 @@ function fakeText(key: string): string {
       'Verilmə tarixi: 12.02.2021',
       'Ünvan: Bakı ş., Nəsimi r., Azadlıq pr. 12',
       'Sahibi: ELÇİN ƏLİYEV',
+      '[stamp: BAKI ŞƏHƏR DÖVLƏT ARXİVİ]',
+      '[signature]',
     ].join('\n');
   }
   if (
@@ -151,6 +161,7 @@ function fakeText(key: string): string {
       'Ünvan: Bakı ş., Nəsimi r., Azadlıq pr. 12, mən. 43',
       'Kadastr nömrəsi: AZ-CAD-1024-311',
       'Tarix: 03.11.2025',
+      '[signature]',
     ].join('\n');
   }
 

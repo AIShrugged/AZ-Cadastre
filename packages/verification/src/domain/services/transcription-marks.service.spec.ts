@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  attestationIn,
   BLANK_PAGE,
   isBlank,
   legibilityOf,
@@ -116,5 +117,65 @@ describe('legibilityOf', () => {
       expect(legibilityOf(sample)).toBeGreaterThanOrEqual(0);
       expect(legibilityOf(sample)).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+describe('attestationIn', () => {
+  it('reads the legend of a seal the reader made out', () => {
+    const sheet = [
+      'ARXİV ARAYIŞI',
+      'Arayış No: ARX-2025-0417',
+      '[stamp: BAKI ŞƏHƏR DÖVLƏT ARXİVİ]',
+      '[signature]',
+    ].join('\n');
+
+    expect(attestationIn(sheet)).toEqual({
+      stamps: ['BAKI ŞƏHƏR DÖVLƏT ARXİVİ'],
+      isSigned: true,
+    });
+  });
+
+  it('keeps a seal it could not read apart from no seal at all', () => {
+    expect(attestationIn('[stamp: illegible]').stamps).toEqual(['']);
+    expect(attestationIn('SƏRƏNCAM').stamps).toEqual([]);
+  });
+
+  it('takes a bare mark for the seal it stands for', () => {
+    expect(attestationIn('[stamp]').stamps).toEqual(['']);
+    expect(attestationIn('[stamps: İCRA HAKİMİYYƏTİ]').stamps).toEqual([
+      'İCRA HAKİMİYYƏTİ',
+    ]);
+  });
+
+  it('collects every seal on the sheets it was given, in reading order', () => {
+    const document = [
+      'səh. 1',
+      '[stamp: BİRİNCİ]',
+      'səh. 2',
+      '[stamp: illegible]',
+      '[stamp: İKİNCİ]',
+    ].join('\n');
+
+    expect(attestationIn(document).stamps).toEqual(['BİRİNCİ', '', 'İKİNCİ']);
+  });
+
+  it('does not take the word for the thing', () => {
+    const sheet = 'Möhür və imza yeri / место печати и подписи';
+
+    expect(attestationIn(sheet)).toEqual({ stamps: [], isSigned: false });
+  });
+
+  // The regexp used to be global, and a global one carries its own cursor: the
+  // second document read through it answered from wherever the first stopped.
+  it('answers the same text the same way twice', () => {
+    const signed = 'ƏRİZƏ\n[signature]';
+
+    expect(attestationIn(signed).isSigned).toBe(true);
+    expect(attestationIn(signed).isSigned).toBe(true);
+  });
+
+  it('sees a signature however the reader qualified it', () => {
+    expect(attestationIn('[signatures]').isSigned).toBe(true);
+    expect(attestationIn('[signature — illegible]').isSigned).toBe(true);
   });
 });

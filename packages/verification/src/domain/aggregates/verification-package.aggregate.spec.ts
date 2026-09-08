@@ -104,7 +104,17 @@ function aDocumentOf(sourceFileId: SourceFileId, pages: PageRange): Document {
   return Document.create(DocumentId.of(anId()), sourceFileId, pages);
 }
 
-function anOcrResult(text = 'Republic of Azerbaijan'): OcrResult {
+// The default carries the marks an issuing office presses on its paper: the
+// packages these helpers build are meant to be the ones an inspector has
+// nothing to be told about, and since ADR-0012 a sheet read with no seal and no
+// signature on it is a finding of its own.
+const ATTESTED = [
+  'Republic of Azerbaijan',
+  '[stamp: STATE REGISTER]',
+  '[signature]',
+].join('\n');
+
+function anOcrResult(text = ATTESTED): OcrResult {
   return OcrResult.of(RecognisedText.of(text), Confidence.of(0.9));
 }
 
@@ -570,7 +580,7 @@ describe('VerificationPackage', () => {
       ).toThrow(PageAlreadyRecognisedException);
       expect(
         verification.fileWith(file.id).pageWith(pages[0]!.id).ocr?.text.value,
-      ).toBe('Republic of Azerbaijan');
+      ).toBe(ATTESTED);
     });
   });
 
@@ -1121,6 +1131,241 @@ describe('VerificationPackage', () => {
       verification.complete();
 
       expect(kindsOf(verification)).toEqual([]);
+    });
+
+    /*
+     * One sheet, read as `text` and placed as `type`: the smallest package that
+     * can be asked whether the paper carries the marks the office that issued
+     * it presses on it. It is short of the other six required documents, which
+     * the report says too — every assertion here filters to the finding it is
+     * about.
+     */
+    function aPaper(type: string, text: string, confidence = 0.9) {
+      const built = aStartedPackage();
+      const page = aPage(1);
+      built.verification.splitIntoPages(built.file.id, [page]);
+      built.verification.recordRecognition(
+        built.file.id,
+        page.id,
+        OcrResult.of(RecognisedText.of(text), Confidence.of(confidence)),
+      );
+      const document = aDocumentOf(built.file.id, range(1, 1));
+      built.verification.segmentIntoDocuments(built.file.id, [document]);
+      built.verification.classify(document.id, aClassification(type));
+
+      return { ...built, document };
+    }
+
+    function attestationFindings(verification: VerificationPackage) {
+      return (verification.report?.issues ?? []).filter(
+        issue => issue.kind.value === 'MissingAttestation',
+      );
+    }
+
+    it('reports a certificate the archive never sealed', () => {
+      const { verification, document } = aPaper(
+        'archive_certificate',
+        'ARXİV ARAYIŞI\nArayış No: ARX-2025-0417\n[signature]',
+      );
+
+      verification.complete();
+
+      const [finding, ...rest] = attestationFindings(verification);
+      expect(rest).toEqual([]);
+      expect(finding?.documentId?.equals(document.id)).toBe(true);
+      expect(finding?.documentType?.value).toBe('archive_certificate');
+      expect(finding?.message).toContain('no stamp');
+    });
+
+    it('tells a seal that says nothing apart from no seal at all', () => {
+      const { verification } = aPaper(
+        'archive_certificate',
+        'ARXİV ARAYIŞI\n[stamp: illegible]\n[signature]',
+      );
+
+      verification.complete();
+
+      const [finding] = attestationFindings(verification);
+      expect(finding?.message).toContain('could not be read');
+    });
+
+    it('reports the signature an application was filed without', () => {
+      const { verification } = aPaper(
+        'application',
+        'DÖVLƏT QEYDİYYATI HAQQINDA ƏRİZƏ\nƏrizəçi: ELÇİN ƏLİYEV',
+      );
+
+      verification.complete();
+
+      const findings = attestationFindings(verification);
+      expect(findings).toHaveLength(1);
+      expect(findings[0]?.message).toContain('no signature');
+    });
+
+    // Two marks, two findings: an inspector confirms a seal and a signature by
+    // looking at different parts of the sheet.
+    it('states each absent mark on its own line', () => {
+      const { verification } = aPaper(
+        'land_plot_plan',
+        'TORPAQ SAHƏSİNİN PLAN-SXEMİ\nSahə: 642 m2',
+      );
+
+      verification.complete();
+
+      expect(
+        attestationFindings(verification).map(issue => issue.message),
+      ).toEqual([
+        expect.stringContaining('no stamp'),
+        expect.stringContaining('no signature'),
+      ]);
+    });
+
+    it('asks neither mark of a paper no office seals or signs', () => {
+      const { verification } = aPaper(
+        'payment_receipt',
+        'ÖDƏNİŞ QƏBZİ\nQəbz No: QB-2025-88301',
+      );
+
+      verification.complete();
+
+      expect(attestationFindings(verification)).toEqual([]);
+    });
+
+    it('leaves a properly attested paper out of the report', () => {
+      const { verification } = aPaper(
+        'archive_certificate',
+        'ARXİV ARAYIŞI\n[stamp: BAKI ŞƏHƏR DÖVLƏT ARXİVİ]\n[signature]',
+      );
+
+      verification.complete();
+
+      expect(attestationFindings(verification)).toEqual([]);
+    });
+
+    // Nothing is asserted above the confidence of the sheet it came from
+    // (docs/process-overview.md §5): "no seal on this paper" is a claim about a
+    // reading, and it is worth exactly what that reading was worth.
+    it('states the absent mark no more confidently than the sheet was read', () => {
+      const { verification } = aPaper(
+        'archive_certificate',
+        'ARXİV ARAYIŞI\n[signature]',
+        0.55,
+      );
+
+      verification.complete();
+
+      expect(attestationFindings(verification)[0]?.confidence?.value).toBe(
+        0.55,
+      );
+    });
+
+    it('records the claim as unassessed when a sheet of the paper went unread', () => {
+      const built = aStartedPackage();
+      const pages = [aPage(1), aPage(2)];
+      built.verification.splitIntoPages(built.file.id, pages);
+      built.verification.recordRecognition(
+        built.file.id,
+        pages[0]!.id,
+        OcrResult.of(RecognisedText.of('ARXİV ARAYIŞI'), Confidence.of(0.93)),
+      );
+      const document = aDocumentOf(built.file.id, range(1, 2));
+      built.verification.segmentIntoDocuments(built.file.id, [document]);
+      built.verification.classify(
+        document.id,
+        aClassification('archive_certificate'),
+      );
+
+      built.verification.complete();
+
+      expect(
+        attestationFindings(built.verification)[0]?.confidence?.value,
+      ).toBe(0);
+    });
+
+    // The sheets are already reported as unread. Saying the seal they were
+    // never read for is absent would be a claim about the reading dressed up as
+    // a claim about the document.
+    it('says nothing about the marks on a paper nothing was read off', () => {
+      const built = aStartedPackage();
+      const page = aPage(1);
+      built.verification.splitIntoPages(built.file.id, [page]);
+      built.verification.recordRecognition(
+        built.file.id,
+        page.id,
+        OcrResult.illegible(),
+      );
+      const document = aDocumentOf(built.file.id, range(1, 1));
+      built.verification.segmentIntoDocuments(built.file.id, [document]);
+      built.verification.classify(
+        document.id,
+        aClassification('archive_certificate'),
+      );
+
+      built.verification.complete();
+
+      expect(attestationFindings(built.verification)).toEqual([]);
+    });
+
+    it('asks nothing of a document the classifier could not place', () => {
+      const built = aStartedPackage();
+      const page = aPage(1);
+      built.verification.splitIntoPages(built.file.id, [page]);
+      built.verification.recordRecognition(
+        built.file.id,
+        page.id,
+        anOcrResult('ARXİV ARAYIŞI'),
+      );
+      const document = aDocumentOf(built.file.id, range(1, 1));
+      built.verification.segmentIntoDocuments(built.file.id, [document]);
+      built.verification.classify(
+        document.id,
+        Classification.unplaced(Confidence.of(0.2)),
+      );
+
+      built.verification.complete();
+
+      expect(attestationFindings(built.verification)).toEqual([]);
+    });
+
+    // A shortfall in the paper and not an observation about the envelope: the
+    // package is not incomplete, but it is not fine either.
+    it('counts an unsealed paper against the package', () => {
+      const { verification } = aCompletePackage();
+      const stripped = VerificationPackage.restore({
+        id: verification.id,
+        version: 2,
+        profile: VerificationProfile.CADASTRE,
+        status: PackageStatus.PROCESSING,
+        files: [
+          SourceFile.restore({
+            id: verification.files[0]!.id,
+            filename: verification.files[0]!.filename,
+            contentType: verification.files[0]!.contentType,
+            storageKey: verification.files[0]!.storageKey,
+            pages: verification.files[0]!.pages.map((page, index) =>
+              index === 0
+                ? Page.restore(
+                    page.id,
+                    page.number,
+                    page.image,
+                    OcrResult.of(
+                      RecognisedText.of('TORPAQ SAHƏSİNİN PLAN-SXEMİ'),
+                      Confidence.of(0.9),
+                    ),
+                  )
+                : page,
+            ),
+          }),
+        ],
+        documents: verification.documents,
+        crossChecks: verification.crossChecks,
+        registryChecks: verification.registryChecks,
+        report: null,
+      });
+      stripped.complete();
+
+      expect(stripped.report?.status.value).toBe('IssuesFound');
+      expect(attestationFindings(stripped)).toHaveLength(2);
     });
 
     it('works the findings out afresh, so a re-run drops one it has answered', () => {

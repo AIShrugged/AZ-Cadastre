@@ -13,6 +13,7 @@ enum IssueKind {
   RegistryMismatch // the archive record of the property says something else
   RegistryDocumentMissing // the archive holds no original of a paper relied on
   RegistryUnconfirmed // the register held no record of the property, or held two
+  MissingAttestation // a paper the profile expects sealed or signed carries no such mark
 }
 
 model ValidationIssue {

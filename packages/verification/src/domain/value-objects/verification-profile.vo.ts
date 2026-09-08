@@ -20,6 +20,13 @@ type Declaration = {
   // written in. Azerbaijani first, then Russian.
   readonly hints: readonly string[];
   readonly required: boolean;
+  // Whether a paper of this kind is only itself once an office has sealed it,
+  // and whether a hand has to have signed it. Stated per type and not once for
+  // the profile: an applicant has no seal, and a bank terminal prints a receipt
+  // that carries neither mark (ADR-0012). Both are declared on every type, so
+  // that adding one is answering the question rather than forgetting it.
+  readonly expectsStamp: boolean;
+  readonly expectsSignature: boolean;
   readonly fields: readonly (readonly [string, string])[];
 };
 
@@ -186,6 +193,8 @@ export class DocumentTypeSpec {
     public readonly hints: readonly string[],
     public readonly schema: FieldSchema,
     public readonly isRequired: boolean,
+    public readonly expectsStamp: boolean,
+    public readonly expectsSignature: boolean,
   ) {}
 
   static of(declaration: Declaration): DocumentTypeSpec {
@@ -197,6 +206,8 @@ export class DocumentTypeSpec {
         declaration.fields.map(([key, label]) => FieldSpec.of(key, label)),
       ),
       declaration.required,
+      declaration.expectsStamp,
+      declaration.expectsSignature,
     );
   }
 
@@ -205,7 +216,15 @@ export class DocumentTypeSpec {
   // since changed. It declares no fields, so nothing is extracted from it and
   // nothing counts it as missing.
   static unrecognised(type: DocumentType): DocumentTypeSpec {
-    return new DocumentTypeSpec(type, '', [], FieldSchema.none(), false);
+    return new DocumentTypeSpec(
+      type,
+      '',
+      [],
+      FieldSchema.none(),
+      false,
+      false,
+      false,
+    );
   }
 }
 
@@ -233,6 +252,11 @@ export class VerificationProfile {
           'план-схема',
         ],
         required: true,
+        // Drawn and issued by the cadastre office: the surveyed figures are
+        // its own, and it is the office's seal and the surveyor's hand that say
+        // so (ADR-0012).
+        expectsStamp: true,
+        expectsSignature: true,
         fields: [
           ['property_address', 'Property address'],
           ['cadastral_number', 'Cadastral number'],
@@ -254,6 +278,10 @@ export class VerificationProfile {
           'распоряжение',
         ],
         required: true,
+        // An act of an executive authority. An extract of one is issued by
+        // the same authority and attested the same way.
+        expectsStamp: true,
+        expectsSignature: true,
         fields: [
           ['order_no', 'Order number'],
           ['issuing_authority', 'Issuing authority'],
@@ -270,6 +298,11 @@ export class VerificationProfile {
           'receipt number, the payer, an amount and the date it was paid.',
         hints: ['ödəniş qəbzi', 'qəbz', 'квитанция об оплате', 'квитанция'],
         required: true,
+        // Neither mark. The duty is paid at a bank counter or a terminal and
+        // the slip that comes back is printed, not sealed; requiring a stamp
+        // here would report every correctly paid package as faulty (ADR-0012).
+        expectsStamp: false,
+        expectsSignature: false,
         fields: [
           ['receipt_no', 'Receipt number'],
           ['payer_name', 'Payer name'],
@@ -291,6 +324,10 @@ export class VerificationProfile {
           'эскизного проекта',
         ],
         required: true,
+        // Produced and approved by a design organisation, which signs and
+        // seals the title block of what it puts its name to.
+        expectsStamp: true,
+        expectsSignature: true,
         fields: [
           ['project_name', 'Project name'],
           ['designer_name', 'Design organisation'],
@@ -313,6 +350,10 @@ export class VerificationProfile {
           'архивной справки',
         ],
         required: true,
+        // What an archive issues over its own seal. Unsealed it states
+        // nothing: the whole worth of the certificate is which office says it.
+        expectsStamp: true,
+        expectsSignature: true,
         fields: [
           ['certificate_no', 'Certificate number'],
           ['issuing_authority', 'Issuing authority'],
@@ -334,6 +375,10 @@ export class VerificationProfile {
           'заявление',
         ],
         required: true,
+        // Signed and not sealed: it is written by a natural person, who has no
+        // seal to press. The signature is what makes it their application.
+        expectsStamp: false,
+        expectsSignature: true,
         fields: [
           ['applicant_name', 'Applicant name'],
           ['applicant_document_no', 'Applicant identity document number'],
@@ -356,6 +401,11 @@ export class VerificationProfile {
           'passport',
         ],
         required: true,
+        // Neither. Its security features are printed into the card and the
+        // reader marks them [photo], not [stamp]; a passport's specimen
+        // signature is on a page the package need not carry (ADR-0012).
+        expectsStamp: false,
+        expectsSignature: false,
         fields: [
           ['first_name', 'First name'],
           ['last_name', 'Last name'],

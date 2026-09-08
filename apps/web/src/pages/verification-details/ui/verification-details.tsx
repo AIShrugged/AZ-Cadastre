@@ -1058,6 +1058,10 @@ const SECTIONS: Record<IssueKind, { heading: string; tone: SectionTone }> = {
     heading: 'detail.sec.registry_document_missing',
     tone: 'finding',
   },
+  // Beside the other shortfalls in the package itself and before the reading
+  // ones: the sheet was read perfectly well, and what it was read to hold is a
+  // paper without the seal or the hand that makes it valid (ADR-0012).
+  MissingAttestation: { heading: 'detail.sec.attestation', tone: 'finding' },
   UnreadableDocument: { heading: 'detail.sec.unreadable', tone: 'finding' },
   LowConfidence: { heading: 'detail.sec.low', tone: 'finding' },
   DuplicateDocument: { heading: 'detail.sec.duplicate', tone: 'note' },
@@ -1234,6 +1238,26 @@ function findingOf(
           : issue.kind === 'RegistryDocumentMissing'
             ? t('detail.f.registry_document_missing_sub')
             : t('detail.f.registry_unconfirmed_sub'),
+      anchor,
+      docId: document?.id ?? null,
+    };
+  }
+
+  // A paper the profile expects an office to have sealed or signed, and the
+  // reading found no such mark on it. Named by its type, because the question
+  // is about the document and not about a value on it; which of the two marks
+  // is absent stays in the English audit line, and the row jumps to the sheets
+  // the inspector settles it on.
+  if (issue.kind === 'MissingAttestation') {
+    return {
+      subject: translateOr(
+        t,
+        `doctype.${issue.documentType}`,
+        issue.documentType ?? '',
+      ),
+      where: [t('detail.f.attestation_sub'), within]
+        .filter(Boolean)
+        .join(' · '),
       anchor,
       docId: document?.id ?? null,
     };

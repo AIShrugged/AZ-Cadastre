@@ -90,6 +90,59 @@ describe('VerificationProfile', () => {
     });
   });
 
+  describe('the marks an office leaves on a paper it issues', () => {
+    // The judgement of ADR-0012, written out so that changing it is a change to
+    // this list and not a side effect of editing a description.
+    const EXPECTED: Readonly<
+      Record<string, { stamp: boolean; signature: boolean }>
+    > = {
+      land_plot_plan: { stamp: true, signature: true },
+      disposal_order: { stamp: true, signature: true },
+      payment_receipt: { stamp: false, signature: false },
+      sketch_project: { stamp: true, signature: true },
+      archive_certificate: { stamp: true, signature: true },
+      application: { stamp: false, signature: true },
+      identity_card: { stamp: false, signature: false },
+    };
+
+    it('says of every type it declares whether it is sealed and signed', () => {
+      for (const spec of VerificationProfile.CADASTRE.specs) {
+        const expected = EXPECTED[spec.type.value];
+
+        expect(expected).toBeDefined();
+        expect(spec.expectsStamp).toBe(expected!.stamp);
+        expect(spec.expectsSignature).toBe(expected!.signature);
+      }
+    });
+
+    it('asks no seal of a paper nobody seals', () => {
+      const receipt = VerificationProfile.CADASTRE.specFor(
+        DocumentType.create('payment_receipt'),
+      );
+
+      expect(receipt.expectsStamp).toBe(false);
+      expect(receipt.expectsSignature).toBe(false);
+    });
+
+    it('asks a signature and no seal of the paper an applicant writes', () => {
+      const application = VerificationProfile.CADASTRE.specFor(
+        DocumentType.create('application'),
+      );
+
+      expect(application.expectsStamp).toBe(false);
+      expect(application.expectsSignature).toBe(true);
+    });
+
+    it('asks nothing of a type it does not recognise', () => {
+      const unknown = VerificationProfile.CADASTRE.specFor(
+        DocumentType.create('driver_license'),
+      );
+
+      expect(unknown.expectsStamp).toBe(false);
+      expect(unknown.expectsSignature).toBe(false);
+    });
+  });
+
   describe('recognising a type', () => {
     it('recognises a type it declares', () => {
       expect(

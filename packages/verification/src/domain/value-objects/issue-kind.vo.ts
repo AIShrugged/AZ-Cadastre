@@ -34,6 +34,12 @@ export class IssueKind {
   // 2000s, not everything that exists — so an absence proves nothing and is
   // told to the inspector rather than counted against the package.
   static readonly REGISTRY_UNCONFIRMED = new IssueKind('RegistryUnconfirmed');
+  // A paper that is only itself once an office has sealed or signed it came
+  // without the mark, or with one nothing could be read off. Not
+  // UNREADABLE_DOCUMENT, which is about the reading: the sheet was read, and
+  // what it was read to hold is a document short of what makes it valid
+  // (ADR-0012).
+  static readonly MISSING_ATTESTATION = new IssueKind('MissingAttestation');
 
   private constructor(public readonly value: string) {}
 
@@ -48,6 +54,7 @@ export class IssueKind {
       IssueKind.EXTRA_DOCUMENT,
       IssueKind.DUPLICATE_DOCUMENT,
       IssueKind.REGISTRY_UNCONFIRMED,
+      IssueKind.MISSING_ATTESTATION,
     ];
   }
 

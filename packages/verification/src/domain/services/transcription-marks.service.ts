@@ -112,3 +112,45 @@ export function legibilityOf(text: string): number {
 
   return Math.max(0, Math.min(1, (total - doubtful) / total));
 }
+
+// The marks by which an office attests a paper: the seal it presses, whose
+// legend the reader copies where it can make it out, and the hand that signed
+// it, which is no text at all. Both are written by the transcription stage
+// under the convention declared above, and this is where that convention is
+// read back — a stamp is a finding of its own, not a word of the document.
+//
+// Optional colon and plural because the mark is written by a model: `[stamp]`
+// and `[stamps: ARXİV]` are the same observation as `[stamp: ARXİV]`, and a
+// seal missed on a spelling would be reported as a seal that is not there.
+const STAMP = /\[stamps?(?::\s*([^\]]*))?\]/gi;
+// Deliberately without `g`: a global regexp carries its own cursor, and a
+// shared one answering `test` differently on the same text is a bug that only
+// shows up on the second document.
+const SIGNATURE = /\[signatures?\b[^\]]*\]/i;
+// What the reader is asked to write inside a stamp it cannot make out.
+const ILLEGIBLE = 'illegible';
+
+export type Attestation = {
+  // One entry per stamp on the text, in reading order, holding the legend the
+  // reader made out. A stamp it could not read contributes an empty legend:
+  // sealed but unreadable and not sealed at all are different answers about
+  // the paper, and collapsing them would lose the one an inspector can act on.
+  readonly stamps: readonly string[];
+  readonly isSigned: boolean;
+};
+
+// What a transcription says about the marks on the sheets it covers. It says
+// nothing about how much that is worth: a mark is only as certain as the
+// reading of the sheet it was seen on, so the caller carries that sheet's
+// confidence onto whatever it concludes (docs/process-overview.md §5).
+export function attestationIn(text: string): Attestation {
+  const stamps = [...text.matchAll(STAMP)].map(match => legendOf(match[1]));
+
+  return { stamps, isSigned: SIGNATURE.test(text) };
+}
+
+function legendOf(raw: string | undefined): string {
+  const settled = (raw ?? '').trim();
+
+  return settled.toLowerCase() === ILLEGIBLE ? '' : settled;
+}

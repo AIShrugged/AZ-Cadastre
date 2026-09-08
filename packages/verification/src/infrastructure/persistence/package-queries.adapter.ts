@@ -11,6 +11,9 @@ import type {
 import {
   DocumentType,
   IssueKind,
+  PackageStanding,
+  PackageStatus,
+  ReportStatus,
   type PackageId,
 } from '../../domain/value-objects/index.js';
 
@@ -103,7 +106,10 @@ const SUMMARY_COLUMNS = {
   profileKey: true,
   createdAt: true,
   updatedAt: true,
-  _count: { select: { sourceFiles: true } },
+  // The registry checks are counted and not read: whether the register was
+  // asked anything at all is what the standing turns on, and what it answered
+  // is the detail view's business.
+  _count: { select: { sourceFiles: true, registryChecks: true } },
   documents: {
     select: {
       type: true,
@@ -191,7 +197,10 @@ type SummaryRow = {
   readonly profileKey: string;
   readonly createdAt: Date;
   readonly updatedAt: Date;
-  readonly _count: { readonly sourceFiles: number };
+  readonly _count: {
+    readonly sourceFiles: number;
+    readonly registryChecks: number;
+  };
   readonly documents: readonly {
     readonly type: string | null;
     readonly _count: { readonly extractedFields: number };
@@ -415,6 +424,18 @@ export class PackageQueriesAdapter extends PackageQueries {
     return {
       id: row.id,
       status: row.status,
+      // Worked out here rather than in the mapper, and by the domain's own rule
+      // rather than a second copy of it: a card and the row that leads to it
+      // disagreeing about where a submission stands is exactly what two
+      // implementations of one rule produce (ADR-0014). Both columns are
+      // database enumerations, so neither parse can fail on a stored row.
+      standing: PackageStanding.of({
+        status: PackageStatus.of(row.status),
+        report: row.report ? ReportStatus.of(row.report.status) : null,
+        askedTheArchive: row._count.registryChecks > 0,
+        // Nothing can approve an archive search yet; the approval is COMM-40.
+        archiveSearchApproved: false,
+      }).value,
       profileKey: row.profileKey,
       filesCount: row._count.sourceFiles,
       // Zero until the Segmentation stage has read the files: how many

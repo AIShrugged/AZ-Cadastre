@@ -1,6 +1,10 @@
 export type PackageSummaryView = {
   id: string;
   status: string;
+  // Where the submission stands: what has to happen to it next. Worked out from
+  // the status, the report and what the register was asked; never stored, so
+  // there is no row that can fall out of step with it (ADR-0014).
+  standing: string;
   profileKey: string;
   filesCount: number;
   documentsCount: number;

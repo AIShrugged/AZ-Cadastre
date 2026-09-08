@@ -12,6 +12,10 @@ export {
 } from './cross-check-verdict.enum.js';
 export { IssueKindSchema, type IssueKind } from './issue-kind.enum.js';
 export {
+  PackageStandingSchema,
+  type PackageStanding,
+} from './package-standing.enum.js';
+export {
   PackageStatusSchema,
   PackageStatusTakingFilesSchema,
   type PackageStatus,

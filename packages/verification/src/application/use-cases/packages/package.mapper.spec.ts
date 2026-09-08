@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 import {
   PackageDetailDtoSchema,
   PackageDtoSchema,
+  PackageStandingSchema,
 } from '@cadastre/api-contracts/verification';
 
+import { PackageStanding } from '../../../domain/value-objects/index.js';
 import type {
   CrossCheckView,
   DocumentView,
@@ -30,6 +32,7 @@ function aSummaryView(
   return {
     id: anId(),
     status: 'Completed',
+    standing: 'NeedsInspector',
     profileKey: 'cadastre',
     filesCount: 2,
     documentsCount: 3,
@@ -230,6 +233,25 @@ describe('toSummaryDto', () => {
     expect(dto.id).toBe(view.id);
     expect(dto.status).toBe('Completed');
     expect(dto.profileKey).toBe('cadastre');
+  });
+
+  it('carries the standing across, so a client shows it instead of working out its own', () => {
+    const dto = toSummaryDto(aSummaryView({ standing: 'ShortOfDocuments' }));
+
+    expect(dto.standing).toBe('ShortOfDocuments');
+  });
+
+  /*
+   * The mapper narrows the read model's string to the contract's enum with a
+   * cast, which is the mapper promising that the domain only ever produces a
+   * standing the contract names. Nothing checks that promise at compile time,
+   * so it is checked here: a standing added to one side and not the other fails
+   * on this line rather than at a client that cannot render it (ADR-0014).
+   */
+  it('offers exactly the standings the domain can arrive at', () => {
+    expect([...PackageStandingSchema.options].sort()).toEqual(
+      PackageStanding.all.map(standing => standing.value).sort(),
+    );
   });
 
   it('carries every progress count across unchanged', () => {

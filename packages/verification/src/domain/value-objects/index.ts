@@ -18,6 +18,10 @@ export {
 } from './entity-ids/index.js';
 export { IssueKind } from './issue-kind.vo.js';
 export { OcrResult } from './ocr-result.vo.js';
+export {
+  PackageStanding,
+  type PackageStandingFacts,
+} from './package-standing.vo.js';
 export { PackageStatus } from './package-status.vo.js';
 export { PageImage } from './page-image.vo.js';
 export { PageNumber } from './page-number.vo.js';

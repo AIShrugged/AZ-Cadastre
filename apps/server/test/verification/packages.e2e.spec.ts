@@ -94,6 +94,10 @@ describe('the submission round trip over HTTP', () => {
     expect(body.status).toBe('Completed');
     expect(body.report).not.toBeNull();
     expect(body.files).toHaveLength(2);
+    // The whole reason the standing exists: `Completed` says only that the run
+    // reached the end, and this says what the inspector has to do about it
+    // (ADR-0014).
+    expect(body.standing).toBe('ShortOfDocuments');
   });
 });
 

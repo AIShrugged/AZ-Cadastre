@@ -41,6 +41,7 @@ const MOCK_VALUES: Record<string, string> = {
   designer_name: '"AzMemarLayihə" MMC',
   total_area: '248 m²',
   storeys: '2',
+  building_height: '9,4 m',
   approval_date: '18.12.2025',
 
   certificate_no: 'ARX-2025-0417',

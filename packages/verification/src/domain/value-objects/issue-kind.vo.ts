@@ -40,6 +40,23 @@ export class IssueKind {
   // what it was read to hold is a document short of what makes it valid
   // (ADR-0012).
   static readonly MISSING_ATTESTATION = new IssueKind('MissingAttestation');
+  /*
+   * What the applicant must bring beyond the envelope, for the case this
+   * package turned out to be. The third thing a report can say: not a
+   * shortfall in what arrived and not a doubt about how well it was read, but
+   * a statement about what happens next.
+   *
+   * The engine never checks these papers — they are not in the envelope and
+   * several are issued by offices this system does not reach — so it is stated
+   * for the applicant and counts for nothing against the package. It is stated
+   * whether or not the case could be placed in a band, because an applicant
+   * whose height nobody could read still has papers to bring; the two are told
+   * apart by whether the message carries the reading it was decided on
+   * (ADR-0013).
+   */
+  static readonly SUPPORTING_DOCUMENTS_REQUIRED = new IssueKind(
+    'SupportingDocumentsRequired',
+  );
 
   private constructor(public readonly value: string) {}
 
@@ -55,17 +72,22 @@ export class IssueKind {
       IssueKind.DUPLICATE_DOCUMENT,
       IssueKind.REGISTRY_UNCONFIRMED,
       IssueKind.MISSING_ATTESTATION,
+      IssueKind.SUPPORTING_DOCUMENTS_REQUIRED,
     ];
   }
 
   // Stated for the record, not against the package: a report carrying nothing
   // else still reads OK, because nothing here is a shortfall the inspector has
-  // to resolve before registering.
+  // to resolve before registering. The supporting documents are here for a
+  // slightly different reason than the rest — they are not a finding about the
+  // package at all — but the rule they need is the same one: absence of data is
+  // not a violation (ADR-0013).
   get isInformational(): boolean {
     return (
       this.equals(IssueKind.EXTRA_DOCUMENT) ||
       this.equals(IssueKind.DUPLICATE_DOCUMENT) ||
-      this.equals(IssueKind.REGISTRY_UNCONFIRMED)
+      this.equals(IssueKind.REGISTRY_UNCONFIRMED) ||
+      this.equals(IssueKind.SUPPORTING_DOCUMENTS_REQUIRED)
     );
   }
 

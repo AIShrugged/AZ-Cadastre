@@ -9,6 +9,7 @@ import { DocumentType } from './document-type.vo.js';
 import { FieldSchema, FieldSpec } from './field-schema.vo.js';
 import { FieldKey } from './field.vo.js';
 import { RegistryCheckKey } from './registry-check.vo.js';
+import { UNCONFIRMED_SUPPORTING_DOCUMENTS } from './supporting-documents.table.js';
 
 type Declaration = {
   readonly key: string;
@@ -86,6 +87,63 @@ type RegistryCheckDeclaration = {
   // not as a paper that is missing; only a register that recorded its absence
   // is a finding.
   readonly documents?: readonly (readonly [string, string])[];
+};
+
+/*
+ * What the applicant has to bring beyond the envelope, and how the engine works
+ * out which of several sets this case needs.
+ *
+ * A branch and not a flat list, because the papers a first registration rests
+ * on are not the same for every building: how tall it is and what year it is
+ * dated by decide them. The profile states which values to read the two figures
+ * off and which bands to read them into; the report says which band this
+ * package fell in and what that band asks the applicant to bring.
+ *
+ * The engine never checks these papers and cannot: they are not in the envelope
+ * and several of them are issued by offices this system does not reach. Naming
+ * them is the whole of what it does with them, which is why the message it
+ * produces is stated for the applicant and never counted against the package.
+ */
+export type SupportingDocumentsDeclaration = {
+  readonly key: string;
+  readonly description: string;
+  // Where the height of the building is printed, as [document type key, field
+  // key], in the order the papers are believed: the first of these the package
+  // states is the one read. The same ordering rule a registry check's subject
+  // follows, and for the same reason — one figure is printed on several sheets
+  // and they are not equally trustworthy.
+  readonly height: readonly (readonly [string, string])[];
+  // Where the year the case is dated by is printed, read the same way. A date
+  // is read for its year; a bare year is read as itself.
+  readonly builtIn: readonly (readonly [string, string])[];
+  // In declaration order, and the first band that covers the case wins. Bands
+  // need not cover every case: one that no band covers is a hole in the table,
+  // and the report says the set could not be decided rather than picking a
+  // neighbouring band.
+  readonly bands: readonly RequirementBandDeclaration[];
+};
+
+// One band of the branch: the heights and the years it answers for, and the
+// papers it asks for. Bounds are inclusive at the bottom and exclusive at the
+// top, so neighbouring bands can be written as they are spoken — "below 12 m"
+// and "12 m and taller" — without an argument about which one owns 12. Null is
+// an open end, and a bound left null is a measure this band does not care
+// about: a band with no year bounds answers whatever year is read, including
+// none at all.
+export type RequirementBandDeclaration = {
+  readonly key: string;
+  readonly description: string;
+  // Metres.
+  readonly heightFrom: number | null;
+  readonly heightBelow: number | null;
+  // Years.
+  readonly builtFrom: number | null;
+  readonly builtBefore: number | null;
+  // The papers, named as an applicant would be told them, in English like every
+  // other audit line. Free text and not document type keys: none of them is a
+  // type this profile classifies, and inventing keys for papers the engine
+  // never reads would put words in the contract that answer nothing.
+  readonly documents: readonly string[];
 };
 
 // A document type that no profile asks for, declared so it can be named rather
@@ -191,6 +249,172 @@ export class RegistryCheckSpec {
 
   get documents(): readonly { name: string; type: DocumentType }[] {
     return this.#documents;
+  }
+}
+
+// One band of a supporting-documents branch, as the engine reads it.
+export class RequirementBand {
+  readonly #documents: readonly string[];
+
+  private constructor(
+    public readonly key: string,
+    public readonly description: string,
+    public readonly heightFrom: number | null,
+    public readonly heightBelow: number | null,
+    public readonly builtFrom: number | null,
+    public readonly builtBefore: number | null,
+    documents: readonly string[],
+  ) {
+    this.#documents = [...documents];
+  }
+
+  static of(declaration: RequirementBandDeclaration): RequirementBand {
+    return new RequirementBand(
+      declaration.key,
+      declaration.description,
+      declaration.heightFrom,
+      declaration.heightBelow,
+      declaration.builtFrom,
+      declaration.builtBefore,
+      declaration.documents,
+    );
+  }
+
+  get documents(): readonly string[] {
+    return this.#documents;
+  }
+
+  /*
+   * Whether this band answers for a building of this height, dated this year.
+   *
+   * A measure that could not be read is null, and a band that has something to
+   * say about that measure does not cover the case: guessing which side of a
+   * threshold an unread figure falls on is the one thing this must never do. A
+   * band that says nothing about it covers the case anyway — a rule that holds
+   * whatever the year is holds when nobody could read the year.
+   */
+  covers(metres: number | null, year: number | null): boolean {
+    return (
+      RequirementBand.within(metres, this.heightFrom, this.heightBelow) &&
+      RequirementBand.within(year, this.builtFrom, this.builtBefore)
+    );
+  }
+
+  private static within(
+    measure: number | null,
+    from: number | null,
+    below: number | null,
+  ): boolean {
+    if (from === null && below === null) return true;
+    if (measure === null) return false;
+
+    return (
+      (from === null || measure >= from) && (below === null || measure < below)
+    );
+  }
+
+  // The band's bounds as one line of the audit message, so a reader of the
+  // report can see which rule was applied without opening the profile.
+  get bounds(): string {
+    const height = RequirementBand.said(
+      this.heightFrom,
+      this.heightBelow,
+      figure => `${figure} m`,
+    );
+    const built = RequirementBand.said(
+      this.builtFrom,
+      this.builtBefore,
+      figure => `${figure}`,
+    );
+
+    return (
+      [height, built && `built ${built}`].filter(Boolean).join(', ') ||
+      'any building'
+    );
+  }
+
+  private static said(
+    from: number | null,
+    below: number | null,
+    write: (figure: number) => string,
+  ): string {
+    if (from !== null && below !== null) {
+      return `${write(from)} to below ${write(below)}`;
+    }
+    if (from !== null) return `${write(from)} and above`;
+    if (below !== null) return `below ${write(below)}`;
+
+    return '';
+  }
+
+  // The papers this band asks for, as one line of the audit message.
+  get cited(): string {
+    return this.#documents.join('; ');
+  }
+}
+
+export class SupportingDocumentsSpec {
+  readonly #height: readonly FieldRef[];
+  readonly #builtIn: readonly FieldRef[];
+  readonly #bands: readonly RequirementBand[];
+
+  private constructor(
+    public readonly key: string,
+    public readonly description: string,
+    height: readonly FieldRef[],
+    builtIn: readonly FieldRef[],
+    bands: readonly RequirementBand[],
+  ) {
+    this.#height = [...height];
+    this.#builtIn = [...builtIn];
+    this.#bands = [...bands];
+  }
+
+  static of(
+    declaration: SupportingDocumentsDeclaration,
+  ): SupportingDocumentsSpec {
+    const refs = (
+      pairs: readonly (readonly [string, string])[],
+    ): readonly FieldRef[] =>
+      pairs.map(([type, field]) =>
+        FieldRef.of(DocumentType.create(type), FieldKey.create(field)),
+      );
+
+    return new SupportingDocumentsSpec(
+      declaration.key,
+      declaration.description,
+      refs(declaration.height),
+      refs(declaration.builtIn),
+      declaration.bands.map(band => RequirementBand.of(band)),
+    );
+  }
+
+  // In the order the papers are believed. The first the package states is the
+  // one the figure is read off.
+  get height(): readonly FieldRef[] {
+    return this.#height;
+  }
+
+  get builtIn(): readonly FieldRef[] {
+    return this.#builtIn;
+  }
+
+  get bands(): readonly RequirementBand[] {
+    return this.#bands;
+  }
+
+  /*
+   * Which band this case falls in, or null where the table gives no answer —
+   * because a figure could not be read, or because the bands leave a hole the
+   * case fell into. Both are the same thing to a reader: the set could not be
+   * decided, and they are told so instead of being told the wrong set.
+   *
+   * The first band that covers wins. Bands are read in the order the profile
+   * declares them, so a table whose bands overlap is answered predictably
+   * rather than arbitrarily.
+   */
+  bandFor(metres: number | null, year: number | null): RequirementBand | null {
+    return this.#bands.find(band => band.covers(metres, year)) ?? null;
   }
 }
 
@@ -342,8 +566,9 @@ export class VerificationProfile {
         key: 'sketch_project',
         description:
           'Sketch design of the house, produced by a design organisation. ' +
-          "Carries drawings, the designer's name and the areas and storeys of " +
-          'what is proposed — the building, not the plot it stands on.',
+          "Carries drawings, the designer's name and the areas, storeys and " +
+          'height of what is proposed — the building, not the plot it stands ' +
+          'on.',
         hints: [
           'eskiz layihəsi',
           'eskiz layihə',
@@ -361,6 +586,10 @@ export class VerificationProfile {
           ['property_address', 'Property address'],
           ['total_area', 'Total area'],
           ['storeys', 'Storeys'],
+          // Read for its own sake and for the branch: which supporting
+          // documents this case needs is decided on how tall the building is,
+          // and the sketch design is the only paper of this profile that says.
+          ['building_height', 'Building height'],
           ['approval_date', 'Approval date'],
         ],
       },
@@ -569,17 +798,25 @@ export class VerificationProfile {
         ],
       },
     ],
+    // What the applicant is told to bring beyond the envelope, which depends on
+    // the building rather than on the papers. Held in a file of its own and
+    // marked provisional there: the thresholds and the sets in it are ours and
+    // not the customer's, and the mechanism that reads them is the part of this
+    // that is real.
+    [UNCONFIRMED_SUPPORTING_DOCUMENTS],
   );
 
   readonly #specs: readonly DocumentTypeSpec[];
   readonly #crossChecks: readonly CrossCheckSpec[];
   readonly #registryChecks: readonly RegistryCheckSpec[];
+  readonly #supportingDocuments: readonly SupportingDocumentsSpec[];
 
   private constructor(
     public readonly key: string,
     declarations: readonly Declaration[],
     crossChecks: readonly CrossCheckDeclaration[],
     registryChecks: readonly RegistryCheckDeclaration[] = [],
+    supportingDocuments: readonly SupportingDocumentsDeclaration[] = [],
   ) {
     this.#specs = declarations.map(declaration =>
       DocumentTypeSpec.of(declaration),
@@ -589,6 +826,9 @@ export class VerificationProfile {
     );
     this.#registryChecks = registryChecks.map(declaration =>
       RegistryCheckSpec.of(declaration),
+    );
+    this.#supportingDocuments = supportingDocuments.map(declaration =>
+      SupportingDocumentsSpec.of(declaration),
     );
   }
 
@@ -644,6 +884,18 @@ export class VerificationProfile {
     }
 
     return found;
+  }
+
+  /*
+   * The branches this profile declares: what the applicant has to bring beyond
+   * the envelope, and which of the sets this case needs.
+   *
+   * Empty on a profile that asks for nothing beyond its own document types, and
+   * empty is not a gap — most policies have one set and say it in the required
+   * types.
+   */
+  get supportingDocuments(): readonly SupportingDocumentsSpec[] {
+    return this.#supportingDocuments;
   }
 
   get documentTypes(): readonly DocumentType[] {

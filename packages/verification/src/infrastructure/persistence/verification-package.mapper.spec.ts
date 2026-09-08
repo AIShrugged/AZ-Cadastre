@@ -613,7 +613,10 @@ describe('VerificationPackageMapper', () => {
       expect(row.report?.issues).toHaveLength(
         VerificationProfile.CADASTRE.requiredTypes.length +
           // the file itself, which no document was carved out of
-          1,
+          1 +
+          // which supporting documents this case needs — told on every report
+          // the profile declares a branch on, decided or not (ADR-0013)
+          VerificationProfile.CADASTRE.supportingDocuments.length,
       );
     });
 

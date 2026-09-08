@@ -28,5 +28,17 @@ export const IssueKindSchema = z.enum([
   // shortfall as UnreadableDocument, which is about the reading: the sheet was
   // read, and what it holds is a document short of what makes it valid.
   'MissingAttestation',
+  // What the applicant must bring beyond the envelope, for the case this
+  // package turned out to be. Not a finding: the engine never sees these
+  // papers, and saying which ones are needed is the whole of what it does with
+  // them, so a report carrying nothing else still reads OK.
+  //
+  // Told whether or not the case could be placed. A message that placed it
+  // carries the value it was decided on — the document, the field, the sheet
+  // and the confidence of that reading; one that could not carries none of
+  // them. That is what tells "this case needs these papers" apart from "which
+  // papers this case needs could not be worked out", and the two must never
+  // read alike (ADR-0013).
+  'SupportingDocumentsRequired',
 ]);
 export type IssueKind = z.infer<typeof IssueKindSchema>;

@@ -235,3 +235,29 @@ same literal the feature restates. Whichever
 happens, the `/registry` proxies in `apps/web/vite.config.ts` and
 `apps/web/nginx.conf` and this entry go together — remove one and the rest are a
 lie.
+
+## 11. The supporting-documents thresholds are ours, not the customer's
+
+**Not done.** The branch that decides which supporting documents a case needs
+works and is tested on every path. The numbers it works on are invented. We
+asked the customer for the height thresholds, the years and the composition of
+each set; the answer was "do as you see fit", and no norm was given to work
+from. `packages/verification/src/domain/value-objects/supporting-documents.table.ts`
+holds the invented part alone, under a banner saying so (ADR-0013), and it is
+the only file that has to change when the real rules arrive.
+
+Two smaller guesses ride with it. Which date "the year" means is one — the table
+reads the design's approval date and falls back to the allotment order, because
+no paper of this profile carries a completion date. And the bands that state no
+year answer whatever year is read, including none at all; a real norm may not
+allow that.
+
+**How it fires.** Quietly, which is the danger. An applicant is told to bring
+papers they do not need, or is not told about papers they do, and the report
+looks exactly as confident either way. Nothing throws and no test goes red.
+
+**What to do.** Get the requirement — the article, the circular or the office's
+own instruction — and rewrite the rows. Nothing in
+`verification-profile.vo.ts`, the aggregate or the report needs to move for it.
+Until then this branch states what we believe, and what we believe here is a
+placeholder: no decision may be taken on it.

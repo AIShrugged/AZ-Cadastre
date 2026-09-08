@@ -1073,6 +1073,14 @@ const SECTIONS: Record<IssueKind, { heading: string; tone: SectionTone }> = {
     heading: 'detail.sec.registry_unconfirmed',
     tone: 'note',
   },
+  // Neither a fault nor an observation about the envelope: what the applicant
+  // has to bring next, for the case this package turned out to be. Last,
+  // because it is the only line that is about what happens after the report
+  // (ADR-0013).
+  SupportingDocumentsRequired: {
+    heading: 'detail.sec.supporting',
+    tone: 'note',
+  },
 };
 
 const ORDERED = Object.entries(SECTIONS) as [
@@ -1258,6 +1266,28 @@ function findingOf(
       where: [t('detail.f.attestation_sub'), within]
         .filter(Boolean)
         .join(' · '),
+      anchor,
+      docId: document?.id ?? null,
+    };
+  }
+
+  /*
+   * What the applicant must bring beyond the envelope. The papers themselves
+   * are only in the English audit line — the contract carries no list of them
+   * yet — so the row states that there is a set and whether the engine could
+   * work out which one, and leaves naming the papers to whoever publishes them.
+   *
+   * A message that placed the case carries the reading it was decided on; one
+   * that could not carries none, which is how the two are told apart here
+   * (ADR-0013).
+   */
+  if (issue.kind === 'SupportingDocumentsRequired') {
+    return {
+      subject: t('detail.f.supporting'),
+      where:
+        issue.confidence === null
+          ? t('detail.f.supporting_undecided_sub')
+          : [t('detail.f.supporting_sub'), within].filter(Boolean).join(' · '),
       anchor,
       docId: document?.id ?? null,
     };

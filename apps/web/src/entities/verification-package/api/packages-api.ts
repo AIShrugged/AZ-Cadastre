@@ -26,10 +26,16 @@ import {
 
 export const packagesApi = api.injectEndpoints({
   endpoints: build => ({
+    /*
+     * The newest page, on the server's own defaults: the endpoint pages,
+     * searches and filters (ADR-0015), and the screen that puts a search box
+     * and a pager over it is still to be built — until it is, asking for
+     * nothing is asking for the first page.
+     */
     getPackages: build.query<VerificationPackage[], void>({
       query: () => '/packages',
       transformResponse: (response: unknown) =>
-        ListPackagesResponseSchema.parse(response).map(toViewPackage),
+        ListPackagesResponseSchema.parse(response).items.map(toViewPackage),
       providesTags: ['Package'],
     }),
     getPackage: build.query<GetPackageResponse, string>({

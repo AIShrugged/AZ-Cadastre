@@ -1,6 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 
-import { PackageQueries } from '../../application/ports/outbound/index.js';
+import {
+  PackageQueries,
+  type PackageListCriteria,
+  type PackageListPage,
+} from '../../application/ports/outbound/index.js';
 import type {
   CrossCheckView,
   PackageDetailView,
@@ -17,8 +21,8 @@ import {
   type PackageId,
 } from '../../domain/value-objects/index.js';
 
-import type { Prisma } from './generated/client.js';
-import { isStoredId } from './stored-id.js';
+import type { $Enums, Prisma } from './generated/client.js';
+import { isStoredId, isUuid } from './stored-id.js';
 import { VerificationPrismaService } from './verification-prisma.service.js';
 
 const ISSUE_COLUMNS = {
@@ -226,13 +230,31 @@ export class PackageQueriesAdapter extends PackageQueries {
     super();
   }
 
-  async listSummaries(): Promise<readonly PackageSummaryView[]> {
-    const rows = await this.prisma.verificationPackage.findMany({
-      orderBy: { createdAt: 'desc' },
-      select: SUMMARY_COLUMNS,
-    });
+  async listSummaries(criteria: PackageListCriteria): Promise<PackageListPage> {
+    const where = PackageQueriesAdapter.matching(criteria);
 
-    return rows.map(row => PackageQueriesAdapter.toSummary(row));
+    // The page and the tally in one transaction: taken apart, a submission
+    // accepted between them would leave a pager saying there are eleven rows
+    // over a page that is one of ten.
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.verificationPackage.findMany({
+        where,
+        // Newest first, and the id to settle a tie. Two packages accepted in
+        // the same millisecond have no order of their own, and without one the
+        // database is free to answer them differently on two calls — which on a
+        // paged list shows one of them twice and the other never.
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip: criteria.offset,
+        take: criteria.limit,
+        select: SUMMARY_COLUMNS,
+      }),
+      this.prisma.verificationPackage.count({ where }),
+    ]);
+
+    return {
+      items: rows.map(row => PackageQueriesAdapter.toSummary(row)),
+      total,
+    };
   }
 
   async findSummary(id: PackageId): Promise<PackageSummaryView | null> {
@@ -332,6 +354,145 @@ export class PackageQueriesAdapter extends PackageQueries {
             pageNumber: field.pageNumber,
           })),
         })),
+      })),
+    };
+  }
+
+  /**
+   * The criteria as one condition the database can answer, so the filter, the
+   * page and the tally are all decided by Postgres. Narrowing a page in
+   * application code would mean reading every submission the office has ever
+   * taken in to answer a screen that shows twenty of them.
+   */
+  private static matching(
+    criteria: PackageListCriteria,
+  ): Prisma.VerificationPackageWhereInput {
+    const conditions: Prisma.VerificationPackageWhereInput[] = [];
+
+    if (criteria.search !== null) {
+      conditions.push(PackageQueriesAdapter.matchingSearch(criteria.search));
+    }
+
+    if (criteria.standing !== null) {
+      conditions.push(PackageQueriesAdapter.standingIs(criteria.standing));
+    }
+
+    if (criteria.reportStatus !== null) {
+      conditions.push({
+        // Only ever written through the domain's own enumeration, so the value
+        // is one the column names.
+        report: {
+          status: criteria.reportStatus.value as $Enums.ReportStatus,
+        },
+      });
+    }
+
+    // The search and the two filters narrow together: a term inside a standing,
+    // not a term or a standing.
+    return conditions.length > 0 ? { AND: conditions } : {};
+  }
+
+  /**
+   * What a search term matches, and the whole of it: the package's own id, the
+   * name of a file uploaded to it, or a value the pipeline read off one of its
+   * documents.
+   *
+   * Case is ignored; letters are not folded. "Elçin" and "Elcin" are two terms
+   * here, and deliberately: the rules that decide two spellings of one
+   * Azerbaijani name mean the same thing live in `@cadastre/matching-engine`,
+   * which this context may not import and which answers about a pair of values
+   * it already holds rather than about a table it has not read. Why that is the
+   * right way round, and what would change it: ADR-0015.
+   */
+  private static matchingSearch(
+    term: string,
+  ): Prisma.VerificationPackageWhereInput {
+    const anywhere = { contains: term, mode: 'insensitive' } as const;
+
+    return {
+      OR: [
+        /*
+         * A term that is a uuid is the package's own id — that is what an
+         * inspector pastes out of a link or a mail. Held whole rather than as a
+         * prefix: the column is `uuid`, and Postgres matches no pattern against
+         * one.
+         */
+        ...(isUuid(term) ? [{ id: term }] : []),
+        { sourceFiles: { some: { originalFilename: anywhere } } },
+        {
+          documents: {
+            some: { extractedFields: { some: { value: anywhere } } },
+          },
+        },
+      ],
+    };
+  }
+
+  /**
+   * Where a submission stands, as a condition over the columns it is worked out
+   * from.
+   *
+   * The standing is derived and stored nowhere (ADR-0014), so there is no
+   * column to compare — and writing the derivation out a second time in SQL is
+   * how the row that leads to a card comes to disagree with the card. So the
+   * combinations come from the rule itself: `PackageStanding.facts` runs the
+   * derivation over every fact a package can hold and answers with the ones
+   * that land on this standing.
+   */
+  private static standingIs(
+    standing: PackageStanding,
+  ): Prisma.VerificationPackageWhereInput {
+    // Nothing can approve an archive search yet — the approval is COMM-40 — so
+    // the facts that need one describe no row. The same `false` the summary is
+    // worked out with.
+    const reachable = standing.facts.filter(
+      facts => !facts.archiveSearchApproved,
+    );
+
+    /*
+     * One branch per (status, report) pair, with the register only named where
+     * the pair does not hold either way. Without the collapse a standing like
+     * Stalled — which every report value and both answers reach — would be ten
+     * branches saying what five say.
+     */
+    const branches = new Map<
+      string,
+      { status: string; report: string | null; asked: Set<boolean> }
+    >();
+
+    for (const facts of reachable) {
+      const report = facts.report?.value ?? null;
+      const key = `${facts.status.value}|${report ?? ''}`;
+      const branch = branches.get(key) ?? {
+        status: facts.status.value,
+        report,
+        asked: new Set<boolean>(),
+      };
+
+      branch.asked.add(facts.askedTheArchive);
+      branches.set(key, branch);
+    }
+
+    return {
+      OR: [...branches.values()].map(branch => ({
+        // Only ever written through the domain's own enumerations, so the
+        // values are ones the columns name.
+        status: branch.status as $Enums.PackageStatus,
+        report:
+          branch.report === null
+            ? { is: null }
+            : { status: branch.report as $Enums.ReportStatus },
+        // Whether the archive register was asked anything about this package.
+        // Counted rather than read: what it answered is the detail view's
+        // business, and whether it was asked at all is what the standing turns
+        // on.
+        ...(branch.asked.size === 2
+          ? {}
+          : {
+              registryChecks: branch.asked.has(true)
+                ? { some: {} }
+                : { none: {} },
+            }),
       })),
     };
   }

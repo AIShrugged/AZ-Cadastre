@@ -18,6 +18,7 @@ export { InvalidFieldValueException } from './invalid-field-value.exception.js';
 export { InvalidFileSizeException } from './invalid-file-size.exception.js';
 export { InvalidFilenameException } from './invalid-filename.exception.js';
 export { InvalidIssueKindException } from './invalid-issue-kind.exception.js';
+export { InvalidPackageStandingException } from './invalid-package-standing.exception.js';
 export { InvalidPackageStatusException } from './invalid-package-status.exception.js';
 export { InvalidPageNumberException } from './invalid-page-number.exception.js';
 export { InvalidPageRangeException } from './invalid-page-range.exception.js';

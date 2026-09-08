@@ -7,6 +7,8 @@ import {
 import {
   AddFilesRequestSchema,
   CreatePackageRequestSchema,
+  ListPackagesRequestSchema,
+  ListPackagesResponseSchema,
   PackageDetailDtoSchema,
   PackageDtoSchema,
   PresignRequestSchema,
@@ -14,6 +16,8 @@ import {
   ProfileDtoSchema,
   type AddFilesRequest,
   type CreatePackageRequest,
+  type ListPackagesRequestInput,
+  type ListPackagesResponse,
   type PackageDetailDto,
   type PackageDto,
   type PresignRequest,
@@ -107,8 +111,23 @@ export class RestClient {
         body,
       ),
 
-    findMany: (): Promise<ApiResponse<PackageDto[]>> =>
-      this.request('GET', '/api/packages', z.array(PackageDtoSchema)),
+    /**
+     * One page of the list. What is not named is left to the server's own
+     * defaults — the newest twenty — rather than guessed at here, so the
+     * client cannot drift from what the contract promises.
+     */
+    findMany: (
+      request: ListPackagesRequestInput = {},
+    ): Promise<ApiResponse<ListPackagesResponse>> =>
+      this.request(
+        'GET',
+        `/api/packages${queryString(request)}`,
+        ListPackagesResponseSchema,
+      ),
+
+    /** Deliberately unparsed, for the specs that check the API's own refusals. */
+    findManyRaw: (query: string): Promise<ApiResponse<unknown>> =>
+      this.request('GET', `/api/packages${query}`, z.unknown()),
 
     findOne: (id: string): Promise<ApiResponse<PackageDetailDto>> =>
       this.request(
@@ -145,4 +164,24 @@ export class RestClient {
 
     return { status: response.status, body: schema.parse(payload) };
   }
+}
+
+/**
+ * The request as a query string, parsed by the contract's own schema first so a
+ * client cannot send what the server would refuse. Absent values are left out
+ * entirely: `?standing=` is a standing nobody names, not an unset filter.
+ */
+function queryString(request: ListPackagesRequestInput): string {
+  const parsed = ListPackagesRequestSchema.parse(request);
+  const params = new URLSearchParams();
+
+  if (parsed.search !== undefined) params.set('search', parsed.search);
+  if (parsed.standing !== undefined) params.set('standing', parsed.standing);
+  if (parsed.reportStatus !== undefined) {
+    params.set('reportStatus', parsed.reportStatus);
+  }
+  params.set('limit', String(parsed.limit));
+  params.set('offset', String(parsed.offset));
+
+  return `?${params.toString()}`;
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import type { PackageSummaryView } from '../../application/read-models/index.js';
 import { PackageId } from '../../domain/value-objects/index.js';
 
 import { PackageQueriesAdapter } from './package-queries.adapter.js';
@@ -43,24 +44,45 @@ function aRow(kinds: readonly string[] | null, options: RowOptions = {}): Row {
 }
 
 /** Prisma stands in at the boundary: the adapter is asked for the register's
- *  row, and what it counts off the one it is given is the whole subject. */
+ *  row, and what it counts off the one it is given is the whole subject. Which
+ *  rows a search or a filter matches is not — that is a question only a
+ *  database can answer, and it is put to one in the integration set. */
 function adapterOver(rows: readonly Row[]): PackageQueriesAdapter {
   const prisma = {
     verificationPackage: {
       findMany: () => Promise.resolve(rows),
       findUnique: () => Promise.resolve(rows[0] ?? null),
+      count: () => Promise.resolve(rows.length),
     },
+    $transaction: (operations: readonly Promise<unknown>[]) =>
+      Promise.all(operations),
   } as unknown as VerificationPrismaService;
 
   return new PackageQueriesAdapter(prisma);
 }
 
+// Narrowed by nothing: these specs are about what the register makes of a row,
+// not about which rows it is handed.
+const EVERYTHING = {
+  search: null,
+  standing: null,
+  reportStatus: null,
+  limit: 20,
+  offset: 0,
+} as const;
+
+async function summariesOf(
+  rows: readonly Row[],
+): Promise<readonly PackageSummaryView[]> {
+  return (await adapterOver(rows).listSummaries(EVERYTHING)).items;
+}
+
 describe('PackageQueriesAdapter', () => {
   describe('the register tally', () => {
     it('counts a shortfall in the package and an unsure reading apart', async () => {
-      const [summary] = await adapterOver([
+      const [summary] = await summariesOf([
         aRow(['MissingDocument', 'FieldMismatch', 'LowConfidence']),
-      ]).listSummaries();
+      ]);
 
       expect(summary?.issuesCount).toBe(2);
       expect(summary?.lowConfidenceCount).toBe(1);
@@ -71,7 +93,7 @@ describe('PackageQueriesAdapter', () => {
     // the silent archive as findings, and leaving out the fourteen readings the
     // engine was unsure of. Both screens now count by the domain's rule.
     it('leaves the observations out of both counts', async () => {
-      const [summary] = await adapterOver([
+      const [summary] = await summariesOf([
         aRow([
           ...Array.from({ length: 8 }, () => 'ExtraDocument'),
           ...Array.from({ length: 3 }, () => 'DuplicateDocument'),
@@ -81,7 +103,7 @@ describe('PackageQueriesAdapter', () => {
           'FieldMismatch',
           'FieldMismatch',
         ]),
-      ]).listSummaries();
+      ]);
 
       expect(summary?.issuesCount).toBe(5);
       expect(summary?.lowConfidenceCount).toBe(14);
@@ -92,9 +114,9 @@ describe('PackageQueriesAdapter', () => {
     });
 
     it('reports a package carrying nothing but observations as clean', async () => {
-      const [summary] = await adapterOver([
+      const [summary] = await summariesOf([
         aRow(['ExtraDocument', 'DuplicateDocument', 'RegistryUnconfirmed']),
-      ]).listSummaries();
+      ]);
 
       expect(summary?.issuesCount).toBe(0);
       expect(summary?.lowConfidenceCount).toBe(0);
@@ -104,9 +126,9 @@ describe('PackageQueriesAdapter', () => {
     // findings against the package all the same, and the register has only the
     // one column to say so in.
     it('counts what the archive disagreed with', async () => {
-      const [summary] = await adapterOver([
+      const [summary] = await summariesOf([
         aRow(['RegistryMismatch', 'RegistryDocumentMissing']),
-      ]).listSummaries();
+      ]);
 
       expect(summary?.issuesCount).toBe(2);
     });
@@ -114,15 +136,15 @@ describe('PackageQueriesAdapter', () => {
     // A read surface must not be taken down by one row it cannot place: an
     // unrecognised kind is counted rather than thrown on.
     it('counts a kind the enumeration does not know', async () => {
-      const [summary] = await adapterOver([
+      const [summary] = await summariesOf([
         aRow(['SomethingThisBuildHasNeverHeardOf']),
-      ]).listSummaries();
+      ]);
 
       expect(summary?.issuesCount).toBe(1);
     });
 
     it('counts nothing before the run has compiled a report', async () => {
-      const [summary] = await adapterOver([aRow(null)]).listSummaries();
+      const [summary] = await summariesOf([aRow(null)]);
 
       expect(summary?.reportStatus).toBeNull();
       expect(summary?.issuesCount).toBe(0);
@@ -150,33 +172,33 @@ describe('PackageQueriesAdapter', () => {
    */
   describe('where the row says a submission stands', () => {
     it('says a run is reading it', async () => {
-      const [summary] = await adapterOver([
+      const [summary] = await summariesOf([
         aRow(null, { status: 'Processing' }),
-      ]).listSummaries();
+      ]);
 
       expect(summary?.standing).toBe('UnderVerification');
     });
 
     it('says a required paper never arrived', async () => {
-      const [summary] = await adapterOver([
+      const [summary] = await summariesOf([
         aRow(['MissingDocument'], { reportStatus: 'IncompletePackage' }),
-      ]).listSummaries();
+      ]);
 
       expect(summary?.standing).toBe('ShortOfDocuments');
     });
 
     it('holds a clean package for the approval of the archive search it rests on', async () => {
-      const [summary] = await adapterOver([
+      const [summary] = await summariesOf([
         aRow([], { reportStatus: 'OK', registryChecks: 1 }),
-      ]).listSummaries();
+      ]);
 
       expect(summary?.standing).toBe('AwaitingArchiveApproval');
     });
 
     it('clears a clean package the register was never asked about', async () => {
-      const [summary] = await adapterOver([
+      const [summary] = await summariesOf([
         aRow([], { reportStatus: 'OK', registryChecks: 0 }),
-      ]).listSummaries();
+      ]);
 
       expect(summary?.standing).toBe('Cleared');
     });

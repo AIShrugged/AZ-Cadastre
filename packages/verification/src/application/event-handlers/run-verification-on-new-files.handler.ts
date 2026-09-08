@@ -7,7 +7,7 @@ import { PackageSubmitted } from '../../domain/events/index.js';
 import { RunVerificationCommand } from '../use-cases/index.js';
 
 @EventsHandler(PackageSubmitted)
-export class RunVerificationOnSubmissionHandler implements IEventHandler<PackageSubmitted> {
+export class RunVerificationOnNewFilesHandler implements IEventHandler<PackageSubmitted> {
   private readonly logger: Logger;
 
   constructor(
@@ -15,7 +15,7 @@ export class RunVerificationOnSubmissionHandler implements IEventHandler<Package
     @Inject(Logger) logger: Logger,
   ) {
     this.logger = logger.child({
-      scope: RunVerificationOnSubmissionHandler.name,
+      scope: RunVerificationOnNewFilesHandler.name,
     });
   }
 

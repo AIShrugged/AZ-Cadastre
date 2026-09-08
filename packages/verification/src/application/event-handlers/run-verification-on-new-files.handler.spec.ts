@@ -10,7 +10,7 @@ import {
 } from '../../domain/value-objects/index.js';
 import { RunVerificationCommand } from '../use-cases/index.js';
 
-import { RunVerificationOnSubmissionHandler } from './run-verification-on-submission.handler.js';
+import { RunVerificationOnNewFilesHandler } from './run-verification-on-new-files.handler.js';
 
 class RecordingCommandBus {
   readonly executed: RunVerificationCommand[] = [];
@@ -29,11 +29,11 @@ function submission(packageId: string): PackageSubmitted {
   );
 }
 
-describe('RunVerificationOnSubmissionHandler', () => {
+describe('RunVerificationOnNewFilesHandler', () => {
   it('runs the pipeline over the package that was submitted', () => {
     const bus = new RecordingCommandBus();
 
-    new RunVerificationOnSubmissionHandler(
+    new RunVerificationOnNewFilesHandler(
       bus as unknown as CommandBus,
       new SilentLogger(),
     ).handle(submission('package-1'));
@@ -45,7 +45,7 @@ describe('RunVerificationOnSubmissionHandler', () => {
     const started = new Promise<void>(() => undefined);
     const bus = { execute: () => started } as unknown as CommandBus;
 
-    const handled = new RunVerificationOnSubmissionHandler(
+    const handled = new RunVerificationOnNewFilesHandler(
       bus,
       new SilentLogger(),
     ).handle(submission('package-2'));
@@ -59,7 +59,7 @@ describe('RunVerificationOnSubmissionHandler', () => {
     } as unknown as CommandBus;
 
     expect(() =>
-      new RunVerificationOnSubmissionHandler(bus, new SilentLogger()).handle(
+      new RunVerificationOnNewFilesHandler(bus, new SilentLogger()).handle(
         submission('package-3'),
       ),
     ).not.toThrow();

@@ -151,7 +151,9 @@ describe('PackageQueriesAdapter', () => {
         status: PackageStatus.of(summary.status),
         report: detail.report ? ReportStatus.of(detail.report.status) : null,
         askedTheArchive: detail.registryChecks.length > 0,
-        archiveSearchApproved: false,
+        archiveSearchApproved: detail.archiveSearchApprovals.some(
+          approval => approval.supersededAt === null,
+        ),
       }).value,
     );
   });

@@ -3,6 +3,7 @@ import { CommandBus, QueryBus } from '@nestjs/cqrs';
 
 import type {
   AddFilesRequest,
+  ApproveArchiveSearchRequest,
   CreatePackageRequest,
   ListPackagesRequest,
   ListPackagesResponse,
@@ -13,6 +14,7 @@ import type {
 
 import {
   AddFilesCommand,
+  ApproveArchiveSearchCommand,
   CreatePackageCommand,
   GetPackageQuery,
   GetPackageSummaryQuery,
@@ -53,6 +55,22 @@ export class PackagesService implements PackagesApi {
     return toSummaryDto(
       await this.queries.execute(new GetPackageSummaryQuery(packageId.value)),
     );
+  }
+
+  /*
+   * Answers with the whole package rather than the row: the approval shows on
+   * the submission a caller was already looking at, and asking for it again to
+   * see what one has just written is a round trip for nothing.
+   */
+  async approveArchiveSearch(
+    id: string,
+    request: ApproveArchiveSearchRequest,
+  ): Promise<PackageDetailDto> {
+    const packageId = await this.commands.execute(
+      new ApproveArchiveSearchCommand(id, request.summary, request.comment),
+    );
+
+    return this.findOne(packageId.value);
   }
 
   async findMany(request: ListPackagesRequest): Promise<ListPackagesResponse> {

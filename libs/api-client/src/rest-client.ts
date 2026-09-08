@@ -6,6 +6,7 @@ import {
 } from '@cadastre/api-contracts/shared';
 import {
   AddFilesRequestSchema,
+  ApproveArchiveSearchRequestSchema,
   CreatePackageRequestSchema,
   ListPackagesRequestSchema,
   ListPackagesResponseSchema,
@@ -15,6 +16,7 @@ import {
   PresignResponseSchema,
   ProfileDtoSchema,
   type AddFilesRequest,
+  type ApproveArchiveSearchRequest,
   type CreatePackageRequest,
   type ListPackagesRequestInput,
   type ListPackagesResponse,
@@ -128,6 +130,34 @@ export class RestClient {
     /** Deliberately unparsed, for the specs that check the API's own refusals. */
     findManyRaw: (query: string): Promise<ApiResponse<unknown>> =>
       this.request('GET', `/api/packages${query}`, z.unknown()),
+
+    /**
+     * A person's approval of what the archive register answered. It carries no
+     * author because the system has none to record (ADR-0016), and it comes
+     * back as the whole package so the standing it changes is visible at once.
+     */
+    approveArchiveSearch: (
+      id: string,
+      request: ApproveArchiveSearchRequest,
+    ): Promise<ApiResponse<PackageDetailDto>> =>
+      this.request(
+        'POST',
+        `/api/packages/${encodeURIComponent(id)}/archive-search-approval`,
+        PackageDetailDtoSchema,
+        ApproveArchiveSearchRequestSchema.parse(request),
+      ),
+
+    /** Deliberately unvalidated, for the specs that check the API's own refusals. */
+    approveArchiveSearchRaw: (
+      id: string,
+      body: unknown,
+    ): Promise<ApiResponse<unknown>> =>
+      this.request(
+        'POST',
+        `/api/packages/${encodeURIComponent(id)}/archive-search-approval`,
+        z.unknown(),
+        body,
+      ),
 
     findOne: (id: string): Promise<ApiResponse<PackageDetailDto>> =>
       this.request(

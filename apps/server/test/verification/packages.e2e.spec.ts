@@ -240,6 +240,69 @@ describe('files added to a package over HTTP', () => {
   });
 });
 
+/*
+ * The one write in the whole API a person makes rather than the engine: their
+ * approval of what the archive register answered about a submission (ADR-0016).
+ *
+ * The happy path is not here and cannot be: nothing in this set uploads bytes,
+ * so no run reads an address off a sheet and no question is ever put to the
+ * register. What the register does with an approval is the context's own
+ * integration set; what is asked of the edge is that the route exists, that the
+ * published schema is what a caller is held to, and that each of the three ways
+ * a package can be in no state to be approved comes back as a refusal a client
+ * can tell apart.
+ */
+describe('approving an archive search over HTTP', () => {
+  it('refuses a package the register was never asked about', async () => {
+    // arrange — the bytes were never uploaded, so no sheet states an address
+    // and no check was ever put to the register
+    const created = await submit(['erize-qeydiyyat.pdf']);
+    await settled(created.id);
+
+    // act
+    const failure = await api.packages
+      .approveArchiveSearch(created.id, { summary: 'nothing outstanding' })
+      .catch((error: unknown) => error as ApiError);
+
+    // assert — a conflict and not a bad request: the body was fine, the
+    // package is in no state for it
+    expect(failure).toBeInstanceOf(ApiError);
+    expect((failure as ApiError).status).toBe(409);
+    expect((failure as ApiError).body.code).toBe('ARCHIVE_SEARCH_NOT_ASKED');
+  });
+
+  /*
+   * The one required part of an approval, refused at the edge before the
+   * context is troubled. It is required because of what this approval is not:
+   * it names nobody, so one that concludes nothing would record only that a
+   * button was pressed.
+   */
+  it('refuses an approval that concludes nothing', async () => {
+    // arrange
+    const created = await submit(['erize-qeydiyyat.pdf']);
+    await settled(created.id);
+
+    // act / assert
+    await expect(
+      api.packages.approveArchiveSearchRaw(created.id, { summary: '   ' }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('answers 404 with PACKAGE_NOT_FOUND for a package nobody submitted', async () => {
+    // act
+    const failure = await api.packages
+      .approveArchiveSearch('00000000-0000-4000-8000-000000000000', {
+        summary: 'nothing outstanding',
+      })
+      .catch((error: unknown) => error as ApiError);
+
+    // assert
+    expect(failure).toBeInstanceOf(ApiError);
+    expect((failure as ApiError).status).toBe(404);
+    expect((failure as ApiError).body.code).toBe('PACKAGE_NOT_FOUND');
+  });
+});
+
 describe('what the API refuses', () => {
   /*
    * PACKAGE_NOT_FOUND is an ApplicationException carrying its own status. The

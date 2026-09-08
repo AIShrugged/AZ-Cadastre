@@ -5,6 +5,13 @@ export {
   type AddFilesResponse,
 } from './add-files.dto.js';
 export {
+  APPROVAL_TEXT_MAX_LENGTH,
+  ApproveArchiveSearchRequestSchema,
+  ApproveArchiveSearchResponseSchema,
+  type ApproveArchiveSearchRequest,
+  type ApproveArchiveSearchResponse,
+} from './approve-archive-search.dto.js';
+export {
   CreatePackageRequestSchema,
   CreatePackageResponseSchema,
   FileInputSchema,
@@ -34,6 +41,8 @@ export {
   type ProfileDto,
 } from './list-profiles.dto.js';
 export {
+  ApprovedCheckDtoSchema,
+  ArchiveSearchApprovalDtoSchema,
   CheckedValueDtoSchema,
   CrossCheckDtoSchema,
   DocumentDtoSchema,
@@ -48,6 +57,8 @@ export {
   RegistryDocumentDtoSchema,
   ReportDtoSchema,
   SourceFileDtoSchema,
+  type ApprovedCheckDto,
+  type ArchiveSearchApprovalDto,
   type CheckedValueDto,
   type CrossCheckDto,
   type DocumentDto,

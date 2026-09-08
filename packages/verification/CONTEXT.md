@@ -55,6 +55,10 @@ _Avoid_: result, summary
 What has to happen to a Verification Package next, said in one word for the inspector: it is `Queued`, `UnderVerification`, `Stalled`, `ShortOfDocuments`, `NeedsInspector`, `AwaitingArchiveApproval` or `Cleared`. The third state a reader may call a status and the only one written for a person — the pipeline's `PackageStatus` says where a run got to and the Verification Report's own status says what it found, and `Completed` covers a full envelope and one with seven findings alike. Worked out from those two and from what the archive register was asked, never stored and never set by hand (ADR-0014). It says what is owed, never whether the registration is granted: that is the inspector's.
 _Avoid_: status, state, disposition, stage
 
+**Archive Search Approval**:
+A person's sign-off on what the archive register answered about a Verification Package: the conclusion the search leads to for the submission as a whole, an optional remark on signing, the moment it was given, and the register's answers as they stood at that moment. A decision about the submission and never about the register, which states what its own fonds hold and judges nothing (ADR-0009). An event and not a field: it covers the state of the archive search it was given, so a run that asks the register again spends it — the record says when it stopped being in force rather than letting a signature stand over answers nobody has read (ADR-0016). It carries no author, because there are no accounts to read one from.
+_Avoid_: sign-off, review, decision, sign-off of the register
+
 **Inspector**:
 The human who reviews the Verification Report and makes the actual decision. The system never approves or rejects anything itself.
 _Avoid_: user, operator, reviewer

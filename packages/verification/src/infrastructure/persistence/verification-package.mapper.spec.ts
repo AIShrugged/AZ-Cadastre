@@ -11,6 +11,10 @@ import {
   UnsupportedContentTypeException,
 } from '../../domain/exceptions/index.js';
 import {
+  ApprovalComment,
+  ApprovalSummary,
+  ApprovedCheck,
+  ArchiveSearchApproval,
   ContentType,
   DocumentId,
   DocumentType,
@@ -19,6 +23,8 @@ import {
   PackageStatus,
   PageNumber,
   PageRange,
+  RegistryCheckKey,
+  RegistryOutcome,
   SourceFileId,
   StorageKey,
   VerificationProfile,
@@ -89,6 +95,7 @@ function aPackageRow(overrides: Partial<PackageRow> = {}): PackageRow {
     documents: [aDocumentRow()],
     crossChecks: [],
     registryChecks: [],
+    archiveSearchApprovals: [],
     report: null,
     ...overrides,
   };
@@ -575,6 +582,7 @@ describe('VerificationPackageMapper', () => {
         files: [file],
         crossChecks: [],
         registryChecks: [],
+        archiveSearchApproval: null,
         report: null,
         documents: [
           document.classifiedAs(
@@ -591,6 +599,82 @@ describe('VerificationPackageMapper', () => {
       );
       expect(row.documents[0]?.firstPage).toBe(1);
       expect(row.documents[0]?.lastPage).toBe(2);
+    });
+  });
+
+  /*
+   * The one row in this database a person wrote rather than the engine
+   * (ADR-0016). It goes both ways through the mapper, because a spent approval
+   * that came back looking in force would settle a submission on answers nobody
+   * has read.
+   */
+  describe('the approval of an archive search', () => {
+    it('writes the conclusion, the remark and what was approved', () => {
+      const aggregate = VerificationPackage.restore({
+        id: PackageId.of(anId()),
+        version: 2,
+        profile: VerificationProfile.CADASTRE,
+        status: PackageStatus.PROCESSING,
+        files: [],
+        documents: [],
+        crossChecks: [],
+        registryChecks: [],
+        archiveSearchApproval: ArchiveSearchApproval.of({
+          summary: ApprovalSummary.create('the record agrees'),
+          comment: ApprovalComment.from('folder 14 re-checked'),
+          checks: [
+            ApprovedCheck.of(
+              RegistryCheckKey.create('property_of_record'),
+              RegistryOutcome.CONFIRMED,
+            ),
+          ],
+        }),
+        report: null,
+      });
+
+      const row = VerificationPackageMapper.toRow(aggregate);
+
+      expect(row.archiveSearchApproval).toEqual({
+        summary: 'the record agrees',
+        comment: 'folder 14 re-checked',
+        checks: [
+          { key: 'property_of_record', outcome: 'Confirmed', position: 0 },
+        ],
+      });
+    });
+
+    it('reads back the approval that is in force, with its answers', () => {
+      const aggregate = VerificationPackageMapper.toDomain(
+        aPackageRow({
+          archiveSearchApprovals: [
+            {
+              summary: 'the record agrees',
+              comment: null,
+              checks: [{ key: 'property_of_record', outcome: 'Confirmed' }],
+            },
+          ],
+        }),
+      );
+
+      const approval = aggregate.archiveSearchApproval;
+      expect(approval?.summary.value).toBe('the record agrees');
+      expect(approval?.comment).toBeNull();
+      expect(approval?.checks[0]?.key.value).toBe('property_of_record');
+      expect(approval?.checks[0]?.outcome).toBe(RegistryOutcome.CONFIRMED);
+    });
+
+    // The register hands over only the approvals still in force, so a package
+    // whose search was signed for and then made again comes back unapproved —
+    // which is what stops the old signature deciding anything.
+    it('comes back unapproved when the row on file has been spent', () => {
+      const aggregate = VerificationPackageMapper.toDomain(
+        aPackageRow({ archiveSearchApprovals: [] }),
+      );
+
+      expect(aggregate.archiveSearchApproval).toBeNull();
+      expect(
+        VerificationPackageMapper.toRow(aggregate).archiveSearchApproval,
+      ).toBeNull();
     });
   });
 

@@ -7,6 +7,8 @@ import {
   type SourceFile,
 } from '../entities/index.js';
 import {
+  ArchiveSearchApprovalSpent,
+  ArchiveSearchApproved,
   CrossCheckMade,
   DocumentClassified,
   FieldsExtracted,
@@ -22,6 +24,9 @@ import {
   VerificationStarted,
 } from '../events/index.js';
 import {
+  ArchiveSearchAlreadyApprovedException,
+  ArchiveSearchNotAskedException,
+  ArchiveSearchNotSettledException,
   CrossCheckNotInProfileException,
   DocumentNotInPackageException,
   DocumentsMustCoverEverySheetException,
@@ -42,6 +47,8 @@ import {
 } from '../exceptions/index.js';
 import { attestationIn, heightInMetres, yearIn } from '../services/index.js';
 import {
+  ApprovedCheck,
+  ArchiveSearchApproval,
   CheckedValue,
   Confidence,
   FailureReason,
@@ -50,6 +57,8 @@ import {
   PackageStatus,
   ValidationIssue,
   VerificationReport,
+  type ApprovalComment,
+  type ApprovalSummary,
   type Classification,
   type CrossCheck,
   type CrossCheckKey,
@@ -77,6 +86,11 @@ export type VerificationPackageState = {
   readonly documents: readonly Document[];
   readonly crossChecks: readonly CrossCheck[];
   readonly registryChecks: readonly RegistryCheck[];
+  // The approval of the archive search that is in force, if one is. The ones a
+  // later run spent are kept by the register for the record and are of no
+  // interest to the aggregate: only an approval in force decides anything
+  // (ADR-0016).
+  readonly archiveSearchApproval: ArchiveSearchApproval | null;
   readonly report: VerificationReport | null;
 };
 
@@ -87,6 +101,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   #documents: Document[];
   #crossChecks: CrossCheck[];
   #registryChecks: RegistryCheck[];
+  #archiveSearchApproval: ArchiveSearchApproval | null;
   #report: VerificationReport | null;
 
   private constructor(state: VerificationPackageState) {
@@ -97,6 +112,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     this.#documents = [...state.documents];
     this.#crossChecks = [...state.crossChecks];
     this.#registryChecks = [...state.registryChecks];
+    this.#archiveSearchApproval = state.archiveSearchApproval;
     this.#report = state.report;
   }
 
@@ -118,6 +134,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       documents: [],
       crossChecks: [],
       registryChecks: [],
+      archiveSearchApproval: null,
       report: null,
     });
 
@@ -152,8 +169,9 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       // check whose address no sheet stated was never put, and there is no
       // answer to it for anybody to sign off.
       askedTheArchive: this.#registryChecks.length > 0,
-      // Nothing can approve an archive search yet; the approval is COMM-40.
-      archiveSearchApproved: false,
+      // An approval in force and not merely one that was once given: a run that
+      // asked the register again spends the one it had (ADR-0016).
+      archiveSearchApproved: this.#archiveSearchApproval !== null,
     });
   }
 
@@ -171,6 +189,14 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
 
   get registryChecks(): readonly RegistryCheck[] {
     return this.#registryChecks;
+  }
+
+  // The approval of the archive search that is in force, or none. An approval a
+  // later run spent is not here: the aggregate holds what is true of the
+  // package now, and the record of what was signed for and when it was spent is
+  // the register's (ADR-0016).
+  get archiveSearchApproval(): ArchiveSearchApproval | null {
+    return this.#archiveSearchApproval;
   }
 
   get report(): VerificationReport | null {
@@ -367,7 +393,70 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       ...this.#registryChecks.filter(made => !made.key.equals(check.key)),
       check,
     ];
+    // A fresh answer from the register spends whatever was signed for the last
+    // one: the approval covered the state of the search, and this is a
+    // different state of it (ADR-0016).
+    this.spendArchiveSearchApproval();
     this.apply(new RegistryCheckMade(this.id, check.key, check.outcome));
+  }
+
+  /**
+   * A person's sign-off on what the archive register answered about this
+   * submission.
+   *
+   * The decision is about the submission and never about the register: the
+   * register states what its own fonds hold and passes no judgement on anybody's
+   * application (ADR-0009), and this says a person has read those answers and
+   * accepts what they mean here.
+   *
+   * Refused while a run is still free to replace those answers, and refused
+   * where the register was never asked — approving a search nobody made would
+   * settle a submission on the strength of nothing. Refused, too, when one is
+   * already in force: an approval is an event and not a draft, and the way it
+   * ends is that the search is made again.
+   */
+  approveArchiveSearch(
+    summary: ApprovalSummary,
+    comment: ApprovalComment | null,
+  ): void {
+    if (!this.#status.equals(PackageStatus.COMPLETED)) {
+      throw new ArchiveSearchNotSettledException(
+        this.id.value,
+        this.#status.value,
+      );
+    }
+    if (this.#registryChecks.length === 0) {
+      throw new ArchiveSearchNotAskedException(this.id.value);
+    }
+    if (this.#archiveSearchApproval) {
+      throw new ArchiveSearchAlreadyApprovedException(this.id.value);
+    }
+
+    this.#archiveSearchApproval = ArchiveSearchApproval.of({
+      summary,
+      comment,
+      // What was approved, and not merely that something was: an approval the
+      // checks have since outrun is then readable rather than only marked
+      // spent.
+      checks: this.#registryChecks.map(check =>
+        ApprovedCheck.of(check.key, check.outcome),
+      ),
+    });
+    this.apply(new ArchiveSearchApproved(this.id, this.#registryChecks.length));
+  }
+
+  /*
+   * The one way an approval ends. Every path that changes what the archive
+   * answered about this package goes through here, and a path that grows later
+   * and does not is the bug this exists to prevent: an approval left standing
+   * over answers nobody has read says a person signed for something they never
+   * saw (ADR-0016).
+   */
+  private spendArchiveSearchApproval(): void {
+    if (!this.#archiveSearchApproval) return;
+
+    this.#archiveSearchApproval = null;
+    this.apply(new ArchiveSearchApprovalSpent(this.id));
   }
 
   // A check needs two documents to be a cross-document check at all: the
@@ -461,6 +550,9 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     this.#registryChecks = [];
     this.#report = null;
     this.#status = PackageStatus.PENDING;
+    // The archive search went with them, so anything signed for it is spent:
+    // what was approved is no longer what the package holds (ADR-0016).
+    this.spendArchiveSearchApproval();
 
     this.apply(new FilesAdded(this.id, files.length));
   }

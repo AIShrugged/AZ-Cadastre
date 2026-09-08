@@ -19,6 +19,9 @@ import {
   VerificationStarted,
 } from '../events/index.js';
 import {
+  ArchiveSearchAlreadyApprovedException,
+  ArchiveSearchNotAskedException,
+  ArchiveSearchNotSettledException,
   CrossCheckNotInProfileException,
   DocumentAlreadyClassifiedException,
   DocumentNotClassifiedException,
@@ -44,6 +47,8 @@ import {
   UnclassifiableDocumentException,
 } from '../exceptions/index.js';
 import {
+  ApprovalComment,
+  ApprovalSummary,
   Classification,
   Confidence,
   ContentType,
@@ -474,6 +479,7 @@ describe('VerificationPackage', () => {
         documents: [],
         crossChecks: [],
         registryChecks: [],
+        archiveSearchApproval: null,
         report: null,
       });
 
@@ -493,6 +499,7 @@ describe('VerificationPackage', () => {
         documents: [document],
         crossChecks: [],
         registryChecks: [],
+        archiveSearchApproval: null,
         report: null,
       });
 
@@ -512,6 +519,7 @@ describe('VerificationPackage', () => {
         documents: [],
         crossChecks: [],
         registryChecks: [],
+        archiveSearchApproval: null,
         report: null,
       });
 
@@ -1641,6 +1649,7 @@ describe('VerificationPackage', () => {
         documents: verification.documents,
         crossChecks: verification.crossChecks,
         registryChecks: verification.registryChecks,
+        archiveSearchApproval: null,
         report: null,
       });
       stripped.complete();
@@ -1665,6 +1674,7 @@ describe('VerificationPackage', () => {
         documents: verification.documents,
         crossChecks: verification.crossChecks,
         registryChecks: verification.registryChecks,
+        archiveSearchApproval: null,
         report: verification.report,
       });
       reread.recordRecognition(file.id, page.id, anOcrResult());
@@ -2214,6 +2224,7 @@ describe('VerificationPackage', () => {
         documents: verification.documents,
         crossChecks: verification.crossChecks,
         registryChecks: verification.registryChecks,
+        archiveSearchApproval: null,
         report: verification.report,
       });
       reread.recordCrossCheck(aVerdict(reread, CrossCheckVerdict.MATCH));
@@ -2556,49 +2567,88 @@ describe('VerificationPackage', () => {
    * asked (ADR-0014). Nothing sets it, so these are the transitions of the
    * package itself rather than of a field somebody maintains.
    */
-  describe('where it stands', () => {
-    const OF_RECORD = VerificationProfile.CADASTRE.registryChecks[0]!;
+  const OF_RECORD = VerificationProfile.CADASTRE.registryChecks[0]!;
 
-    function stated(key: string, value: string): ExtractedField {
-      return ExtractedField.of(
-        FieldKey.create(key),
-        FieldValue.create(value),
-        Confidence.of(0.95),
-        PageNumber.first(),
+  function stated(key: string, value: string): ExtractedField {
+    return ExtractedField.of(
+      FieldKey.create(key),
+      FieldValue.create(value),
+      Confidence.of(0.95),
+      PageNumber.first(),
+    );
+  }
+
+  // Every required type, one per sheet, each placed and attested — the package
+  // an inspector should have nothing to be told about. The plan-scheme states
+  // the address, so the register has something to be asked about.
+  function aCompletePackage() {
+    const built = aSegmentedPackage(REQUIRED_TYPES.length);
+    built.documents.forEach((document, index) => {
+      built.verification.classify(
+        document.id,
+        aClassification(REQUIRED_TYPES[index]!),
       );
+    });
+    built.verification.recordExtractedFields(built.document.id, [
+      stated('property_address', 'Zığ qəsəbəsi, Əliyev küçəsi 12'),
+    ]);
+
+    return built;
+  }
+
+  function anArchiveAnswer(verification: VerificationPackage): RegistryCheck {
+    return RegistryCheck.of({
+      key: OF_RECORD.key,
+      outcome: RegistryOutcome.CONFIRMED,
+      confidence: Confidence.of(0.95),
+      note: 'the register holds this address',
+      asked: verification.askedOf(OF_RECORD)!,
+      reference: 'folder 14, pp. 01-dən 30',
+      attributes: [],
+    });
+  }
+
+  // A finished package whose archive search is waiting for somebody to sign
+  // for it: the clean envelope, the register asked and answered, the run over.
+  function anApprovablePackage() {
+    const built = aCompletePackage();
+    built.verification.recordRegistryCheck(anArchiveAnswer(built.verification));
+    built.verification.complete();
+
+    return built;
+  }
+
+  /*
+   * The run a package gets after a file is added to it: only the new file is
+   * read, because what was read off each of the others on its own still stands
+   * — and then the register is asked again and the report compiled afresh
+   * (ADR-0013).
+   *
+   * The new sheet is placed as a type the package already answers, so what the
+   * run finds is a second document of that type. That is an observation and
+   * never a finding against the package, which is what leaves the report clean
+   * and the submission waiting on the one thing this set is about.
+   */
+  function rerun(verification: VerificationPackage): void {
+    verification.start();
+
+    for (const file of verification.files) {
+      if (file.isSplit) continue;
+
+      const page = aPage(1);
+      verification.splitIntoPages(file.id, [page]);
+      verification.recordRecognition(file.id, page.id, anOcrResult());
+
+      const document = aDocumentOf(file.id, PageRange.single(page.number));
+      verification.segmentIntoDocuments(file.id, [document]);
+      verification.classify(document.id, aClassification(REQUIRED_TYPES[0]!));
     }
 
-    // Every required type, one per sheet, each placed and attested — the
-    // package an inspector should have nothing to be told about. The
-    // plan-scheme states the address, so the register has something to be
-    // asked about.
-    function aCompletePackage() {
-      const built = aSegmentedPackage(REQUIRED_TYPES.length);
-      built.documents.forEach((document, index) => {
-        built.verification.classify(
-          document.id,
-          aClassification(REQUIRED_TYPES[index]!),
-        );
-      });
-      built.verification.recordExtractedFields(built.document.id, [
-        stated('property_address', 'Zığ qəsəbəsi, Əliyev küçəsi 12'),
-      ]);
+    verification.recordRegistryCheck(anArchiveAnswer(verification));
+    verification.complete();
+  }
 
-      return built;
-    }
-
-    function anArchiveAnswer(verification: VerificationPackage): RegistryCheck {
-      return RegistryCheck.of({
-        key: OF_RECORD.key,
-        outcome: RegistryOutcome.CONFIRMED,
-        confidence: Confidence.of(0.95),
-        note: 'the register holds this address',
-        asked: verification.askedOf(OF_RECORD)!,
-        reference: 'folder 14, pp. 01-dən 30',
-        attributes: [],
-      });
-    }
-
+  describe('where it stands', () => {
     it('waits to be picked up while nothing has read it', () => {
       const { verification } = aPackage();
 
@@ -2651,10 +2701,10 @@ describe('VerificationPackage', () => {
 
     /*
      * The engine is done and has nothing to say against the package, and the
-     * archive search it rests on has not been approved by anybody — which is
-     * every clean cadastre package today, because the approval itself is
-     * COMM-40. The standing says a person is owed rather than that the
-     * submission is settled.
+     * archive search it rests on has not been approved by anybody. The standing
+     * says a person is owed rather than that the submission is settled — and
+     * what settles it is the one thing here nobody but a person can do
+     * (ADR-0016).
      */
     it('holds a clean package for the approval of the archive search', () => {
       const { verification } = aCompletePackage();
@@ -2702,6 +2752,208 @@ describe('VerificationPackage', () => {
 
       expect(verification.registryChecks).toEqual([]);
       expect(verification.standing.value).toBe('Queued');
+    });
+
+    // The whole of what an approval changes about a submission: nothing was
+    // held against it, the search it rested on has now been signed for, and it
+    // is waiting on nobody (ADR-0016).
+    it('clears a package once a person has signed for the archive search', () => {
+      const { verification } = anApprovablePackage();
+
+      verification.approveArchiveSearch(
+        ApprovalSummary.create('the record agrees; the archive holds it'),
+        null,
+      );
+
+      expect(verification.standing.value).toBe('Cleared');
+    });
+
+    /*
+     * Findings against the package outrank the approval, because they are the
+     * more pressing move (ADR-0014). Approving the archive search settles the
+     * archive search and not the submission — the engine never refuses a
+     * package, and a person still has the findings to resolve.
+     */
+    it('still sends a package with findings to the inspector once approved', () => {
+      const built = aSegmentedPackage(REQUIRED_TYPES.length + 1);
+      REQUIRED_TYPES.forEach((type, index) => {
+        built.verification.classify(
+          built.documents[index]!.id,
+          aClassification(type),
+        );
+      });
+      built.verification.classify(
+        built.documents[REQUIRED_TYPES.length]!.id,
+        Classification.unplaced(Confidence.of(0.2)),
+      );
+      built.verification.recordExtractedFields(built.document.id, [
+        stated('property_address', 'Zığ qəsəbəsi, Əliyev küçəsi 12'),
+      ]);
+      built.verification.recordRegistryCheck(
+        anArchiveAnswer(built.verification),
+      );
+      built.verification.complete();
+
+      built.verification.approveArchiveSearch(
+        ApprovalSummary.create('the register agrees about the property'),
+        null,
+      );
+
+      expect(built.verification.standing.value).toBe('NeedsInspector');
+    });
+  });
+
+  /*
+   * The one thing in a package a person puts there rather than the engine: a
+   * sign-off on what the archive register answered (ADR-0016). It names nobody,
+   * because there is nobody to name — there are no accounts in this system —
+   * so what it records is that it happened, what was concluded, and what was
+   * approved.
+   */
+  describe('when a person approves the archive search', () => {
+    it('records the conclusion and any remark made on signing', () => {
+      const { verification } = anApprovablePackage();
+
+      verification.approveArchiveSearch(
+        ApprovalSummary.create('  the archive holds the original  '),
+        ApprovalComment.from('folder 14 re-checked by hand'),
+      );
+
+      const approval = verification.archiveSearchApproval;
+      expect(approval?.summary.value).toBe('the archive holds the original');
+      expect(approval?.comment?.value).toBe('folder 14 re-checked by hand');
+      expect(typesOf(verification)).toContain(
+        'verification.ArchiveSearchApproved',
+      );
+    });
+
+    // Required, and the only required part: an approval that says only that it
+    // happened says nothing, since nobody's name is on it either.
+    it('takes no remark at all, which is a different thing from a blank one', () => {
+      const { verification } = anApprovablePackage();
+
+      verification.approveArchiveSearch(
+        ApprovalSummary.create('nothing outstanding'),
+        ApprovalComment.from('  '),
+      );
+
+      expect(verification.archiveSearchApproval?.comment).toBeNull();
+    });
+
+    // Not merely that something was approved: an approval the checks later
+    // outrun is then readable against what they say now.
+    it('records what the register had answered at the moment it was signed', () => {
+      const { verification } = anApprovablePackage();
+
+      verification.approveArchiveSearch(
+        ApprovalSummary.create('nothing outstanding'),
+        null,
+      );
+
+      const approved = verification.archiveSearchApproval?.checks ?? [];
+      expect(approved.map(check => check.key.value)).toEqual([
+        OF_RECORD.key.value,
+      ]);
+      expect(approved[0]!.outcome).toBe(RegistryOutcome.CONFIRMED);
+    });
+
+    // Approving a search nobody made would settle a submission on the strength
+    // of nothing: a profile that asks the register nothing, and a package whose
+    // address no sheet stated, leave no search to sign for.
+    it('refuses a package the register was never asked about', () => {
+      const { verification } = aCompletePackage();
+      verification.complete();
+
+      expect(() =>
+        verification.approveArchiveSearch(
+          ApprovalSummary.create('nothing outstanding'),
+          null,
+        ),
+      ).toThrow(ArchiveSearchNotAskedException);
+    });
+
+    // The run is still free to replace what the register answered, so an
+    // approval given now would cover answers that are about to change.
+    it('refuses while the run that is asking the register is still going', () => {
+      const { verification } = aCompletePackage();
+      verification.recordRegistryCheck(anArchiveAnswer(verification));
+
+      expect(() =>
+        verification.approveArchiveSearch(
+          ApprovalSummary.create('nothing outstanding'),
+          null,
+        ),
+      ).toThrow(ArchiveSearchNotSettledException);
+    });
+
+    // An approval in force is a fact rather than a draft. The way it ends is
+    // that the register is asked again, never that it is written over.
+    it('refuses a second approval while one is in force', () => {
+      const { verification } = anApprovablePackage();
+      verification.approveArchiveSearch(
+        ApprovalSummary.create('nothing outstanding'),
+        null,
+      );
+
+      expect(() =>
+        verification.approveArchiveSearch(
+          ApprovalSummary.create('on second thoughts'),
+          null,
+        ),
+      ).toThrow(ArchiveSearchAlreadyApprovedException);
+    });
+
+    /*
+     * The rule the whole design turns on. A re-run asks the register again, and
+     * what it answers may be nothing like what was signed for — so the approval
+     * is spent the moment a fresh answer lands, and the submission goes back to
+     * waiting on a person rather than quietly reading as settled (ADR-0016).
+     */
+    it('is spent when the register is asked again', () => {
+      const { verification } = anApprovablePackage();
+      verification.approveArchiveSearch(
+        ApprovalSummary.create('nothing outstanding'),
+        null,
+      );
+      expect(verification.standing.value).toBe('Cleared');
+
+      verification.addFiles([aFile()]);
+      expect(verification.archiveSearchApproval).toBeNull();
+
+      // The fresh run, ending where the last one did — and unapproved, so a
+      // package that once read as settled is waiting on a person again.
+      rerun(verification);
+
+      expect(verification.archiveSearchApproval).toBeNull();
+      expect(verification.standing.value).toBe('AwaitingArchiveApproval');
+    });
+
+    it('says so when it is spent, rather than dropping it silently', () => {
+      const { verification } = anApprovablePackage();
+      verification.approveArchiveSearch(
+        ApprovalSummary.create('nothing outstanding'),
+        null,
+      );
+      verification.commit();
+
+      verification.addFiles([aFile()]);
+
+      expect(typesOf(verification)).toContain(
+        'verification.ArchiveSearchApprovalSpent',
+      );
+    });
+
+    // A package that was never approved has nothing to spend, and a re-run of
+    // one must not announce that it did.
+    it('says nothing about an approval a package never had', () => {
+      const { verification } = anApprovablePackage();
+      verification.commit();
+
+      verification.addFiles([aFile()]);
+
+      expect(typesOf(verification)).not.toContain(
+        'verification.ArchiveSearchApprovalSpent',
+      );
     });
   });
 });

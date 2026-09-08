@@ -13,6 +13,7 @@ import type { Prisma } from './generated/client.js';
 import { isStoredId } from './stored-id.js';
 import {
   VerificationPackageMapper,
+  type ArchiveSearchApprovalWrite,
   type CrossCheckWrite,
   type DocumentWrite,
   type PackageWrite,
@@ -46,6 +47,12 @@ const WHOLE_AGGREGATE = {
       attributes: { orderBy: { position: 'asc' } },
       documents: { orderBy: { position: 'asc' } },
     },
+  },
+  // Only the approval in force: the aggregate decides with it, and a spent one
+  // decides nothing (ADR-0016). At most one row answers this.
+  archiveSearchApprovals: {
+    where: { supersededAt: null },
+    include: { checks: { orderBy: { position: 'asc' } } },
   },
   report: { include: { issues: { orderBy: { createdAt: 'asc' } } } },
 } as const satisfies Prisma.VerificationPackageInclude;
@@ -99,6 +106,12 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
       for (const check of row.registryChecks) {
         await this.writeRegistryCheck(tx, row.id, check);
       }
+
+      await this.writeArchiveSearchApproval(
+        tx,
+        row.id,
+        row.archiveSearchApproval,
+      );
 
       await this.writeReport(tx, row.id, row.report);
 
@@ -316,6 +329,50 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
         ...document,
         registryCheckId: stored.id,
       })),
+    });
+  }
+
+  /*
+   * The approval of the archive search, which is the one row here a person
+   * wrote rather than the engine.
+   *
+   * Never updated and never deleted. An approval in force is a fact: the way it
+   * ends is that the register is asked again, and then it is marked spent and
+   * stays on file saying what was signed for and when it stopped counting
+   * (ADR-0016). So there are exactly two moves — write the one the aggregate
+   * has just given, or spend the one the aggregate no longer holds.
+   */
+  private async writeArchiveSearchApproval(
+    tx: Prisma.TransactionClient,
+    packageId: string,
+    approval: ArchiveSearchApprovalWrite | null,
+  ): Promise<void> {
+    if (!approval) {
+      await tx.archiveSearchApproval.updateMany({
+        where: { packageId, supersededAt: null },
+        data: { supersededAt: new Date() },
+      });
+
+      return;
+    }
+
+    // Already on file: nothing about a given approval ever changes, so this is
+    // a save of a package that was approved earlier rather than a second
+    // approval — the aggregate refuses those.
+    const inForce = await tx.archiveSearchApproval.findFirst({
+      where: { packageId, supersededAt: null },
+      select: { id: true },
+    });
+
+    if (inForce) return;
+
+    await tx.archiveSearchApproval.create({
+      data: {
+        packageId,
+        summary: approval.summary,
+        comment: approval.comment,
+        checks: { create: approval.checks.map(check => ({ ...check })) },
+      },
     });
   }
 

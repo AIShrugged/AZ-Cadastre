@@ -35,5 +35,10 @@ model VerificationPackage {
   registryChecks RegistryCheck[]
   report         Report?
 
+  /// What a person signed for about the archive search, newest last. A history
+  /// and not a field: an approval covers the state of the search it was given,
+  /// and a run that asks the register again ends it (ADR-0016).
+  archiveSearchApprovals ArchiveSearchApproval[]
+
   @@map("verification_packages")
 }

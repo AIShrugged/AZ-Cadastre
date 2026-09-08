@@ -224,6 +224,50 @@ export const RegistryCheckDtoSchema = z.object({
 });
 export type RegistryCheckDto = z.infer<typeof RegistryCheckDtoSchema>;
 
+// ─── The archive search, and the person who signed for it ────────────────────
+// The one thing in a package a person put there rather than the engine: their
+// sign-off on what the archive register answered, what they concluded from it,
+// and — where they had one — a remark on signing (ADR-0016).
+
+export const ApprovedCheckDtoSchema = z.object({
+  // Profile registry-check key, e.g. "property_of_record".
+  key: z.string(),
+  // What the register had answered it with when the approval was given, which
+  // is not necessarily what it answers now.
+  outcome: RegistryOutcomeSchema,
+});
+export type ApprovedCheckDto = z.infer<typeof ApprovedCheckDtoSchema>;
+
+/**
+ * One approval of a submission's archive search.
+ *
+ * No author, and the omission is deliberate: there are no accounts in this
+ * system, so a name here could only be one somebody typed — the appearance of
+ * accountability rather than the thing (ADR-0016).
+ *
+ * `supersededAt` is what makes a spent approval legible instead of silent. An
+ * approval covers the state of the archive search it was given, so a run that
+ * asks the register again ends it: the row stays, saying what was signed for
+ * and when it stopped counting. Only an approval with `supersededAt` null is in
+ * force, and a package has at most one.
+ */
+export const ArchiveSearchApprovalDtoSchema = z.object({
+  // ISO-8601.
+  approvedAt: z.string(),
+  // ISO-8601, and null while the approval stands.
+  supersededAt: z.string().nullable(),
+  // What the search means for this submission as a whole. Always stated.
+  summary: z.string(),
+  // A remark on the act of approving. Null where the person had none.
+  comment: z.string().nullable(),
+  // What the register had answered at the moment it was signed for, in the
+  // order the package held them.
+  checks: z.array(ApprovedCheckDtoSchema),
+});
+export type ArchiveSearchApprovalDto = z.infer<
+  typeof ArchiveSearchApprovalDtoSchema
+>;
+
 export const ReportDtoSchema = z.object({
   status: ReportStatusSchema,
   // ISO-8601.
@@ -241,6 +285,12 @@ export const PackageDetailDtoSchema = PackageDtoSchema.extend({
   // about could not be read, it stays empty: a question nobody could put is
   // already in the report as the reading that failed.
   registryChecks: z.array(RegistryCheckDtoSchema),
+  // Every approval the archive search has had, newest first — the spent ones
+  // too, because a signature over answers the package has since replaced is
+  // exactly what a reader has to be able to see. At most one has no
+  // `supersededAt`; that is the one in force, and `standing` is worked out from
+  // it. Empty until somebody signs.
+  archiveSearchApprovals: z.array(ArchiveSearchApprovalDtoSchema),
   report: ReportDtoSchema.nullable(),
 });
 export type PackageDetailDto = z.infer<typeof PackageDetailDtoSchema>;

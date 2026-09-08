@@ -6,6 +6,10 @@ import {
   SourceFile,
 } from '../../domain/entities/index.js';
 import {
+  ApprovalComment,
+  ApprovalSummary,
+  ApprovedCheck,
+  ArchiveSearchApproval,
   CheckedValue,
   Classification,
   Confidence,
@@ -58,7 +62,21 @@ export type PackageRow = {
   readonly documents: readonly DocumentRow[];
   readonly crossChecks: readonly CrossCheckRow[];
   readonly registryChecks: readonly RegistryCheckRow[];
+  // Only the one in force, if there is one: an approval a later run spent is
+  // kept for the record and decides nothing (ADR-0016).
+  readonly archiveSearchApprovals: readonly ArchiveSearchApprovalRow[];
   readonly report: ReportRow | null;
+};
+
+export type ArchiveSearchApprovalRow = {
+  readonly summary: string;
+  readonly comment: string | null;
+  readonly checks: readonly ApprovedCheckRow[];
+};
+
+export type ApprovedCheckRow = {
+  readonly key: string;
+  readonly outcome: string;
 };
 
 export type ReportRow = {
@@ -181,7 +199,22 @@ export type PackageWrite = {
   readonly documents: readonly DocumentWrite[];
   readonly crossChecks: readonly CrossCheckWrite[];
   readonly registryChecks: readonly RegistryCheckWrite[];
+  // The approval in force, or none — which is what tells the repository to
+  // write one down, or to mark the one on file spent (ADR-0016).
+  readonly archiveSearchApproval: ArchiveSearchApprovalWrite | null;
   readonly report: ReportWrite | null;
+};
+
+export type ArchiveSearchApprovalWrite = {
+  readonly summary: string;
+  readonly comment: string | null;
+  readonly checks: readonly ApprovedCheckWrite[];
+};
+
+export type ApprovedCheckWrite = {
+  readonly key: string;
+  readonly outcome: RegistryOutcomeColumn;
+  readonly position: number;
 };
 
 export type ReportWrite = {
@@ -318,6 +351,9 @@ export class VerificationPackageMapper {
       registryChecks: row.registryChecks.flatMap(check =>
         VerificationPackageMapper.registryCheckToDomain(check),
       ),
+      archiveSearchApproval: VerificationPackageMapper.approvalToDomain(
+        row.archiveSearchApprovals[0],
+      ),
       report: row.report
         ? VerificationPackageMapper.reportToDomain(row.report)
         : null,
@@ -422,8 +458,44 @@ export class VerificationPackageMapper {
           },
         ];
       }),
+      archiveSearchApproval: VerificationPackageMapper.approvalRow(
+        aggregate.archiveSearchApproval,
+      ),
       report: VerificationPackageMapper.reportRow(aggregate.report),
     };
+  }
+
+  private static approvalRow(
+    approval: ArchiveSearchApproval | null,
+  ): ArchiveSearchApprovalWrite | null {
+    if (!approval) return null;
+
+    return {
+      summary: approval.summary.value,
+      comment: approval.comment?.value ?? null,
+      checks: approval.checks.map((check, position) => ({
+        key: check.key.value,
+        outcome: VerificationPackageMapper.outcomeColumn(check.outcome),
+        position,
+      })),
+    };
+  }
+
+  private static approvalToDomain(
+    row: ArchiveSearchApprovalRow | undefined,
+  ): ArchiveSearchApproval | null {
+    if (!row) return null;
+
+    return ArchiveSearchApproval.of({
+      summary: ApprovalSummary.create(row.summary),
+      comment: ApprovalComment.from(row.comment),
+      checks: row.checks.map(check =>
+        ApprovedCheck.of(
+          RegistryCheckKey.create(check.key),
+          RegistryOutcome.of(check.outcome),
+        ),
+      ),
+    });
   }
 
   // A check whose document a later run removed is dropped rather than guessed

@@ -1,3 +1,6 @@
+export { ArchiveSearchAlreadyApprovedException } from './archive-search-already-approved.exception.js';
+export { ArchiveSearchNotAskedException } from './archive-search-not-asked.exception.js';
+export { ArchiveSearchNotSettledException } from './archive-search-not-settled.exception.js';
 export { CrossCheckMustCompareTwoDocumentsException } from './cross-check-must-compare-two-documents.exception.js';
 export { CrossCheckNotInProfileException } from './cross-check-not-in-profile.exception.js';
 export { DocumentAlreadyClassifiedException } from './document-already-classified.exception.js';
@@ -9,6 +12,8 @@ export { DuplicatePageNumberException } from './duplicate-page-number.exception.
 export { DuplicateStorageKeyException } from './duplicate-storage-key.exception.js';
 export { FieldNotInSchemaException } from './field-not-in-schema.exception.js';
 export { FileTooLargeException } from './file-too-large.exception.js';
+export { InvalidApprovalCommentException } from './invalid-approval-comment.exception.js';
+export { InvalidApprovalSummaryException } from './invalid-approval-summary.exception.js';
 export { InvalidConfidenceException } from './invalid-confidence.exception.js';
 export { InvalidCrossCheckKeyException } from './invalid-cross-check-key.exception.js';
 export { InvalidCrossCheckVerdictException } from './invalid-cross-check-verdict.exception.js';

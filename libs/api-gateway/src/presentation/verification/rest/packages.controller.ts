@@ -11,9 +11,11 @@ import {
 
 import {
   AddFilesRequestSchema,
+  ApproveArchiveSearchRequestSchema,
   CreatePackageRequestSchema,
   ListPackagesRequestSchema,
   type AddFilesRequest,
+  type ApproveArchiveSearchRequest,
   type CreatePackageRequest,
   type ListPackagesRequest,
   type ListPackagesResponse,
@@ -60,6 +62,31 @@ export class PackagesController {
     @Body({ schema: AddFilesRequestSchema }) body: AddFilesRequest,
   ): Promise<PackageDto> {
     return this.verification.packages.addFiles(id, body);
+  }
+
+  /*
+   * The one write here a person makes rather than the engine: their approval of
+   * what the archive register answered about this submission (ADR-0016).
+   *
+   * Only an administrator may approve one. Nothing here enforces that and
+   * nothing can: there is no authentication and there are no accounts, so this
+   * endpoint cannot tell an administrator from anybody else, and a check it
+   * could make — a name in the body, a header a caller sets — would be a lock
+   * with the key taped to it. The restriction is written down and unenforced
+   * rather than faked, and this is the one place a guard attaches when accounts
+   * arrive.
+   *
+   * 200 and not 201: what comes back is the package as it now stands, and the
+   * approval has no address of its own to be created at.
+   */
+  @Post(':id/archive-search-approval')
+  @HttpCode(HttpStatus.OK)
+  async approveArchiveSearch(
+    @Param('id') id: string,
+    @Body({ schema: ApproveArchiveSearchRequestSchema })
+    body: ApproveArchiveSearchRequest,
+  ): Promise<PackageDetailDto> {
+    return this.verification.packages.approveArchiveSearch(id, body);
   }
 
   @Get(':id')

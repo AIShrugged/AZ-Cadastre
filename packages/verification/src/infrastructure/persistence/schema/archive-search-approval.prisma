@@ -1,0 +1,65 @@
+// A person's sign-off on what the archive register answered about a submission
+// (ADR-0016). Not an output of the pipeline: every other table here is
+// something the engine worked out, and this is the one thing a human put in.
+//
+// A row per approval and never a column on the package, because an approval is
+// an event: it covers the state of the archive search it was given, and a run
+// that asks the register again ends it rather than changing it. That is what
+// `supersededAt` says — the approval stays on file, readable, and stops being
+// in force. A package has at most one row with `supersededAt` null, which is
+// the only thing anything reads to decide whether the search is approved.
+//
+// It carries no author. There are no accounts in this system and none are
+// planned, so there is nothing to read a name off; a free-text box for one
+// would manufacture the appearance of accountability rather than record it.
+// When accounts arrive, the author is one more column here.
+
+model ArchiveSearchApproval {
+  id        String              @id @default(uuid()) @db.Uuid
+  packageId String              @db.Uuid
+  package   VerificationPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  /// What the person concluded about the submission as a whole from what the
+  /// archive answered. Required: an approval that says only that it happened
+  /// says nothing at all, since nobody's name is recorded either.
+  summary String
+
+  /// A remark on the act of approving — a reservation, or why this was signed
+  /// for despite something. Optional, and null rather than empty: a second box
+  /// that must be filled in is a box that gets "ok" typed into it.
+  comment String?
+
+  /// Which of the register's answers this approval covered. Kept so an approval
+  /// a later run outran is readable rather than merely marked spent.
+  checks ArchiveSearchApprovalCheck[]
+
+  approvedAt DateTime @default(now())
+
+  /// When the archive search was made again, which is when this approval
+  /// stopped being in force. Null while it stands. Never deleted: what was
+  /// approved and when it was spent is the record.
+  supersededAt DateTime?
+
+  @@index([packageId])
+  @@map("archive_search_approvals")
+}
+
+/// One of the register's answers as it stood when the approval was given: the
+/// profile's registry-check key and what the register said to it.
+model ArchiveSearchApprovalCheck {
+  id         String                @id @default(uuid()) @db.Uuid
+  approvalId String                @db.Uuid
+  approval   ArchiveSearchApproval @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+
+  /// Profile registry-check key (ADR-0002), e.g. "property_of_record". A string
+  /// so a new profile needs no migration — the same reason the check's own row
+  /// keeps one.
+  key     String
+  outcome RegistryOutcome
+
+  // The order the package held them in.
+  position Int
+
+  @@index([approvalId])
+  @@map("archive_search_approval_checks")
+}

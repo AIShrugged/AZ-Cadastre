@@ -410,6 +410,48 @@ const en: Dict = {
   // Keyed on the stable `code` the service answers a refused rule with, never on
   // its message (written for a log) or its status (which cannot tell two rules
   // apart). A code with no entry here falls back to the caller's generic line.
+  // ─── Where the submission stands ───────────────────────────────────────────
+  // Package Standing (ADR-0014): the third of the three states a reader will
+  // call a status, and the only one written for the inspector. The pipeline's
+  // own status and the report's are the machine's words and never reach a
+  // person, which is why neither has a line in this dictionary.
+  'detail.standing': 'Where it stands',
+  'standing.Queued': 'Queued',
+  'standing.UnderVerification': 'Being verified',
+  'standing.Stalled': 'Stalled',
+  'standing.ShortOfDocuments': 'Short of documents',
+  'standing.NeedsInspector': 'Needs the inspector',
+  'standing.AwaitingArchiveApproval': 'Archive search unapproved',
+  'standing.Cleared': 'Nothing outstanding',
+  'standing.note.Queued': 'Accepted. No run has read it yet.',
+  'standing.note.UnderVerification':
+    'A run is reading the package — this page updates as each stage finishes.',
+  'standing.note.Stalled':
+    'Our own machinery broke down, so nothing was concluded about the papers. Adding a file starts a fresh run.',
+  'standing.note.ShortOfDocuments':
+    'A paper this profile requires never arrived. Add it below and the package is verified afresh.',
+  'standing.note.NeedsInspector':
+    'The set is complete and the run holds findings against it — every one of them for you to resolve.',
+  'standing.note.AwaitingArchiveApproval':
+    'Nothing is held against it. The archive search it rests on has not been approved by anybody yet.',
+  'standing.note.Cleared':
+    'Nothing is held against it and nothing is outstanding. The registration decision is still yours.',
+  // ─── Adding files to a package that already exists (ADR-0013) ──────────────
+  'add.title': 'Add documents',
+  'add.action': 'Add documents',
+  'add.note':
+    'The paper that never arrived, or a readable scan of a sheet nobody could read. Every file added is verified with the package.',
+  'add.note_reopens':
+    'Adding a file re-opens this package: the report, the document comparisons and the archive answers were all made over a set that has since changed, so they are discarded and the package is verified afresh. What was read off each file stays.',
+  'add.closed_running':
+    'A run is under way, so this package takes no files right now — a run reads the set it started with. Add them once it finishes.',
+  'add.none': 'No files added yet',
+  'add.uploading': 'Uploading…',
+  'add.ready': '{n} ready to add',
+  'add.send': 'Add to package',
+  'add.sending': 'Adding…',
+  'add.done': '{n} added — the package is being verified afresh',
+  'add.failed': 'The files could not be added — please try again',
   'error.UNKNOWN_PROFILE':
     'That verification profile no longer exists — reload and pick again',
   'error.PACKAGE_MUST_HAVE_A_DOCUMENT': 'A package needs at least one document',
@@ -424,6 +466,11 @@ const en: Dict = {
     'Document storage is unreachable — try again shortly',
   'error.OBJECT_BODY_MISSING': 'The uploaded file arrived empty — add it again',
   'error.RATE_LIMITED': 'Too many requests — try again shortly',
+  'error.PACKAGE_NOT_TAKING_FILES':
+    'A run is under way — files can be added once it finishes',
+  'error.PACKAGE_MUST_GAIN_A_FILE': 'Choose at least one file to add',
+  'error.PACKAGE_NOT_FOUND': 'This package is no longer in the register',
+  'error.DUPLICATE_STORAGE_KEY': 'That file is already in the package',
 };
 
 const ru: Dict = {
@@ -800,6 +847,44 @@ const ru: Dict = {
   'theme.to_dark': 'Тёмная тема',
   'sidebar.toggle': 'Показать/скрыть панель',
   // ─── Refusals ───────────────────────────────────────────────────────────────
+  // ─── Состояние заявления ───────────────────────────────────────────────────
+  'detail.standing': 'Состояние заявления',
+  'standing.Queued': 'В очереди',
+  'standing.UnderVerification': 'Идёт проверка',
+  'standing.Stalled': 'Проверка сорвалась',
+  'standing.ShortOfDocuments': 'Не хватает документов',
+  'standing.NeedsInspector': 'Нужен инспектор',
+  'standing.AwaitingArchiveApproval': 'Архивный поиск не утверждён',
+  'standing.Cleared': 'Замечаний нет',
+  'standing.note.Queued': 'Пакет принят. Ни одна проверка его ещё не читала.',
+  'standing.note.UnderVerification':
+    'Проверка читает пакет — страница обновляется по мере завершения этапов.',
+  'standing.note.Stalled':
+    'Сломалась наша собственная механика, о документах не сделано никаких выводов. Догрузка файла запускает проверку заново.',
+  'standing.note.ShortOfDocuments':
+    'Документ, которого требует профиль, так и не поступил. Догрузите его ниже — пакет будет проверен заново.',
+  'standing.note.NeedsInspector':
+    'Комплект полный, но проверка вынесла замечания — каждое разбирает инспектор.',
+  'standing.note.AwaitingArchiveApproval':
+    'Замечаний к пакету нет. Архивный поиск, на котором он держится, ещё никем не утверждён.',
+  'standing.note.Cleared':
+    'Замечаний нет, и ничего не осталось. Решение о регистрации по-прежнему за вами.',
+  // ─── Догрузка документов в открытый пакет (ADR-0013) ───────────────────────
+  'add.title': 'Догрузка документов',
+  'add.action': 'Догрузить документы',
+  'add.note':
+    'Документ, который так и не поступил, или читаемый скан листа, который не удалось прочитать. Каждый догруженный файл проверяется вместе с пакетом.',
+  'add.note_reopens':
+    'Догрузка открывает пакет заново: отчёт, сравнение документов и ответы архива сделаны по комплекту, который с тех пор изменился, поэтому они отбрасываются, а пакет проверяется заново. Прочитанное по каждому файлу сохраняется.',
+  'add.closed_running':
+    'Идёт проверка, поэтому сейчас пакет не принимает файлы — проверка читает тот комплект, с которым началась. Догрузите их, когда она закончится.',
+  'add.none': 'Файлы пока не добавлены',
+  'add.uploading': 'Загрузка…',
+  'add.ready': 'Готово к догрузке: {n}',
+  'add.send': 'Догрузить в пакет',
+  'add.sending': 'Догружаем…',
+  'add.done': 'Догружено: {n} — пакет проверяется заново',
+  'add.failed': 'Не удалось догрузить файлы — попробуйте ещё раз',
   'error.UNKNOWN_PROFILE':
     'Такого профиля проверки больше нет — обновите страницу и выберите заново',
   'error.PACKAGE_MUST_HAVE_A_DOCUMENT':
@@ -817,6 +902,11 @@ const ru: Dict = {
   'error.OBJECT_BODY_MISSING':
     'Загруженный файл оказался пустым — добавьте его снова',
   'error.RATE_LIMITED': 'Слишком много запросов — повторите позже',
+  'error.PACKAGE_NOT_TAKING_FILES':
+    'Идёт проверка — файлы можно догрузить, когда она закончится',
+  'error.PACKAGE_MUST_GAIN_A_FILE': 'Выберите хотя бы один файл',
+  'error.PACKAGE_NOT_FOUND': 'Этого пакета больше нет в реестре',
+  'error.DUPLICATE_STORAGE_KEY': 'Этот файл уже есть в пакете',
 };
 
 const az: Dict = {
@@ -1196,6 +1286,45 @@ const az: Dict = {
   'theme.to_dark': 'Qaranlıq rejim',
   'sidebar.toggle': 'Paneli aç/bağla',
   // ─── Refusals ───────────────────────────────────────────────────────────────
+  // ─── Müraciətin vəziyyəti ──────────────────────────────────────────────────
+  'detail.standing': 'Vəziyyəti',
+  'standing.Queued': 'Növbədə',
+  'standing.UnderVerification': 'Yoxlanılır',
+  'standing.Stalled': 'Yoxlama dayandı',
+  'standing.ShortOfDocuments': 'Sənədlər çatmır',
+  'standing.NeedsInspector': 'Müfəttiş baxmalıdır',
+  'standing.AwaitingArchiveApproval': 'Arxiv axtarışı təsdiqlənməyib',
+  'standing.Cleared': 'Qeyd yoxdur',
+  'standing.note.Queued':
+    'Paket qəbul edildi. Hələ heç bir yoxlama onu oxumayıb.',
+  'standing.note.UnderVerification':
+    'Yoxlama paketi oxuyur — hər mərhələ bitdikcə bu səhifə yenilənir.',
+  'standing.note.Stalled':
+    'Öz mexanizmimiz dayandı, sənədlər barədə heç bir nəticə çıxarılmadı. Fayl əlavə etmək yoxlamanı yenidən başladır.',
+  'standing.note.ShortOfDocuments':
+    'Profilin tələb etdiyi sənəd gəlməyib. Onu aşağıda əlavə edin — paket yenidən yoxlanacaq.',
+  'standing.note.NeedsInspector':
+    'Dəst tamdır, lakin yoxlama qeydlər çıxarıb — hər birini müfəttiş həll edir.',
+  'standing.note.AwaitingArchiveApproval':
+    'Paketə qarşı qeyd yoxdur. Söykəndiyi arxiv axtarışını hələ kimsə təsdiqləməyib.',
+  'standing.note.Cleared':
+    'Qeyd də yoxdur, gözləyən də. Qeydiyyat qərarı yenə də sizindir.',
+  // ─── Mövcud paketə fayl əlavə etmək (ADR-0013) ─────────────────────────────
+  'add.title': 'Sənəd əlavə et',
+  'add.action': 'Sənəd əlavə et',
+  'add.note':
+    'Gəlməyən sənəd və ya oxunmayan vərəqin oxunaqlı skanı. Əlavə edilən hər fayl paketlə birlikdə yoxlanılır.',
+  'add.note_reopens':
+    'Fayl əlavə etmək bu paketi yenidən açır: hesabat, sənədlərin müqayisəsi və arxivin cavabları o vaxtdan dəyişmiş dəst üzərində alınıb, ona görə də ləğv edilir və paket yenidən yoxlanılır. Hər fayldan oxunanlar qalır.',
+  'add.closed_running':
+    'Yoxlama gedir, ona görə paket indi fayl qəbul etmir — yoxlama başladığı dəsti oxuyur. Bitəndən sonra əlavə edin.',
+  'add.none': 'Hələ fayl əlavə edilməyib',
+  'add.uploading': 'Yüklənir…',
+  'add.ready': '{n} əlavə etməyə hazırdır',
+  'add.send': 'Paketə əlavə et',
+  'add.sending': 'Əlavə edilir…',
+  'add.done': '{n} əlavə edildi — paket yenidən yoxlanılır',
+  'add.failed': 'Fayllar əlavə edilmədi — yenidən cəhd edin',
   'error.UNKNOWN_PROFILE':
     'Bu yoxlama profili artıq yoxdur — səhifəni yeniləyib yenidən seçin',
   'error.PACKAGE_MUST_HAVE_A_DOCUMENT': 'Paketdə ən azı bir sənəd olmalıdır',
@@ -1211,6 +1340,11 @@ const az: Dict = {
     'Sənəd anbarı əlçatan deyil — bir az sonra cəhd edin',
   'error.OBJECT_BODY_MISSING': 'Yüklənmiş fayl boş gəldi — yenidən əlavə edin',
   'error.RATE_LIMITED': 'Çox sayda sorğu — bir az sonra cəhd edin',
+  'error.PACKAGE_NOT_TAKING_FILES':
+    'Yoxlama gedir — fayllar bitəndən sonra əlavə oluna bilər',
+  'error.PACKAGE_MUST_GAIN_A_FILE': 'Ən azı bir fayl seçin',
+  'error.PACKAGE_NOT_FOUND': 'Bu paket artıq reyestrdə yoxdur',
+  'error.DUPLICATE_STORAGE_KEY': 'Bu fayl artıq paketdədir',
 };
 
 const DICTS: Record<Locale, Dict> = { en, ru, az };

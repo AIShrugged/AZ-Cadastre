@@ -23,22 +23,26 @@ import {
   ChevronRightIcon,
   FileTextIcon,
   ImageIcon,
+  PlusIcon,
   TriangleAlertIcon,
 } from 'lucide-react';
 import { useState, type ComponentProps, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import {
-  DispositionMark,
   documentsExpected,
   missingTypes,
   profileName,
   STAGES,
+  STANDING_NOTE,
+  StandingMark,
+  takesFiles,
   toViewPackage,
   useGetPackageQuery,
   useGetProfilesQuery,
   type Disposition,
 } from '@/entities/verification-package';
+import { AddFiles } from '@/features/upload-documents';
 import { paths } from '@/shared/config';
 import { formatDate, relativeShort, translateOr, useI18n } from '@/shared/i18n';
 import { cn } from '@/shared/lib/cn';
@@ -60,6 +64,7 @@ import type {
   IssueDto,
   IssueKind,
   PackageDetailDto,
+  PackageStanding,
   RegistryAttributeDto,
   RegistryCheckDto,
   RegistryDocumentDto,
@@ -949,6 +954,53 @@ function FileGroup({
             {t('detail.detecting')}
           </span>
         )
+      )}
+    </section>
+  );
+}
+
+// ─── Where the submission stands ──────────────────────────────────────────────
+// The one state on this surface written for a person, and the first thing the
+// rail says: what has to happen to this package next, as the context worked it
+// out (ADR-0014). It is read off the contract and never derived here — two
+// clients deriving it differently is the reason it is in the contract at all.
+//
+// The other two states a reader would call a status stay off the screen.
+// `PackageStatus` is where the pipeline got to and `ReportStatus` is what the
+// run found; "Completed" over seven findings reads as a verdict this system
+// never makes.
+//
+// The name alone leaves the move to be inferred, so the sentence under it says
+// what has to happen — and where that move is "add the paper that never
+// arrived", the action to make it is right there.
+function Standing({
+  standing,
+  onAddFiles,
+}: {
+  standing: PackageStanding;
+  /** Null while a run is under way: the package takes no files then, and the
+   *  panel that would open says so in its own words. */
+  onAddFiles: (() => void) | null;
+}) {
+  const { t } = useI18n();
+  return (
+    <section>
+      <h2 className='register-label'>{t('detail.standing')}</h2>
+      <div className='mt-3'>
+        <StandingMark standing={standing} />
+      </div>
+      <p className='mt-2 max-w-[40ch] text-[0.8125rem] leading-snug text-muted-foreground'>
+        {t(STANDING_NOTE[standing])}
+      </p>
+      {onAddFiles && (
+        <Button
+          variant='outline'
+          size='sm'
+          onClick={onAddFiles}
+          className='mt-3.5'
+        >
+          <PlusIcon /> {t('add.action')}
+        </Button>
       )}
     </section>
   );
@@ -2235,6 +2287,22 @@ export function VerificationDetails() {
   // filter to, so the register opens whole.
   const segment = pickedSegment ?? (counts.review > 0 ? 'review' : 'all');
 
+  // Whether another file can be put in this package at all — the contract's own
+  // answer, not a list of states kept here. While a run is under way the answer
+  // is no, and the rail offers nothing rather than an action that would be
+  // refused.
+  const accepting = takesFiles(pkg.status);
+
+  // The rail's shortcut into the panel. The tab has to be mounted before the
+  // fragment is applied, or the jump lands in content that is not there — the
+  // same order the finding jumps below take.
+  const goToAddFiles = () => {
+    setActiveView('documents');
+    requestAnimationFrame(() => {
+      window.location.hash = '#add-files';
+    });
+  };
+
   // A finding always takes the inspector to its evidence, even when the
   // evidence lives in another workspace view. The panel changes before the
   // fragment is applied, so a link never lands in content that is not mounted.
@@ -2263,7 +2331,7 @@ export function VerificationDetails() {
           and quoted back. */}
       <SurfaceHeading
         title={profileName(t, view.profile)}
-        badge={<DispositionMark disposition={view.disposition} />}
+        badge={<StandingMark standing={pkg.standing} />}
         subtitle={
           <>
             <span data-mono className='text-foreground/75'>
@@ -2351,6 +2419,19 @@ export function VerificationDetails() {
               </TabsContent>
 
               <TabsContent value='documents' className='pt-7'>
+                {/* Ahead of the register of documents, and outside it: this is
+                    what the inspector came to the tab for when the package is
+                    short of a paper, and a dropzone below sixteen entries is a
+                    dropzone nobody scrolls to. Outside, because the segment bar
+                    below is sticky and would scroll over it. */}
+                <div id='add-files' className='scroll-mt-16 pb-8'>
+                  <AddFiles
+                    packageId={pkg.id}
+                    status={pkg.status}
+                    reported={pkg.report !== null}
+                  />
+                </div>
+
                 <section id='documents' className='scroll-mt-16'>
                   <div className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2 pb-1'>
                     <h2 className='register-label'>{t('detail.documents')}</h2>
@@ -2419,6 +2500,10 @@ export function VerificationDetails() {
 
           <aside className='pb-7 xl:sticky xl:top-6 xl:col-start-2 xl:row-start-1 xl:h-fit xl:pb-0 xl:pl-9'>
             <div className='flex flex-col gap-8'>
+              <Standing
+                standing={pkg.standing}
+                onAddFiles={accepting ? goToAddFiles : null}
+              />
               <RunProgress
                 stages={stages}
                 running={running}

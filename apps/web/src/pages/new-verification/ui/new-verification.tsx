@@ -30,6 +30,7 @@ import {
 } from '@/entities/verification-package';
 import {
   ACCEPT,
+  attachedFiles,
   clearDocuments,
   Dropzone,
   enqueueDocuments,
@@ -194,13 +195,7 @@ export function NewVerification() {
     // Only fully-transferred files carry a storage key to attach. Each is a
     // container the engine reads into the documents it holds — how many that
     // turns out to be is not known here.
-    const attached = files
-      .filter(f => f.status === 'ready' && f.key && f.contentType)
-      .map(f => ({
-        originalFilename: f.name,
-        contentType: f.contentType!,
-        storageKey: f.key!,
-      }));
+    const attached = attachedFiles(files);
     if (attached.length === 0) return;
 
     try {

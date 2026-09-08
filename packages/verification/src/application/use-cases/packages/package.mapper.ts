@@ -1,4 +1,6 @@
 import type {
+  ApprovedCheckDto,
+  ArchiveSearchApprovalDto,
   CheckedValueDto,
   CrossCheckDto,
   DocumentDto,
@@ -14,6 +16,8 @@ import type {
 
 import type { PackageListPage } from '../../ports/outbound/index.js';
 import type {
+  ApprovedCheckView,
+  ArchiveSearchApprovalView,
   CheckedValueView,
   CrossCheckView,
   DocumentView,
@@ -71,7 +75,28 @@ export function toDetailDto(view: PackageDetailView): PackageDetailDto {
     files: view.files.map(toSourceFileDto),
     crossChecks: view.crossChecks.map(toCrossCheckDto),
     registryChecks: view.registryChecks.map(toRegistryCheckDto),
+    archiveSearchApprovals: view.archiveSearchApprovals.map(toApprovalDto),
     report: view.report ? toReportDto(view.report) : null,
+  };
+}
+
+// A spent approval comes over with the rest: `supersededAt` is what says a
+// person signed for answers the package has since replaced, and a reader who
+// cannot see that is a reader being told nothing happened (ADR-0016).
+function toApprovalDto(
+  view: ArchiveSearchApprovalView,
+): ArchiveSearchApprovalDto {
+  return {
+    approvedAt: view.approvedAt.toISOString(),
+    supersededAt: view.supersededAt?.toISOString() ?? null,
+    summary: view.summary,
+    comment: view.comment,
+    checks: view.checks.map((check: ApprovedCheckView) => ({
+      key: check.key,
+      // Only ever written through the domain's own enumeration, so the stored
+      // string is one the contract names.
+      outcome: check.outcome as ApprovedCheckDto['outcome'],
+    })),
   };
 }
 

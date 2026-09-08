@@ -1,5 +1,9 @@
 export { AddFilesCommand, AddFilesHandler } from './add-files/index.js';
 export {
+  ApproveArchiveSearchCommand,
+  ApproveArchiveSearchHandler,
+} from './approve-archive-search/index.js';
+export {
   CreatePackageCommand,
   CreatePackageHandler,
   type SubmittedFile,

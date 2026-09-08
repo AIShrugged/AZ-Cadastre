@@ -1,3 +1,5 @@
+export { ArchiveSearchApprovalSpent } from './archive-search-approval-spent.event.js';
+export { ArchiveSearchApproved } from './archive-search-approved.event.js';
 export { CrossCheckMade } from './cross-check-made.event.js';
 export { DocumentClassified } from './document-classified.event.js';
 export { FieldsExtracted } from './fields-extracted.event.js';

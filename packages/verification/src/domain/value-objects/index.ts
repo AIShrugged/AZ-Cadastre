@@ -1,3 +1,9 @@
+export {
+  ApprovalComment,
+  ApprovalSummary,
+  ApprovedCheck,
+  ArchiveSearchApproval,
+} from './archive-search-approval.vo.js';
 export { Classification } from './classification.vo.js';
 export { Confidence } from './confidence.vo.js';
 export { ContentType } from './content-type.vo.js';

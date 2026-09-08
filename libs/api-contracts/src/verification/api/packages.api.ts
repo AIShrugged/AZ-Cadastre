@@ -1,5 +1,6 @@
 import type {
   AddFilesRequest,
+  ApproveArchiveSearchRequest,
   CreatePackageRequest,
   ListPackagesRequest,
   ListPackagesResponse,
@@ -40,4 +41,25 @@ export interface PackagesApi {
    * documents carved out of them — survives (ADR-0013).
    */
   addFiles(id: string, request: AddFilesRequest): Promise<PackageDto>;
+
+  /**
+   * Records a person's approval of what the archive register answered about
+   * this submission, and answers with the package as it now stands.
+   *
+   * The decision is about the submission and never about the register: the
+   * register states what its own fonds hold and passes judgement on nobody's
+   * application (ADR-0009). It is the one thing in a package a person puts
+   * there rather than the engine, and it carries no author because the system
+   * has no accounts to read one from (ADR-0016).
+   *
+   * Refused with `ARCHIVE_SEARCH_NOT_SETTLED` while a run could still replace
+   * those answers, with `ARCHIVE_SEARCH_NOT_ASKED` where the register was never
+   * asked anything, and with `ARCHIVE_SEARCH_ALREADY_APPROVED` where one is
+   * already in force — an approval ends by the search being made again, never
+   * by being overwritten.
+   */
+  approveArchiveSearch(
+    id: string,
+    request: ApproveArchiveSearchRequest,
+  ): Promise<PackageDetailDto>;
 }

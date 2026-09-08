@@ -212,6 +212,7 @@ function aDetailView(
     files: [aFileView()],
     crossChecks: [],
     registryChecks: [],
+    archiveSearchApprovals: [],
     report: aReportView(),
     ...overrides,
   };

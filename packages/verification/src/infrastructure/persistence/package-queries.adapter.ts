@@ -6,6 +6,7 @@ import {
   type PackageListPage,
 } from '../../application/ports/outbound/index.js';
 import type {
+  ArchiveSearchApprovalView,
   CrossCheckView,
   PackageDetailView,
   PackageSummaryView,
@@ -24,6 +25,11 @@ import {
 import type { $Enums, Prisma } from './generated/client.js';
 import { isStoredId, isUuid } from './stored-id.js';
 import { VerificationPrismaService } from './verification-prisma.service.js';
+
+// Whether the archive was asked, and whether an approval of what it answered is
+// in force: two yes-or-nos, so four combinations, and a standing every one of
+// them reaches is one the archive says nothing about.
+const EVERY_ARCHIVE_FACT = 4;
 
 const ISSUE_COLUMNS = {
   kind: true,
@@ -112,8 +118,16 @@ const SUMMARY_COLUMNS = {
   updatedAt: true,
   // The registry checks are counted and not read: whether the register was
   // asked anything at all is what the standing turns on, and what it answered
-  // is the detail view's business.
-  _count: { select: { sourceFiles: true, registryChecks: true } },
+  // is the detail view's business. The approvals are counted the same way, and
+  // only the ones in force — an approval a later run spent decides nothing
+  // (ADR-0016).
+  _count: {
+    select: {
+      sourceFiles: true,
+      registryChecks: true,
+      archiveSearchApprovals: { where: { supersededAt: null } },
+    },
+  },
   documents: {
     select: {
       type: true,
@@ -124,6 +138,26 @@ const SUMMARY_COLUMNS = {
   // view's business.
   report: { select: { status: true, issues: { select: { kind: true } } } },
 } as const satisfies Prisma.VerificationPackageSelect;
+
+/*
+ * Every approval this package's archive search has had, newest first — spent
+ * ones included. A spent approval is what says a person signed for answers the
+ * package has since replaced, and leaving it out of the detail view would be
+ * exactly the silence ADR-0016 exists to prevent.
+ */
+const APPROVAL_COLUMNS = {
+  orderBy: { approvedAt: 'desc' },
+  select: {
+    approvedAt: true,
+    supersededAt: true,
+    summary: true,
+    comment: true,
+    checks: {
+      orderBy: { position: 'asc' },
+      select: { key: true, outcome: true },
+    },
+  },
+} as const satisfies Prisma.VerificationPackage$archiveSearchApprovalsArgs;
 
 const REPORT_COLUMNS = {
   select: {
@@ -204,6 +238,7 @@ type SummaryRow = {
   readonly _count: {
     readonly sourceFiles: number;
     readonly registryChecks: number;
+    readonly archiveSearchApprovals: number;
   };
   readonly documents: readonly {
     readonly type: string | null;
@@ -213,6 +248,17 @@ type SummaryRow = {
     readonly status: string;
     readonly issues: readonly { readonly kind: string }[];
   } | null;
+};
+
+type ApprovalRow = {
+  readonly approvedAt: Date;
+  readonly supersededAt: Date | null;
+  readonly summary: string;
+  readonly comment: string | null;
+  readonly checks: readonly {
+    readonly key: string;
+    readonly outcome: string;
+  }[];
 };
 
 type DetailReportRow = {
@@ -278,6 +324,7 @@ export class PackageQueriesAdapter extends PackageQueries {
         report: REPORT_COLUMNS,
         crossChecks: CROSS_CHECK_COLUMNS,
         registryChecks: REGISTRY_CHECK_COLUMNS,
+        archiveSearchApprovals: APPROVAL_COLUMNS,
         sourceFiles: {
           orderBy: { createdAt: 'asc' },
           select: {
@@ -326,6 +373,9 @@ export class PackageQueriesAdapter extends PackageQueries {
       ),
       registryChecks: row.registryChecks.map(check =>
         PackageQueriesAdapter.toRegistryCheck(check),
+      ),
+      archiveSearchApprovals: row.archiveSearchApprovals.map(approval =>
+        PackageQueriesAdapter.toApproval(approval),
       ),
       files: row.sourceFiles.map(file => ({
         id: file.id,
@@ -442,34 +492,34 @@ export class PackageQueriesAdapter extends PackageQueries {
   private static standingIs(
     standing: PackageStanding,
   ): Prisma.VerificationPackageWhereInput {
-    // Nothing can approve an archive search yet — the approval is COMM-40 — so
-    // the facts that need one describe no row. The same `false` the summary is
-    // worked out with.
-    const reachable = standing.facts.filter(
-      facts => !facts.archiveSearchApproved,
-    );
-
     /*
-     * One branch per (status, report) pair, with the register only named where
-     * the pair does not hold either way. Without the collapse a standing like
-     * Stalled — which every report value and both answers reach — would be ten
-     * branches saying what five say.
+     * One branch per (status, report) pair, and inside it the register facts
+     * that pair reaches. Without the collapse a standing like Stalled — which
+     * every report value and every answer about the archive reaches — would be
+     * twenty branches saying what five say.
+     *
+     * The two archive facts are kept as pairs rather than as a set each,
+     * because they do not vary independently: `Cleared` is every combination
+     * except a search that was made and not approved, which no product of two
+     * sets describes.
      */
     const branches = new Map<
       string,
-      { status: string; report: string | null; asked: Set<boolean> }
+      { status: string; report: string | null; archive: Set<string> }
     >();
 
-    for (const facts of reachable) {
+    for (const facts of standing.facts) {
       const report = facts.report?.value ?? null;
       const key = `${facts.status.value}|${report ?? ''}`;
       const branch = branches.get(key) ?? {
         status: facts.status.value,
         report,
-        asked: new Set<boolean>(),
+        archive: new Set<string>(),
       };
 
-      branch.asked.add(facts.askedTheArchive);
+      branch.archive.add(
+        `${String(facts.askedTheArchive)}|${String(facts.archiveSearchApproved)}`,
+      );
       branches.set(key, branch);
     }
 
@@ -482,18 +532,38 @@ export class PackageQueriesAdapter extends PackageQueries {
           branch.report === null
             ? { is: null }
             : { status: branch.report as $Enums.ReportStatus },
-        // Whether the archive register was asked anything about this package.
-        // Counted rather than read: what it answered is the detail view's
-        // business, and whether it was asked at all is what the standing turns
-        // on.
-        ...(branch.asked.size === 2
+        // Every combination reaches this standing, so the archive says nothing
+        // about which rows are in it.
+        ...(branch.archive.size === EVERY_ARCHIVE_FACT
           ? {}
           : {
-              registryChecks: branch.asked.has(true)
-                ? { some: {} }
-                : { none: {} },
+              OR: [...branch.archive].map(pair =>
+                PackageQueriesAdapter.archiveIs(pair),
+              ),
             }),
       })),
+    };
+  }
+
+  /**
+   * One combination of the two things the standing asks about the archive, as
+   * a condition over the rows they are read off.
+   *
+   * Both are relations rather than columns, and both are asked about rather
+   * than read: whether the register was asked anything at all, and whether an
+   * approval of what it answered is still in force. What it answered, and what
+   * the approval said, are the detail view's business.
+   */
+  private static archiveIs(pair: string): Prisma.VerificationPackageWhereInput {
+    const [asked, approved] = pair.split('|').map(flag => flag === 'true');
+
+    return {
+      registryChecks: asked ? { some: {} } : { none: {} },
+      // An approval a later run spent is not one in force — that is the whole
+      // of what `supersededAt` says, and the only thing read off it (ADR-0016).
+      archiveSearchApprovals: approved
+        ? { some: { supersededAt: null } }
+        : { none: { supersededAt: null } },
     };
   }
 
@@ -559,6 +629,21 @@ export class PackageQueriesAdapter extends PackageQueries {
     };
   }
 
+  private static toApproval(row: ApprovalRow): ArchiveSearchApprovalView {
+    return {
+      approvedAt: row.approvedAt,
+      supersededAt: row.supersededAt,
+      summary: row.summary,
+      comment: row.comment,
+      checks: row.checks.map(check => ({
+        key: check.key,
+        // Only ever written through the domain's own enumeration, so the stored
+        // string is one the contract names.
+        outcome: check.outcome,
+      })),
+    };
+  }
+
   private static toReport(row: DetailReportRow | null): ReportView | null {
     if (!row) return null;
 
@@ -594,8 +679,7 @@ export class PackageQueriesAdapter extends PackageQueries {
         status: PackageStatus.of(row.status),
         report: row.report ? ReportStatus.of(row.report.status) : null,
         askedTheArchive: row._count.registryChecks > 0,
-        // Nothing can approve an archive search yet; the approval is COMM-40.
-        archiveSearchApproved: false,
+        archiveSearchApproved: row._count.archiveSearchApprovals > 0,
       }).value,
       profileKey: row.profileKey,
       filesCount: row._count.sourceFiles,

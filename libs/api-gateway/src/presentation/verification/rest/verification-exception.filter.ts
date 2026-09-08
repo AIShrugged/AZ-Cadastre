@@ -35,6 +35,12 @@ const DOMAIN_STATUS: Readonly<Record<string, number>> = {
   PACKAGE_ALREADY_FINISHED: HttpStatus.CONFLICT,
   DOCUMENT_NOT_CLASSIFIED: HttpStatus.CONFLICT,
   UNCLASSIFIABLE_DOCUMENT: HttpStatus.CONFLICT,
+  // Each of these is the package being in a state where approving its archive
+  // search would mean something other than what the caller asked for — never a
+  // malformed request, which is what makes them conflicts (ADR-0016).
+  ARCHIVE_SEARCH_NOT_SETTLED: HttpStatus.CONFLICT,
+  ARCHIVE_SEARCH_NOT_ASKED: HttpStatus.CONFLICT,
+  ARCHIVE_SEARCH_ALREADY_APPROVED: HttpStatus.CONFLICT,
 };
 
 const DOMAIN_DEFAULT_STATUS = HttpStatus.UNPROCESSABLE_ENTITY;

@@ -22,10 +22,11 @@ export type PackageStandingFacts = {
    */
   readonly askedTheArchive: boolean;
   /*
-   * Whether a person has approved what the archive answered. Nothing can
-   * approve one yet — the approval, its comment and its summary are COMM-40 —
-   * so this is false wherever the register was asked, and the standing says the
-   * submission is waiting on a person rather than that it is settled.
+   * Whether an approval of what the archive answered is in force. Not whether
+   * one was ever given: an approval covers the state of the search it was
+   * given, so a run that asks the register again spends it and this goes back
+   * to false — a signature over answers nobody has read must not read as a
+   * settled submission (ADR-0016).
    */
   readonly archiveSearchApproved: boolean;
 };
@@ -66,7 +67,7 @@ export class PackageStanding {
   static readonly NEEDS_INSPECTOR = new PackageStanding('NeedsInspector');
   // Nothing is held against the package, and the archive search it rests on has
   // not been approved by anybody. The engine is done; a person still has to
-  // sign for what the register answered (COMM-40).
+  // sign for what the register answered (ADR-0016).
   static readonly AWAITING_ARCHIVE_APPROVAL = new PackageStanding(
     'AwaitingArchiveApproval',
   );

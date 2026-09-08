@@ -1,4 +1,6 @@
 export type {
+  ApprovedCheckView,
+  ArchiveSearchApprovalView,
   CheckedValueView,
   CrossCheckView,
   DocumentView,

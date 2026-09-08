@@ -86,6 +86,30 @@ export type RegistryCheckView = {
   documents: readonly RegistryDocumentView[];
 };
 
+/**
+ * One approval of an archive search, as the register holds it: what a person
+ * concluded, any remark they made on signing, when they signed, and — when a
+ * later run has since asked the register again — when it stopped being in
+ * force.
+ *
+ * No author, because there is none to record (ADR-0016).
+ */
+export type ArchiveSearchApprovalView = {
+  approvedAt: Date;
+  // Null while the approval stands. Set once the archive search it covered was
+  // made again, which is what ends it.
+  supersededAt: Date | null;
+  summary: string;
+  comment: string | null;
+  // What the register had answered at the moment it was signed for.
+  checks: readonly ApprovedCheckView[];
+};
+
+export type ApprovedCheckView = {
+  key: string;
+  outcome: string;
+};
+
 export type ReportView = {
   status: string;
   generatedAt: Date;
@@ -141,5 +165,13 @@ export type PackageDetailView = PackageSummaryView & {
   // same reason: a record that confirmed it is a lookup the inspector does not
   // have to make.
   registryChecks: readonly RegistryCheckView[];
+  /*
+   * Every approval this submission's archive search has had, newest first, and
+   * not only the one in force. A spent one is what says a person signed for
+   * answers the package has since replaced — hiding it would be the silence
+   * ADR-0016 exists to prevent. At most one of them has no `supersededAt`, and
+   * that one is what the standing is worked out from.
+   */
+  archiveSearchApprovals: readonly ArchiveSearchApprovalView[];
   report: ReportView | null;
 };

@@ -51,6 +51,10 @@ _Avoid_: error, violation, warning
 The final structured output for a Package: detected documents, extracted fields, and found issues. Input for the inspector, not a legal decision.
 _Avoid_: result, summary
 
+**Package Standing**:
+What has to happen to a Verification Package next, said in one word for the inspector: it is `Queued`, `UnderVerification`, `Stalled`, `ShortOfDocuments`, `NeedsInspector`, `AwaitingArchiveApproval` or `Cleared`. The third state a reader may call a status and the only one written for a person — the pipeline's `PackageStatus` says where a run got to and the Verification Report's own status says what it found, and `Completed` covers a full envelope and one with seven findings alike. Worked out from those two and from what the archive register was asked, never stored and never set by hand (ADR-0014). It says what is owed, never whether the registration is granted: that is the inspector's.
+_Avoid_: status, state, disposition, stage
+
 **Inspector**:
 The human who reviews the Verification Report and makes the actual decision. The system never approves or rejects anything itself.
 _Avoid_: user, operator, reviewer

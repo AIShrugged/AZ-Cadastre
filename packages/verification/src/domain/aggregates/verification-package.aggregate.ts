@@ -46,6 +46,7 @@ import {
   Confidence,
   FailureReason,
   PackageId,
+  PackageStanding,
   PackageStatus,
   ValidationIssue,
   VerificationReport,
@@ -135,6 +136,25 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
 
   get status(): PackageStatus {
     return this.#status;
+  }
+
+  /*
+   * Where this submission stands: what has to happen to it next, which is
+   * neither where the pipeline got to (`status`) nor what the run found
+   * (`report`). Read off the three of them together and never held as state of
+   * its own, so it cannot be stale (ADR-0014).
+   */
+  get standing(): PackageStanding {
+    return PackageStanding.of({
+      status: this.#status,
+      report: this.#report?.status ?? null,
+      // What the register was actually asked, not what the profile declares: a
+      // check whose address no sheet stated was never put, and there is no
+      // answer to it for anybody to sign off.
+      askedTheArchive: this.#registryChecks.length > 0,
+      // Nothing can approve an archive search yet; the approval is COMM-40.
+      archiveSearchApproved: false,
+    });
   }
 
   get files(): readonly SourceFile[] {

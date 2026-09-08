@@ -5,6 +5,7 @@ import {
   CrossCheckVerdictSchema,
   DocumentContentTypeSchema,
   IssueKindSchema,
+  PackageStandingSchema,
   PackageStatusSchema,
   RegistryOutcomeSchema,
   ReportStatusSchema,
@@ -13,6 +14,11 @@ import {
 export const PackageDtoSchema = z.object({
   id: z.string(),
   status: PackageStatusSchema,
+  // Where the submission stands: what has to happen to it next. Worked out by
+  // the context from the two states below and from what the archive register
+  // was asked, and the only one of the three written for the inspector — read
+  // it rather than deriving one of your own (ADR-0014).
+  standing: PackageStandingSchema,
   profileKey: z.string(),
   // Files the inspector uploaded. Known at submission.
   filesCount: z.number().int().nonnegative(),

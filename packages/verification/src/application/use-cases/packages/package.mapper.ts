@@ -27,6 +27,9 @@ export function toSummaryDto(view: PackageSummaryView): PackageDto {
     // The read model speaks the storage's strings; the contract's enum is the
     // narrower promise.
     status: view.status as PackageDto['status'],
+    // Only ever worked out through the domain's own enumeration, so the string
+    // is one the contract names.
+    standing: view.standing as PackageDto['standing'],
     profileKey: view.profileKey,
     filesCount: view.filesCount,
     documentsCount: view.documentsCount,

@@ -9,7 +9,9 @@ import {
 import type { PackageId } from '../../../../domain/value-objects/index.js';
 import {
   IssueKind,
+  PackageStanding,
   PackageStatus,
+  ReportStatus,
 } from '../../../../domain/value-objects/index.js';
 import { PackageNotFoundException } from '../../../exceptions/index.js';
 import type {
@@ -110,6 +112,33 @@ describe('PackageQueriesAdapter', () => {
     // What the card puts at the head of its worklist.
     expect(summary.issuesCount + summary.lowConfidenceCount).toBe(
       againstPackage.length,
+    );
+  });
+
+  /*
+   * Nothing stores the standing: the register works it out from three things
+   * the database does hold, and one of them — whether the archive was asked at
+   * all — reaches it as a count rather than as the checks themselves. That
+   * count is what could go wrong here, so it is held against the checks the
+   * detail view actually lists (ADR-0014).
+   */
+  it('reads the standing off the row rather than off a column nobody keeps', async () => {
+    // act
+    const summary: PackageSummaryView = await queries.execute(
+      new GetPackageSummaryQuery(finished.value),
+    );
+    const detail: PackageDetailView = await queries.execute(
+      new GetPackageQuery(finished.value),
+    );
+
+    // assert
+    expect(summary.standing).toBe(
+      PackageStanding.of({
+        status: PackageStatus.of(summary.status),
+        report: detail.report ? ReportStatus.of(detail.report.status) : null,
+        askedTheArchive: detail.registryChecks.length > 0,
+        archiveSearchApproved: false,
+      }).value,
     );
   });
 

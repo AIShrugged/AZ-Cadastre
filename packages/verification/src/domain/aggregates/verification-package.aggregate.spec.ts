@@ -2550,4 +2550,158 @@ describe('VerificationPackage', () => {
       return (verification.report?.issues ?? []).map(issue => issue.kind.value);
     }
   });
+  /*
+   * Where the submission stands: what has to happen to it next, worked out from
+   * where the pipeline got to, what the run found and what the register was
+   * asked (ADR-0014). Nothing sets it, so these are the transitions of the
+   * package itself rather than of a field somebody maintains.
+   */
+  describe('where it stands', () => {
+    const OF_RECORD = VerificationProfile.CADASTRE.registryChecks[0]!;
+
+    function stated(key: string, value: string): ExtractedField {
+      return ExtractedField.of(
+        FieldKey.create(key),
+        FieldValue.create(value),
+        Confidence.of(0.95),
+        PageNumber.first(),
+      );
+    }
+
+    // Every required type, one per sheet, each placed and attested — the
+    // package an inspector should have nothing to be told about. The
+    // plan-scheme states the address, so the register has something to be
+    // asked about.
+    function aCompletePackage() {
+      const built = aSegmentedPackage(REQUIRED_TYPES.length);
+      built.documents.forEach((document, index) => {
+        built.verification.classify(
+          document.id,
+          aClassification(REQUIRED_TYPES[index]!),
+        );
+      });
+      built.verification.recordExtractedFields(built.document.id, [
+        stated('property_address', 'Zığ qəsəbəsi, Əliyev küçəsi 12'),
+      ]);
+
+      return built;
+    }
+
+    function anArchiveAnswer(verification: VerificationPackage): RegistryCheck {
+      return RegistryCheck.of({
+        key: OF_RECORD.key,
+        outcome: RegistryOutcome.CONFIRMED,
+        confidence: Confidence.of(0.95),
+        note: 'the register holds this address',
+        asked: verification.askedOf(OF_RECORD)!,
+        reference: 'folder 14, pp. 01-dən 30',
+        attributes: [],
+      });
+    }
+
+    it('waits to be picked up while nothing has read it', () => {
+      const { verification } = aPackage();
+
+      expect(verification.standing.value).toBe('Queued');
+    });
+
+    it('says a run is reading it once one has started', () => {
+      const { verification } = aStartedPackage();
+
+      expect(verification.standing.value).toBe('UnderVerification');
+    });
+
+    it('says our own machinery broke down when the run could not finish', () => {
+      const { verification } = aStartedPackage();
+
+      verification.fail(FailureReason.create('the reader is down'));
+
+      expect(verification.standing.value).toBe('Stalled');
+    });
+
+    it('says a required paper never arrived', () => {
+      const { verification } = aSegmentedPackage();
+
+      verification.complete();
+
+      expect(verification.standing.value).toBe('ShortOfDocuments');
+    });
+
+    // A complete envelope carrying one sheet nothing could be made of: the
+    // package is not short of a paper, and there is a finding on it all the
+    // same.
+    it('sends a package with findings against it to the inspector', () => {
+      const built = aSegmentedPackage(REQUIRED_TYPES.length + 1);
+      REQUIRED_TYPES.forEach((type, index) => {
+        built.verification.classify(
+          built.documents[index]!.id,
+          aClassification(type),
+        );
+      });
+      built.verification.classify(
+        built.documents[REQUIRED_TYPES.length]!.id,
+        Classification.unplaced(Confidence.of(0.2)),
+      );
+
+      built.verification.complete();
+
+      expect(built.verification.report?.status.value).toBe('IssuesFound');
+      expect(built.verification.standing.value).toBe('NeedsInspector');
+    });
+
+    /*
+     * The engine is done and has nothing to say against the package, and the
+     * archive search it rests on has not been approved by anybody — which is
+     * every clean cadastre package today, because the approval itself is
+     * COMM-40. The standing says a person is owed rather than that the
+     * submission is settled.
+     */
+    it('holds a clean package for the approval of the archive search', () => {
+      const { verification } = aCompletePackage();
+      verification.recordRegistryCheck(anArchiveAnswer(verification));
+
+      verification.complete();
+
+      expect(verification.standing.value).toBe('AwaitingArchiveApproval');
+    });
+
+    // The register was never asked, so there is no search for anybody to sign
+    // off and nothing is outstanding.
+    it('clears a package the register was never asked about', () => {
+      const { verification } = aCompletePackage();
+
+      verification.complete();
+
+      expect(verification.report?.status.value).toBe('OK');
+      expect(verification.standing.value).toBe('Cleared');
+    });
+
+    /*
+     * The move a `ShortOfDocuments` package invites: the missing paper is
+     * added, which discards the report and the register's answers and sends the
+     * package back to be read again (ADR-0013). The standing follows, because
+     * it is read off those and never held.
+     */
+    it('goes back to waiting when the missing paper is added', () => {
+      const { verification } = aSegmentedPackage();
+      verification.complete();
+      expect(verification.standing.value).toBe('ShortOfDocuments');
+
+      verification.addFiles([aFile()]);
+
+      expect(verification.standing.value).toBe('Queued');
+    });
+
+    it('drops the approval it was waiting for when a file arrives', () => {
+      const { verification } = aCompletePackage();
+      verification.recordRegistryCheck(anArchiveAnswer(verification));
+      verification.complete();
+      expect(verification.standing.value).toBe('AwaitingArchiveApproval');
+
+      verification.addFiles([aFile()]);
+
+      expect(verification.registryChecks).toEqual([]);
+      expect(verification.standing.value).toBe('Queued');
+    });
+  });
 });

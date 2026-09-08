@@ -1,6 +1,8 @@
 import type {
   AddFilesRequest,
   CreatePackageRequest,
+  ListPackagesRequest,
+  ListPackagesResponse,
   PackageDetailDto,
   PackageDto,
 } from '../dto/index.js';
@@ -12,7 +14,17 @@ import type {
  */
 export interface PackagesApi {
   create(request: CreatePackageRequest): Promise<PackageDto>;
-  findMany(): Promise<PackageDto[]>;
+  /**
+   * One page of the submissions, newest first, narrowed by what the caller
+   * asked for. Never the whole list: it grows with every submission the office
+   * takes in, and a call that returned all of them would be a call that gets
+   * slower every week (ADR-0015).
+   *
+   * `ListPackagesRequestSchema` states what a search term matches and what the
+   * two filters mean. They are two filters and not one because they answer two
+   * questions — where the submission stands, and what the run found.
+   */
+  findMany(request: ListPackagesRequest): Promise<ListPackagesResponse>;
   findOne(id: string): Promise<PackageDetailDto>;
 
   /**

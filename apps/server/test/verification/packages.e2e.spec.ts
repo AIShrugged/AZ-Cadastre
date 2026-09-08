@@ -1,9 +1,10 @@
 import { beforeAll, describe, expect, inject, it } from 'vitest';
 
 import { ApiError, RestClient } from '@cadastre/api-client';
-import type {
-  FileInput,
-  PackageDto,
+import {
+  ListPackagesResponseSchema,
+  type FileInput,
+  type PackageDto,
 } from '@cadastre/api-contracts/verification';
 
 let api: RestClient;
@@ -73,9 +74,78 @@ describe('the submission round trip over HTTP', () => {
     // act
     const { status, body } = await api.packages.findMany();
 
-    // assert
+    // assert — a page, and what page it is: the list grows with every
+    // submission and is never served whole (ADR-0015)
     expect(status).toBe(200);
-    expect(body.map(summary => summary.id)).toContain(created.id);
+    expect(body.items.map(summary => summary.id)).toContain(created.id);
+    expect(body.limit).toBe(20);
+    expect(body.offset).toBe(0);
+    expect(body.total).toBeGreaterThanOrEqual(body.items.length);
+  });
+
+  // What `apps/web` sends: no query string at all. The defaults are the
+  // schema's, and a request that names nothing must still be a page.
+  it('answers the first page when the caller asks for nothing at all', async () => {
+    // arrange — so the page has something on it
+    await submit(['erize-qeydiyyat.pdf']);
+
+    // act
+    const { status, body } = await api.packages.findManyRaw('');
+
+    // assert
+    const page = ListPackagesResponseSchema.parse(body);
+    expect(status).toBe(200);
+    expect(page.limit).toBe(20);
+    expect(page.offset).toBe(0);
+    expect(page.items.length).toBeLessThanOrEqual(20);
+    expect(page.total).toBeGreaterThanOrEqual(1);
+  });
+
+  it('narrows the list to what the inspector typed', async () => {
+    // arrange — a name no other submission in this run carries
+    const created = await submit(['bina-pasportu-2026.pdf']);
+
+    // act
+    const { body } = await api.packages.findMany({
+      search: 'BINA-Pasportu-2026',
+    });
+
+    // assert
+    expect(body.items.map(summary => summary.id)).toEqual([created.id]);
+    expect(body.total).toBe(1);
+  });
+
+  it('narrows by where the submission stands, which is not what the run found', async () => {
+    // arrange
+    const created = await submit(['erize-qeydiyyat.pdf']);
+    await settled(created.id);
+
+    // act — the run has nothing to read, so the envelope is short a paper
+    const short = await api.packages.findMany({
+      standing: 'ShortOfDocuments',
+    });
+    const cleared = await api.packages.findMany({ standing: 'Cleared' });
+
+    // assert
+    expect(short.body.items.map(summary => summary.id)).toContain(created.id);
+    expect(cleared.body.items.map(summary => summary.id)).not.toContain(
+      created.id,
+    );
+  });
+
+  it('refuses a page nobody may ask for, rather than serving the whole list', async () => {
+    // act / assert — the schema at the edge, before the context is called
+    await expect(api.packages.findManyRaw('?limit=5000')).rejects.toMatchObject(
+      { status: 400 },
+    );
+  });
+
+  it('refuses a standing nobody names', async () => {
+    // act / assert — an unknown filter that quietly matched everything would
+    // read as an answer
+    await expect(
+      api.packages.findManyRaw('?standing=Whenever'),
+    ).rejects.toMatchObject({ status: 400 });
   });
 
   it('reports what the run found, once it has run', async () => {

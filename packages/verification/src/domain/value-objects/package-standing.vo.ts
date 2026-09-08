@@ -1,3 +1,5 @@
+import { InvalidPackageStandingException } from '../exceptions/index.js';
+
 import { PackageStatus } from './package-status.vo.js';
 import { ReportStatus } from './report-status.vo.js';
 
@@ -87,6 +89,17 @@ export class PackageStanding {
     ];
   }
 
+  /** The standing a caller named, refusing anything that is not one. */
+  static named(raw: string): PackageStanding {
+    const found = PackageStanding.all.find(
+      candidate => candidate.value === raw,
+    );
+
+    if (!found) throw new InvalidPackageStandingException(raw);
+
+    return found;
+  }
+
   /*
    * The one derivation, so the aggregate and the read surface cannot drift
    * apart: a card and the row that leads to it disagreeing about where a
@@ -129,7 +142,51 @@ export class PackageStanding {
     return PackageStanding.CLEARED;
   }
 
+  /**
+   * Every combination of facts that leaves a package standing here.
+   *
+   * The inverse of `of()`, for the caller that has to put the question to a
+   * whole table at once rather than to one package it already holds: a list
+   * narrowed by standing is a condition over the columns these facts are read
+   * off, and this says which values those columns may take.
+   *
+   * Filtered out of the rule itself rather than written down beside it. The
+   * fact space is four statuses by four report values by two archive facts by
+   * two approvals, so running `of()` over all of it costs nothing — and a
+   * second copy of the derivation is the very thing ADR-0014 exists to
+   * prevent, because the row that leads to a card would eventually disagree
+   * with the card.
+   */
+  get facts(): readonly PackageStandingFacts[] {
+    return everyFact().filter(candidate =>
+      PackageStanding.of(candidate).equals(this),
+    );
+  }
+
   equals(other: PackageStanding): boolean {
     return this.value === other.value;
   }
+}
+
+/*
+ * Every fact a package can hold. Small and finite, which is what lets the
+ * inverse above be a filter over the rule instead of a restatement of it.
+ */
+function everyFact(): readonly PackageStandingFacts[] {
+  // Null included: until a run has compiled one there is no report, and that
+  // is a standing of its own on three of the four statuses.
+  const reports: readonly (ReportStatus | null)[] = [null, ...ReportStatus.all];
+
+  return PackageStatus.all.flatMap(status =>
+    reports.flatMap(report =>
+      [false, true].flatMap(askedTheArchive =>
+        [false, true].map(archiveSearchApproved => ({
+          status,
+          report,
+          askedTheArchive,
+          archiveSearchApproved,
+        })),
+      ),
+    ),
+  );
 }

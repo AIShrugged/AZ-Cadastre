@@ -139,6 +139,59 @@ describe('PackageStanding', () => {
     });
   });
 
+  /*
+   * The list screen narrows by standing, and nothing stores one: the register
+   * has to turn a standing back into a condition over the three columns it is
+   * derived from. That inverse is filtered out of `of()` rather than written
+   * beside it, and these hold it to being exactly that — a second derivation
+   * that drifted would show the inspector a row under a standing its own card
+   * denies (ADR-0014, ADR-0015).
+   */
+  describe('read backwards, from a standing to the facts that produce it', () => {
+    // The whole fact space, which is what makes the two assertions below a
+    // proof rather than a sample.
+    const everyFact: readonly PackageStandingFacts[] =
+      PackageStatus.all.flatMap(status =>
+        [null, ...ReportStatus.all].flatMap(report =>
+          [false, true].flatMap(askedTheArchive =>
+            [false, true].map(archiveSearchApproved => ({
+              status,
+              report,
+              askedTheArchive,
+              archiveSearchApproved,
+            })),
+          ),
+        ),
+      );
+
+    it('names only facts that do produce it', () => {
+      for (const standing of PackageStanding.all) {
+        for (const candidate of standing.facts) {
+          expect(PackageStanding.of(candidate).value).toBe(standing.value);
+        }
+      }
+    });
+
+    // The half that a filter would fail quietly on: a standing that left a
+    // fact out would answer with a page missing the rows the inspector opened
+    // the screen for, and nothing would say so.
+    it('leaves out no fact that produces it', () => {
+      for (const candidate of everyFact) {
+        const standing = PackageStanding.of(candidate);
+
+        expect(standing.facts).toContainEqual(candidate);
+      }
+    });
+
+    it('splits the whole fact space between the standings, once each', () => {
+      const named = PackageStanding.all.flatMap(standing => [
+        ...standing.facts,
+      ]);
+
+      expect(named).toHaveLength(everyFact.length);
+    });
+  });
+
   it('arrives at every standing it names and no others', () => {
     const reached = new Set(
       [

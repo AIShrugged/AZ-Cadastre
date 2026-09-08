@@ -2,6 +2,8 @@ import type {
   CheckedValueDto,
   CrossCheckDto,
   DocumentDto,
+  ListPackagesRequest,
+  ListPackagesResponse,
   PackageDetailDto,
   PackageDto,
   RegistryCheckDto,
@@ -10,6 +12,7 @@ import type {
   SourceFileDto,
 } from '@cadastre/api-contracts/verification';
 
+import type { PackageListPage } from '../../ports/outbound/index.js';
 import type {
   CheckedValueView,
   CrossCheckView,
@@ -41,6 +44,24 @@ export function toSummaryDto(view: PackageSummaryView): PackageDto {
     lowConfidenceCount: view.lowConfidenceCount,
     createdAt: view.createdAt.toISOString(),
     updatedAt: view.updatedAt.toISOString(),
+  };
+}
+
+/**
+ * One page of the list as the caller gets it: the rows, how many the criteria
+ * matched, and which page this is. The last two are echoed off the request that
+ * asked for it, so a late answer cannot be rendered as the page asked for after
+ * it.
+ */
+export function toListDto(
+  page: PackageListPage,
+  request: ListPackagesRequest,
+): ListPackagesResponse {
+  return {
+    items: page.items.map(toSummaryDto),
+    total: page.total,
+    limit: request.limit,
+    offset: request.offset,
   };
 }
 

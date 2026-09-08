@@ -28,7 +28,11 @@ export {
   type StoredObject,
 } from './object-storage.port.js';
 export { OcrProvider } from './ocr-provider.port.js';
-export { PackageQueries } from './package-queries.port.js';
+export {
+  PackageQueries,
+  type PackageListCriteria,
+  type PackageListPage,
+} from './package-queries.port.js';
 export {
   PdfSplitter,
   type PdfSplitRequest,

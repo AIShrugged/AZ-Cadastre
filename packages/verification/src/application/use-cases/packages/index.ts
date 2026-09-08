@@ -13,7 +13,7 @@ export {
   ListPackagesHandler,
   ListPackagesQuery,
 } from './list-packages/index.js';
-export { toDetailDto, toSummaryDto } from './package.mapper.js';
+export { toDetailDto, toListDto, toSummaryDto } from './package.mapper.js';
 export {
   RunVerificationCommand,
   RunVerificationHandler,

@@ -6,13 +6,17 @@ import {
   HttpStatus,
   Param,
   Post,
+  Query,
 } from '@nestjs/common';
 
 import {
   AddFilesRequestSchema,
   CreatePackageRequestSchema,
+  ListPackagesRequestSchema,
   type AddFilesRequest,
   type CreatePackageRequest,
+  type ListPackagesRequest,
+  type ListPackagesResponse,
   type PackageDetailDto,
   type PackageDto,
 } from '@cadastre/api-contracts/verification';
@@ -30,9 +34,17 @@ export class PackagesController {
     return this.verification.packages.create(body);
   }
 
+  /*
+   * The query string is the whole of what this takes, and the schema is what
+   * says so: a page size of 500 or a standing nobody names is a 400 from here,
+   * never a call into the context. The defaults it fills in — the first page,
+   * twenty rows — are what a caller that asks for nothing gets.
+   */
   @Get()
-  async list(): Promise<PackageDto[]> {
-    return this.verification.packages.findMany();
+  async list(
+    @Query({ schema: ListPackagesRequestSchema }) query: ListPackagesRequest,
+  ): Promise<ListPackagesResponse> {
+    return this.verification.packages.findMany(query);
   }
 
   /*

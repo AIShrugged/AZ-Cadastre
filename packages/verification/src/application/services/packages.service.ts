@@ -4,6 +4,8 @@ import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import type {
   AddFilesRequest,
   CreatePackageRequest,
+  ListPackagesRequest,
+  ListPackagesResponse,
   PackageDetailDto,
   PackageDto,
   PackagesApi,
@@ -16,7 +18,11 @@ import {
   GetPackageSummaryQuery,
   ListPackagesQuery,
 } from '../use-cases/index.js';
-import { toDetailDto, toSummaryDto } from '../use-cases/packages/index.js';
+import {
+  toDetailDto,
+  toListDto,
+  toSummaryDto,
+} from '../use-cases/packages/index.js';
 
 /**
  * Implements the contract's packages slice and does nothing else: one dispatch
@@ -49,10 +55,18 @@ export class PackagesService implements PackagesApi {
     );
   }
 
-  async findMany(): Promise<PackageDto[]> {
-    const summaries = await this.queries.execute(new ListPackagesQuery());
+  async findMany(request: ListPackagesRequest): Promise<ListPackagesResponse> {
+    const page = await this.queries.execute(
+      new ListPackagesQuery(
+        request.search,
+        request.standing,
+        request.reportStatus,
+        request.limit,
+        request.offset,
+      ),
+    );
 
-    return summaries.map(toSummaryDto);
+    return toListDto(page, request);
   }
 
   async findOne(id: string): Promise<PackageDetailDto> {

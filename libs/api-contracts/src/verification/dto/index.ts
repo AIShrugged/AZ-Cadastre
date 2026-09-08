@@ -75,6 +75,25 @@ export {
   type SourceFileDto,
 } from './package.dto.js';
 export {
+  ArchiveTallyDtoSchema,
+  FindingCountDtoSchema,
+  FindingTallyDtoSchema,
+  FindingsOverviewDtoSchema,
+  OutcomeTallyDtoSchema,
+  PackagesOverviewRequestSchema,
+  PackagesOverviewResponseSchema,
+  PipelineTallyDtoSchema,
+  type ArchiveTallyDto,
+  type FindingCountDto,
+  type FindingTallyDto,
+  type FindingsOverviewDto,
+  type OutcomeTallyDto,
+  type PackagesOverviewRequest,
+  type PackagesOverviewRequestInput,
+  type PackagesOverviewResponse,
+  type PipelineTallyDto,
+} from './packages-overview.dto.js';
+export {
   PresignRequestSchema,
   PresignResponseSchema,
   type PresignRequest,

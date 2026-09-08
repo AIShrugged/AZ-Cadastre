@@ -2,22 +2,29 @@ import { Inject, Injectable } from '@nestjs/common';
 
 import {
   PackageQueries,
+  type OverviewPeriod,
   type PackageListCriteria,
   type PackageListPage,
 } from '../../application/ports/outbound/index.js';
 import type {
   ArchiveSearchApprovalView,
   CrossCheckView,
+  FindingCountView,
+  FindingsOverviewView,
+  FindingTallyView,
   PackageDetailView,
+  PackagesOverviewView,
   PackageSummaryView,
   RegistryCheckView,
   ReportView,
+  TallyView,
 } from '../../application/read-models/index.js';
 import {
   DocumentType,
   IssueKind,
   PackageStanding,
   PackageStatus,
+  RegistryOutcome,
   ReportStatus,
   type PackageId,
 } from '../../domain/value-objects/index.js';
@@ -405,6 +412,193 @@ export class PackageQueriesAdapter extends PackageQueries {
           })),
         })),
       })),
+    };
+  }
+
+  /**
+   * The four tallies of a period: how far along the conveyor its submissions
+   * are, what the runs made of them, what was found and how often, and how the
+   * archive register answered.
+   *
+   * Four grouped statements and not one, because they count four different
+   * things — submissions, reports, findings, questions put to the register —
+   * and a single query joining all four would multiply every row by every
+   * other. What matters is that there are four of them however many
+   * submissions the office has taken in: each is an aggregate the database
+   * performs, so nothing here reads a package into memory to add it up.
+   *
+   * They run in one transaction at `RepeatableRead`, which is the whole point
+   * of the operation. Under the default isolation each statement takes its own
+   * snapshot, so a run finishing between the first and the second would be
+   * counted as under way by one number and as reported on by the next, and the
+   * screen would show a summary that does not add up. Read-only work at this
+   * level never fails with a serialization error, so the guarantee costs
+   * nothing.
+   *
+   * Every slice is narrowed by the same thing — when the submission was
+   * accepted — so all four are about one set of packages (`OverviewPeriod`,
+   * ADR-0017).
+   */
+  async overview(period: OverviewPeriod): Promise<PackagesOverviewView> {
+    const accepted = PackageQueriesAdapter.acceptedIn(period);
+    const submission = accepted ? { createdAt: accepted } : {};
+
+    const [pipeline, outcomes, findings, archive] =
+      await this.prisma.$transaction(
+        [
+          this.prisma.verificationPackage.groupBy({
+            by: ['status'],
+            where: submission,
+            _count: true,
+          }),
+          this.prisma.report.groupBy({
+            by: ['status'],
+            where: accepted ? { package: submission } : {},
+            _count: true,
+          }),
+          // Through the report to the package it is about: a finding belongs to
+          // the period its submission was accepted in, never to the moment the
+          // report that carries it was last compiled — a re-run would otherwise
+          // move findings between periods.
+          this.prisma.validationIssue.groupBy({
+            by: ['kind'],
+            where: accepted ? { report: { package: submission } } : {},
+            _count: true,
+          }),
+          this.prisma.registryCheck.groupBy({
+            by: ['outcome'],
+            where: accepted ? { package: submission } : {},
+            _count: true,
+          }),
+        ],
+        { isolationLevel: 'RepeatableRead' },
+      );
+
+    return {
+      pipeline: PackageQueriesAdapter.tally(
+        PackageStatus.all,
+        pipeline.map(row => ({ member: row.status, count: row._count })),
+      ),
+      outcomes: PackageQueriesAdapter.tally(
+        ReportStatus.all,
+        outcomes.map(row => ({ member: row.status, count: row._count })),
+      ),
+      findings: PackageQueriesAdapter.toFindings(
+        findings.map(row => ({ kind: row.kind, count: row._count })),
+      ),
+      archive: PackageQueriesAdapter.tally(
+        RegistryOutcome.all,
+        archive.map(row => ({ member: row.outcome, count: row._count })),
+      ),
+    };
+  }
+
+  /**
+   * The period as a condition over the column it is about — the moment the
+   * submission was accepted — or nothing at all where the caller named no
+   * bound.
+   *
+   * Nothing rather than an always-true condition: an empty filter is still a
+   * predicate the database has to carry, and three of the four statements
+   * carry it across a join.
+   */
+  private static acceptedIn(
+    period: OverviewPeriod,
+  ): Prisma.DateTimeFilter | null {
+    if (!period.from && !period.to) return null;
+
+    return {
+      // Inclusive at the start and exclusive at the end, so two adjacent
+      // periods count every submission once and none of them twice.
+      ...(period.from ? { gte: period.from } : {}),
+      ...(period.to ? { lt: period.to } : {}),
+    };
+  }
+
+  /**
+   * The database's groups as one count per member of a vocabulary.
+   *
+   * Every member is a key, at zero where the period held none of it: a caller
+   * rendering a fixed set of tiles must not lose one because a quiet week held
+   * no failures, and "0 failed" is an answer while a missing key is a question.
+   *
+   * The whole is added up from the groups rather than asked for again — a fifth
+   * statement to learn what four already say would be a fifth chance for the
+   * numbers to disagree.
+   */
+  private static tally(
+    vocabulary: readonly { readonly value: string }[],
+    counted: readonly { readonly member: string; readonly count: number }[],
+  ): TallyView {
+    const groups = new Map(counted.map(row => [row.member, row.count]));
+
+    return {
+      total: counted.reduce((sum, row) => sum + row.count, 0),
+      byMember: Object.fromEntries(
+        vocabulary.map(member => [member.value, groups.get(member.value) ?? 0]),
+      ),
+    };
+  }
+
+  /**
+   * The findings of the period in the two groups the report keeps them in, and
+   * never added into one number: what is held against a package, and what is
+   * stated for the record beside it. That is the report's own rule and the one
+   * a row's `issuesCount` is tallied under — a summary that summed the two
+   * would announce faults in submissions that have none.
+   */
+  private static toFindings(
+    counted: readonly FindingCountView[],
+  ): FindingsOverviewView {
+    const groups = new Map(counted.map(row => [row.kind, row.count]));
+    const named = new Set(IssueKind.all.map(kind => kind.value));
+
+    /*
+     * Every kind the domain names, whether or not the period held one, and
+     * then any stored kind it does not name. `Expired` is such a kind: the
+     * column still carries it and the rule no longer does. Counting it — on
+     * the side held against the package, which is the call `isAgainstPackage`
+     * already makes — is better than dropping it, because a total that
+     * silently omits rows is a total nobody can check against the reports.
+     */
+    const kinds = [
+      ...IssueKind.all.map(kind => kind.value),
+      ...counted.map(row => row.kind).filter(kind => !named.has(kind)),
+    ];
+
+    return {
+      againstPackage: PackageQueriesAdapter.toFindingTally(
+        kinds.filter(kind => PackageQueriesAdapter.isAgainstPackage(kind)),
+        groups,
+      ),
+      observations: PackageQueriesAdapter.toFindingTally(
+        kinds.filter(kind => !PackageQueriesAdapter.isAgainstPackage(kind)),
+        groups,
+      ),
+    };
+  }
+
+  /**
+   * One group's kinds, most frequent first — the order is what this slice is
+   * for. What goes wrong often is a problem in the process; what goes wrong
+   * once is a problem in one envelope.
+   *
+   * A tie keeps the order the domain names the kinds in, which the sort's
+   * stability gives for free. Left to chance, two calls over the same data
+   * could answer with the same numbers in a different order, and a reader
+   * watching a screen would see rows swap places for no reason.
+   */
+  private static toFindingTally(
+    kinds: readonly string[],
+    counted: ReadonlyMap<string, number>,
+  ): FindingTallyView {
+    const byKind: FindingCountView[] = kinds
+      .map(kind => ({ kind, count: counted.get(kind) ?? 0 }))
+      .sort((one, other) => other.count - one.count);
+
+    return {
+      total: byKind.reduce((sum, row) => sum + row.count, 0),
+      byKind,
     };
   }
 

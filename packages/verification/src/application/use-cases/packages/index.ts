@@ -14,10 +14,19 @@ export {
   GetPackageSummaryQuery,
 } from './get-package-summary/index.js';
 export {
+  GetPackagesOverviewHandler,
+  GetPackagesOverviewQuery,
+} from './get-packages-overview/index.js';
+export {
   ListPackagesHandler,
   ListPackagesQuery,
 } from './list-packages/index.js';
-export { toDetailDto, toListDto, toSummaryDto } from './package.mapper.js';
+export {
+  toDetailDto,
+  toListDto,
+  toOverviewDto,
+  toSummaryDto,
+} from './package.mapper.js';
 export {
   RunVerificationCommand,
   RunVerificationHandler,

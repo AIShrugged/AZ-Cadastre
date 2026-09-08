@@ -16,6 +16,13 @@ export type {
   SourceFileView,
 } from './package.read-model.js';
 export type {
+  FindingCountView,
+  FindingTallyView,
+  FindingsOverviewView,
+  PackagesOverviewView,
+  TallyView,
+} from './packages-overview.read-model.js';
+export type {
   ProfileDocumentTypeView,
   ProfileView,
 } from './profile.read-model.js';

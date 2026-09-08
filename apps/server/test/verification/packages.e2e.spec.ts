@@ -303,6 +303,81 @@ describe('approving an archive search over HTTP', () => {
   });
 });
 
+/*
+ * The summary an inspector opens the office's day with, over HTTP. What each
+ * number means is settled below this set; what is settled here is that the
+ * route exists at all, that it is not swallowed by the one beside it, and that
+ * a period the contract refuses never reaches the context.
+ */
+describe('the summary of a period over HTTP', () => {
+  it('answers the four slices in one call', async () => {
+    // arrange — so there is something to count
+    const created = await submit(['erize-qeydiyyat.pdf', 'plan-sxem.pdf']);
+    await settled(created.id);
+
+    // act
+    const { status, body } = await api.packages.overview();
+
+    // assert — the schema is what checked the shape; these are the promises a
+    // client renders off
+    expect(status).toBe(200);
+    expect(body.period).toEqual({ from: null, to: null });
+    expect(body.pipeline.total).toBeGreaterThanOrEqual(1);
+    expect(Object.keys(body.pipeline.byStatus).sort()).toEqual([
+      'Completed',
+      'Failed',
+      'Pending',
+      'Processing',
+    ]);
+    expect(body.findings.againstPackage.byKind.length).toBeGreaterThan(0);
+    expect(body.archive.byOutcome.NotFound).toBeGreaterThanOrEqual(0);
+  });
+
+  /*
+   * Nest matches routes in the order they are declared, so `overview` has to be
+   * declared before `:id` or this path arrives as a package whose id is the
+   * word "overview" and comes back a 404. Nothing in a unit test can see that.
+   */
+  it('is a route of its own and not a package called "overview"', async () => {
+    // act
+    const { status } = await api.packages.overview();
+
+    // assert
+    expect(status).toBe(200);
+  });
+
+  it('says which period the answer is about', async () => {
+    // act
+    const { body } = await api.packages.overview({
+      from: '2026-08-01T00:00:00.000Z',
+      to: '2026-09-01T00:00:00.000Z',
+    });
+
+    // assert
+    expect(body.period).toEqual({
+      from: '2026-08-01T00:00:00.000Z',
+      to: '2026-09-01T00:00:00.000Z',
+    });
+  });
+
+  it('refuses a bound that is not an instant', async () => {
+    // act / assert
+    await expect(
+      api.packages.overviewRaw('?from=last%20tuesday'),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  // Answered with zeros it would read as an office that took nothing in.
+  it('refuses a period that ends before it starts', async () => {
+    // act / assert
+    await expect(
+      api.packages.overviewRaw(
+        '?from=2026-09-01T00:00:00.000Z&to=2026-08-01T00:00:00.000Z',
+      ),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+});
+
 describe('what the API refuses', () => {
   /*
    * PACKAGE_NOT_FOUND is an ApplicationException carrying its own status. The

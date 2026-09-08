@@ -40,5 +40,10 @@ model VerificationPackage {
   /// and a run that asks the register again ends it (ADR-0016).
   archiveSearchApprovals ArchiveSearchApproval[]
 
+  /// When the submission was accepted, which is the one column a summary of a
+  /// period is narrowed by — for its own tally and, across a join, for the
+  /// reports, the findings and the register's answers alike. Without it every
+  /// period is a full scan of the table, and the table only ever grows.
+  @@index([createdAt])
   @@map("verification_packages")
 }

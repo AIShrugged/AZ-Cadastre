@@ -1,13 +1,20 @@
 import type {
   ApprovedCheckDto,
   ArchiveSearchApprovalDto,
+  ArchiveTallyDto,
   CheckedValueDto,
   CrossCheckDto,
   DocumentDto,
+  FindingCountDto,
+  FindingTallyDto,
   ListPackagesRequest,
   ListPackagesResponse,
+  OutcomeTallyDto,
   PackageDetailDto,
   PackageDto,
+  PackagesOverviewRequest,
+  PackagesOverviewResponse,
+  PipelineTallyDto,
   RegistryCheckDto,
   RegistryDocumentDto,
   ReportDto,
@@ -21,7 +28,9 @@ import type {
   CheckedValueView,
   CrossCheckView,
   DocumentView,
+  FindingTallyView,
   PackageDetailView,
+  PackagesOverviewView,
   PackageSummaryView,
   RegistryCheckView,
   ReportView,
@@ -66,6 +75,61 @@ export function toListDto(
     total: page.total,
     limit: request.limit,
     offset: request.offset,
+  };
+}
+
+/**
+ * The four tallies as the caller gets them, with the period they are about
+ * echoed off the request that asked for it — the same reason one page of the
+ * list echoes its `limit` and `offset`: an answer that arrives late must not be
+ * rendered under the period asked for after it.
+ *
+ * The counts come over as they were counted. Every key of a `byMember` record
+ * was built from the domain's own enumeration, so the strings are ones the
+ * contract names, and there is no member of a vocabulary missing from one.
+ */
+export function toOverviewDto(
+  view: PackagesOverviewView,
+  request: PackagesOverviewRequest,
+): PackagesOverviewResponse {
+  return {
+    period: {
+      from: request.from ?? null,
+      to: request.to ?? null,
+    },
+    pipeline: {
+      total: view.pipeline.total,
+      byStatus: view.pipeline.byMember as PipelineTallyDto['byStatus'],
+    },
+    outcomes: {
+      total: view.outcomes.total,
+      byStatus: view.outcomes.byMember as OutcomeTallyDto['byStatus'],
+    },
+    findings: {
+      againstPackage: toFindingTallyDto(view.findings.againstPackage),
+      observations: toFindingTallyDto(view.findings.observations),
+    },
+    archive: {
+      total: view.archive.total,
+      byOutcome: view.archive.byMember as ArchiveTallyDto['byOutcome'],
+    },
+  };
+}
+
+/**
+ * One group of findings, in the order the register put them in. The order is
+ * the answer — most frequent first — so it is carried through rather than
+ * re-decided here.
+ */
+function toFindingTallyDto(view: FindingTallyView): FindingTallyDto {
+  return {
+    total: view.total,
+    byKind: view.byKind.map(row => ({
+      // Every kind the register tallied is one the report wrote, and the
+      // report writes the domain's own enumeration.
+      kind: row.kind as FindingCountDto['kind'],
+      count: row.count,
+    })),
   };
 }
 

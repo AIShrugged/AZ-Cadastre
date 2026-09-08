@@ -12,6 +12,8 @@ import {
   ListPackagesResponseSchema,
   PackageDetailDtoSchema,
   PackageDtoSchema,
+  PackagesOverviewRequestSchema,
+  PackagesOverviewResponseSchema,
   PresignRequestSchema,
   PresignResponseSchema,
   ProfileDtoSchema,
@@ -22,6 +24,8 @@ import {
   type ListPackagesResponse,
   type PackageDetailDto,
   type PackageDto,
+  type PackagesOverviewRequestInput,
+  type PackagesOverviewResponse,
   type PresignRequest,
   type PresignResponse,
   type ProfileDto,
@@ -165,6 +169,24 @@ export class RestClient {
         `/api/packages/${encodeURIComponent(id)}`,
         PackageDetailDtoSchema,
       ),
+
+    /**
+     * The four tallies of a period. Naming no bound asks about every
+     * submission the office has ever taken in, which is what the server does
+     * with an empty query string.
+     */
+    overview: (
+      period: PackagesOverviewRequestInput = {},
+    ): Promise<ApiResponse<PackagesOverviewResponse>> =>
+      this.request(
+        'GET',
+        `/api/packages/overview${periodQuery(period)}`,
+        PackagesOverviewResponseSchema,
+      ),
+
+    /** Deliberately unparsed, for the specs that check the API's own refusals. */
+    overviewRaw: (query: string): Promise<ApiResponse<unknown>> =>
+      this.request('GET', `/api/packages/overview${query}`, z.unknown()),
   };
 
   // ------------------------------------------------------------------------
@@ -201,6 +223,20 @@ export class RestClient {
  * client cannot send what the server would refuse. Absent values are left out
  * entirely: `?standing=` is a standing nobody names, not an unset filter.
  */
+function periodQuery(period: PackagesOverviewRequestInput): string {
+  const parsed = PackagesOverviewRequestSchema.parse(period);
+  const params = new URLSearchParams();
+
+  if (parsed.from !== undefined) params.set('from', parsed.from);
+  if (parsed.to !== undefined) params.set('to', parsed.to);
+
+  // A bare path rather than a lone `?`: a period nobody named is no query
+  // string at all, which is what the server's own default answers.
+  const query = params.toString();
+
+  return query === '' ? '' : `?${query}`;
+}
+
 function queryString(request: ListPackagesRequestInput): string {
   const parsed = ListPackagesRequestSchema.parse(request);
   const params = new URLSearchParams();

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   PackageDetailDtoSchema,
   PackageDtoSchema,
+  PackagesOverviewResponseSchema,
   PackageStandingSchema,
 } from '@cadastre/api-contracts/verification';
 
@@ -11,13 +12,14 @@ import type {
   CrossCheckView,
   DocumentView,
   PackageDetailView,
+  PackagesOverviewView,
   PackageSummaryView,
   RegistryCheckView,
   ReportView,
   SourceFileView,
 } from '../../read-models/index.js';
 
-import { toDetailDto, toSummaryDto } from './package.mapper.js';
+import { toDetailDto, toOverviewDto, toSummaryDto } from './package.mapper.js';
 
 let sequence = 0;
 
@@ -666,6 +668,101 @@ describe('toDetailDto', () => {
   it('answers a shape the published detail contract accepts', () => {
     expect(() =>
       PackageDetailDtoSchema.parse(toDetailDto(aDetailView())),
+    ).not.toThrow();
+  });
+});
+
+/*
+ * The summary of a period. What the register counted is carried through
+ * untouched — a mapper that re-decided an order or re-added a total would be a
+ * second implementation of the counting — so what is covered here is the
+ * period, which is the one thing the mapper puts in that the register did not.
+ */
+describe('toOverviewDto', () => {
+  function anOverviewView(): PackagesOverviewView {
+    return {
+      pipeline: {
+        total: 12,
+        byMember: { Pending: 1, Processing: 2, Completed: 8, Failed: 1 },
+      },
+      outcomes: {
+        total: 9,
+        byMember: { OK: 4, IssuesFound: 3, IncompletePackage: 2 },
+      },
+      findings: {
+        againstPackage: {
+          total: 7,
+          byKind: [
+            { kind: 'FieldMismatch', count: 4 },
+            { kind: 'MissingDocument', count: 3 },
+            { kind: 'LowConfidence', count: 0 },
+            { kind: 'UnreadableDocument', count: 0 },
+            { kind: 'RegistryMismatch', count: 0 },
+            { kind: 'RegistryDocumentMissing', count: 0 },
+            { kind: 'MissingAttestation', count: 0 },
+          ],
+        },
+        observations: {
+          total: 5,
+          byKind: [
+            { kind: 'ExtraDocument', count: 5 },
+            { kind: 'DuplicateDocument', count: 0 },
+            { kind: 'RegistryUnconfirmed', count: 0 },
+            { kind: 'SupportingDocumentsRequired', count: 0 },
+          ],
+        },
+      },
+      archive: {
+        total: 6,
+        byMember: {
+          Confirmed: 3,
+          Differs: 1,
+          Incomplete: 0,
+          NotFound: 2,
+          Ambiguous: 0,
+        },
+      },
+    };
+  }
+
+  // Echoed off the request rather than restated by the register, for the same
+  // reason a page echoes its limit and offset: an answer that arrives late must
+  // not be rendered under the period asked for after it.
+  it('says which period the answer is about', () => {
+    const dto = toOverviewDto(anOverviewView(), {
+      from: '2026-08-01T00:00:00.000Z',
+      to: '2026-09-01T00:00:00.000Z',
+    });
+
+    expect(dto.period).toEqual({
+      from: '2026-08-01T00:00:00.000Z',
+      to: '2026-09-01T00:00:00.000Z',
+    });
+  });
+
+  it('says so when the caller named no bound at all', () => {
+    const dto = toOverviewDto(anOverviewView(), {});
+
+    expect(dto.period).toEqual({ from: null, to: null });
+  });
+
+  it('carries the counts over as they were counted', () => {
+    const dto = toOverviewDto(anOverviewView(), {});
+
+    expect(dto.pipeline).toEqual({
+      total: 12,
+      byStatus: { Pending: 1, Processing: 2, Completed: 8, Failed: 1 },
+    });
+    expect(dto.findings.againstPackage.byKind.slice(0, 2)).toEqual([
+      { kind: 'FieldMismatch', count: 4 },
+      { kind: 'MissingDocument', count: 3 },
+    ]);
+    expect(dto.archive.byOutcome.NotFound).toBe(2);
+  });
+
+  it('answers a shape the published contract accepts', () => {
+    expect(() =>
+      PackagesOverviewResponseSchema.parse(toOverviewDto(anOverviewView(), {})),
     ).not.toThrow();
   });
 });

@@ -6,6 +6,8 @@ import type {
   ListPackagesResponse,
   PackageDetailDto,
   PackageDto,
+  PackagesOverviewRequest,
+  PackagesOverviewResponse,
 } from '../dto/index.js';
 
 /**
@@ -27,6 +29,23 @@ export interface PackagesApi {
    */
   findMany(request: ListPackagesRequest): Promise<ListPackagesResponse>;
   findOne(id: string): Promise<PackageDetailDto>;
+
+  /**
+   * The four things an inspector opens a summary to ask, over the submissions
+   * accepted in a period: how much work is in the machine, what the runs made
+   * of it, what goes wrong most often, and how the archive register answers.
+   *
+   * One operation and not four, because four calls answer about four moments:
+   * a submission that finishes between two of them is counted as processing by
+   * one and as reported on by the next, and the screen shows numbers that do
+   * not add up. Everything here is counted by the database in one transaction,
+   * over rows that already exist — nothing accumulates it.
+   *
+   * `PackagesOverviewRequestSchema` states what the period means and which
+   * timestamp it is over: when the submission was accepted, for all four slices
+   * alike.
+   */
+  overview(request: PackagesOverviewRequest): Promise<PackagesOverviewResponse>;
 
   /**
    * Adds files to a package that already exists, and answers with the package

@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
-import type { PackageSummaryView } from '../../application/read-models/index.js';
-import { PackageId } from '../../domain/value-objects/index.js';
+import type {
+  PackagesOverviewView,
+  PackageSummaryView,
+} from '../../application/read-models/index.js';
+import {
+  IssueKind,
+  PackageId,
+  PackageStatus,
+  RegistryOutcome,
+  ReportStatus,
+} from '../../domain/value-objects/index.js';
 
 import { PackageQueriesAdapter } from './package-queries.adapter.js';
 import type { VerificationPrismaService } from './verification-prisma.service.js';
@@ -75,6 +84,79 @@ async function summariesOf(
   rows: readonly Row[],
 ): Promise<readonly PackageSummaryView[]> {
   return (await adapterOver(rows).listSummaries(EVERYTHING)).items;
+}
+
+// ─── the summary of a period ─────────────────────────────────────────────────
+
+type GroupedRows = {
+  readonly packages?: readonly Row[];
+  readonly reports?: readonly Row[];
+  readonly findings?: readonly Row[];
+  readonly archive?: readonly Row[];
+};
+
+/** One group as the database answers it: the value, and how many rows had it. */
+const group = (column: string, value: string, count: number): Row => ({
+  [column]: value,
+  _count: count,
+});
+
+type OverviewSubject = {
+  readonly adapter: PackageQueriesAdapter;
+  // What each of the four statements was narrowed by, so a spec can hold the
+  // period against the condition it actually became.
+  readonly narrowedBy: Record<string, unknown>;
+  readonly transaction: { count: number; isolationLevel?: string };
+};
+
+/**
+ * Prisma stands in at the boundary again, and this time it offers **only**
+ * `groupBy`. Reading rows to fold them in the application is the failure this
+ * operation exists to avoid — the list of submissions only grows — so the
+ * double refuses to hand any over: an implementation that tried would fail
+ * here rather than pass slowly in production.
+ */
+function overviewOver(grouped: GroupedRows = {}): OverviewSubject {
+  const narrowedBy: Record<string, unknown> = {};
+  const transaction: { count: number; isolationLevel?: string } = { count: 0 };
+
+  const model = (name: string, rows: readonly Row[] = []) => ({
+    groupBy: (args: { where: unknown }) => {
+      narrowedBy[name] = args.where;
+      return Promise.resolve(rows);
+    },
+    findMany: () => {
+      throw new Error(`${name} was read row by row rather than counted`);
+    },
+  });
+
+  const prisma = {
+    verificationPackage: model('packages', grouped.packages),
+    report: model('reports', grouped.reports),
+    validationIssue: model('findings', grouped.findings),
+    registryCheck: model('archive', grouped.archive),
+    $transaction: (
+      operations: readonly Promise<unknown>[],
+      options?: { isolationLevel?: string },
+    ) => {
+      transaction.count += 1;
+      transaction.isolationLevel = options?.isolationLevel;
+      return Promise.all(operations);
+    },
+  } as unknown as VerificationPrismaService;
+
+  return {
+    adapter: new PackageQueriesAdapter(prisma),
+    narrowedBy,
+    transaction,
+  };
+}
+
+// Every submission the office has ever taken in.
+const ALL_TIME = { from: null, to: null } as const;
+
+async function overviewOf(grouped: GroupedRows): Promise<PackagesOverviewView> {
+  return overviewOver(grouped).adapter.overview(ALL_TIME);
 }
 
 describe('PackageQueriesAdapter', () => {
@@ -211,6 +293,264 @@ describe('PackageQueriesAdapter', () => {
       ]).findSummary(PackageId.of(PACKAGE_ID));
 
       expect(summary?.standing).toBe('ShortOfDocuments');
+    });
+  });
+  /*
+   * The summary of a period. What it counts is counted by the database — the
+   * double above will not hand a row over — so what is left to a spec here is
+   * what the register makes of the four groups it gets back, and what it asks
+   * for in the first place.
+   */
+  describe('the summary of a period', () => {
+    it('keeps what is held against a package apart from what is noted beside it', async () => {
+      // arrange — three shortfalls, and four observations that are not
+      // arrange   findings against anything
+      const overview = await overviewOf({
+        findings: [
+          group('kind', 'MissingDocument', 2),
+          group('kind', 'FieldMismatch', 1),
+          group('kind', 'ExtraDocument', 3),
+          group('kind', 'RegistryUnconfirmed', 1),
+        ],
+      });
+
+      // assert — never one number over the two: a report carrying nothing but
+      // observations still reads OK
+      expect(overview.findings.againstPackage.total).toBe(3);
+      expect(overview.findings.observations.total).toBe(4);
+    });
+
+    it('counts an unsure reading against the package, and a paper the applicant still owes as neither', async () => {
+      // act
+      const overview = await overviewOf({
+        findings: [
+          group('kind', 'LowConfidence', 5),
+          group('kind', 'SupportingDocumentsRequired', 9),
+        ],
+      });
+
+      // assert
+      expect(overview.findings.againstPackage.total).toBe(5);
+      expect(overview.findings.observations.total).toBe(9);
+    });
+
+    // Which is the whole question this slice answers: what goes wrong often is
+    // a problem in the process, what goes wrong once is a problem in one
+    // envelope.
+    it('puts the most frequent finding first', async () => {
+      // act
+      const overview = await overviewOf({
+        findings: [
+          group('kind', 'MissingDocument', 2),
+          group('kind', 'FieldMismatch', 11),
+          group('kind', 'RegistryMismatch', 7),
+        ],
+      });
+
+      // assert
+      expect(
+        overview.findings.againstPackage.byKind
+          .filter(row => row.count > 0)
+          .map(row => row.kind),
+      ).toEqual(['FieldMismatch', 'RegistryMismatch', 'MissingDocument']);
+    });
+
+    // A screen that re-reads this every minute must not shuffle rows that are
+    // level with each other, so a tie keeps the order the domain names them in.
+    it('settles a tie the same way every time', async () => {
+      // arrange
+      const findings = [
+        group('kind', 'FieldMismatch', 4),
+        group('kind', 'MissingDocument', 4),
+      ];
+
+      // act
+      const [first, second] = await Promise.all([
+        overviewOf({ findings }),
+        overviewOf({ findings: [...findings].reverse() }),
+      ]);
+
+      // assert
+      const kinds = (overview: PackagesOverviewView) =>
+        overview.findings.againstPackage.byKind
+          .filter(row => row.count > 0)
+          .map(row => row.kind);
+      expect(kinds(first)).toEqual(['MissingDocument', 'FieldMismatch']);
+      expect(kinds(second)).toEqual(kinds(first));
+    });
+
+    // A tile that vanishes on a quiet week is a tile a reader cannot trust to
+    // be there — and "0 failed" is an answer, while a missing key is a question.
+    it('names every state, outcome and kind the domain has, at zero', async () => {
+      // act
+      const overview = await overviewOf({});
+
+      // assert
+      expect(Object.keys(overview.pipeline.byMember).sort()).toEqual(
+        PackageStatus.all.map(status => status.value).sort(),
+      );
+      expect(Object.keys(overview.outcomes.byMember).sort()).toEqual(
+        ReportStatus.all.map(status => status.value).sort(),
+      );
+      expect(Object.keys(overview.archive.byMember).sort()).toEqual(
+        RegistryOutcome.all.map(outcome => outcome.value).sort(),
+      );
+      expect(
+        [
+          ...overview.findings.againstPackage.byKind,
+          ...overview.findings.observations.byKind,
+        ]
+          .map(row => row.kind)
+          .sort(),
+      ).toEqual(IssueKind.all.map(kind => kind.value).sort());
+      expect(Object.values(overview.pipeline.byMember)).toEqual([0, 0, 0, 0]);
+    });
+
+    /*
+     * The register's coverage is partial and historical, so its silence about a
+     * property is an absence of evidence and not a disagreement with the papers
+     * (ADR-0009). One number over both would report a gap in the archive as a
+     * fault in the submissions.
+     */
+    it('keeps a register that found nothing apart from one that disagreed', async () => {
+      // act
+      const overview = await overviewOf({
+        archive: [
+          group('outcome', 'NotFound', 12),
+          group('outcome', 'Differs', 2),
+          group('outcome', 'Confirmed', 6),
+        ],
+      });
+
+      // assert
+      expect(overview.archive.byMember).toMatchObject({
+        NotFound: 12,
+        Differs: 2,
+        Confirmed: 6,
+        Incomplete: 0,
+        Ambiguous: 0,
+      });
+      expect(overview.archive.total).toBe(20);
+    });
+
+    it('adds the whole up out of the groups the database answered with', async () => {
+      // act
+      const overview = await overviewOf({
+        packages: [
+          group('status', 'Completed', 40),
+          group('status', 'Failed', 2),
+        ],
+        reports: [group('status', 'OK', 30), group('status', 'IssuesFound', 8)],
+      });
+
+      // assert — the outcomes are fewer than the submissions, and deliberately:
+      // one still being read has no report to have an outcome in
+      expect(overview.pipeline.total).toBe(42);
+      expect(overview.outcomes.total).toBe(38);
+      expect(overview.outcomes.byMember).toMatchObject({
+        OK: 30,
+        IssuesFound: 8,
+        IncompletePackage: 0,
+      });
+    });
+
+    // A read surface must not be taken down, or made to lie, by one row it
+    // cannot place. `Expired` is such a row: the column still carries it and
+    // the rule no longer does.
+    it('counts a stored kind the enumeration no longer names', async () => {
+      // act
+      const overview = await overviewOf({
+        findings: [
+          group('kind', 'Expired', 3),
+          group('kind', 'MissingDocument', 1),
+        ],
+      });
+
+      // assert — counted, and on the side that is held against the package
+      expect(overview.findings.againstPackage.total).toBe(4);
+      expect(overview.findings.againstPackage.byKind).toContainEqual({
+        kind: 'Expired',
+        count: 3,
+      });
+      expect(overview.findings.observations.total).toBe(0);
+    });
+
+    /*
+     * The reason there is one operation rather than four calls. Under the
+     * default isolation each statement takes its own snapshot, so a run
+     * finishing between two of them is counted as under way by one number and
+     * as reported on by the next — and the screen shows a summary that does not
+     * add up.
+     */
+    it('takes all four counts in one transaction, at one instant', async () => {
+      // arrange
+      const subject = overviewOver({});
+
+      // act
+      await subject.adapter.overview(ALL_TIME);
+
+      // assert
+      expect(subject.transaction.count).toBe(1);
+      expect(subject.transaction.isolationLevel).toBe('RepeatableRead');
+    });
+
+    describe('the period', () => {
+      /*
+       * Every slice narrowed by the same thing — when the submission was
+       * accepted — and never by four timestamps of its own, or the four numbers
+       * would be about four different sets of packages. The findings reach it
+       * through the report, so that a re-run does not move a finding from one
+       * period to another.
+       */
+      it('narrows every count by when the submission was accepted', async () => {
+        // arrange
+        const subject = overviewOver({});
+        const from = new Date('2026-08-01T00:00:00.000Z');
+        const to = new Date('2026-09-01T00:00:00.000Z');
+
+        // act
+        await subject.adapter.overview({ from, to });
+
+        // assert — inclusive at the start, exclusive at the end, so two
+        // adjacent months count every submission once and none of them twice
+        const accepted = { createdAt: { gte: from, lt: to } };
+        expect(subject.narrowedBy.packages).toEqual(accepted);
+        expect(subject.narrowedBy.reports).toEqual({ package: accepted });
+        expect(subject.narrowedBy.archive).toEqual({ package: accepted });
+        expect(subject.narrowedBy.findings).toEqual({
+          report: { package: accepted },
+        });
+      });
+
+      it('takes an open end as open rather than as now', async () => {
+        // arrange
+        const subject = overviewOver({});
+        const from = new Date('2026-08-01T00:00:00.000Z');
+
+        // act
+        await subject.adapter.overview({ from, to: null });
+
+        // assert
+        expect(subject.narrowedBy.packages).toEqual({
+          createdAt: { gte: from },
+        });
+      });
+
+      // A period nobody named is not an always-true predicate the database has
+      // to carry into three joins.
+      it('asks for no condition at all when no bound was named', async () => {
+        // arrange
+        const subject = overviewOver({});
+
+        // act
+        await subject.adapter.overview(ALL_TIME);
+
+        // assert
+        expect(subject.narrowedBy.packages).toEqual({});
+        expect(subject.narrowedBy.reports).toEqual({});
+        expect(subject.narrowedBy.findings).toEqual({});
+        expect(subject.narrowedBy.archive).toEqual({});
+      });
     });
   });
 });

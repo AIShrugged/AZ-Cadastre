@@ -1,4 +1,5 @@
 import type { AddressesApi } from './addresses.api.js';
+import type { ArchiveSearchApi } from './archive-search.api.js';
 import type { RegistrySummaryApi } from './registry-summary.api.js';
 
 /**
@@ -10,6 +11,13 @@ import type { RegistrySummaryApi } from './registry-summary.api.js';
  */
 export interface ArchiveRegistryApi {
   readonly addresses: AddressesApi;
+  /**
+   * The archive searched by any of the things a property is known by, rather
+   * than resolved by the one the lookup takes. A separate area because it is a
+   * separate question asked by a different caller — `ArchiveSearchApi` says
+   * which.
+   */
+  readonly search: ArchiveSearchApi;
   /**
    * What the register holds, as opposed to what it holds about a property. It
    * is an area of the published contract and not a health check: a real state

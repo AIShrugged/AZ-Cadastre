@@ -21,6 +21,26 @@ export {
   type ArchiveRecordDto,
 } from './archive-record.dto.js';
 export {
+  ArchiveMatchDtoSchema,
+  ArchiveSearchRequestSchema,
+  ArchiveSearchResponseSchema,
+  DEFAULT_SEARCH_THRESHOLD,
+  MatchedCriterionDtoSchema,
+  RecordSourceDtoSchema,
+  SEARCH_DEFAULT_LIMIT,
+  SEARCH_MAX_LIMIT,
+  SourceDisagreementDtoSchema,
+  SourceStatementDtoSchema,
+  type ArchiveMatchDto,
+  type ArchiveSearchRequest,
+  type ArchiveSearchRequestInput,
+  type ArchiveSearchResponse,
+  type MatchedCriterionDto,
+  type RecordSourceDto,
+  type SourceDisagreementDto,
+  type SourceStatementDto,
+} from './archive-search.dto.js';
+export {
   RegistrySourceSummaryDtoSchema,
   RegistrySummaryResponseSchema,
   type RegistrySourceSummaryDto,

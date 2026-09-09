@@ -40,5 +40,12 @@ export const IssueKindSchema = z.enum([
   // papers this case needs could not be worked out", and the two must never
   // read alike (ADR-0013).
   'SupportingDocumentsRequired',
+  // What the office declared when it took the submission in is not what the
+  // papers turned out to say. Neither side is presumed right — a figure can be
+  // mistyped at the counter as easily as it can be misread off a scan — so it
+  // is stated for the record and never counted against the package. The
+  // finding is filed against the reading it disagrees with, so the inspector
+  // opens the sheet and settles it.
+  'DeclaredValueMismatch',
 ]);
 export type IssueKind = z.infer<typeof IssueKindSchema>;

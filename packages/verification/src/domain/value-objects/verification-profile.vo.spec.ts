@@ -8,7 +8,7 @@ import {
 import { CrossCheckKey } from './cross-check.vo.js';
 import { DocumentType } from './document-type.vo.js';
 import { FieldKey } from './field.vo.js';
-import { VerificationProfile } from './verification-profile.vo.js';
+import { IntakeSpec, VerificationProfile } from './verification-profile.vo.js';
 
 const CADASTRE_TYPES = [
   'land_plot_plan',
@@ -534,6 +534,112 @@ describe('VerificationProfile', () => {
           PARTICULARS.propertyAddress.length +
           PARTICULARS.cadastralNumber.length,
       );
+    });
+  });
+
+  /*
+   * What the profile answers for at the counter, before a sheet has been read.
+   * The other end of the same case: everything else this profile says is about
+   * documents it will be given, and this is what an operator can say about a
+   * case they have not handed over yet.
+   */
+  describe('what it takes in at the counter', () => {
+    const INTAKE = VerificationProfile.CADASTRE.intake;
+
+    /*
+     * One ground, and it is the only paper in this profile that grants
+     * anything. The plan-scheme depicts, the archival certificate attests, the
+     * receipt records a payment and the application asks — offering any of them
+     * as a ground would put a choice on the intake screen that means nothing.
+     */
+    it('registers a right founded on the order that allotted the parcel', () => {
+      expect(INTAKE.grounds.map(ground => ground.value)).toEqual([
+        'disposal_order',
+      ]);
+      expect(INTAKE.registers(DocumentType.create('disposal_order'))).toBe(
+        true,
+      );
+    });
+
+    it('registers a right founded on none of its other papers', () => {
+      for (const type of CADASTRE_TYPES.filter(
+        key => key !== 'disposal_order',
+      )) {
+        expect(INTAKE.registers(DocumentType.create(type))).toBe(false);
+      }
+    });
+
+    /*
+     * The supporting documents a case needs turn on the year (ADR-0013), but
+     * which profile governs it does not: no norm has been given that says
+     * otherwise, and a threshold invented here would silently send submissions
+     * to the wrong policy.
+     */
+    it('answers for a case of any year', () => {
+      expect(INTAKE.isBoundedByYear).toBe(false);
+      expect(INTAKE.takesCaseFrom(1899)).toBe(true);
+      expect(INTAKE.takesCaseFrom(2026)).toBe(true);
+      expect(INTAKE.takesCaseFrom(null)).toBe(true);
+    });
+
+    // A ground is offered to an operator as one of the profile's own papers, so
+    // it has to be one: a key nothing downstream reads would put a choice on
+    // the screen that no run could act on.
+    it('names only papers it declares as document types', () => {
+      for (const ground of INTAKE.grounds) {
+        expect(VerificationProfile.CADASTRE.recognises(ground)).toBe(true);
+      }
+    });
+
+    describe('as a mechanism, apart from what this profile happens to declare', () => {
+      // Inclusive at the bottom and exclusive at the top, so two neighbouring
+      // profiles do not argue over the year between them — the same convention
+      // a requirement band is written in.
+      it('reads its year bounds bottom-inclusive and top-exclusive', () => {
+        const bounded = IntakeSpec.of({
+          grounds: [],
+          builtFrom: 2010,
+          builtBefore: 2020,
+        });
+
+        expect(bounded.takesCaseFrom(2010)).toBe(true);
+        expect(bounded.takesCaseFrom(2019)).toBe(true);
+        expect(bounded.takesCaseFrom(2020)).toBe(false);
+        expect(bounded.takesCaseFrom(2009)).toBe(false);
+      });
+
+      // Guessing which side of a threshold an undeclared year falls on is the
+      // one thing this must never do.
+      it('answers for no undeclared year once it is bounded by one', () => {
+        expect(
+          IntakeSpec.of({
+            grounds: [],
+            builtFrom: 2010,
+            builtBefore: null,
+          }).takesCaseFrom(null),
+        ).toBe(false);
+      });
+
+      // Not a profile that takes everything: it is one whose author has not
+      // said what it is for, so no declaration ever points at it.
+      it('registers nothing where a profile declares no intake at all', () => {
+        expect(
+          IntakeSpec.none().registers(DocumentType.create('disposal_order')),
+        ).toBe(false);
+        expect(IntakeSpec.none().grounds).toEqual([]);
+      });
+
+      it('writes its bounds as a reader would say them', () => {
+        expect(
+          IntakeSpec.of({ grounds: [], builtFrom: 2010, builtBefore: 2020 })
+            .years,
+        ).toBe('2010 to below 2020');
+        expect(
+          IntakeSpec.of({ grounds: [], builtFrom: null, builtBefore: 2010 })
+            .years,
+        ).toBe('below 2010');
+        expect(IntakeSpec.none().years).toBe('');
+      });
     });
   });
 

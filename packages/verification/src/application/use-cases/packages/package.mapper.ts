@@ -4,6 +4,7 @@ import type {
   ArchiveTallyDto,
   CheckedValueDto,
   CrossCheckDto,
+  DeclaredAtIntakeDto,
   DocumentDto,
   FindingCountDto,
   FindingTallyDto,
@@ -28,6 +29,7 @@ import type {
   ArchiveSearchApprovalView,
   CheckedValueView,
   CrossCheckView,
+  DeclaredAtIntakeView,
   DocumentView,
   FindingTallyView,
   PackageDetailView,
@@ -49,6 +51,10 @@ export function toSummaryDto(view: PackageSummaryView): PackageDto {
     // is one the contract names.
     standing: view.standing as PackageDto['standing'],
     profileKey: view.profileKey,
+    // What the office declared at the counter, carried across as it was
+    // declared. Never merged with the readings below it, which is the whole
+    // reason it is a field of its own and not three more nullable strings.
+    declared: toDeclaredAtIntakeDto(view.declared),
     // What the case is called, off the papers the package's own profile
     // believes each value from. Carried across as read: the register decided
     // which reading answers, and a second opinion here would be a second rule.
@@ -70,6 +76,12 @@ export function toSummaryDto(view: PackageSummaryView): PackageDto {
     createdAt: view.createdAt.toISOString(),
     updatedAt: view.updatedAt.toISOString(),
   };
+}
+
+function toDeclaredAtIntakeDto(
+  view: DeclaredAtIntakeView,
+): DeclaredAtIntakeDto {
+  return { legalBasis: view.legalBasis, builtYear: view.builtYear };
 }
 
 // One of the three values a row names the case by. Null stays null: a row that

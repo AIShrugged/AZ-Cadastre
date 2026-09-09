@@ -17,6 +17,7 @@ export { InvalidApprovalSummaryException } from './invalid-approval-summary.exce
 export { InvalidConfidenceException } from './invalid-confidence.exception.js';
 export { InvalidCrossCheckKeyException } from './invalid-cross-check-key.exception.js';
 export { InvalidCrossCheckVerdictException } from './invalid-cross-check-verdict.exception.js';
+export { InvalidDeclaredYearException } from './invalid-declared-year.exception.js';
 export { InvalidDocumentTypeException } from './invalid-document-type.exception.js';
 export { InvalidFieldKeyException } from './invalid-field-key.exception.js';
 export { InvalidFieldValueException } from './invalid-field-value.exception.js';
@@ -31,6 +32,7 @@ export { InvalidRegistryCheckKeyException } from './invalid-registry-check-key.e
 export { InvalidRegistryOutcomeException } from './invalid-registry-outcome.exception.js';
 export { InvalidReportStatusException } from './invalid-report-status.exception.js';
 export { InvalidStorageKeyException } from './invalid-storage-key.exception.js';
+export { LegalBasisNotInProfileException } from './legal-basis-not-in-profile.exception.js';
 export { PackageAlreadyFinishedException } from './package-already-finished.exception.js';
 export { PackageMustGainAFileException } from './package-must-gain-a-file.exception.js';
 export { PackageMustHaveAFileException } from './package-must-have-a-file.exception.js';

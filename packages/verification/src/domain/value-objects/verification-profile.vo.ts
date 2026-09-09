@@ -1,5 +1,6 @@
 import {
   CrossCheckNotInProfileException,
+  DocumentTypeNotInProfileException,
   RegistryCheckNotInProfileException,
   UnknownProfileException,
 } from '../exceptions/index.js';
@@ -168,6 +169,34 @@ export type RequirementBandDeclaration = {
   // type this profile classifies, and inventing keys for papers the engine
   // never reads would put words in the contract that answer nothing.
   readonly documents: readonly string[];
+};
+
+/*
+ * What a profile answers for, in the language the office speaks at the counter
+ * — before a single sheet has been read.
+ *
+ * The engine's own view of a submission is built out of what it read; this is
+ * the other end of the same case, and it is the only thing a profile can be
+ * suggested on. An intake screen has two figures and no documents: which ground
+ * the claimed right rests on, and what year the building is said to date from.
+ *
+ * Naming the grounds is also what lets a screen offer them: the operator picks
+ * a ground out of the profile's own list rather than typing one.
+ */
+export type IntakeDeclaration = {
+  // Document type keys of this profile that can be the ground a right is
+  // claimed on — the paper that grants something, not the papers that evidence
+  // or accompany it. Every one of them must be a type this profile declares:
+  // an intake screen offers them as documents, and a ground naming a paper the
+  // profile never reads would be a choice nothing downstream could act on.
+  readonly grounds: readonly string[];
+  // The years this profile answers for, read the same way a requirement band's
+  // are — inclusive at the bottom, exclusive at the top, null for an open end.
+  // Both null is a profile that takes a case of any year, which is what every
+  // profile shipped today is: no norm has been given that turns on the date,
+  // and inventing one to make the year look decisive would be inventing policy.
+  readonly builtFrom: number | null;
+  readonly builtBefore: number | null;
 };
 
 // A document type that no profile asks for, declared so it can be named rather
@@ -344,6 +373,45 @@ export class ParticularsSpec {
   }
 }
 
+/*
+ * Whether a measure falls between the bounds a rule states about it. Inclusive
+ * at the bottom, exclusive at the top, and null is an open end.
+ *
+ * A measure that could not be read is null, and a rule that has something to
+ * say about that measure does not cover the case: guessing which side of a
+ * threshold an unread figure falls on is the one thing this must never do. A
+ * rule that says nothing about it covers the case anyway — a rule that holds
+ * whatever the year is holds when nobody could read the year.
+ */
+function within(
+  measure: number | null,
+  from: number | null,
+  below: number | null,
+): boolean {
+  if (from === null && below === null) return true;
+  if (measure === null) return false;
+
+  return (
+    (from === null || measure >= from) && (below === null || measure < below)
+  );
+}
+
+// Bounds as one line of an audit message, so a reader can see which rule was
+// applied without opening the profile. Empty where the rule states neither.
+function boundsSaid(
+  from: number | null,
+  below: number | null,
+  write: (figure: number) => string,
+): string {
+  if (from !== null && below !== null) {
+    return `${write(from)} to below ${write(below)}`;
+  }
+  if (from !== null) return `${write(from)} and above`;
+  if (below !== null) return `below ${write(below)}`;
+
+  return '';
+}
+
 // One band of a supporting-documents branch, as the engine reads it.
 export class RequirementBand {
   readonly #documents: readonly string[];
@@ -387,33 +455,20 @@ export class RequirementBand {
    */
   covers(metres: number | null, year: number | null): boolean {
     return (
-      RequirementBand.within(metres, this.heightFrom, this.heightBelow) &&
-      RequirementBand.within(year, this.builtFrom, this.builtBefore)
-    );
-  }
-
-  private static within(
-    measure: number | null,
-    from: number | null,
-    below: number | null,
-  ): boolean {
-    if (from === null && below === null) return true;
-    if (measure === null) return false;
-
-    return (
-      (from === null || measure >= from) && (below === null || measure < below)
+      within(metres, this.heightFrom, this.heightBelow) &&
+      within(year, this.builtFrom, this.builtBefore)
     );
   }
 
   // The band's bounds as one line of the audit message, so a reader of the
   // report can see which rule was applied without opening the profile.
   get bounds(): string {
-    const height = RequirementBand.said(
+    const height = boundsSaid(
       this.heightFrom,
       this.heightBelow,
       figure => `${figure} m`,
     );
-    const built = RequirementBand.said(
+    const built = boundsSaid(
       this.builtFrom,
       this.builtBefore,
       figure => `${figure}`,
@@ -423,20 +478,6 @@ export class RequirementBand {
       [height, built && `built ${built}`].filter(Boolean).join(', ') ||
       'any building'
     );
-  }
-
-  private static said(
-    from: number | null,
-    below: number | null,
-    write: (figure: number) => string,
-  ): string {
-    if (from !== null && below !== null) {
-      return `${write(from)} to below ${write(below)}`;
-    }
-    if (from !== null) return `${write(from)} and above`;
-    if (below !== null) return `below ${write(below)}`;
-
-    return '';
   }
 
   // The papers this band asks for, as one line of the audit message.
@@ -507,6 +548,75 @@ export class SupportingDocumentsSpec {
    */
   bandFor(metres: number | null, year: number | null): RequirementBand | null {
     return this.#bands.find(band => band.covers(metres, year)) ?? null;
+  }
+}
+
+/**
+ * What a profile answers for at the counter, as the engine reads it: the
+ * grounds it registers a right on, and the years it takes a case from.
+ *
+ * Every answer it gives is one criterion at a time and stated in words, because
+ * the only thing it is ever used for is a recommendation somebody may overrule.
+ * A suggestion an operator cannot argue with is one they can only obey or
+ * distrust, and neither is what a picker with a default is for.
+ */
+export class IntakeSpec {
+  readonly #grounds: readonly DocumentType[];
+
+  private constructor(
+    grounds: readonly DocumentType[],
+    public readonly builtFrom: number | null,
+    public readonly builtBefore: number | null,
+  ) {
+    this.#grounds = [...grounds];
+  }
+
+  static of(declaration: IntakeDeclaration): IntakeSpec {
+    return new IntakeSpec(
+      declaration.grounds.map(ground => DocumentType.create(ground)),
+      declaration.builtFrom,
+      declaration.builtBefore,
+    );
+  }
+
+  // A profile that says nothing about what it takes in. It registers no ground
+  // anybody can name, so no declaration ever points at it — which is the right
+  // answer for a profile whose author has not said what it is for, and not the
+  // same thing as a profile that takes everything.
+  static none(): IntakeSpec {
+    return new IntakeSpec([], null, null);
+  }
+
+  get grounds(): readonly DocumentType[] {
+    return this.#grounds;
+  }
+
+  registers(basis: DocumentType): boolean {
+    return this.#grounds.some(ground => ground.equals(basis));
+  }
+
+  // Whether a case of this year is one this profile takes. A year nobody
+  // declared is null, and a profile bounded by no year answers for it — the
+  // same reading a requirement band gives an unread figure.
+  takesCaseFrom(year: number | null): boolean {
+    return within(year, this.builtFrom, this.builtBefore);
+  }
+
+  // Whether this profile is bounded by a year at all. False on every profile
+  // shipped today, and what lets a suggestion say plainly that the declared
+  // year ruled nothing out instead of implying it weighed one.
+  get isBoundedByYear(): boolean {
+    return this.builtFrom !== null || this.builtBefore !== null;
+  }
+
+  // The years it answers for, as one line of the audit message.
+  get years(): string {
+    return boundsSaid(this.builtFrom, this.builtBefore, figure => `${figure}`);
+  }
+
+  // The grounds as one line of the audit message.
+  get cited(): string {
+    return this.#grounds.map(ground => ground.value).join(', ');
   }
 }
 
@@ -934,6 +1044,27 @@ export class VerificationProfile {
         ['application', 'cadastral_number'],
       ],
     },
+    // What this profile answers for at the counter.
+    //
+    // One ground: the order of the executive authority that allotted the parcel
+    // is the only paper in this profile that grants anything. The plan-scheme
+    // depicts, the archival certificate attests, the receipt records a payment
+    // and the application asks — none of them founds a right, and offering one
+    // of them as a ground would put a choice on the intake screen that means
+    // nothing. A case founded on a sale, an inheritance or a court decision is
+    // a case this build has no profile for, and the suggestion says so rather
+    // than proposing this one.
+    //
+    // No year bounds: this profile takes a case of any year. The supporting
+    // documents a case needs turn on the year (ADR-0013), but which profile
+    // governs it does not — no norm has been given that says otherwise, and a
+    // threshold invented here would be a threshold that silently sent
+    // submissions to the wrong policy.
+    {
+      grounds: ['disposal_order'],
+      builtFrom: null,
+      builtBefore: null,
+    },
   );
 
   readonly #specs: readonly DocumentTypeSpec[];
@@ -941,6 +1072,7 @@ export class VerificationProfile {
   readonly #registryChecks: readonly RegistryCheckSpec[];
   readonly #supportingDocuments: readonly SupportingDocumentsSpec[];
   readonly #particulars: ParticularsSpec;
+  readonly #intake: IntakeSpec;
 
   private constructor(
     public readonly key: string,
@@ -949,6 +1081,7 @@ export class VerificationProfile {
     registryChecks: readonly RegistryCheckDeclaration[] = [],
     supportingDocuments: readonly SupportingDocumentsDeclaration[] = [],
     particulars: ParticularsDeclaration | null = null,
+    intake: IntakeDeclaration | null = null,
   ) {
     this.#specs = declarations.map(declaration =>
       DocumentTypeSpec.of(declaration),
@@ -965,6 +1098,26 @@ export class VerificationProfile {
     this.#particulars = particulars
       ? ParticularsSpec.of(particulars)
       : ParticularsSpec.none();
+    this.#intake = intake ? IntakeSpec.of(intake) : IntakeSpec.none();
+
+    VerificationProfile.guardGroundsAreDeclared(key, this.#specs, this.#intake);
+  }
+
+  // A ground is offered to the operator as one of this profile's papers, so it
+  // has to be one: a key nothing downstream reads would put a choice on the
+  // intake screen that no run could ever act on. Checked when the profile is
+  // built, which is at import time — a profile that names a ground it does not
+  // declare takes the process down on start-up rather than at the counter.
+  private static guardGroundsAreDeclared(
+    key: string,
+    specs: readonly DocumentTypeSpec[],
+    intake: IntakeSpec,
+  ): void {
+    for (const ground of intake.grounds) {
+      if (!specs.some(spec => spec.type.equals(ground))) {
+        throw new DocumentTypeNotInProfileException(ground.value, key);
+      }
+    }
   }
 
   // The order a caller is offered them in, and a getter so it cannot be read
@@ -1043,6 +1196,19 @@ export class VerificationProfile {
    */
   get particulars(): ParticularsSpec {
     return this.#particulars;
+  }
+
+  /*
+   * What this profile takes in, in the terms the office declares a case in
+   * before anything has been read: the grounds it registers a right on and the
+   * years it answers for.
+   *
+   * The only thing a profile suggestion is decided on, and the only thing an
+   * intake screen can offer a picker off. A profile that declares none takes
+   * part in no suggestion — it is not a profile that answers for everything.
+   */
+  get intake(): IntakeSpec {
+    return this.#intake;
   }
 
   get documentTypes(): readonly DocumentType[] {

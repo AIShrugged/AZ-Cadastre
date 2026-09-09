@@ -5,6 +5,8 @@ import { VerificationPackage } from '../../../../domain/aggregates/index.js';
 import { SourceFile } from '../../../../domain/entities/index.js';
 import {
   ContentType,
+  DeclaredAtIntake,
+  DocumentType,
   Filename,
   StorageKey,
   VerificationProfile,
@@ -29,6 +31,8 @@ export class CreatePackageHandler implements ICommandHandler<
   ) {}
 
   async execute(command: CreatePackageCommand): Promise<PackageId> {
+    const declared = command.declared;
+
     const submitted = VerificationPackage.create(
       this.ids.packageId(),
       VerificationProfile.of(command.profileKey),
@@ -40,6 +44,15 @@ export class CreatePackageHandler implements ICommandHandler<
           StorageKey.create(file.storageKey),
         ),
       ),
+      // Whether the profile registers a right founded on this ground is the
+      // aggregate's to say, not this handler's: it is the profile's own rule,
+      // and a copy of it here would be a second place to change.
+      DeclaredAtIntake.of({
+        legalBasis: declared.legalBasis
+          ? DocumentType.create(declared.legalBasis)
+          : null,
+        builtYear: declared.builtYear ?? null,
+      }),
     );
 
     await this.packages.save(submitted);

@@ -4,6 +4,7 @@ import { ApiError, RestClient } from '@cadastre/api-client';
 import {
   LIST_PACKAGES_MAX_LIMIT,
   ListPackagesResponseSchema,
+  type DeclaredAtIntakeInput,
   type FileInput,
   type PackageDto,
 } from '@cadastre/api-contracts/verification';
@@ -33,10 +34,14 @@ async function presigned(names: readonly string[]): Promise<FileInput[]> {
 }
 
 /** A submission as the browser makes it. */
-async function submit(names: readonly string[]): Promise<PackageDto> {
+async function submit(
+  names: readonly string[],
+  declared?: DeclaredAtIntakeInput,
+): Promise<PackageDto> {
   const { body } = await api.packages.create({
     profileKey: 'cadastre',
     files: await presigned(names),
+    ...(declared === undefined ? {} : { declared }),
   });
   return body;
 }
@@ -273,6 +278,99 @@ describe('the submission round trip over HTTP', () => {
  * The operation the report's own findings ask for: it says a document is
  * missing, and the missing document is what the inspector then has (ADR-0013).
  */
+/*
+ * The two figures the office states at the counter, which no paper has been
+ * read for yet. They travel apart from everything the pipeline reads and are
+ * never merged into it, so a reader can always tell a machine's reading from a
+ * person's statement.
+ */
+describe('what the office declares when it takes a submission in', () => {
+  it('records the ground and the year, and answers with them apart from the readings', async () => {
+    // arrange / act
+    const created = await submit(['erize-qeydiyyat.pdf'], {
+      legalBasis: 'disposal_order',
+      builtYear: 1998,
+    });
+
+    // assert
+    expect(created.declared).toEqual({
+      legalBasis: 'disposal_order',
+      builtYear: 1998,
+    });
+  });
+
+  // The submission this endpoint has always taken. Nothing about the papers
+  // has changed — only what the office is now able to say alongside them.
+  it('takes a submission that declares nothing', async () => {
+    // arrange / act
+    const created = await submit(['erize-qeydiyyat.pdf']);
+
+    // assert
+    expect(created.declared).toEqual({ legalBasis: null, builtYear: null });
+  });
+
+  it('takes either figure on its own', async () => {
+    // arrange / act
+    const created = await submit(['erize-qeydiyyat.pdf'], { builtYear: 1998 });
+
+    // assert
+    expect(created.declared.builtYear).toBe(1998);
+    expect(created.declared.legalBasis).toBeNull();
+  });
+
+  it('shows the declaration on the package a caller opens', async () => {
+    // arrange
+    const created = await submit(['erize-qeydiyyat.pdf'], {
+      legalBasis: 'disposal_order',
+    });
+
+    // act
+    const { body } = await api.packages.findOne(created.id);
+
+    // assert
+    expect(body.declared.legalBasis).toBe('disposal_order');
+  });
+
+  /*
+   * The two halves of one statement contradicting each other: a case founded on
+   * a paper this policy does not register is a case this policy cannot verify.
+   * Not a second-guessing of the operator's choice of profile — that choice
+   * stands — and `GET /profiles/suggestion` is where they find out which
+   * profile does register it.
+   */
+  it('refuses a ground the chosen profile does not register a right on', async () => {
+    // arrange
+    const files = await presigned(['erize-qeydiyyat.pdf']);
+
+    // act, assert
+    const failure = await api.packages
+      .createRaw({
+        profileKey: 'cadastre',
+        files,
+        declared: { legalBasis: 'payment_receipt' },
+      })
+      .catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(ApiError);
+    expect((failure as ApiError).status).toBe(422);
+    expect((failure as ApiError).body.code).toBe('LEGAL_BASIS_NOT_IN_PROFILE');
+  });
+
+  it('refuses a year no paper of these could be dated by, at the edge', async () => {
+    // arrange
+    const files = await presigned(['erize-qeydiyyat.pdf']);
+
+    // act, assert
+    await expect(
+      api.packages.createRaw({
+        profileKey: 'cadastre',
+        files,
+        declared: { builtYear: 3000 },
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+});
+
 describe('files added to a package over HTTP', () => {
   it('takes the file in and answers with the package as it now stands', async () => {
     // arrange

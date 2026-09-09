@@ -325,16 +325,25 @@ export class ValidationIssue {
   static supportingDocuments(
     band: RequirementBand,
     decidedOn: readonly CheckedValue[],
+    // The year the branch used was the one the office declared at intake, no
+    // paper of this package having stated one. Said out loud in the message:
+    // the whole worth of the line is that a reader can check it, and a figure
+    // nobody read off a sheet is checked at the counter and not in the file.
+    declaredYear: number | null = null,
   ): ValidationIssue {
     const [anchor] = decidedOn;
     const read = decidedOn.map(value => value.cited).join(', ');
+    const from = [
+      read && `read off ${read}`,
+      declaredYear !== null && `dated ${declaredYear} as declared at intake`,
+    ].filter(Boolean);
 
     return ValidationIssue.of({
       kind: IssueKind.SUPPORTING_DOCUMENTS_REQUIRED,
       message:
         `This case falls under "${band.key}" (${band.bounds})` +
-        `${read ? `, read off ${read}` : ''}. The applicant must bring: ` +
-        `${band.cited}.`,
+        `${from.length > 0 ? `, ${from.join(' and ')}` : ''}. The applicant ` +
+        `must bring: ${band.cited}.`,
       documentId: anchor?.documentId,
       documentType: anchor?.documentType,
       fieldKey: anchor?.fieldKey,
@@ -392,6 +401,39 @@ export class ValidationIssue {
       `no band of this profile covers a building of ${read.metres} m dated ` +
       `${read.year}`
     );
+  }
+
+  /*
+   * The year the office declared when it took the submission in against the
+   * year the papers turn out to be dated by.
+   *
+   * Stated for the record and never against the package: the applicant did not
+   * type the declaration, and one side of this is as likely to be wrong as the
+   * other — a year is as easy to mistype at a counter as it is to misread off a
+   * scan. The engine says the two do not match and says no more than that; who
+   * is right is the inspector's to settle.
+   *
+   * Filed against the reading, with that reading's own confidence, so settling
+   * it means opening the sheet the figure was read off. There is no such anchor
+   * on the other side — nothing was read at the counter, and there is no sheet
+   * to turn to.
+   */
+  static declaredYearMismatch(
+    declaredYear: number,
+    readYear: number,
+    read: CheckedValue,
+  ): ValidationIssue {
+    return ValidationIssue.of({
+      kind: IssueKind.DECLARED_VALUE_MISMATCH,
+      message:
+        `The year ${declaredYear} declared at intake is not the year this ` +
+        `case is dated by: ${read.cited} is dated ${readYear}.`,
+      documentId: read.documentId,
+      documentType: read.documentType,
+      fieldKey: read.fieldKey,
+      pageNumber: read.foundOn,
+      confidence: read.confidence,
+    });
   }
 
   // A set is only as certain as the least certain reading it was chosen on. No

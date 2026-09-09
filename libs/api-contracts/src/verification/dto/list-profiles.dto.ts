@@ -17,6 +17,17 @@ export type ProfileDocumentTypeDto = z.infer<
 export const ProfileDtoSchema = z.object({
   key: z.string(),
   documentTypes: z.array(ProfileDocumentTypeDtoSchema),
+  /**
+   * Which of this profile's document types can be the ground a claimed right
+   * rests on — the paper that grants something, as opposed to the papers that
+   * evidence or accompany it.
+   *
+   * Published because it is what an intake screen offers the operator to
+   * declare, and what a profile suggestion is decided on. Always a subset of
+   * `documentTypes` above, in the order the profile declares them; empty on a
+   * profile that names no ground, which no suggestion can then point at.
+   */
+  grounds: z.array(z.string()),
 });
 export type ProfileDto = z.infer<typeof ProfileDtoSchema>;
 

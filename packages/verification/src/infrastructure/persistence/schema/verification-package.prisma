@@ -20,6 +20,23 @@ model VerificationPackage {
   /// in code, not here; this only records which one was chosen at upload.
   profileKey String
 
+  /// What the office declared about this submission when it took it in: the
+  /// ground the claimed right rests on — a document type key of the profile —
+  /// and the year the building is said to have been built.
+  ///
+  /// Two columns of their own and never folded into the extracted fields
+  /// beside them: everything else this database holds about a package was read
+  /// off its papers by the engine and carries a confidence, and these two were
+  /// typed by a person at a counter and carry none. Where both a declared and a
+  /// read year exist and differ, the report says so — which is only possible
+  /// while the two are stored apart.
+  ///
+  /// Null on every package taken in before intake asked, and null on every one
+  /// where the office knew neither. Not a gap to be filled in later: a
+  /// declaration is what was said when the submission was taken in.
+  declaredLegalBasis String?
+  declaredBuiltYear  Int?
+
   /// Optimistic concurrency: every aggregate carries a version that takes part
   /// in every write. An update names the version it was loaded at in its WHERE
   /// clause and bumps it, so a concurrent write is refused rather than silently

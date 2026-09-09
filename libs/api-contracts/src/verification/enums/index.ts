@@ -26,3 +26,7 @@ export {
   type RegistryOutcome,
 } from './registry-outcome.enum.js';
 export { ReportStatusSchema, type ReportStatus } from './report-status.enum.js';
+export {
+  SuggestionCriterionSchema,
+  type SuggestionCriterion,
+} from './suggestion-criterion.enum.js';

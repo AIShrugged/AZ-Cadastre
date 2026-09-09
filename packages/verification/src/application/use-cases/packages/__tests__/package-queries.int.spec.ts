@@ -160,6 +160,51 @@ describe('PackageQueriesAdapter', () => {
   });
 
   /*
+   * What the office declared at the counter, which is the one thing about a
+   * package a person put there rather than the engine reading it. Two scalar
+   * columns and no join — but it is written on one path and read on another, so
+   * whether what was declared survives the write and comes back apart from the
+   * readings is a question only a database answers.
+   */
+  describe('what the office declared when it took the submission in', () => {
+    it('carries it onto the row apart from anything the pipeline read', async () => {
+      // arrange
+      const declared: PackageId = await commands.execute(
+        new CreatePackageCommand('cadastre', submission(), {
+          legalBasis: 'disposal_order',
+          builtYear: 1998,
+        }),
+      );
+      await waitForTerminalStatus(queries, declared);
+
+      // act
+      const summary: PackageSummaryView = await queries.execute(
+        new GetPackageSummaryQuery(declared.value),
+      );
+
+      // assert
+      expect(summary.declared).toEqual({
+        legalBasis: 'disposal_order',
+        builtYear: 1998,
+      });
+      // The readings are still the readings, and they still carry a confidence.
+      expect(summary.applicantName?.confidence).toBeGreaterThan(0);
+    });
+
+    // A package taken in before intake asked declared nothing. A fact about it,
+    // not a gap: the row says so rather than showing an empty string.
+    it('says nothing was declared where nothing was', async () => {
+      // act
+      const summary: PackageSummaryView = await queries.execute(
+        new GetPackageSummaryQuery(finished.value),
+      );
+
+      // assert
+      expect(summary.declared).toEqual({ legalBasis: null, builtYear: null });
+    });
+  });
+
+  /*
    * What the row calls the case. Nothing stores it: the register walks the
    * profile's ordering over the extracted fields, which is one nested select on
    * a page of rows rather than a column anybody keeps up to date. Here rather

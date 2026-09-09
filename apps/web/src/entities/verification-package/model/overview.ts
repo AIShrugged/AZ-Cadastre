@@ -221,6 +221,7 @@ export const ISSUE_KIND_KEY: Record<IssueKind, string> = {
   RegistryUnconfirmed: 'detail.sec.registry_unconfirmed',
   MissingAttestation: 'detail.sec.attestation',
   SupportingDocumentsRequired: 'detail.sec.supporting',
+  DeclaredValueMismatch: 'detail.sec.declared_mismatch',
 };
 
 export type FindingRank = {

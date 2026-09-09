@@ -33,6 +33,7 @@ import {
   DocumentTypeNotInProfileException,
   DuplicateStorageKeyException,
   FieldNotInSchemaException,
+  LegalBasisNotInProfileException,
   PackageAlreadyFinishedException,
   PackageMustGainAFileException,
   PackageMustHaveAFileException,
@@ -51,6 +52,7 @@ import {
   ArchiveSearchApproval,
   CheckedValue,
   Confidence,
+  DeclaredAtIntake,
   FailureReason,
   PackageId,
   PackageStanding,
@@ -81,6 +83,9 @@ export type VerificationPackageState = {
   readonly id: PackageId;
   readonly version: number;
   readonly profile: VerificationProfile;
+  // What the office declared when it took the submission in. Held apart from
+  // everything the pipeline read, and never merged with it.
+  readonly declared: DeclaredAtIntake;
   readonly status: PackageStatus;
   readonly files: readonly SourceFile[];
   readonly documents: readonly Document[];
@@ -96,6 +101,7 @@ export type VerificationPackageState = {
 
 export class VerificationPackage extends AggregateRoot<PackageId> {
   readonly #profile: VerificationProfile;
+  readonly #declared: DeclaredAtIntake;
   #status: PackageStatus;
   #files: SourceFile[];
   #documents: Document[];
@@ -107,6 +113,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   private constructor(state: VerificationPackageState) {
     super(state.id, state.version);
     this.#profile = state.profile;
+    this.#declared = state.declared;
     this.#status = state.status;
     this.#files = [...state.files];
     this.#documents = [...state.documents];
@@ -120,15 +127,21 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     id: PackageId,
     profile: VerificationProfile,
     files: readonly SourceFile[],
+    // What the office declared at the counter. Last and defaulted, because a
+    // submission that declares nothing is the ordinary one: intake may know
+    // neither figure, and nothing about the run depends on it being told.
+    declared: DeclaredAtIntake = DeclaredAtIntake.none(),
   ): VerificationPackage {
     if (files.length === 0) throw new PackageMustHaveAFileException();
 
     VerificationPackage.guardOneObjectEach(files);
+    VerificationPackage.guardDeclaredGround(profile, declared);
 
     const submitted = new VerificationPackage({
       id,
       version: 0,
       profile,
+      declared,
       status: PackageStatus.PENDING,
       files,
       documents: [],
@@ -147,8 +160,54 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     return new VerificationPackage(state);
   }
 
+  /*
+   * A ground the chosen profile does not register is refused, and the refusal
+   * names the grounds it does.
+   *
+   * Not a second-guessing of the operator's choice of profile — that choice is
+   * theirs and this never overrules it. It is the two halves of one statement
+   * contradicting each other: a case founded on a paper this policy does not
+   * register is a case this policy cannot verify, and taking it in would file
+   * a submission nobody could act on and tell nobody. `GET /profiles/
+   * suggestion` is where an operator finds out which profile does register it,
+   * before they get here.
+   *
+   * Checked when a submission is taken in and never again. A profile that stops
+   * registering a ground does not make the packages already filed under it
+   * unreadable — the declaration is what was said at the counter, and it stays
+   * true of that submission — which is why `restore` does not run this.
+   */
+  private static guardDeclaredGround(
+    profile: VerificationProfile,
+    declared: DeclaredAtIntake,
+  ): void {
+    const basis = declared.legalBasis;
+
+    if (basis === null) return;
+    if (profile.intake.registers(basis)) return;
+
+    throw new LegalBasisNotInProfileException(
+      basis.value,
+      profile.key,
+      profile.intake.grounds.map(ground => ground.value),
+    );
+  }
+
   get profile(): VerificationProfile {
     return this.#profile;
+  }
+
+  /*
+   * What the office declared when it took this submission in — a source of
+   * facts of its own, standing beside what the pipeline read and never folded
+   * into it.
+   *
+   * Fixed at submission and never edited afterwards. A package's declaration is
+   * what was said when it was taken in, and a screen that let it be corrected
+   * later would make the record say something nobody said at the counter.
+   */
+  get declared(): DeclaredAtIntake {
+    return this.#declared;
   }
 
   get status(): PackageStatus {
@@ -710,6 +769,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       ...this.unattested(),
       ...this.alsoInThePackage(),
       ...this.againstTheRecord(),
+      ...this.againstTheDeclaration(),
       ...this.supportingDocuments(),
     ];
 
@@ -783,34 +843,101 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       const band = spec.bandFor(stated.metres, stated.year);
 
       return band
-        ? ValidationIssue.supportingDocuments(band, stated.decidedOn)
+        ? ValidationIssue.supportingDocuments(
+            band,
+            stated.decidedOn,
+            stated.yearFromDeclaration ? stated.year : null,
+          )
         : ValidationIssue.supportingDocumentsUndecided(spec, stated);
     });
   }
 
-  // The two figures the branch turns on, each off the first paper of the
-  // profile's ordering that states it, and the readings they came from — kept
-  // so the message can be filed against a sheet the inspector can open.
+  /*
+   * What the office declared when it took the submission in, against what the
+   * papers turned out to say.
+   *
+   * A finding of its own and not a cross-check: a cross-check holds two
+   * readings of one submission against each other, and one side of this was
+   * typed at a counter and read off nothing. It is stated for the record and
+   * never against the package — the applicant did not write the declaration,
+   * and neither side of the disagreement is presumed right.
+   *
+   * Only where both exist. A declaration nothing contradicts is silence, and a
+   * package whose papers state no year at all is a package the declaration was
+   * useful for rather than one it disagrees with.
+   */
+  private againstTheDeclaration(): readonly ValidationIssue[] {
+    const declaredYear = this.#declared.builtYear;
+
+    if (declaredYear === null) return [];
+
+    // Two branches that read the year off the same field is one disagreement
+    // and not two: the finding is about a reading, and there is one reading.
+    const said = new Set<string>();
+
+    return this.#profile.supportingDocuments.flatMap(spec => {
+      const dated = this.firstStated(spec.builtIn);
+      const readYear = dated ? yearIn(dated.value.value) : null;
+
+      if (!dated || readYear === null || readYear === declaredYear) return [];
+
+      const at = `${dated.documentId.value}:${dated.fieldKey.value}`;
+
+      if (said.has(at)) return [];
+
+      said.add(at);
+
+      return [
+        ValidationIssue.declaredYearMismatch(declaredYear, readYear, dated),
+      ];
+    });
+  }
+
+  /*
+   * The two figures the branch turns on, each off the first paper of the
+   * profile's ordering that states it, and the readings they came from — kept
+   * so the message can be filed against a sheet the inspector can open.
+   *
+   * The year falls back to what the office declared at intake where no paper of
+   * this package states one, and only there: a figure printed on a paper is
+   * what the case actually rests on, and a declaration is what somebody said
+   * about it. Where both exist and disagree, the branch still reads the paper
+   * and the report says separately that the two do not match — the decision and
+   * the disagreement are two different things to tell an inspector, and folding
+   * them into one would leave a band chosen on a figure nobody stands behind.
+   *
+   * There is no such fallback for the height: nothing is declared about it at
+   * intake, which is why a case whose sketch design went unread is still a case
+   * whose band could not be decided.
+   */
   private figuresFor(spec: SupportingDocumentsSpec): {
     readonly metres: number | null;
     readonly year: number | null;
+    readonly yearFromDeclaration: boolean;
     readonly decidedOn: readonly CheckedValue[];
   } {
     const height = this.firstStated(spec.height);
     const dated = this.firstStated(spec.builtIn);
     const metres = height ? heightInMetres(height.value.value) : null;
-    const year = dated ? yearIn(dated.value.value) : null;
+    const readYear = dated ? yearIn(dated.value.value) : null;
+    const year = readYear ?? this.#declared.builtYear;
 
     // Only the readings a figure actually came out of. A field that was read
     // and could not be understood as a height told the branch nothing, and
     // anchoring the message to it would point the inspector at a value that
-    // decided none of this.
+    // decided none of this. A year taken off the declaration is not a reading
+    // at all and has no sheet to name.
     const decidedOn = [
       metres === null ? null : height,
-      year === null ? null : dated,
+      readYear === null ? null : dated,
     ].filter((value): value is CheckedValue => value !== null);
 
-    return { metres, year, decidedOn };
+    return {
+      metres,
+      year,
+      yearFromDeclaration: readYear === null && year !== null,
+      decidedOn,
+    };
   }
 
   private unreadable(): readonly ValidationIssue[] {

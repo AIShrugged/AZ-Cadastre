@@ -11,7 +11,10 @@ import {
   ListPackagesHandler,
   RunVerificationHandler,
 } from './packages/index.js';
-import { ListProfilesHandler } from './profiles/index.js';
+import {
+  ListProfilesHandler,
+  SuggestProfileHandler,
+} from './profiles/index.js';
 
 export * from './documents/index.js';
 export * from './packages/index.js';
@@ -34,4 +37,5 @@ export const VERIFICATION_CQRS_HANDLERS: Provider[] = [
   ListProfilesHandler,
   PresignUploadHandler,
   RunVerificationHandler,
+  SuggestProfileHandler,
 ];

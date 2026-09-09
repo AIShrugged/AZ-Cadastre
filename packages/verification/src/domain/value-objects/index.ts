@@ -5,6 +5,7 @@ export {
   ArchiveSearchApproval,
 } from './archive-search-approval.vo.js';
 export { Classification } from './classification.vo.js';
+export { DeclaredAtIntake } from './declared-at-intake.vo.js';
 export { Confidence } from './confidence.vo.js';
 export { ContentType } from './content-type.vo.js';
 export { CrossCheckVerdict } from './cross-check-verdict.vo.js';
@@ -47,12 +48,14 @@ export {
   CrossCheckSpec,
   DocumentTypeSpec,
   FieldRef,
+  IntakeSpec,
   ParticularsSpec,
   RegistryCheckSpec,
   RequirementBand,
   SupportingDocumentsSpec,
   VerificationProfile,
   type CatalogueDeclaration,
+  type IntakeDeclaration,
   type ParticularsDeclaration,
   type RequirementBandDeclaration,
   type SupportingDocumentsDeclaration,

@@ -29,6 +29,8 @@ import {
   PresignRequestSchema,
   PresignResponseSchema,
   ProfileDtoSchema,
+  ProfileSuggestionDtoSchema,
+  SuggestProfileRequestSchema,
   type AddFilesRequest,
   type ApproveArchiveSearchRequest,
   type CreatePackageRequest,
@@ -41,6 +43,8 @@ import {
   type PresignRequest,
   type PresignResponse,
   type ProfileDto,
+  type ProfileSuggestionDto,
+  type SuggestProfileRequestInput,
 } from '@cadastre/api-contracts/verification';
 
 /**
@@ -140,6 +144,28 @@ export class RestClient {
   profiles = {
     findMany: (): Promise<ApiResponse<ProfileDto[]>> =>
       this.request('GET', '/api/profiles', z.array(ProfileDtoSchema)),
+
+    /**
+     * Which profile the figures declared at intake point at, and why. A
+     * recommendation: what a package is filed under is whatever the operator
+     * sends to `POST /packages`, and this never narrows it.
+     *
+     * Naming neither figure is a question in its own right — "the operator has
+     * typed nothing yet" — and the server answers it with no profile and the
+     * reason, which is what an empty query string asks for here.
+     */
+    suggest: (
+      declared: SuggestProfileRequestInput = {},
+    ): Promise<ApiResponse<ProfileSuggestionDto>> =>
+      this.request(
+        'GET',
+        `/api/profiles/suggestion${declarationQuery(declared)}`,
+        ProfileSuggestionDtoSchema,
+      ),
+
+    /** Deliberately unparsed, for the specs that check the API's own refusals. */
+    suggestRaw: (query: string): Promise<ApiResponse<unknown>> =>
+      this.request('GET', `/api/profiles/suggestion${query}`, z.unknown()),
   };
 
   // --- documents ----------------------------------------------------------
@@ -306,6 +332,22 @@ function periodQuery(period: PackagesOverviewRequestInput): string {
 
   // A bare path rather than a lone `?`: a period nobody named is no query
   // string at all, which is what the server's own default answers.
+  const query = params.toString();
+
+  return query === '' ? '' : `?${query}`;
+}
+
+function declarationQuery(declared: SuggestProfileRequestInput): string {
+  const parsed = SuggestProfileRequestSchema.parse(declared);
+  const params = new URLSearchParams();
+
+  if (parsed.legalBasis !== undefined) {
+    params.set('legalBasis', parsed.legalBasis);
+  }
+  if (parsed.builtYear !== undefined) {
+    params.set('builtYear', String(parsed.builtYear));
+  }
+
   const query = params.toString();
 
   return query === '' ? '' : `?${query}`;

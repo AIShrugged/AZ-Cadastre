@@ -19,6 +19,11 @@ export class ListProfilesHandler implements IQueryHandler<
           required: spec.isRequired,
           fields: spec.schema.specs.map(field => field.key.value),
         })),
+        // What an intake screen offers as the ground a right is claimed on.
+        // Always a subset of the types above — the profile refuses to be built
+        // otherwise — so a picker built off this can never offer a paper the
+        // profile does not read.
+        grounds: profile.intake.grounds.map(ground => ground.value),
       })),
     );
   }

@@ -1174,6 +1174,14 @@ const SECTIONS: Record<IssueKind, { heading: string; tone: SectionTone }> = {
     heading: ISSUE_KIND_KEY.RegistryUnconfirmed,
     tone: 'note',
   },
+  // An observation and never a fault: one side of it was typed by the office at
+  // the counter and the other read off a scan, either can be wrong, and the
+  // applicant wrote neither. The inspector settles it by opening the sheet the
+  // finding is filed against.
+  DeclaredValueMismatch: {
+    heading: ISSUE_KIND_KEY.DeclaredValueMismatch,
+    tone: 'note',
+  },
   // Neither a fault nor an observation about the envelope: what the applicant
   // has to bring next, for the case this package turned out to be. Last,
   // because it is the only line that is about what happens after the report

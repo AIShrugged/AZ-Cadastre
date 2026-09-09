@@ -40,6 +40,7 @@ import {
   OutcomeMark,
   profileName,
   RegistryOutcomeMark,
+  REPORT_KEY,
   speaksAgainst,
   STAGES,
   STANDING_NOTE,
@@ -78,7 +79,6 @@ import type {
   RegistryCheckDto,
   RegistryDocumentDto,
   ReportDto,
-  ReportStatus,
   SourceFileDto,
 } from '@cadastre/api-contracts/verification';
 
@@ -1181,12 +1181,6 @@ const isArchiveFinding = (kind: IssueKind): boolean =>
 // register is a source outside the system and is allowed not to know — so the
 // whole vocabulary lives with the entity that owns the mark.
 type Tone = 'ok' | 'issues' | 'incomplete';
-
-const REPORT_LABEL: Record<ReportStatus, string> = {
-  OK: 'status.ok',
-  IssuesFound: 'status.issues',
-  IncompletePackage: 'status.incomplete',
-};
 
 type Finding = {
   subject: string;
@@ -2339,7 +2333,7 @@ export function VerificationDetails() {
                   </h2>
                   {pkg.report && (
                     <span className='text-[0.8125rem] text-muted-foreground'>
-                      {t(REPORT_LABEL[pkg.report.status])}
+                      {t(REPORT_KEY[pkg.report.status])}
                     </span>
                   )}
                 </div>

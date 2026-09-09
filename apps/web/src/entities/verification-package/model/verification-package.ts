@@ -4,9 +4,13 @@
  *
  * Package summaries are served live by the core API (`GET /api/packages`); the
  * wire DTO and the mapping into this view model live here. Findings come from
- * the report the run finished with, so they are absent until it has; the
- * applicant is still ahead of the pipeline. Ubiquitous language follows
- * packages/verification/CONTEXT.md.
+ * the report the run finished with, so they are absent until it has. Ubiquitous
+ * language follows packages/verification/CONTEXT.md.
+ *
+ * Which packages are in the list is deliberately *not* here. Searching,
+ * narrowing and paging are the endpoint's, over every submission the office has
+ * taken in rather than over the page it last sent (ADR-0015) — the register asks
+ * for what it wants in `register-query.ts` and draws the answer.
  *
  * What a profile expects is deliberately *not* here. That is policy the engine
  * owns and publishes (`GET /api/profiles`), and a mapper that reached for it
@@ -16,6 +20,7 @@
  */
 import type {
   PackageDto,
+  PackageStanding,
   PackageStatus,
   ReportStatus,
 } from '@cadastre/api-contracts/verification';
@@ -26,10 +31,20 @@ export type Disposition =
 export type VerificationPackage = {
   /** Register number — the identity an inspector cites. */
   id: string;
-  /** Applicant on the package (extracted downstream; empty until then). */
-  applicant: string;
   /** Key of the Verification Profile governing this package, as the server named it. */
   profile: string;
+  /**
+   * Where the submission stands: what has to happen to it next. Read off the
+   * contract, never worked out here (ADR-0014), and the state the register's
+   * rows are read and narrowed by.
+   */
+  standing: PackageStanding;
+  /**
+   * What the run made of the papers. A separate question from `standing` and
+   * never folded into it — a cleared submission may still carry the findings of
+   * the run that read it. Null until a run has reported on it.
+   */
+  reportStatus: ReportStatus | null;
   disposition: Disposition;
   /** ISO timestamp the package was submitted. */
   submittedAt: string;
@@ -57,29 +72,6 @@ export type VerificationPackage = {
   reference?: string;
 };
 
-export type Segment =
-  'all' | 'in_progress' | 'issues' | 'incomplete' | 'ok' | 'failed';
-
-export function inSegment(p: VerificationPackage, seg: Segment): boolean {
-  if (seg === 'all') return true;
-  return p.disposition === seg;
-}
-
-export function segmentCounts(
-  pkgs: VerificationPackage[],
-): Record<Segment, number> {
-  const c: Record<Segment, number> = {
-    all: pkgs.length,
-    in_progress: 0,
-    issues: 0,
-    incomplete: 0,
-    ok: 0,
-    failed: 0,
-  };
-  for (const p of pkgs) c[p.disposition] += 1;
-  return c;
-}
-
 /**
  * The package's id as a register reference — the first block of the uuid the
  * database issues. A uuid is how the system names a package, not how a person
@@ -93,15 +85,6 @@ export function segmentCounts(
  */
 export function packageRef(id: string): string {
   return id.split('-')[0] ?? id;
-}
-
-export function matchesQuery(p: VerificationPackage, q: string): boolean {
-  if (!q.trim()) return true;
-  const n = q.trim().toLocaleLowerCase();
-  return (
-    p.id.toLocaleLowerCase().includes(n) ||
-    p.applicant.toLocaleLowerCase().includes(n)
-  );
 }
 
 // ─── Wire DTO ⇄ view model ────────────────────────────────────────────────────
@@ -139,8 +122,9 @@ export function toViewPackage(dto: PackageDto): VerificationPackage {
   const disposition = dispositionOf(dto.status, dto.reportStatus);
   return {
     id: dto.id,
-    applicant: '',
     profile: dto.profileKey,
+    standing: dto.standing,
+    reportStatus: dto.reportStatus,
     disposition,
     submittedAt: dto.createdAt,
     updatedAt: dto.updatedAt,

@@ -301,6 +301,12 @@ model {
         description 'Reads the whole address table on every call, because the rule that decides whether two spellings mean one place is JavaScript and not a SQL predicate (TECH_DEBT.md §9).'
       }
 
+      archiveSearch = component 'Archive search' {
+        technology 'apps/registry-stub/src/application'
+        summary 'Offers every record that might be the one, by address, right holder or cadastral number, with how sure it is of each'
+        description 'The operator\'s question rather than a submission\'s: it grades instead of resolving, says which source each record came from and where two sources contradict each other, and never acts (ADR-0013). Narrows by reading the columns each criterion is decided on, for the reason the lookup reads the address table (TECH_DEBT.md §9).'
+      }
+
       holdings = component 'Archive holdings summary' {
         technology 'apps/registry-stub/src/application'
         summary 'How many of the archive\'s sources are loaded, how many records they hold and when they last arrived'
@@ -330,7 +336,7 @@ model {
   // ── relationships ─────────────────────────────────────────────────────────
   inspector -[https]-> web 'submits packages, reads reports'
   registryOperator -[https]-> web 'loads an archive register workbook'
-  web -[https]-> gateway 'REST /api/packages, /api/documents/presign, /api/addresses/lookup, /api/registry/summary'
+  web -[https]-> gateway 'REST /api/packages, /api/documents/presign, /api/addresses/lookup, /api/registry/search, /api/registry/summary'
   web -[https]-> files 'PUTs the file bytes to a presigned URL'
 
   // The one call apps/web makes that does not go through libs/api-gateway. The
@@ -342,7 +348,7 @@ model {
   web -[https]-> registryApi 'POST /api/import/records — the workbook, straight to the register'
 
   gateway -> facade 'VerificationClientPort — mirrors the published `…Api` interfaces'
-  gateway -> edgeRegistryClient "RegistryClientPort — the contract's `addresses` slice"
+  gateway -> edgeRegistryClient "RegistryClientPort — the contract's `addresses`, `search` and `summary` slices"
   facade -> pipeline 'PackageSubmitted starts the run; the inspector is answered at once'
   facade -> repository 'read models for the package list and the report'
   facade -> profiles 'which profiles a package may be submitted under'
@@ -360,10 +366,12 @@ model {
   objectStorageAdapter -> files 'presign, get, put' 'S3 API'
   readers -[https]-> openrouter 'one route per stage, images and text'
   registryClient -[https]-> registryApi '@cadastre/api-contracts/registry'
-  edgeRegistryClient -[https]-> registryApi 'POST /api/addresses/lookup and GET /api/registry/summary — the same published contract'
+  edgeRegistryClient -[https]-> registryApi 'POST /api/addresses/lookup, POST /api/registry/search and GET /api/registry/summary — the same published contract'
 
   lookup -> matching 'do these two spellings mean one place?'
   lookup -[sql]-> registryDb 'objects, addresses, right holders, papers, locations'
+  archiveSearch -> matching 'how far is this from meaning the same thing?'
+  archiveSearch -[sql]-> registryDb 'addresses, right holders and cadastral numbers, then the objects that survived'
   holdings -[sql]-> registryDb 'objects, grouped by the source each was read out of'
   workbookImport -[sql]-> registryDb 'one object with its children per import unit'
 }

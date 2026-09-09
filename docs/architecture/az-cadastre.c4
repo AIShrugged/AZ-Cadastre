@@ -186,6 +186,20 @@ model {
         description 'type:edge. Holds no word the contracts do not have (CONTEXT-MAP.md).'
       }
 
+      edgeRegistryClient = component 'HTTP archive-register client' {
+        technology 'RegistryClientPort over HTTPS — apps/server/src/infrastructure/registry'
+        summary "The operator's archive search, answered at this system's own origin"
+        description '''
+          A second caller of the same published `addresses` slice, and
+          deliberately not routed through the verification context: that one
+          asks on a submission's behalf and may be answered by an offline
+          stand-in, this one is the operator asking the archive itself.
+
+          Before it existed the browser called the register directly, at an
+          address with no authentication in front of it (TECH_DEBT §10).
+        '''
+      }
+
       facade = component 'VerificationService' {
         technology 'packages/verification/src/application/services'
         summary 'The context façade — implements the `…Api` interfaces the gateway mirrors'
@@ -310,16 +324,19 @@ model {
   // ── relationships ─────────────────────────────────────────────────────────
   inspector -[https]-> web 'submits packages, reads reports'
   registryOperator -[https]-> web 'loads an archive register workbook'
-  web -[https]-> gateway 'REST /api/packages, /api/documents/presign'
+  web -[https]-> gateway 'REST /api/packages, /api/documents/presign, /api/addresses/lookup'
   web -[https]-> files 'PUTs the file bytes to a presigned URL'
 
   // The one call apps/web makes that does not go through libs/api-gateway. The
   // register's import is deliberately outside @cadastre/api-contracts — no
   // verification of a submission ever loads a register file — so the surface
   // that uses it addresses the register directly (ADR-0011 §1, TECH_DEBT §10).
+  // The archive search used to be a second such call and is not any more: the
+  // lookup is in the contract, and the gateway now publishes a route over it.
   web -[https]-> registryApi 'POST /api/import/records — the workbook, straight to the register'
 
   gateway -> facade 'VerificationClientPort — mirrors the published `…Api` interfaces'
+  gateway -> edgeRegistryClient "RegistryClientPort — the contract's `addresses` slice"
   facade -> pipeline 'PackageSubmitted starts the run; the inspector is answered at once'
   facade -> repository 'read models for the package list and the report'
   facade -> profiles 'which profiles a package may be submitted under'
@@ -337,6 +354,7 @@ model {
   objectStorageAdapter -> files 'presign, get, put' 'S3 API'
   readers -[https]-> openrouter 'one route per stage, images and text'
   registryClient -[https]-> registryApi '@cadastre/api-contracts/registry'
+  edgeRegistryClient -[https]-> registryApi 'POST /api/addresses/lookup — the same published contract'
 
   lookup -> matching 'do these two spellings mean one place?'
   lookup -[sql]-> registryDb 'objects, addresses, right holders, papers, locations'

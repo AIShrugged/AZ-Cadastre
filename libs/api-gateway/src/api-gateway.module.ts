@@ -8,13 +8,16 @@ import {
 } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 
-import { RequestLoggingMiddleware } from './presentation/http/index.js';
+import {
+  HttpExceptionFilter,
+  RequestLoggingMiddleware,
+  SystemExceptionFilter,
+} from './presentation/http/index.js';
+import { AddressesController } from './presentation/registry/rest/index.js';
 import {
   DocumentsController,
-  HttpExceptionFilter,
   PackagesController,
   ProfilesController,
-  VerificationExceptionFilter,
 } from './presentation/verification/rest/index.js';
 
 export type ApiGatewayModuleOptions = Pick<ModuleMetadata, 'imports'> & {
@@ -44,6 +47,14 @@ export class ApiGatewayModule implements NestModule {
         DocumentsController,
         PackagesController,
         ProfilesController,
+        /*
+         * The archive register's area. It is not a context of ours and it is
+         * not reached through one (ADR-0009) — the route exists so that the
+         * browser reaches a published contract at this system's origin instead
+         * of going round the API to a register with nothing in front of it
+         * (TECH_DEBT §10).
+         */
+        AddressesController,
       ],
       providers: [
         ...options.providers,
@@ -52,13 +63,13 @@ export class ApiGatewayModule implements NestModule {
         // raised it.
         /*
          * Order matters, and it is the reverse of the listing: Nest applies
-         * APP_FILTER providers last-registered-first, so the domain filter must
-         * come after the framework one to get first refusal. Both render the
-         * contract's ErrorBody — the published language has one error shape and
-         * the API must not have two.
+         * APP_FILTER providers last-registered-first, so the filter over our
+         * own exception bases must come after the framework one to get first
+         * refusal. Both render the contract's ErrorBody — the published
+         * language has one error shape and the API must not have two.
          */
         { provide: APP_FILTER, useClass: HttpExceptionFilter },
-        { provide: APP_FILTER, useClass: VerificationExceptionFilter },
+        { provide: APP_FILTER, useClass: SystemExceptionFilter },
         RequestLoggingMiddleware,
       ],
     };

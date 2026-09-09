@@ -9,7 +9,7 @@ import type { Response } from 'express';
 
 import type { ErrorBody } from '@cadastre/api-contracts/shared';
 
-import type { Refusal } from '../../http/index.js';
+import type { Refusal } from './request-logging.middleware.js';
 
 /**
  * The refusals the framework raises before a context is ever asked: a body the
@@ -18,7 +18,7 @@ import type { Refusal } from '../../http/index.js';
  *
  * Without this they came out in Nest's own shape — `{ statusCode, message,
  * error }`, with `message` an array of complaints and no `code` at all — while
- * `VerificationExceptionFilter` rendered everything else as the contract's
+ * `SystemExceptionFilter` rendered everything else as the contract's
  * `ErrorBody`. So the API had two error shapes, the published language had one,
  * and the web client's `apiFailure` (which parses with `ErrorBodySchema` and
  * answers `null` when it fails) quietly lost the reason for every refused body.

@@ -5,6 +5,7 @@ import {
   fold,
   fromLegacyCyrillic,
   isCyrillic,
+  similarity,
   stripInitials,
   tokenise,
 } from './text.js';
@@ -109,5 +110,25 @@ describe('stripInitials', () => {
 describe('digitsOf', () => {
   it('keeps the digits and drops what separates them', () => {
     expect(digitsOf('AZE 12-34 567')).toBe('1234567');
+  });
+});
+
+describe('similarity', () => {
+  it('is 1 for two spellings that fold onto one skeleton', () => {
+    expect(similarity('ELÇİN', 'elçin')).toBe(1);
+  });
+
+  it('falls away with the distance between the letters', () => {
+    expect(similarity('eliyev', 'əliyev')).toBe(1);
+    expect(similarity('eliyev', 'elizev')).toBeCloseTo(5 / 6, 5);
+  });
+
+  it('is 0 for two strings with nothing in common', () => {
+    expect(similarity('abc', 'xyz')).toBe(0);
+  });
+
+  // Nothing was compared, and no evidence is not agreement.
+  it('is 0 when there is nothing to compare', () => {
+    expect(similarity('', '')).toBe(0);
   });
 });

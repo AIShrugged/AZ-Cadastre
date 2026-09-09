@@ -1,4 +1,4 @@
-import { fold, tokenise } from './text.js';
+import { fold, tokenCoverage, tokenise } from './text.js';
 
 // Endings an Azerbaijani form puts on a name that a register does not: the
 // application is made *by* somebody, so the name arrives inflected. Stripped
@@ -64,4 +64,46 @@ export function namesAgree(left: string, right: string): boolean {
     first.length <= second.length ? [first, second] : [second, first];
 
   return shorter.every(token => longer.includes(token));
+}
+
+/**
+ * A name given as one word — a surname on its own — is worth this much of a
+ * match and never more.
+ *
+ * `namesAgree` refuses it outright, and for a lookup that is right: a lookup
+ * acts on the record it resolves to, and half the district shares a surname. A
+ * search does not act, it offers, so `Əliyeva` typed alone is answered rather
+ * than refused — but it is answered as the weak evidence it is, and the operator
+ * is the one who reads the rest of the row.
+ */
+const LONE_TOKEN = 0.5;
+
+/**
+ * How far two names are from denoting the same person, as a number rather than
+ * as a yes.
+ *
+ * The graded form of `namesAgree`, and it agrees with it by construction: a
+ * pair that rule accepts is 1 here, whatever the spelling, the word order, the
+ * script or the case ending. What this adds is the answer for the pairs it
+ * refuses — a name typed with a letter wrong, a name transliterated out of the
+ * Cyrillic code page by hand, a surname on its own — because a search must be
+ * able to offer them and a lookup must not act on them.
+ *
+ * Word by word, and each word must be recognisably the same word (`SAME_WORD`)
+ * or it counts for nothing. Anything looser reads a shared `qızı` and a shared
+ * vowel as half a person.
+ */
+export function nameConfidence(left: string, right: string): number {
+  if (namesAgree(left, right)) return 1;
+
+  const first = tokenise(left).map(stem);
+  const second = tokenise(right).map(stem);
+
+  if (first.length === 0 || second.length === 0) return 0;
+
+  const [shorter, longer] =
+    first.length <= second.length ? [first, second] : [second, first];
+  const covered = tokenCoverage(shorter, longer);
+
+  return first.length < 2 || second.length < 2 ? covered * LONE_TOKEN : covered;
 }

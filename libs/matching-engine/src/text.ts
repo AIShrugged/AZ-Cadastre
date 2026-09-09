@@ -143,3 +143,95 @@ export function stripInitials(raw: string): string {
 export function digitsOf(raw: string): string {
   return raw.replaceAll(/\D/gu, '');
 }
+
+/**
+ * How alike two strings are: 1 for the same skeleton, down to 0 for two that
+ * share nothing. The edit distance between their folded forms over the length
+ * of the longer one.
+ *
+ * Arithmetic and not a rule. Whether 0.83 is one street misspelled or two
+ * different streets depends entirely on what is being compared — a house number
+ * off by one digit is a different house, a surname off by one letter is the same
+ * person — so this says how far apart the letters are and the rules above it
+ * (`nameConfidence`, `referenceConfidence`, `addressConfidence`) say what that
+ * is worth.
+ *
+ * Two empty strings are 0 and not 1: nothing was compared, and no evidence is
+ * not agreement.
+ */
+export function similarity(left: string, right: string): number {
+  const first = fold(left);
+  const second = fold(right);
+  const longest = Math.max(first.length, second.length);
+
+  if (longest === 0) return 0;
+
+  return Math.max(0, 1 - distance(first, second) / longest);
+}
+
+/**
+ * Levenshtein distance, over one row rather than the whole matrix: the strings
+ * here are a word or an address and the table is never wanted afterwards.
+ */
+function distance(first: string, second: string): number {
+  if (first === second) return 0;
+  if (first.length === 0) return second.length;
+  if (second.length === 0) return first.length;
+
+  let row = Array.from({ length: second.length + 1 }, (_, i) => i);
+
+  for (let i = 1; i <= first.length; i += 1) {
+    const next = [i];
+
+    for (let j = 1; j <= second.length; j += 1) {
+      next[j] = Math.min(
+        (next[j - 1] ?? 0) + 1,
+        (row[j] ?? 0) + 1,
+        (row[j - 1] ?? 0) + (first[i - 1] === second[j - 1] ? 0 : 1),
+      );
+    }
+
+    row = next;
+  }
+
+  return row[second.length] ?? 0;
+}
+
+/**
+ * Below this, two words are not one word misspelled — they are two words.
+ *
+ * One number for the whole engine, because it answers one question: how far a
+ * word may be from another and still be read as the same word. `Aliyeva` and
+ * `Əliyeva` are one surname written twice; `Əliyev` and `Əzizov` are two
+ * people, and a scale with no floor under it would call them a third alike.
+ */
+export const SAME_WORD = 0.75;
+
+/**
+ * How much of the shorter list of words the longer one carries, from 1 for all
+ * of them to 0 for none.
+ *
+ * Each word of the shorter list is worth the best likeness it finds in the
+ * longer one, and nothing at all below `SAME_WORD`: a word that merely shares
+ * some letters with a word beside it is not half of a match, it is not a match.
+ * That floor is the difference between grading a misspelling and grading two
+ * unrelated names as half alike — `qızı` against `qızı` is worth its line,
+ * `Həsənova` against `Əliyeva` is worth nothing.
+ */
+export function tokenCoverage(
+  shorter: readonly string[],
+  longer: readonly string[],
+): number {
+  if (shorter.length === 0) return 0;
+
+  const found = shorter.reduce((total, token) => {
+    const best = longer.reduce(
+      (most, other) => Math.max(most, similarity(token, other)),
+      0,
+    );
+
+    return total + (best >= SAME_WORD ? best : 0);
+  }, 0);
+
+  return found / shorter.length;
+}

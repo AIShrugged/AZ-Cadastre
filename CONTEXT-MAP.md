@@ -58,7 +58,10 @@ a submission's behalf, as one stage of a run; the edge asks on the operator's
 behalf, for the archive-search screen and for the sidebar's archive band. Each
 declares an outbound port over the slices it actually calls —
 `ArchiveRegistryPort` over `addresses` alone, `RegistryClientPort` over
-`addresses` and `summary` — and the composition root binds both. The edge deliberately does not reach the
+`addresses`, `search` and `summary` — and the composition root binds both. The
+two ask different questions of one register on purpose: `addresses` resolves a
+submission's address to the one record a stage may act on, `search` offers every
+record that might be the one and grades how sure it is (ADR-0013). The edge deliberately does not reach the
 register through the context: that would make the operator's search depend on
 whether a submission's pipeline is running its register mocked, and would put a
 context on the path of a question that is not about a submission at all.

@@ -5,10 +5,17 @@ import type {
   ArchiveRecordDto,
 } from '@cadastre/api-contracts/registry';
 import { Logger } from '@cadastre/logger';
-import { addressesAgree } from '@cadastre/matching-engine';
+import {
+  addressConfidence,
+  addressesAgree,
+  nameConfidence,
+  referenceConfidence,
+} from '@cadastre/matching-engine';
 
 import {
   RegistrySource,
+  type ArchiveCandidate,
+  type ArchiveSearchCriteria,
   type SourceHolding,
 } from '../../application/ports/index.js';
 
@@ -81,6 +88,95 @@ export class PrismaRegistrySourceAdapter extends RegistrySource {
     });
 
     return objects.map(object => toRecord(object));
+  }
+
+  /**
+   * The candidates for a search, narrowed by the best single criterion.
+   *
+   * The same three reads and the same one rule as `findByAddress`, for the same
+   * reason it works that way: none of the comparisons is a predicate PostgreSQL
+   * can be given, so the columns a criterion is decided on are read, scored here
+   * and only the objects that survive are hydrated. That is a scan per criterion
+   * named, and TECH_DEBT §9 already says what fires and when.
+   *
+   * The threshold is what makes the scan a narrowing rather than a fetch of the
+   * whole archive, and it is exact rather than approximate: a record's
+   * confidence is the average over the criteria it could answer, so it can never
+   * be higher than its best single criterion. Keeping every object that reaches
+   * the threshold on one criterion therefore drops nothing the service would
+   * have offered, and the grading that decides is still done once, above the
+   * port.
+   */
+  async findCandidates(
+    criteria: ArchiveSearchCriteria,
+  ): Promise<readonly ArchiveCandidate[]> {
+    const objectIds = new Set<string>();
+
+    if (criteria.address !== undefined) {
+      const asked = criteria.address;
+      const spellings = await this.prisma.registryAddress.findMany({
+        select: { objectId: true, value: true },
+      });
+
+      for (const spelling of spellings) {
+        if (addressConfidence(asked, spelling.value) >= criteria.threshold) {
+          objectIds.add(spelling.objectId);
+        }
+      }
+    }
+
+    if (criteria.ownerName !== undefined) {
+      const asked = criteria.ownerName;
+      const holders = await this.prisma.registryRightHolder.findMany({
+        select: { objectId: true, name: true },
+      });
+
+      for (const holder of holders) {
+        if (nameConfidence(asked, holder.name) >= criteria.threshold) {
+          objectIds.add(holder.objectId);
+        }
+      }
+    }
+
+    if (criteria.cadastralNumber !== undefined) {
+      const asked = criteria.cadastralNumber;
+      const numbered = await this.prisma.registryObject.findMany({
+        where: { cadastralNumber: { not: null } },
+        select: { id: true, cadastralNumber: true },
+      });
+
+      for (const object of numbered) {
+        if (
+          referenceConfidence(asked, object.cadastralNumber ?? '') >=
+          criteria.threshold
+        ) {
+          objectIds.add(object.id);
+        }
+      }
+    }
+
+    // What was searched for is never written to the log — it is somebody's
+    // name and somebody's property. How wide the net came back is (ADR-0008).
+    this.#logger.debug('Search candidates narrowed', {
+      criteria: Object.keys(criteria).filter(name => name !== 'threshold'),
+      objects: objectIds.size,
+    });
+
+    if (objectIds.size === 0) return [];
+
+    const objects = await this.prisma.registryObject.findMany({
+      where: { id: { in: [...objectIds] } },
+      include: WHOLE_RECORD,
+      orderBy: { registerNo: 'asc' },
+    });
+
+    return objects.map(object => ({
+      record: toRecord(object),
+      source: object.sourceDatabase,
+      // Every spelling, and not the one the record is filed under: a record
+      // found by its `köhnə ünvan` is graded against the words that found it.
+      addresses: object.addresses.map(address => address.value),
+    }));
   }
 
   async size(): Promise<number> {

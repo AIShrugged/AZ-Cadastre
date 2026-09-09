@@ -14,6 +14,10 @@ class StubSource extends RegistrySource {
     return [];
   }
 
+  async findCandidates(): Promise<[]> {
+    return [];
+  }
+
   async size(): Promise<number> {
     return this.tally.reduce((total, one) => total + one.records, 0);
   }

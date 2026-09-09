@@ -45,6 +45,10 @@ class StubSource extends RegistrySource {
     return this.held;
   }
 
+  async findCandidates(): Promise<[]> {
+    return [];
+  }
+
   async size(): Promise<number> {
     return this.held.length;
   }

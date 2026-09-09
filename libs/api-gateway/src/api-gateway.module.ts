@@ -15,6 +15,7 @@ import {
 } from './presentation/http/index.js';
 import {
   AddressesController,
+  ArchiveSearchController,
   RegistrySummaryController,
 } from './presentation/registry/rest/index.js';
 import {
@@ -58,6 +59,14 @@ export class ApiGatewayModule implements NestModule {
          * (TECH_DEBT §10).
          */
         AddressesController,
+        /*
+         * The same area's third question, and the operator's own: not "what
+         * does the archive say about this property" but "which of what the
+         * archive holds might be this property". It is a door for the same
+         * reason the other two are, and it is here rather than in the
+         * verification context because a search is nobody's submission.
+         */
+        ArchiveSearchController,
         // The same area's other question: what the register holds at all,
         // rather than what it holds about one property. It is a door and not a
         // health check — whether the register process is up is a fact about

@@ -6,6 +6,7 @@ import { LoggerModule } from '@cadastre/logger';
 
 import {
   AddressesService,
+  ArchiveSearchService,
   RegistryImportService,
   RegistrySummaryService,
 } from './application/index.js';
@@ -13,6 +14,7 @@ import { EnvironmentSchema, type Environment } from './config/index.js';
 import { REGISTRY_INFRASTRUCTURE } from './infrastructure/index.js';
 import {
   AddressesController,
+  ArchiveSearchController,
   HealthController,
   HttpExceptionFilter,
   ImportController,
@@ -40,12 +42,14 @@ import {
   ],
   controllers: [
     AddressesController,
+    ArchiveSearchController,
     HealthController,
     ImportController,
     RegistrySummaryController,
   ],
   providers: [
     AddressesService,
+    ArchiveSearchService,
     RegistryImportService,
     RegistrySummaryService,
     ...REGISTRY_INFRASTRUCTURE,

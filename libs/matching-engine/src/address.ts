@@ -2,7 +2,10 @@ import {
   fold,
   fromLegacyCyrillic,
   isCyrillic,
+  SAME_WORD,
+  similarity,
   stripInitials,
+  tokenCoverage,
   tokenise,
 } from './text.js';
 
@@ -294,4 +297,91 @@ export function addressesAgree(left: string, right: string): boolean {
   // Two strings that named no level in common and no word in common are not an
   // agreement, they are two addresses nobody compared.
   return shared.length > 0 || shorter.rest.length > 0;
+}
+
+/**
+ * The most an address whose house, flat or block differs can be worth.
+ *
+ * Everything wider agreeing is what makes the record worth showing at all —
+ * the operator may have mistyped the number, or the archive may hold the
+ * neighbour under the same case — but 12 is not a misspelling of 14, and no
+ * amount of agreement about the street may let a different house read as a
+ * probable one.
+ */
+const OTHER_UNIT = 0.5;
+
+/**
+ * How far two ways of writing an address are from naming the same place, as a
+ * number rather than as a yes.
+ *
+ * The graded form of `addressesAgree`, and it agrees with it by construction: a
+ * pair that rule accepts is 1, whatever either side left out and whichever
+ * script it was written in. Below that it is the average of what was actually
+ * comparable — every level both sides name, and the words neither side attached
+ * to a level — so an address that agrees about the settlement and the street and
+ * differs about the house scores what that is worth and no more.
+ *
+ * Two strings that named no level in common and shared no word are 0: they were
+ * not compared, and nothing compared is not a weak match.
+ */
+export function addressConfidence(left: string, right: string): number {
+  if (addressesAgree(left, right)) return 1;
+
+  const first = parseAddress(left);
+  const second = parseAddress(right);
+  const shared = [...first.parts.keys()].filter(marker =>
+    second.parts.has(marker),
+  );
+
+  const scores = shared.map(marker =>
+    levelConfidence(
+      marker,
+      first.parts.get(marker) ?? '',
+      second.parts.get(marker) ?? '',
+    ),
+  );
+
+  const [shorter, longer] =
+    first.rest.length <= second.rest.length
+      ? [first.rest, second.rest]
+      : [second.rest, first.rest];
+
+  if (shorter.length > 0) scores.push(tokenCoverage(shorter, longer));
+  if (scores.length === 0) return 0;
+
+  const score = scores.reduce((total, one) => total + one, 0) / scores.length;
+  const unitDiffers = shared.some(
+    marker =>
+      MARKERS.get(marker)?.scope === 'unit' &&
+      comparable(first.parts.get(marker) ?? '') !==
+        comparable(second.parts.get(marker) ?? ''),
+  );
+
+  return unitDiffers ? Math.min(score, OTHER_UNIT) : score;
+}
+
+/**
+ * What one level both addresses name is worth.
+ *
+ * A number is compared as a number and forgives nothing — a house, a flat, a
+ * block or a plot written as a figure is either the one asked for or another
+ * one. A name is compared as a word and forgives a misspelling, down to the
+ * floor below which it is simply a different name.
+ */
+function levelConfidence(marker: string, left: string, right: string): number {
+  const first = comparable(left);
+  const second = comparable(right);
+
+  if (first === second) return 1;
+  if (
+    MARKERS.get(marker)?.scope === 'unit' ||
+    isNumeric(first) ||
+    isNumeric(second)
+  ) {
+    return 0;
+  }
+
+  const alike = similarity(first, second);
+
+  return alike >= SAME_WORD ? alike : 0;
 }

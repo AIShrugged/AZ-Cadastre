@@ -166,17 +166,28 @@ it, forgives a level one side omits, and reads the Azerbaijani legacy Cyrillic
 code page (ADR-0009, ADR-0010). None of that is a predicate PostgreSQL can be
 given.
 
+`findCandidates` beside it does the same thing once per criterion the search
+names (ADR-0013): the address rows, the right-holder names and the cadastral
+numbers, each read whole and scored here. It narrows further than the lookup
+does — a candidate has to reach the caller's threshold on its best single
+criterion, which is exact rather than approximate because a record's confidence
+is an average over the criteria it could answer and can never exceed the best of
+them — but the read that precedes the narrowing is still the whole column.
+
 **How it fires.** Not at all today: the register holds the customer's two cases
 and four records kept for behaviour the fixtures had, and a full scan of a table
 that size is faster than the round trip. It fires on the day the 55 register
 files are ingested — one lookup per package becomes a scan of every address the
 archive knows, and the register stage is the last stage of a run that already
-took a minute.
+took a minute. The search fires sooner and more visibly: an operator types into
+it and waits, and three scans happen per keystroke they submit.
 
 **What to do.** A prefilter, not a rewrite: store the folded tokens of each
 spelling beside it, written by the same engine at ingest time, and use a GIN
 index to narrow to the rows that share enough of them before `addressesAgree`
-decides. The engine stays the thing that decides — a prefilter that also judged
+decides. The same shape serves the search — folded tokens of the right holder's
+name and the skeleton of the cadastral number, indexed the same way — and the
+scores are still computed on what survives. The engine stays the thing that decides — a prefilter that also judged
 would be a second, looser copy of the rule, which is what `libs/matching-engine`
 exists to prevent. Until then the adapter says in its own doc comment that this
 is what it does.

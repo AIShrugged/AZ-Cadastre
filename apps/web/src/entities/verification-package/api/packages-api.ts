@@ -12,8 +12,11 @@
  */
 import { api } from '@/shared/api';
 import {
+  AddFilesResponseSchema,
   GetPackageResponseSchema,
   ListPackagesResponseSchema,
+  type AddFilesRequest,
+  type AddFilesResponse,
   type CreatePackageRequest,
   type CreatePackageResponse,
   type GetPackageResponse,
@@ -48,6 +51,33 @@ export const packagesApi = api.injectEndpoints({
       query: body => ({ url: '/packages', method: 'POST', body }),
       invalidatesTags: ['Package'],
     }),
+    /*
+     * Files that arrived after the package did. They travel the road the files
+     * a package is created with travel — `documents/presign` signs the URL, the
+     * browser PUTs the bytes, and this is handed the keys; there is one way to
+     * put a file in the store and this is not a second one.
+     *
+     * Both tags are named on purpose. The package this adds to is re-opened and
+     * verified afresh (ADR-0013), so the detail this screen is reading is stale
+     * the moment the call returns — and so is the row the register draws for
+     * it, which providesTags with the bare tag.
+     */
+    addFiles: build.mutation<
+      AddFilesResponse,
+      { id: string; body: AddFilesRequest }
+    >({
+      query: ({ id, body }) => ({
+        url: `/packages/${id}/files`,
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (response: unknown) =>
+        AddFilesResponseSchema.parse(response),
+      invalidatesTags: (_result, _error, { id }) => [
+        'Package',
+        { type: 'Package', id },
+      ],
+    }),
   }),
 });
 
@@ -55,4 +85,5 @@ export const {
   useGetPackagesQuery,
   useGetPackageQuery,
   useCreatePackageMutation,
+  useAddFilesMutation,
 } = packagesApi;

@@ -4,7 +4,7 @@ import type { ArchiveRecordDto } from '@cadastre/api-contracts/registry';
 import { SilentLogger } from '@cadastre/logger';
 
 import { AddressesService } from './addresses.service.js';
-import { RegistrySource } from './ports/index.js';
+import { RegistrySource, type SourceHolding } from './ports/index.js';
 
 const ZIG: ArchiveRecordDto = {
   registerNo: '1-12345',
@@ -47,6 +47,10 @@ class StubSource extends RegistrySource {
 
   async size(): Promise<number> {
     return this.held.length;
+  }
+
+  async holdings(): Promise<readonly SourceHolding[]> {
+    return [];
   }
 }
 

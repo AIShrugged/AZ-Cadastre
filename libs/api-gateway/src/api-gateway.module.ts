@@ -13,7 +13,10 @@ import {
   RequestLoggingMiddleware,
   SystemExceptionFilter,
 } from './presentation/http/index.js';
-import { AddressesController } from './presentation/registry/rest/index.js';
+import {
+  AddressesController,
+  RegistrySummaryController,
+} from './presentation/registry/rest/index.js';
 import {
   DocumentsController,
   PackagesController,
@@ -55,6 +58,11 @@ export class ApiGatewayModule implements NestModule {
          * (TECH_DEBT §10).
          */
         AddressesController,
+        // The same area's other question: what the register holds at all,
+        // rather than what it holds about one property. It is a door and not a
+        // health check — whether the register process is up is a fact about
+        // this deployment, and what it loaded is a fact the register publishes.
+        RegistrySummaryController,
       ],
       providers: [
         ...options.providers,

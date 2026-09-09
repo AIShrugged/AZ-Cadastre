@@ -1,4 +1,4 @@
-export { RegistrySource } from './registry-source.port.js';
+export { RegistrySource, type SourceHolding } from './registry-source.port.js';
 export { RegistryWriter } from './registry-writer.port.js';
 export {
   WorkbookClassifier,

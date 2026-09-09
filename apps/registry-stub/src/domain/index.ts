@@ -8,6 +8,8 @@ export {
   foldSheet,
   paperOf,
   registerNamed,
+  registerOfSource,
+  sourceOf,
   type ArchiveRegister,
   type ArchiveRegisterId,
   type ObjectKeySource,

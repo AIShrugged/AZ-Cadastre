@@ -1,8 +1,11 @@
 import {
   AddressLookupResponseSchema,
+  RegistrySummaryResponseSchema,
   type AddressesApi,
   type AddressLookupRequest,
   type AddressLookupResponse,
+  type RegistrySummaryApi,
+  type RegistrySummaryResponse,
 } from '@cadastre/api-contracts/registry';
 import { RegistryClientPort } from '@cadastre/api-gateway';
 import type { Logger } from '@cadastre/logger';
@@ -13,6 +16,7 @@ import {
 } from './registry.exceptions.js';
 
 const LOOKUP = '/api/addresses/lookup';
+const SUMMARY = '/api/registry/summary';
 
 /** Where the register answers, and how long we wait for it. */
 export type RegistryClientOptions = {
@@ -88,14 +92,61 @@ class HttpAddresses implements AddressesApi {
   }
 }
 
+/**
+ * What the register holds, over the same connection and with the same two
+ * failures. It is a read of the register itself and carries nothing about
+ * anybody, so it is a GET with no body.
+ */
+class HttpSummary implements RegistrySummaryApi {
+  constructor(
+    private readonly options: RegistryClientOptions,
+    private readonly logger: Logger,
+  ) {}
+
+  async get(): Promise<RegistrySummaryResponse> {
+    const url = `${this.options.url.replace(/\/$/u, '')}${SUMMARY}`;
+    const startedAt = Date.now();
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        signal: AbortSignal.timeout(this.options.timeoutMs),
+      });
+    } catch (error) {
+      throw new RegistryUnreachableException(url, error);
+    }
+
+    const body = await response.text();
+
+    if (!response.ok) {
+      throw new RegistryRefusedException(url, response.status, body);
+    }
+
+    // Parsed and not trusted, for the same reason the lookup is: a register
+    // that has drifted from the contract must fail here rather than reach the
+    // browser as a shape nothing checked.
+    const answer = RegistrySummaryResponseSchema.parse(JSON.parse(body));
+
+    this.logger.debug('Archive register summarised what it holds', {
+      url,
+      sources: answer.sources,
+      records: answer.records,
+      durationMs: Date.now() - startedAt,
+    });
+
+    return answer;
+  }
+}
+
 export class HttpArchiveRegistryClient extends RegistryClientPort {
   override readonly addresses: AddressesApi;
+  override readonly summary: RegistrySummaryApi;
 
   constructor(options: RegistryClientOptions, logger: Logger) {
     super();
-    this.addresses = new HttpAddresses(
-      options,
-      logger.child({ scope: HttpArchiveRegistryClient.name }),
-    );
+    const scoped = logger.child({ scope: HttpArchiveRegistryClient.name });
+
+    this.addresses = new HttpAddresses(options, scoped);
+    this.summary = new HttpSummary(options, scoped);
   }
 }

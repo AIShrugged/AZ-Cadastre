@@ -2,3 +2,4 @@ export { AddressesController } from './addresses.controller.js';
 export { HealthController } from './health.controller.js';
 export { HttpExceptionFilter } from './http-exception.filter.js';
 export { ImportController } from './import.controller.js';
+export { RegistrySummaryController } from './registry-summary.controller.js';

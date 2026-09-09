@@ -252,6 +252,10 @@ const en: Dict = {
   'detail.f.registry_document_missing_sub':
     'The archive keeps no original of this paper',
   'detail.f.registry_unconfirmed_sub': 'No record of it, or more than one',
+  'detail.f.declared_sub': 'Disagrees with what was declared at intake',
+  'detail.f.declared_year_sub': 'Declared at intake: {year}',
+  'detail.declared_note':
+    'Typed at the counter, from what the applicant said. Not a reading: it has no confidence and it is never merged with what the engine read off the papers.',
   'detail.f.attestation_sub': 'No stamp or signature was read on it',
   'supporting.lead':
     'Papers the applicant has to bring beyond the package. None of them was ever in the envelope, so nothing here is counted against the submission and nothing here is a fault.',
@@ -463,6 +467,8 @@ const en: Dict = {
   'add.failed': 'The files could not be added — please try again',
   'error.UNKNOWN_PROFILE':
     'That verification profile no longer exists — reload and pick again',
+  'error.LEGAL_BASIS_NOT_IN_PROFILE':
+    'The declared ground is not one this profile registers a right on — change the ground or the profile',
   'error.PACKAGE_MUST_HAVE_A_DOCUMENT': 'A package needs at least one document',
   'error.UNSUPPORTED_CONTENT_TYPE': 'Unsupported format — PDF, JPG or PNG only',
   'error.INVALID_FILENAME':
@@ -667,6 +673,59 @@ const en: Dict = {
   'intake.group.archive_none':
     'The archive register was not asked about this case.',
   'intake.group.nothing': 'Nothing is held against the packet here.',
+  // ── What the office declares at the counter ────────────────────────────────
+  // Not a reading and never a correction to one: the operator says what the
+  // claim is founded on and what year the building is said to date from, and
+  // the engine reads the papers separately. Both optional, in every language.
+  'declared.title': 'Declared at intake',
+  'declared.basis': 'What the right is founded on',
+  'declared.year': 'Year built',
+  'declared.not_declared': 'Not declared',
+  'intake.profile.unchosen':
+    'Choose a verification profile — the packet is filed under the one you pick, and nothing picks it for you.',
+  'intake.declared.lead':
+    'Optional, and taken from what the applicant says — not from the documents. It suggests a profile and is kept apart from what the engine reads.',
+  'intake.declared.basis_hint':
+    'The paper the claimed right rests on, from those this profile registers a right on.',
+  'intake.declared.basis_stray':
+    '“{ground}” is not a ground the {profile} profile registers a right on — choose another ground, or another profile.',
+  'intake.declared.year_hint':
+    'Four digits, {from}–{to}. Leave empty if unknown.',
+  'intake.declared.year_placeholder': 'e.g. 1998',
+  'intake.declared.year_outside':
+    'A year is read between {from} and {to} — this one will not be taken.',
+  'intake.suggest.title': 'Suggested profile',
+  'intake.suggest.undeclared':
+    'Declare a ground or a year and the profile it points at is suggested here.',
+  'intake.suggest.take': 'Choose this profile',
+  'intake.suggest.chosen': 'chosen',
+  'intake.suggest.asking': 'asking again…',
+  'intake.suggest.none':
+    'None — the declaration does not point at one profile. Why is written under the field it is about.',
+  'intake.suggest.unavailable':
+    'Not available just now. It only ever recommends — choose the profile yourself, as always.',
+  // The suggestion's reasoning, one line per figure, said beside the figure it
+  // is about. The English audit line the answer carries is for the record and
+  // is never shown.
+  'suggest.basis.none':
+    'Not declared. Which paper a right is founded on is what tells one profile from another, so none is suggested until one is.',
+  'suggest.basis.unregistered':
+    'No profile registers a right founded on “{ground}”.',
+  'suggest.basis.several':
+    'More than one profile registers a right founded on “{ground}” — {profiles}. Which of them this case is, the declaration does not say.',
+  'suggest.basis.only':
+    '“{ground}” is a ground the {profile} profile registers a right on, and the only profile that does.',
+  'suggest.year.moot':
+    'No profile is selected by the ground, so there is nothing here to narrow.',
+  'suggest.year.any':
+    'Not declared, and not needed: {profile} answers for any year.',
+  'suggest.year.leaves': '{year} leaves {profile}.',
+  'suggest.year.awaited':
+    'Not declared — {profile} answers for a period, so without a year it can be neither ruled in nor out.',
+  'suggest.year.undeclared': 'Not declared.',
+  'suggest.year.rules_out':
+    '{year} rules out {profile}, which is the only profile this ground points at.',
+  'suggest.year.no_narrower': '{year} does not narrow this to one profile.',
 
   // ── Cases ──────────────────────────────────────────────────────────────────
   'page.cases.title': 'Cases',
@@ -943,6 +1002,10 @@ const ru: Dict = {
   'detail.f.registry_document_missing_sub':
     'Подлинник этого документа в архиве не хранится',
   'detail.f.registry_unconfirmed_sub': 'Записи нет или их несколько',
+  'detail.f.declared_sub': 'Расходится с заявленным при приёмке',
+  'detail.f.declared_year_sub': 'Заявлено при приёмке: {year}',
+  'detail.declared_note':
+    'Записано на приёме со слов заявителя. Это не прочитанное: уверенности у него нет, и с тем, что движок прочитал в документах, оно не смешивается.',
   'detail.f.attestation_sub': 'Печать или подпись на нём не прочитаны',
   'supporting.lead':
     'Документы, которые заявитель должен принести дополнительно к пакету. Ни одного из них в пакете не было и быть не могло, поэтому ничто здесь не засчитывается пакету в минус и нарушением не является.',
@@ -1140,6 +1203,8 @@ const ru: Dict = {
   'add.failed': 'Не удалось догрузить файлы — попробуйте ещё раз',
   'error.UNKNOWN_PROFILE':
     'Такого профиля проверки больше нет — обновите страницу и выберите заново',
+  'error.LEGAL_BASIS_NOT_IN_PROFILE':
+    'Заявленное основание не относится к выбранному профилю — измените основание или профиль',
   'error.PACKAGE_MUST_HAVE_A_DOCUMENT':
     'В пакете должен быть хотя бы один документ',
   'error.UNSUPPORTED_CONTENT_TYPE':
@@ -1331,6 +1396,53 @@ const ru: Dict = {
   'intake.group.archive': 'Архив',
   'intake.group.archive_none': 'Архивный реестр по этому делу не запрашивался.',
   'intake.group.nothing': 'Здесь к пакету претензий нет.',
+  // ── Заявленное на приёмке ──────────────────────────────────────────────────
+  'declared.title': 'Заявлено при приёмке',
+  'declared.basis': 'На основании чего право',
+  'declared.year': 'Год постройки',
+  'declared.not_declared': 'Не заявлено',
+  'intake.profile.unchosen':
+    'Выберите профиль проверки — под ним пакет и будет принят, и за вас его никто не выбирает.',
+  'intake.declared.lead':
+    'Необязательно и со слов заявителя, а не из документов. По этому подсказывается профиль; с тем, что прочитает движок, это не смешивается.',
+  'intake.declared.basis_hint':
+    'Документ, на котором держится заявленное право, — из тех, что этот профиль признаёт основанием.',
+  'intake.declared.basis_stray':
+    '«{ground}» — не основание профиля «{profile}». Выберите другое основание или другой профиль.',
+  'intake.declared.year_hint':
+    'Четыре цифры, {from}–{to}. Не знаете — оставьте пустым.',
+  'intake.declared.year_placeholder': 'например, 1998',
+  'intake.declared.year_outside':
+    'Год читается в пределах {from}–{to} — этот принят не будет.',
+  'intake.suggest.title': 'Подсказка профиля',
+  'intake.suggest.undeclared':
+    'Заявите основание или год — и здесь появится профиль, на который они указывают.',
+  'intake.suggest.take': 'Выбрать этот профиль',
+  'intake.suggest.chosen': 'выбран',
+  'intake.suggest.asking': 'спрашиваем заново…',
+  'intake.suggest.none':
+    'Профиль не подсказан: заявленное не указывает на один. Почему — написано под тем полем, о котором речь.',
+  'intake.suggest.unavailable':
+    'Сейчас недоступна. Она только рекомендует — профиль, как и всегда, выбираете вы.',
+  'suggest.basis.none':
+    'Не заявлено. Именно документ-основание отличает один профиль от другого, поэтому без него профиль не подсказывается.',
+  'suggest.basis.unregistered':
+    'Ни один профиль не признаёт основанием «{ground}».',
+  'suggest.basis.several':
+    'Основанием «{ground}» право признают сразу несколько профилей — {profiles}. Какой из них это дело, из заявленного не следует.',
+  'suggest.basis.only':
+    '«{ground}» — основание профиля «{profile}», и других таких профилей нет.',
+  'suggest.year.moot':
+    'По основанию профиль не определился — уточнять годом нечего.',
+  'suggest.year.any':
+    'Не заявлен, и не нужен: «{profile}» отвечает за любой год.',
+  'suggest.year.leaves': '{year} оставляет профиль «{profile}».',
+  'suggest.year.awaited':
+    'Не заявлен, а «{profile}» отвечает за определённый период — без года его нельзя ни принять, ни отвергнуть.',
+  'suggest.year.undeclared': 'Не заявлен.',
+  'suggest.year.rules_out':
+    '{year} исключает «{profile}» — единственный профиль, на который указывает это основание.',
+  'suggest.year.no_narrower': '{year} не сводит выбор к одному профилю.',
 
   // ── Дела ───────────────────────────────────────────────────────────────────
   'page.cases.title': 'Дела',
@@ -1604,6 +1716,10 @@ const az: Dict = {
   'detail.f.registry_document_missing_sub':
     'Bu sənədin əsli arxivdə saxlanılmır',
   'detail.f.registry_unconfirmed_sub': 'Qeyd yoxdur və ya birdən çoxdur',
+  'detail.f.declared_sub': 'Qəbulda bəyan ediləndən fərqlənir',
+  'detail.f.declared_year_sub': 'Qəbulda bəyan edilib: {year}',
+  'detail.declared_note':
+    'Qəbulda ərizəçinin sözündən yazılıb. Bu, oxunmuş dəyər deyil: onun etibarlılıq dərəcəsi yoxdur və mühərrikin sənədlərdən oxuduqları ilə birləşdirilmir.',
   'detail.f.attestation_sub': 'Üzərində möhür və ya imza oxunmadı',
   'supporting.lead':
     'Ərizəçinin paketdən əlavə gətirməli olduğu sənədlər. Onların heç biri paketdə olmayıb və olmalı da deyildi, ona görə buradakı heç nə təqdimata qarşı sayılmır və qüsur deyil.',
@@ -1802,6 +1918,8 @@ const az: Dict = {
   'add.failed': 'Fayllar əlavə edilmədi — yenidən cəhd edin',
   'error.UNKNOWN_PROFILE':
     'Bu yoxlama profili artıq yoxdur — səhifəni yeniləyib yenidən seçin',
+  'error.LEGAL_BASIS_NOT_IN_PROFILE':
+    'Bəyan edilən əsas bu profilin tanıdığı əsaslardan deyil — əsası və ya profili dəyişin',
   'error.PACKAGE_MUST_HAVE_A_DOCUMENT': 'Paketdə ən azı bir sənəd olmalıdır',
   'error.UNSUPPORTED_CONTENT_TYPE':
     'Dəstəklənməyən format — yalnız PDF, JPG və ya PNG',
@@ -1993,6 +2111,53 @@ const az: Dict = {
   'intake.group.archive_none':
     'Bu iş barədə arxiv reyestrinə sorğu verilməyib.',
   'intake.group.nothing': 'Burada pakete qarşı bir şey yoxdur.',
+  // ── Qəbulda bəyan edilənlər ────────────────────────────────────────────────
+  'declared.title': 'Qəbulda bəyan edilib',
+  'declared.basis': 'Hüquq nəyə əsaslanır',
+  'declared.year': 'Tikinti ili',
+  'declared.not_declared': 'Bəyan edilməyib',
+  'intake.profile.unchosen':
+    'Yoxlama profilini seçin — paket seçdiyiniz profil üzrə qəbul olunur və onu sizin əvəzinizə heç kim seçmir.',
+  'intake.declared.lead':
+    'Məcburi deyil və sənədlərdən yox, ərizəçinin sözündən götürülür. Buna görə profil tövsiyə olunur; mühərrikin oxuduğu ilə qarışdırılmır.',
+  'intake.declared.basis_hint':
+    'İddia edilən hüququn dayandığı sənəd — bu profilin əsas kimi tanıdığı sənədlərdən.',
+  'intake.declared.basis_stray':
+    '“{ground}” — “{profile}” profilinin əsası deyil. Başqa əsas və ya başqa profil seçin.',
+  'intake.declared.year_hint':
+    'Dörd rəqəm, {from}–{to}. Bilmirsinizsə, boş buraxın.',
+  'intake.declared.year_placeholder': 'məsələn, 1998',
+  'intake.declared.year_outside':
+    'İl {from}–{to} aralığında oxunur — bu il qəbul edilməyəcək.',
+  'intake.suggest.title': 'Tövsiyə olunan profil',
+  'intake.suggest.undeclared':
+    'Əsası və ya ili bəyan edin — onların işarə etdiyi profil burada görünəcək.',
+  'intake.suggest.take': 'Bu profili seç',
+  'intake.suggest.chosen': 'seçilib',
+  'intake.suggest.asking': 'yenidən soruşulur…',
+  'intake.suggest.none':
+    'Tövsiyə yoxdur: bəyan edilənlər tək bir profilə işarə etmir. Səbəbi aid olduğu sahənin altında yazılıb.',
+  'intake.suggest.unavailable':
+    'Hazırda əlçatan deyil. O yalnız tövsiyə edir — profili həmişəki kimi siz seçirsiniz.',
+  'suggest.basis.none':
+    'Bəyan edilməyib. Bir profili digərindən məhz hüququn əsaslandığı sənəd fərqləndirir, ona görə də o olmadan profil tövsiyə edilmir.',
+  'suggest.basis.unregistered':
+    'Heç bir profil “{ground}” əsasına söykənən hüququ qeydə almır.',
+  'suggest.basis.several':
+    '“{ground}” əsasına söykənən hüququ bir neçə profil qeydə alır — {profiles}. Bunlardan hansı olduğu bəyan edilənlərdən çıxmır.',
+  'suggest.basis.only':
+    '“{ground}” — “{profile}” profilinin əsasıdır və bunu edən yeganə profildir.',
+  'suggest.year.moot':
+    'Əsas üzrə profil müəyyən olunmadı — ilin dəqiqləşdirəcəyi bir şey yoxdur.',
+  'suggest.year.any':
+    'Bəyan edilməyib və lazım da deyil: “{profile}” istənilən il üçün cavab verir.',
+  'suggest.year.leaves': '{year} “{profile}” profilini saxlayır.',
+  'suggest.year.awaited':
+    'Bəyan edilməyib, “{profile}” isə müəyyən dövr üçün cavab verir — il olmadan onu nə qəbul etmək, nə də kənarlaşdırmaq olar.',
+  'suggest.year.undeclared': 'Bəyan edilməyib.',
+  'suggest.year.rules_out':
+    '{year} bu əsasın işarə etdiyi yeganə profili — “{profile}” — kənarlaşdırır.',
+  'suggest.year.no_narrower': '{year} seçimi tək bir profilə endirmir.',
 
   // ── İşlər ──────────────────────────────────────────────────────────────────
   'page.cases.title': 'İşlər',

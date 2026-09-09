@@ -34,6 +34,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import {
   documentsExpected,
+  groundName,
   HOLDING_KEY,
   HOLDING_TONE,
   ISSUE_KIND_KEY,
@@ -74,6 +75,7 @@ import type {
   CheckedValueDto,
   CrossCheckDto,
   CrossCheckVerdict,
+  DeclaredAtIntakeDto,
   DocumentDto,
   FieldDto,
   IssueDto,
@@ -1032,6 +1034,75 @@ function Standing({
   );
 }
 
+// ─── What the office declared at the counter ──────────────────────────────────
+// Beside what was read and never among it. A reading carries a confidence
+// because something read can be read badly; a declaration carries none, because
+// somebody typed it — and the moment the two are drawn in one list, a figure
+// nobody checked reads as a figure the engine found. So this states what was
+// declared, says where it came from, and stops there: there is no operation in
+// the contract for editing a reading, and nothing here is one (ADR-0021).
+//
+// Drawn whether or not anything was declared. "The office declared nothing" is
+// what a reader needs when a report is silent about a disagreement — and it is
+// what every package taken in before intake asked says.
+function DeclaredAtIntake({ declared }: { declared: DeclaredAtIntakeDto }) {
+  const { t } = useI18n();
+
+  const lines: {
+    key: string;
+    label: string;
+    value: string | null;
+    // A figure is set in the register's mono face like every other figure on
+    // this page; the name of a paper is a name and reads as prose.
+    figure: boolean;
+  }[] = [
+    {
+      key: 'legalBasis',
+      label: t('declared.basis'),
+      value:
+        declared.legalBasis === null
+          ? null
+          : groundName(t, declared.legalBasis),
+      figure: false,
+    },
+    {
+      key: 'builtYear',
+      label: t('declared.year'),
+      value: declared.builtYear === null ? null : String(declared.builtYear),
+      figure: true,
+    },
+  ];
+
+  return (
+    <section>
+      <h2 className='register-label'>{t('declared.title')}</h2>
+      <p className='mt-2 max-w-[40ch] text-[0.75rem] leading-snug text-muted-foreground'>
+        {t('detail.declared_note')}
+      </p>
+      <dl className='mt-3 flex flex-col gap-2.5'>
+        {lines.map(line => (
+          <div key={line.key} className='flex min-w-0 flex-col gap-0.5'>
+            <dt className='register-label text-muted-foreground'>
+              {line.label}
+            </dt>
+            <dd className='text-[0.8125rem] break-words text-foreground'>
+              {line.value === null ? (
+                <span className='text-muted-foreground/70'>
+                  {t('declared.not_declared')}
+                </span>
+              ) : (
+                <span data-mono={line.figure ? '' : undefined}>
+                  {line.value}
+                </span>
+              )}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
 // ─── Required documents ───────────────────────────────────────────────────────
 // What the governing profile insists on, against what the engine actually found.
 // It reports a shortfall; it never refuses the package — the inspector decides,
@@ -1358,6 +1429,38 @@ function findingOf(
           : issue.kind === 'RegistryDocumentMissing'
             ? t('detail.f.registry_document_missing_sub')
             : t('detail.f.registry_unconfirmed_sub'),
+      anchor,
+      docId: document?.id ?? null,
+    };
+  }
+
+  /*
+   * What the office declared, against what the papers turned out to say.
+   *
+   * The finding is filed against the reading — that is the sheet an inspector
+   * settles it on — and the figure it disagrees with is on no sheet at all, so
+   * the row carries it: without the declared year beside it the line says two
+   * figures differ and shows one of them. It is named by the field the year was
+   * read off, like every other row about a reading, and it is stated as
+   * declared rather than as read.
+   */
+  if (issue.kind === 'DeclaredValueMismatch') {
+    return {
+      subject: issue.fieldName
+        ? translateOr(t, `field.${issue.fieldName}`, issue.fieldName)
+        : translateOr(
+            t,
+            `doctype.${issue.documentType}`,
+            issue.documentType ?? '',
+          ),
+      where: [
+        pkg.declared.builtYear === null
+          ? t('detail.f.declared_sub')
+          : t('detail.f.declared_year_sub', { year: pkg.declared.builtYear }),
+        within,
+      ]
+        .filter(Boolean)
+        .join(' · '),
       anchor,
       docId: document?.id ?? null,
     };
@@ -2715,6 +2818,7 @@ export function VerificationDetails() {
                 total={expected ?? 0}
                 settled={classified}
               />
+              <DeclaredAtIntake declared={pkg.declared} />
             </div>
           </aside>
         </div>

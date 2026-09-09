@@ -3,7 +3,8 @@
  * standing and the outcome of the run on it (both read off the contract, never
  * worked out here), what the run says has to be brought next and whether it
  * could work out which set, the question the register puts to the server, the governing
- * Profile policy (read live from the engine, never copied), the pipeline stage
+ * Profile policy (read live from the engine, never copied), what the office
+ * declares at the counter and what the engine makes of it, the pipeline stage
  * count, the live package API, and the entity's read-only UI marks.
  */
 export type { ProfileDto } from './model/profile';
@@ -15,6 +16,30 @@ export {
 } from './model/profile';
 
 export { STAGES } from './model/pipeline';
+
+export type {
+  Declaration,
+  DeclaredDraft,
+  YearReading,
+} from './model/declared-intake';
+export {
+  BLANK_DECLARATION,
+  DECLARED_YEAR_EARLIEST,
+  DECLARED_YEAR_LATEST,
+  declaresAnything,
+  DIGITS_IN_A_YEAR,
+  groundFitsProfile,
+  groundsOffered,
+  NOTHING_DECLARED,
+  readDeclaration,
+  readDeclaredYear,
+  registering,
+  toDeclaredInput,
+  toSuggestionRequest,
+} from './model/declared-intake';
+
+export type { SuggestionLine } from './model/profile-suggestion';
+export { groundName, suggestionLines } from './model/profile-suggestion';
 
 export type {
   ApprovalStance,
@@ -130,7 +155,10 @@ export {
   useAddFilesMutation,
   useApproveArchiveSearchMutation,
 } from './api/packages-api';
-export { useGetProfilesQuery } from './api/profiles-api';
+export {
+  useGetProfilesQuery,
+  useSuggestProfileQuery,
+} from './api/profiles-api';
 export { useGetPackagesOverviewQuery } from './api/overview-api';
 
 export {

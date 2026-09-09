@@ -25,8 +25,17 @@ export {
   RECORD_FIELDS,
 } from './model/lookup';
 
-export type { ArchiveReach } from './api/archive-api';
-export { useArchiveReachQuery, useLookupAddressQuery } from './api/archive-api';
+export {
+  useArchiveSummaryQuery,
+  useLookupAddressQuery,
+} from './api/archive-api';
+
+export type {
+  ArchiveHoldings,
+  ArchiveReach,
+  SummaryAnswer,
+} from './model/holdings';
+export { readHoldings } from './model/holdings';
 
 export {
   AttributeMatchMark,

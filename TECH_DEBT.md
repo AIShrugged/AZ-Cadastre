@@ -240,15 +240,11 @@ is an API-set case in `apps/registry-stub` that asserts the report against the
 same literal the feature restates. Whichever
 happens, the `/registry` proxies in `apps/web/vite.config.ts` and
 `apps/web/nginx.conf` and this entry go together — remove one and the rest are a
-lie. **The proxies stay for now**, and deliberately: the import is not their only
-user any more but it is still one of them, and the sidebar's liveness probe
-(`entities/archive-record`, `archiveReach`) is the other — though that one now
-has somewhere to go, see below. Neither is in
-`@cadastre/api-contracts` and neither should be — a register file is not part of
-verifying a submission (ADR-0011 §1), and whether a stand-in process is up is a
-fact about this deployment rather than something a real state register would have
-to publish. So `/registry` is down to two users from three, and it goes when the
-import does.
+lie. **The proxies stay for now**, and deliberately: the import is their last
+user, and it is still one. It is not in
+`@cadastre/api-contracts` and it should not be — a register file is not part of
+verifying a submission (ADR-0011 §1). So `/registry` is down to one user from
+three, and it goes when the import does.
 
 **The second crossing is closed (COMM-55).** The operator's archive search
 (`apps/web/src/entities/archive-record`) used to post to the register's
@@ -276,9 +272,17 @@ how many records they hold, and when each last arrived — through
 health check and it does not replace one: `/api/health` stays as cheap as it is,
 for compose and for the start-up wait. But it answers everything the sidebar
 band was reaching round the API to ask and more, because a register that answers
-it is by definition answering. When `archiveReach` moves onto it, `/registry` is
-down to one user — the import — and this entry and the proxies go together with
-that one.
+it is by definition answering.
+
+**And the band is on it (COMM-59).** `entities/archive-record` asks
+`GET /api/registry/summary` through the shared base query, parsed by the
+contract's own `RegistrySummaryResponseSchema`, and the band states the figures
+it gets back — how many sources are in and how many records they hold — with the
+breakdown per source under the tooltip. The liveness probe is gone with it:
+`archiveReach` and its direct call to the register's `/api/health` no longer
+exist, and a register that has stopped answering is a failed summary rather than
+a failed health check. `/registry` is down to one user — the import — and this
+entry and the proxies go together with that one.
 
 **What it did not fix.** The register still answers with no authentication in
 front of it and none behind it, and `docker-compose.yml` still publishes it on

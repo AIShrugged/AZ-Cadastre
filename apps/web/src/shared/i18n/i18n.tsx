@@ -532,6 +532,18 @@ const en: Dict = {
   'archive.reach.asking': 'Asking the archive…',
   'archive.reach.answering': 'The archive is answering',
   'archive.reach.silent': 'The archive is not answering',
+  // Label and figure rather than "5 sources": one string, three languages and
+  // no grammatical number to agree with, which is what a count printed into a
+  // sentence would demand of every locale for the sake of a plural nobody
+  // reads at this size.
+  'archive.holdings.sources': 'Sources: {n}',
+  'archive.holdings.records': 'Records: {n}',
+  'archive.holdings.loaded': 'Last loaded {date}',
+  'archive.holdings.never': 'Nothing loaded yet',
+  // A source the archive keeps and has loaded nothing from. Not "0": a zero in
+  // a column of counts reads as a source that was counted and came out empty,
+  // which is the same thing said less clearly.
+  'archive.holdings.nothing': 'not loaded',
 
   // ── Archive search ─────────────────────────────────────────────────────────
   'page.search.title': 'Archive search',
@@ -1168,6 +1180,11 @@ const ru: Dict = {
   'archive.reach.asking': 'Запрашиваем архив…',
   'archive.reach.answering': 'Архив отвечает',
   'archive.reach.silent': 'Архив не отвечает',
+  'archive.holdings.sources': 'Источники: {n}',
+  'archive.holdings.records': 'Записи: {n}',
+  'archive.holdings.loaded': 'Последняя загрузка: {date}',
+  'archive.holdings.never': 'Ничего не загружено',
+  'archive.holdings.nothing': 'не загружен',
 
   // ── Поиск по архиву ────────────────────────────────────────────────────────
   'page.search.title': 'Поиск по архиву',
@@ -1800,6 +1817,11 @@ const az: Dict = {
   'archive.reach.asking': 'Arxivdən soruşulur…',
   'archive.reach.answering': 'Arxiv cavab verir',
   'archive.reach.silent': 'Arxiv cavab vermir',
+  'archive.holdings.sources': 'Mənbələr: {n}',
+  'archive.holdings.records': 'Qeydlər: {n}',
+  'archive.holdings.loaded': 'Son yüklənmə: {date}',
+  'archive.holdings.never': 'Hələ heç nə yüklənməyib',
+  'archive.holdings.nothing': 'yüklənməyib',
 
   // ── Arxiv axtarışı ─────────────────────────────────────────────────────────
   'page.search.title': 'Arxiv axtarışı',

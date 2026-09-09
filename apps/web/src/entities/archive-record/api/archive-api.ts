@@ -1,43 +1,31 @@
 /**
  * The archive register, as the browser reaches it.
  *
- * The lookup goes through the gateway like everything else: it **is** in the
- * contract — `AddressesApi` in `@cadastre/api-contracts/registry` — and since
- * COMM-55 there is an `/api` route over it, so the screen speaks to this
- * system's own origin and the register is not on the browser's map at all.
+ * Both questions go through the gateway like everything else: both **are** in
+ * the contract — `AddressesApi` and `RegistrySummaryApi` in
+ * `@cadastre/api-contracts/registry` — and since COMM-55 and COMM-58 there is
+ * an `/api` route over each, so the screen speaks to this system's own origin
+ * and the register is not on the browser's map at all.
  *
  * What it does **not** do is restate the shapes: request and response are the
- * contract's own, and the answer is parsed through the contract's own Zod
+ * contract's own, and each answer is parsed through the contract's own Zod
  * schema, so the one place the two sides can drift — the wire — is checked
  * rather than assumed.
  *
- * The liveness probe below is the exception, and the one crossing left on this
- * screen. It is not in the contract and must not be: whether a stand-in process
- * is up is a fact about this deployment, not something a real state register
- * would have to publish. It keeps the `/registry` proxy alive alongside the
- * workbook import (TECH_DEBT §10).
+ * Nothing here crosses to the register directly any more. The liveness probe
+ * that used to (`GET /api/health` through the `/registry` proxy) is gone: the
+ * summary answers everything it answered and more, because a register that
+ * publishes what it holds is by definition answering. `/registry` stays for the
+ * workbook import, which is its last user (TECH_DEBT §10).
  */
-import axios from 'axios';
-
 import { api } from '@/shared/api';
-import { registryBase } from '@/shared/config';
 import {
   AddressLookupResponseSchema,
+  RegistrySummaryResponseSchema,
   type AddressLookupRequest,
   type AddressLookupResponse,
+  type RegistrySummaryResponse,
 } from '@cadastre/api-contracts/registry';
-
-/** The register's own liveness route, under its own `api` global prefix. */
-const HEALTH_PATH = '/api/health';
-
-/**
- * Whether the register is answering at all.
- *
- * Three states and not two: a register that has not been asked yet is not a
- * register that is down, and a sidebar that reads "unreachable" for the half
- * second before the first answer would be lying twice a page.
- */
-export type ArchiveReach = 'answering' | 'silent';
 
 export const archiveApi = api.injectEndpoints({
   endpoints: build => ({
@@ -64,26 +52,25 @@ export const archiveApi = api.injectEndpoints({
         AddressLookupResponseSchema.parse(response),
     }),
     /*
-     * The register's liveness, which is all it publishes about itself: it
-     * answers `{ status: 'ok' }` and says nothing about how many workbooks it
-     * loaded or how many records they hold. The sidebar states what it can
-     * therefore know — that the archive is answering — and no number.
+     * How much of the archive the register is holding, and since when.
      *
-     * `queryFn` rather than `query`, because the shared base query is bound to
-     * `/api` — this system's origin — and this one request still goes straight
-     * to the register.
+     * The sidebar's one standing question, and it is two questions answered by
+     * one call: what the archive has in it, and — by the call succeeding at
+     * all — whether the archive is there. A separate health check beside this
+     * would ask something this already proves.
+     *
+     * A refusal is not caught here. The gateway states a register that is down
+     * as `REGISTRY_UNREACHABLE` (504) and one that refused us as
+     * `REGISTRY_REFUSED` (502), both in the published `ErrorBody`, and the band
+     * reads either as the register being quiet — but a parse failure is a
+     * drifted contract and has to surface as one, not as a silent register.
      */
-    archiveReach: build.query<ArchiveReach, void>({
-      queryFn: async () => {
-        try {
-          await axios.get(`${registryBase}${HEALTH_PATH}`);
-          return { data: 'answering' as const };
-        } catch {
-          return { data: 'silent' as const };
-        }
-      },
+    archiveSummary: build.query<RegistrySummaryResponse, void>({
+      query: () => '/registry/summary',
+      transformResponse: (response: unknown): RegistrySummaryResponse =>
+        RegistrySummaryResponseSchema.parse(response),
     }),
   }),
 });
 
-export const { useLookupAddressQuery, useArchiveReachQuery } = archiveApi;
+export const { useLookupAddressQuery, useArchiveSummaryQuery } = archiveApi;

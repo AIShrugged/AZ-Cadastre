@@ -37,7 +37,6 @@ RUN npm install -g pnpm
 RUN pnpm install --frozen-lockfile --prod --ignore-scripts --filter @cadastre/registry-stub...
 
 COPY --from=builder /app/libs/matching-engine/build ./libs/matching-engine/build
-COPY --from=builder /app/libs/shared/build ./libs/shared/build
 COPY --from=builder /app/libs/logger/build ./libs/logger/build
 COPY --from=builder /app/libs/api-contracts/build ./libs/api-contracts/build
 COPY --from=builder /app/apps/registry-stub/build ./apps/registry-stub/build

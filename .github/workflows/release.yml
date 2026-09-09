@@ -27,6 +27,9 @@ jobs:
       github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     strategy:
+      # Один сломанный образ не должен отменять сборку двух других: иначе в
+      # отчёте два «cancelled» вместо ответа, собираются они или нет.
+      fail-fast: false
       matrix:
         include:
           - image: cadastre-web

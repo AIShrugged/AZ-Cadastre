@@ -36,6 +36,7 @@ import {
   documentsExpected,
   HOLDING_KEY,
   HOLDING_TONE,
+  ISSUE_KIND_KEY,
   missingTypes,
   OUTCOME_NOTE,
   OutcomeMark,
@@ -1125,35 +1126,51 @@ function RequiredDocuments({
 // either: it is the only line the applicant has to act on (ADR-0013).
 type SectionTone = 'finding' | 'note' | 'requirement';
 
+//
+// The headings themselves are the entity's `ISSUE_KIND_KEY` and not literals
+// here: the register's summary ranks the same kinds by how often they come up,
+// and a kind named one thing on a package and another in a tally of a hundred
+// of them is two vocabularies for one idea. What stays local is the `tone` —
+// which of the three things a report says this kind is — because that is this
+// page's own classification and no other screen reads it.
 const SECTIONS: Record<IssueKind, { heading: string; tone: SectionTone }> = {
-  MissingDocument: { heading: 'detail.sec.missing', tone: 'finding' },
-  FieldMismatch: { heading: 'detail.sec.mismatch', tone: 'finding' },
+  MissingDocument: { heading: ISSUE_KIND_KEY.MissingDocument, tone: 'finding' },
+  FieldMismatch: { heading: ISSUE_KIND_KEY.FieldMismatch, tone: 'finding' },
   // Beside the papers disagreeing with each other, because it is the same
   // question asked of a different source: the record of what was registered.
   RegistryMismatch: {
-    heading: 'detail.sec.registry_mismatch',
+    heading: ISSUE_KIND_KEY.RegistryMismatch,
     tone: 'finding',
   },
   // A finding and not an observation, unlike an absent record: the archive
   // wrote down that it does not have the original, and for a title relied on
   // under Decree 439 the original is a condition of the ground (ADR-0010).
   RegistryDocumentMissing: {
-    heading: 'detail.sec.registry_document_missing',
+    heading: ISSUE_KIND_KEY.RegistryDocumentMissing,
     tone: 'finding',
   },
   // Beside the other shortfalls in the package itself and before the reading
   // ones: the sheet was read perfectly well, and what it was read to hold is a
   // paper without the seal or the hand that makes it valid (ADR-0012).
-  MissingAttestation: { heading: 'detail.sec.attestation', tone: 'finding' },
-  UnreadableDocument: { heading: 'detail.sec.unreadable', tone: 'finding' },
-  LowConfidence: { heading: 'detail.sec.low', tone: 'finding' },
-  DuplicateDocument: { heading: 'detail.sec.duplicate', tone: 'note' },
-  ExtraDocument: { heading: 'detail.sec.extra', tone: 'note' },
+  MissingAttestation: {
+    heading: ISSUE_KIND_KEY.MissingAttestation,
+    tone: 'finding',
+  },
+  UnreadableDocument: {
+    heading: ISSUE_KIND_KEY.UnreadableDocument,
+    tone: 'finding',
+  },
+  LowConfidence: { heading: ISSUE_KIND_KEY.LowConfidence, tone: 'finding' },
+  DuplicateDocument: {
+    heading: ISSUE_KIND_KEY.DuplicateDocument,
+    tone: 'note',
+  },
+  ExtraDocument: { heading: ISSUE_KIND_KEY.ExtraDocument, tone: 'note' },
   // An observation and never a fault: the archive register holds the
   // privatisations of the 1990s and 2000s, so it having no record of a property
   // says nothing about the submission (ADR-0009).
   RegistryUnconfirmed: {
-    heading: 'detail.sec.registry_unconfirmed',
+    heading: ISSUE_KIND_KEY.RegistryUnconfirmed,
     tone: 'note',
   },
   // Neither a fault nor an observation about the envelope: what the applicant
@@ -1161,7 +1178,7 @@ const SECTIONS: Record<IssueKind, { heading: string; tone: SectionTone }> = {
   // because it is the only line that is about what happens after the report
   // (ADR-0013).
   SupportingDocumentsRequired: {
-    heading: 'detail.sec.supporting',
+    heading: ISSUE_KIND_KEY.SupportingDocumentsRequired,
     tone: 'requirement',
   },
 };

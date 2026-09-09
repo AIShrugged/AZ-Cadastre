@@ -261,3 +261,55 @@ own instruction — and rewrite the rows. Nothing in
 `verification-profile.vo.ts`, the aggregate or the report needs to move for it.
 Until then this branch states what we believe, and what we believe here is a
 placeholder: no decision may be taken on it.
+
+## 12. A summary count cannot be narrowed to the period it was counted over
+
+**Not done.** `GET /api/packages/overview` answers over a period; `GET
+/api/packages` does not take one (`ListPackagesRequestSchema` has `search`,
+`standing`, `reportStatus`, `limit`, `offset` and no bounds). So the register
+cannot be opened at the submissions a period-narrowed count counted.
+
+The summary handles this rather than papering over it: a count is a link only
+while the window is the whole register, and under any other window the counts
+are plain text with a line saying why (`coversWholeRegister`). The stalled band
+has a second, separate reason — the register narrows by `PackageStanding`, and
+`Stalled` covers a broken-down run _and_ a finished run that left no report,
+which is a superset of the conveyor's `Failed` that the band counts — so it
+offers a labelled action instead of making its number clickable.
+
+**How it fires.** An inspector narrows the summary to the last seven days, sees
+that twelve submissions have findings, and cannot get from that number to those
+twelve. They must clear the period first and then read a filter over the whole
+register, which answers a different question.
+
+**What to do.** Add an accepted-at window to the list endpoint — the same
+`from`/`to` semantics the overview already publishes, over the same column and
+the index `20260908223000_package_accepted_at_index` already added for it.
+`toListRequest` then carries the period, `coversWholeRegister` and the note it
+gates disappear, and every count becomes a link. For the stalled band, either
+publish a standing that means only `Failed` or leave the labelled action: the
+band is honest as it stands.
+
+## 13. Two disposition inks sit below the categorical separation floor
+
+**Not done.** The register's `issues` (amber) and `incomplete` (clay) are 13.6
+ΔE apart under normal vision in OKLab ×100, against a floor of 15, and 7.5 under
+protanopia against a target of 8. They are adjacent segments of the summary's
+outcome bar, which is the one place on the surface where the two touch.
+
+They are not re-stepped, deliberately. These are the product's reserved
+disposition inks (`DESIGN.md`), used identically on every register row, on the
+package page and in the summary; moving them for one figure would make the
+summary disagree with the rest of the product about what "issues found" looks
+like, which is a worse fault than the one it fixes.
+
+**How it fires.** A reader with red-green colour deficiency, looking only at the
+bar, may not tell the amber run from the clay one. Nothing else breaks.
+
+**What to do.** Nothing, unless the whole disposition band is re-stepped — at
+which point re-run the check over `ok`/`issues`/`incomplete` in both modes
+together. What holds the figure up meanwhile is the mitigation the design system
+already requires: The Status-Never-Alone Rule. Every class in every tally is
+listed beneath its bar with its own mark, its name, its count and its share, so
+no value is ever carried by a fill alone — and the archive's five answers each
+carry a distinct glyph on top of that.

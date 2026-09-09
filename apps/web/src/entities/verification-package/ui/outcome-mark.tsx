@@ -83,8 +83,13 @@ export function OutcomeMark({
  * `NotFound` is a dashed ring and not a crossed-out one: a barred circle is the
  * sign for refused, and the register refuses nothing — it states that its own
  * fonds hold no record, which is an absence of evidence (ADR-0009).
+ *
+ * Exported because the summary counts the same five answers and has to draw
+ * them by the same glyph: a verdict that is a dashed ring on a package and an
+ * anonymous dot in the tally of a hundred of them is two vocabularies for one
+ * idea, and the tally is where the five sit closest together.
  */
-const OUTCOME_ICON: Record<
+export const OUTCOME_ICON: Record<
   RegistryOutcome,
   ComponentType<{ className?: string }>
 > = {

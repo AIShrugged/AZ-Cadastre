@@ -36,6 +36,37 @@ export {
 
 export { REPORT_KEY, REPORT_TONE } from './model/report-outcome';
 
+export type { OverviewPeriod } from './model/overview-period';
+export {
+  coversWholeRegister,
+  OVERVIEW_PERIODS,
+  parseOverviewPeriod,
+  PERIOD_KEY,
+  toOverviewRequest,
+  WHOLE_REGISTER_PERIOD,
+  withOverviewPeriod,
+} from './model/overview-period';
+
+export type {
+  FindingRank,
+  FindingRanking,
+  SliceTone,
+  Tally,
+  TallySlice,
+} from './model/overview';
+export {
+  archiveTally,
+  ARCHIVE_ORDER,
+  CONVEYOR_KEY,
+  CONVEYOR_ORDER,
+  ISSUE_KIND_KEY,
+  outcomeTally,
+  OUTCOME_ORDER,
+  pipelineTally,
+  rankFindings,
+  stalledCount,
+} from './model/overview';
+
 export type {
   ReportReading,
   SupportingSet,
@@ -82,8 +113,13 @@ export {
   useApproveArchiveSearchMutation,
 } from './api/packages-api';
 export { useGetProfilesQuery } from './api/profiles-api';
+export { useGetPackagesOverviewQuery } from './api/overview-api';
 
-export { OutcomeMark, RegistryOutcomeMark } from './ui/outcome-mark';
+export {
+  OutcomeMark,
+  OUTCOME_ICON,
+  RegistryOutcomeMark,
+} from './ui/outcome-mark';
 export { StandingMark } from './ui/standing-mark';
 export { ProfileGlyph } from './ui/profile-glyph';
 export { StageBar } from './ui/stage-bar';

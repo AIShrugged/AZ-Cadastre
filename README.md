@@ -161,30 +161,37 @@ docker compose up --build
 
 ### Migrations in a container
 
-The verification context owns its database, so its migration history travels
-inside its own package — not in `apps/server`, where there is no Prisma at all
-(`npx prisma` from there answers `prisma: not found`). Run them from the package:
+Neither service image can migrate its own database, and this is on purpose.
+`prisma` is a devDependency of both `packages/verification` and
+`apps/registry-stub`, and both runtime stages install with `--prod`, so the CLI
+is not in them — `docker exec cadastre-registry pnpm db:deploy` answers `sh:
+prisma: not found`, and in `cadastre-core` it does not even reach Prisma. Adding
+the CLI to a service image would put `migrate reset` and a bundled Prisma Studio
+inside a container that is exposed to the internet, for a command that runs once
+per deploy.
+
+So migrating is its own image, `ekalkutin/cadastre-migrator`, holding the Prisma
+CLI, both schemas and both migration histories and nothing that serves traffic.
+It is a compose profile rather than a service, so it never starts with `up`:
 
 ```bash
-docker compose exec -w /app/packages/verification backend pnpm db:deploy
+docker compose run --rm migrate            # both databases
+docker compose run --rm migrate core       # cadastre-db only
+docker compose run --rm migrate registry   # cadastre-registry only
+docker compose run --rm migrate status     # report what is pending, apply nothing
 ```
 
-`db:deploy` is `prisma migrate deploy`: it applies what is pending, never
-prompts and never resets. `pnpm exec prisma migrate status` reports without
-applying anything.
+Everything it needs — the CLI and Prisma's schema engine — is baked in at build
+time, so applying a migration on the stand needs no package registry. It is
+`prisma migrate deploy` underneath: it applies what is pending, never prompts
+and never resets, so re-running it is harmless.
 
-To stop doing it by hand, let the service migrate before it serves — give the
-`backend` service its own command in `docker-compose.yml`:
+Run it **before** starting the services, not from them. Migrating on start-up
+looks tidier and costs two things: two containers booting together race for the
+same database, and a stand rolled back by pulling the previous tag migrates
+itself forward on the way there.
 
-```yaml
-command: >
-  sh -c "cd /app/packages/verification && pnpm db:deploy &&
-         cd /app/apps/server && node build/main.js"
-```
-
-`migrate deploy` is idempotent, so a restart re-runs it harmlessly and a
-deployment that adds a column needs no separate step. It suits a single
-instance: several replicas booting together would each try to migrate at once,
-and that is when the migration belongs in a job of its own instead.
+Why an image rather than the CLI in the service images, and what else was
+weighed: [ADR-0020](docs/adr/0020-migrations-are-applied-by-an-image-of-their-own.md).
 
 See [docs/DOCKER.md](docs/DOCKER.md) for detailed Docker setup and deployment instructions.

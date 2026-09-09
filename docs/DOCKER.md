@@ -108,21 +108,21 @@ that already exists it has to be made by hand:
 docker exec cadastre-postgres createdb -U postgres cadastre-registry
 ```
 
-Then apply the schema and put the records in. Both run from inside the image —
-the Prisma CLI and the migration history are in it — and either against the
-running service:
+Then apply the schema and put the records in. That is two different images: the
+migration history is applied by `cadastre-migrator` ([Migrations](#migrations)),
+and the seed is plain `node` and runs from the register's own image.
 
 ```bash
-docker exec cadastre-registry pnpm db:deploy   # applies the migration history
-docker exec cadastre-registry pnpm db:seed     # idempotent; safe to re-run
+docker compose run --rm migrate registry     # applies the migration history
+docker exec cadastre-registry pnpm db:seed   # idempotent; safe to re-run
 ```
 
-or, before it is started at all, in a one-off container that never runs the
-service. This is the form to use on a first deploy, and it takes the service's
-own environment and network:
+On a first deploy, do both before the service is started at all — `run` takes
+the service's own environment and network and needs no running container:
 
 ```bash
-docker compose run --rm registry sh -c "pnpm db:deploy && pnpm db:seed"
+docker compose run --rm migrate registry
+docker compose run --rm registry pnpm db:seed
 docker compose up -d registry
 ```
 
@@ -136,7 +136,7 @@ into.
 
 ```
 WARN  Register listening with no schema in its database
-      {"database":"postgres:5432/cadastre-registry","apply":"pnpm db:deploy && pnpm db:seed"}
+      {"database":"postgres:5432/cadastre-registry","apply":"docker compose run --rm migrate registry, then db:seed"}
 ```
 
 Once migrated it starts answering without a restart. When it is healthy the same
@@ -169,6 +169,9 @@ The docker-compose configuration includes:
 - **Backend** (`ekalkutin/cadastre-core`): NestJS API on port 3000
 - **Registry** (`ekalkutin/cadastre-registry`): the archive register stand-in on
   port 3100, answering out of its own `cadastre-registry` database
+- **Migrate** (`ekalkutin/cadastre-migrator`): not a service — a one-off job
+  behind the `migrate` profile, so `up` never starts it. See
+  [Migrations](#migrations)
 - **PostgreSQL**: two databases on port 5432 — `cadastre-db` for the
   verification context, `cadastre-registry` for the register
 - **RustFS**: S3-compatible storage on ports 9000/9001
@@ -235,6 +238,55 @@ docker compose logs -f postgres
 - Includes Prisma schema for database operations
 - Runs compiled NestJS application on port 3000
 
+## Migrations
+
+Both databases are migrated by an image of their own,
+`ekalkutin/cadastre-migrator`, and neither service image can do it
+(ADR-0020).
+
+That is deliberate. `prisma` is a devDependency of both
+`packages/verification` and `apps/registry-stub`, and both runtime stages
+install with `--prod`, so the CLI is not in the published images:
+`docker exec cadastre-registry pnpm db:deploy` answers `sh: prisma: not found`,
+and the same command against `cadastre-core` does not even reach Prisma — that
+image carries no `apps/registry-stub`, which `apps/server` names as a
+devDependency, so pnpm decides the workspace is stale and dies re-installing it.
+Moving the CLI into `dependencies` would fix the message and put `migrate reset`
+and a bundled Prisma Studio inside two containers that face the internet, for a
+command that runs once per deploy.
+
+The migrator holds the Prisma CLI, both schemas and both migration histories,
+and nothing that serves traffic. Everything it needs — including Prisma's schema
+engine — is baked in at build time, so applying a migration on the stand reaches
+no package registry.
+
+```bash
+docker compose run --rm migrate            # both databases
+docker compose run --rm migrate core       # cadastre-db only
+docker compose run --rm migrate registry   # cadastre-registry only
+docker compose run --rm migrate status     # report what is pending, apply nothing
+```
+
+It is `prisma migrate deploy` underneath: it applies what is pending, never
+prompts and never resets, so re-running it is harmless. There is no `reset`
+verb, and the image ships no `pnpm` to reach the `db:reset` script with.
+
+Run it **before** the services, not from them. Migrating on start-up reads
+tidier and costs two things: two containers booting together race for the same
+database, and a stand rolled back by pulling the previous tag migrates itself
+forward on the way there.
+
+Outside compose it is a plain `docker run`, and it names its two databases
+separately on purpose — there is no bare `DATABASE_URL`, because one unnamed URL
+is how the register's tables end up in the verification context's database:
+
+```bash
+docker run --rm --network cadastre_default \
+  -e CORE_DATABASE_URL='postgresql://postgres:postgres@postgres:5432/cadastre-db?schema=public' \
+  -e REGISTRY_DATABASE_URL='postgresql://postgres:postgres@postgres:5432/cadastre-registry?schema=public' \
+  ekalkutin/cadastre-migrator:latest
+```
+
 ## Building and Pushing Images
 
 ### Build Locally
@@ -250,6 +302,9 @@ docker build -f apps/server/Dockerfile -t ekalkutin/cadastre-core:latest .
 
 # Build the archive register stand-in
 docker build -f apps/registry-stub/Dockerfile -t ekalkutin/cadastre-registry:latest .
+
+# Build the migrator
+docker build -f docker/migrator/Dockerfile -t ekalkutin/cadastre-migrator:latest .
 ```
 
 ### Push to Docker Hub
@@ -263,12 +318,19 @@ docker push ekalkutin/cadastre-core:latest
 
 # Push the archive register stand-in
 docker push ekalkutin/cadastre-registry:latest
+
+# Push the migrator
+docker push ekalkutin/cadastre-migrator:latest
 ```
 
 **Deploying the register is not only a `docker compose pull`.** The image now
-expects a schema: pull it, make sure `cadastre-registry` exists, then run
-`db:deploy` and `db:seed` as above. Until that is done the register starts,
-answers, and reports every property as unconfirmed.
+expects a schema: pull it, make sure `cadastre-registry` exists, then migrate
+and seed as above. Until that is done the register starts, answers, and reports
+every property as unconfirmed.
+
+`cadastre-migrator` is pushed by the same release as the three service images
+and is pulled with them. A `latest` migrator older than the `latest` service it
+migrates for is a schema that does not match the code reading it.
 
 ### Tag with Version
 
@@ -304,8 +366,10 @@ docker push ekalkutin/cadastre-web:latest
   start-up line: `docker logs cadastre-registry | grep "Register listening"`. At
   WARN with an `apply` field the schema is missing; at INFO with `"records":0`
   the schema is there and the seed was not run.
-- Either way: `docker compose run --rm registry sh -c "pnpm db:deploy && pnpm db:seed"`,
-  or the same two commands through `docker exec` on the running container.
+- Either way: `docker compose run --rm migrate registry` for the schema, then
+  `docker exec cadastre-registry pnpm db:seed` for the records.
+  `docker compose run --rm migrate status` says which of the two is missing
+  without changing anything.
 
 **The backend reports every property as unconfirmed**
 

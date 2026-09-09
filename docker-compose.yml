@@ -113,8 +113,9 @@ services:
       # only when the data directory is new, so on an existing volume create it
       # by hand:
       #   docker exec cadastre-postgres createdb -U postgres cadastre-registry
-      # Then apply the schema and put the records in:
-      #   docker exec cadastre-registry pnpm db:deploy
+      # Then apply the schema — see the `migrate` service below — and put the
+      # records in. The seed is plain node and runs from this image:
+      #   docker compose run --rm migrate registry
       #   docker exec cadastre-registry pnpm db:seed
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/cadastre-registry?schema=public
     depends_on:
@@ -131,6 +132,38 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  # Applies the pending migrations of both databases. Its own image, because
+  # neither service image can do it: `prisma` is a devDependency of both
+  # `packages/verification` and `apps/registry-stub`, and both runtime stages
+  # install with `--prod`, so the CLI is not in them (COMM-62). Putting it in
+  # them would also put `migrate reset` inside a container that is exposed to
+  # the internet, and a bundled Prisma Studio with it (ADR-0020).
+  #
+  #   docker compose run --rm migrate            # both databases
+  #   docker compose run --rm migrate core       # cadastre-db only
+  #   docker compose run --rm migrate registry   # cadastre-registry only
+  #   docker compose run --rm migrate status     # report, apply nothing
+  #
+  # `migrate deploy` applies what is pending, never prompts and never resets, so
+  # re-running it is harmless. `profiles` is what keeps it out of `up`: it is a
+  # job that exits, not a service, and it is run before the services are
+  # started rather than by them — two containers booting into the same database
+  # would race, and a stand rolled back by pulling the previous tag would
+  # migrate itself forward on the way there.
+  migrate:
+    image: ekalkutin/cadastre-migrator:latest
+    profiles:
+      - migrate
+    environment:
+      # One variable per database, and no bare DATABASE_URL: the two histories
+      # are separate on purpose (ADR-0010), and a single unnamed URL is how the
+      # register's tables end up in the verification context's database.
+      - CORE_DATABASE_URL=postgresql://postgres:postgres@postgres:5432/cadastre-db?schema=public
+      - REGISTRY_DATABASE_URL=postgresql://postgres:postgres@postgres:5432/cadastre-registry?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   postgres:
     image: postgres:17-alpine

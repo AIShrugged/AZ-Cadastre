@@ -17,6 +17,19 @@
  *
  * The question lives in the address bar, so a narrowed register can be linked to
  * and returned to — the same reason a package has an address of its own.
+ *
+ * **The summary sits on this screen and not beside it.** The four things an
+ * inspector opens a summary to ask are questions about the very submissions
+ * this table lists, and a section of their own would be one more page to
+ * remember; so the register opens with what it looks like from further away and
+ * then lists the entries. It scrolls with them rather than pinning above them:
+ * an inspector who works the queue all day folds it shut once, and the fold is
+ * remembered.
+ *
+ * The strip that searches and narrows the register moved into the scrolling
+ * region with the table it belongs to. Above the summary it would have sat four
+ * hundred pixels from the rows it filters, which is the same control in the
+ * wrong place.
  */
 import {
   ChevronRightIcon,
@@ -37,6 +50,7 @@ import {
   OutcomeMark,
   packageRef,
   pageCount,
+  parseOverviewPeriod,
   parseRegisterQuery,
   profileName,
   registerQueryParams,
@@ -49,6 +63,8 @@ import {
   useGetPackagesQuery,
   useGetProfilesQuery,
   WHOLE_REGISTER,
+  withOverviewPeriod,
+  type OverviewPeriod,
   type ProfileDto,
   type RegisterQuery,
   type VerificationPackage,
@@ -90,6 +106,7 @@ import {
 } from '@/shared/ui/table';
 import { ToggleGroup, ToggleGroupItem } from '@/shared/ui/toggle-group';
 import { HeaderActions } from '@/widgets/app-shell';
+import { RegisterSummary } from '@/widgets/register-summary';
 import {
   PackageStandingSchema,
   ReportStatusSchema,
@@ -569,10 +586,28 @@ export function Dashboard() {
 
   const query = useMemo(() => parseRegisterQuery(params), [params]);
   const request = useMemo(() => toListRequest(query), [query]);
+  // The window the summary is read over. It lives in the same address bar as
+  // the register's own question but narrows nothing on this table — the list
+  // endpoint takes no period — so it is parsed apart from the query and carried
+  // through every rewrite of it rather than folded into `RegisterQuery`.
+  const period = useMemo(() => parseOverviewPeriod(params), [params]);
 
   const ask = useCallback(
     (change: Partial<RegisterQuery>, replace = false) => {
-      setParams(registerQueryParams({ ...query, ...change }), { replace });
+      setParams(
+        withOverviewPeriod(
+          registerQueryParams({ ...query, ...change }),
+          period,
+        ),
+        { replace },
+      );
+    },
+    [query, period, setParams],
+  );
+
+  const askPeriod = useCallback(
+    (next: OverviewPeriod) => {
+      setParams(withOverviewPeriod(registerQueryParams(query), next));
     },
     [query, setParams],
   );
@@ -636,7 +671,10 @@ export function Dashboard() {
   };
 
   const narrowed = isNarrowed(query);
-  const clear = () => setParams(registerQueryParams(WHOLE_REGISTER));
+  // Clearing the filters clears the filters. The period is not one of them — it
+  // scopes the summary and narrows no row in this table — so it survives.
+  const clear = () =>
+    setParams(withOverviewPeriod(registerQueryParams(WHOLE_REGISTER), period));
 
   // Nothing has ever been answered for this question or any other — the one
   // state in which the register genuinely does not know what it holds.
@@ -670,74 +708,80 @@ export function Dashboard() {
         subtitle={t('page.register.subtitle')}
       />
 
-      {/* ── Filter / control strip ── */}
-      <div className='flex shrink-0 flex-col gap-3 border-b border-rule px-4 py-2.5 md:flex-row md:items-center md:justify-between md:px-6'>
-        <div className='relative md:w-80'>
-          <SearchIcon className='pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground' />
-          <Input
-            value={term}
-            onChange={e => setTerm(e.target.value)}
-            placeholder={t('search.placeholder')}
-            aria-label={t('search.label')}
-            className='h-8 border-input bg-background pl-8 text-[0.8125rem]'
-          />
-        </div>
-
-        <div className='flex flex-wrap items-center gap-2'>
-          <Filter
-            label={t('filter.standing')}
-            anyLabel={t('filter.any_standing')}
-            value={query.standing}
-            options={STANDINGS}
-            optionLabel={standing => t(STANDING_KEY[standing])}
-            onChange={standing => ask({ standing, page: 1 })}
-          />
-          <Filter
-            label={t('filter.outcome')}
-            anyLabel={t('filter.any_outcome')}
-            value={query.reportStatus}
-            options={OUTCOMES}
-            optionLabel={outcome => t(REPORT_KEY[outcome])}
-            onChange={reportStatus => ask({ reportStatus, page: 1 })}
-          />
-          {narrowed && (
-            <Button variant='ghost' size='sm' onClick={clear}>
-              <FilterXIcon /> {t('empty.clear')}
-            </Button>
-          )}
-          <ToggleGroup
-            value={[density]}
-            onValueChange={(v: string[]) => {
-              if (v.length) setDensity(v[0] as Density);
-            }}
-            spacing={0}
-            aria-label={t('density.label')}
-            className='overflow-hidden rounded-md border border-input'
-          >
-            <ToggleGroupItem
-              value='comfortable'
-              aria-label={t('density.comfortable')}
-              className='size-8 rounded-none data-pressed:bg-accent data-pressed:text-foreground'
-            >
-              <Rows2Icon className='size-4' />
-            </ToggleGroupItem>
-            <ToggleGroupItem
-              value='compact'
-              aria-label={t('density.compact')}
-              className='size-8 rounded-none data-pressed:bg-accent data-pressed:text-foreground'
-            >
-              <Rows4Icon className='size-4' />
-            </ToggleGroupItem>
-          </ToggleGroup>
-        </div>
-      </div>
-
-      {/* ── Register body ── the one scrolling region between the bands.
-          Four states, and each is told apart from the rest: nothing answered
-          yet, nothing answered at all, an answer with no rows in it, and rows.
-          An answer to the *previous* question is never drawn as an empty one —
-          that is the difference between "no packages match" and "still asking". */}
       <SurfaceBody>
+        {/* ── The register from further away ──
+            Above the strip that searches it, because it is about every
+            submission the office has taken in and the strip is about which of
+            them this page lists. It scrolls away with the summary it heads. */}
+        <RegisterSummary period={period} onPeriod={askPeriod} now={now} />
+
+        {/* ── Filter / control strip ── */}
+        <div className='flex shrink-0 flex-col gap-3 border-b border-rule px-4 py-2.5 md:flex-row md:items-center md:justify-between md:px-6'>
+          <div className='relative md:w-80'>
+            <SearchIcon className='pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground' />
+            <Input
+              value={term}
+              onChange={e => setTerm(e.target.value)}
+              placeholder={t('search.placeholder')}
+              aria-label={t('search.label')}
+              className='h-8 border-input bg-background pl-8 text-[0.8125rem]'
+            />
+          </div>
+
+          <div className='flex flex-wrap items-center gap-2'>
+            <Filter
+              label={t('filter.standing')}
+              anyLabel={t('filter.any_standing')}
+              value={query.standing}
+              options={STANDINGS}
+              optionLabel={standing => t(STANDING_KEY[standing])}
+              onChange={standing => ask({ standing, page: 1 })}
+            />
+            <Filter
+              label={t('filter.outcome')}
+              anyLabel={t('filter.any_outcome')}
+              value={query.reportStatus}
+              options={OUTCOMES}
+              optionLabel={outcome => t(REPORT_KEY[outcome])}
+              onChange={reportStatus => ask({ reportStatus, page: 1 })}
+            />
+            {narrowed && (
+              <Button variant='ghost' size='sm' onClick={clear}>
+                <FilterXIcon /> {t('empty.clear')}
+              </Button>
+            )}
+            <ToggleGroup
+              value={[density]}
+              onValueChange={(v: string[]) => {
+                if (v.length) setDensity(v[0] as Density);
+              }}
+              spacing={0}
+              aria-label={t('density.label')}
+              className='overflow-hidden rounded-md border border-input'
+            >
+              <ToggleGroupItem
+                value='comfortable'
+                aria-label={t('density.comfortable')}
+                className='size-8 rounded-none data-pressed:bg-accent data-pressed:text-foreground'
+              >
+                <Rows2Icon className='size-4' />
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value='compact'
+                aria-label={t('density.compact')}
+                className='size-8 rounded-none data-pressed:bg-accent data-pressed:text-foreground'
+              >
+                <Rows4Icon className='size-4' />
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+        </div>
+
+        {/* ── Register rows ── four states, and each is told apart from the
+            rest: nothing answered yet, nothing answered at all, an answer with
+            no rows in it, and rows. An answer to the *previous* question is
+            never drawn as an empty one — that is the difference between "no
+            packages match" and "still asking". */}
         {isError && waiting ? (
           <UnreachableRegister onRetry={() => void refetch()} />
         ) : waiting || (rows.length === 0 && !answered) ? (

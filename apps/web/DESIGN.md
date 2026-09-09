@@ -2,98 +2,98 @@
 name: Cadastre
 description: The Register, refreshed — a Swiss International Typographic system for government document verification, softened toward a contemporary product surface.
 colors:
-  paper: "oklch(0.984 0.003 260)"
-  surface-raised: "oklch(1 0 0)"
-  ink: "oklch(0.235 0.014 264)"
-  signal-indigo: "oklch(0.505 0.185 266)"
-  accent-2: "oklch(0.62 0.115 214)"
-  accent-2-ink: "oklch(0.47 0.09 216)"
-  muted-ink: "oklch(0.505 0.016 264)"
-  rule: "oklch(0.922 0.004 264)"
-  rule-strong: "oklch(0.868 0.006 264)"
-  selection-tint: "oklch(0.955 0.017 266)"
-  ok: "oklch(0.60 0.13 160)"
-  ok-ink: "oklch(0.45 0.10 160)"
-  issues: "oklch(0.68 0.14 74)"
-  issues-ink: "oklch(0.475 0.10 66)"
-  incomplete: "oklch(0.60 0.16 32)"
-  incomplete-ink: "oklch(0.465 0.145 30)"
-  failed: "oklch(0.55 0.20 26)"
-  failed-ink: "oklch(0.46 0.185 25)"
+  paper: 'oklch(0.984 0.003 260)'
+  surface-raised: 'oklch(1 0 0)'
+  ink: 'oklch(0.235 0.014 264)'
+  signal-indigo: 'oklch(0.505 0.185 266)'
+  accent-2: 'oklch(0.62 0.115 214)'
+  accent-2-ink: 'oklch(0.47 0.09 216)'
+  muted-ink: 'oklch(0.505 0.016 264)'
+  rule: 'oklch(0.922 0.004 264)'
+  rule-strong: 'oklch(0.868 0.006 264)'
+  selection-tint: 'oklch(0.955 0.017 266)'
+  ok: 'oklch(0.60 0.13 160)'
+  ok-ink: 'oklch(0.45 0.10 160)'
+  issues: 'oklch(0.68 0.14 74)'
+  issues-ink: 'oklch(0.475 0.10 66)'
+  incomplete: 'oklch(0.60 0.16 32)'
+  incomplete-ink: 'oklch(0.465 0.145 30)'
+  failed: 'oklch(0.55 0.20 26)'
+  failed-ink: 'oklch(0.46 0.185 25)'
 typography:
   display:
-    fontFamily: "Geist Variable, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "clamp(1.5rem, 1.1rem + 1.4vw, 2rem)"
+    fontFamily: 'Geist Variable, ui-sans-serif, system-ui, sans-serif'
+    fontSize: 'clamp(1.5rem, 1.1rem + 1.4vw, 2rem)'
     fontWeight: 560
     lineHeight: 1.05
-    letterSpacing: "-0.02em"
+    letterSpacing: '-0.02em'
   title:
-    fontFamily: "Geist Variable, ui-sans-serif, sans-serif"
-    fontSize: "1rem"
+    fontFamily: 'Geist Variable, ui-sans-serif, sans-serif'
+    fontSize: '1rem'
     fontWeight: 550
     lineHeight: 1.2
-    letterSpacing: "-0.01em"
+    letterSpacing: '-0.01em'
   body:
-    fontFamily: "Geist Variable, ui-sans-serif, sans-serif"
-    fontSize: "0.875rem"
+    fontFamily: 'Geist Variable, ui-sans-serif, sans-serif'
+    fontSize: '0.875rem'
     fontWeight: 400
     lineHeight: 1.45
-    letterSpacing: "0em"
+    letterSpacing: '0em'
   data:
-    fontFamily: "Geist Mono Variable, ui-monospace, monospace"
-    fontSize: "0.8125rem"
+    fontFamily: 'Geist Mono Variable, ui-monospace, monospace'
+    fontSize: '0.8125rem'
     fontWeight: 450
     lineHeight: 1.3
-    letterSpacing: "0em"
+    letterSpacing: '0em'
   label:
-    fontFamily: "Geist Variable, ui-sans-serif, sans-serif"
-    fontSize: "0.6875rem"
+    fontFamily: 'Geist Variable, ui-sans-serif, sans-serif'
+    fontSize: '0.6875rem'
     fontWeight: 500
     lineHeight: 1
-    letterSpacing: "0.09em"
+    letterSpacing: '0.09em'
 rounded:
-  sm: "4px"
-  md: "6px"
-  lg: "8px"
-  xl: "12px"
-  pill: "9999px"
+  sm: '4px'
+  md: '6px'
+  lg: '8px'
+  xl: '12px'
+  pill: '9999px'
 spacing:
-  xs: "4px"
-  sm: "8px"
-  md: "12px"
-  lg: "16px"
-  xl: "24px"
+  xs: '4px'
+  sm: '8px'
+  md: '12px'
+  lg: '16px'
+  xl: '24px'
 components:
   button-primary:
-    backgroundColor: "{colors.signal-indigo}"
-    textColor: "{colors.paper}"
-    rounded: "{rounded.lg}"
-    padding: "0 14px"
-    height: "32px"
+    backgroundColor: '{colors.signal-indigo}'
+    textColor: '{colors.paper}'
+    rounded: '{rounded.lg}'
+    padding: '0 14px'
+    height: '32px'
   button-primary-hover:
-    backgroundColor: "{colors.signal-indigo}"
-    textColor: "{colors.paper}"
-    rounded: "{rounded.lg}"
-    padding: "0 14px"
-    height: "32px"
+    backgroundColor: '{colors.signal-indigo}'
+    textColor: '{colors.paper}'
+    rounded: '{rounded.lg}'
+    padding: '0 14px'
+    height: '32px'
   button-outline:
-    backgroundColor: "{colors.surface-raised}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.lg}"
-    padding: "0 14px"
-    height: "32px"
+    backgroundColor: '{colors.surface-raised}'
+    textColor: '{colors.ink}'
+    rounded: '{rounded.lg}'
+    padding: '0 14px'
+    height: '32px'
   input-search:
-    backgroundColor: "{colors.surface-raised}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.md}"
-    padding: "0 10px 0 32px"
-    height: "32px"
+    backgroundColor: '{colors.surface-raised}'
+    textColor: '{colors.ink}'
+    rounded: '{rounded.md}'
+    padding: '0 10px 0 32px'
+    height: '32px'
   badge-demo:
-    backgroundColor: "{colors.surface-raised}"
-    textColor: "{colors.muted-ink}"
-    rounded: "{rounded.pill}"
-    padding: "2px 8px"
-    height: "20px"
+    backgroundColor: '{colors.surface-raised}'
+    textColor: '{colors.muted-ink}'
+    rounded: '{rounded.pill}'
+    padding: '2px 8px'
+    height: '20px'
 ---
 
 # Design System: AZ-Cadastre
@@ -167,6 +167,29 @@ teal second accent, and a narrow band of official disposition inks.
 - **Incomplete Package** (`oklch(0.60 0.16 32)`, ink `oklch(0.465 0.145 30)`): clay.
 - **In Progress** (uses Registry Indigo): the pipeline is still running.
 - **Failed** (`oklch(0.55 0.20 26)`, ink `oklch(0.46 0.185 25)`): pipeline error.
+
+### Conveyor (ordinal, one hue)
+
+Three steps of Registry Indigo, light → dark as a submission gets further along
+the pipeline — waiting to be read, being read, read. An **ordinal ramp** and not
+three categorical hues: the states have an order, and the reader should see that
+order in the colour rather than learn three unrelated ones.
+
+- **conveyor-1** (`oklch(0.74 0.115 266)` light · `oklch(0.50 0.15 266)` dark)
+- **conveyor-2** (`oklch(0.615 0.15 266)` light · `oklch(0.62 0.155 266)` dark)
+- **conveyor-3** (`oklch(0.505 0.185 266)` light · `oklch(0.745 0.13 266)` dark)
+
+The anchor flips in lamplight: on the dark ground it is lightness that reads as
+presence, so further along is lighter. Each mode's steps were validated against
+their own surface — monotone lightness, every adjacent gap ΔL ≥ 0.06, and the
+low-contrast end clearing the 2:1 floor (2.22:1 on paper, 2.91:1 on lamplight).
+The first step is no lighter than this on purpose: at L 0.78 it fell to 1.93:1
+and the shortest segment of a bar disappeared into the page.
+
+**Failed takes none of these steps.** A broken-down run is not a further
+position on the conveyor — it is the conveyor having stopped — so it wears the
+reserved failed ink, and the summary calls it out above the figure as well as in
+it.
 
 ### Named Rules
 
@@ -315,7 +338,9 @@ pulses. Marker + word always travel together — this is the register's stamp.
 - **Don't** box register rows into floating cards, or over-round toward a bubbly
   consumer look — the table stays ruled and edge-to-edge.
 - **Don't** let the teal accent carry status or crowd the indigo signal, and no
-  decorative chart.
+  decorative chart. A figure earns its place by answering a question the numbers
+  beside it cannot: thin marks, no gridlines, no axis, no frame, and every value
+  it draws also written out in words underneath.
 - **Don't** phrase or style any output as an approval, verdict, or recommendation
   to act — the register reports; the inspector decides.
 - **Don't** convey status by color alone, or with a candy-colored pill.

@@ -50,6 +50,17 @@
     --color-failed: var(--failed);
     --color-failed-ink: var(--failed-ink);
 
+    /* Conveyor — three steps of the one indigo, light → dark as a submission
+       gets further along the pipeline. An *ordinal* ramp and not a set of
+       categorical hues: the three states have an order, and a reader must see
+       that order in the colour rather than have to learn three unrelated
+       colours. `Failed` deliberately takes none of these steps — it is not a
+       position on the conveyor but the conveyor having stopped, so it wears the
+       reserved `failed` disposition ink. */
+    --color-conveyor-1: var(--conveyor-1);
+    --color-conveyor-2: var(--conveyor-2);
+    --color-conveyor-3: var(--conveyor-3);
+
     /* Structural rules — the visible grid. */
     --color-rule: var(--rule);
     --color-rule-strong: var(--rule-strong);
@@ -144,6 +155,16 @@
     --chart-4: oklch(0.68 0.14 74);
     --chart-5: oklch(0.60 0.16 32);
 
+    /* Conveyor ramp — one hue (registry indigo), three monotone lightness
+       steps, waiting → being read → read. Validated as an ordinal ramp against
+       this canvas: monotone L, every adjacent gap ΔL ≥ 0.06, and the light end
+       at 2.22:1 on paper (the 2:1 floor). The first step is deliberately not
+       lighter than this — at L 0.78 it fell to 1.93:1 and the shortest segment
+       of a bar would have disappeared into the page. */
+    --conveyor-1: oklch(0.74 0.115 266);         /* waiting to be read */
+    --conveyor-2: oklch(0.615 0.15 266);         /* being read */
+    --conveyor-3: oklch(0.505 0.185 266);        /* read */
+
     /* Elevation — offset + soft blur, never a flat colored halo */
     --shadow-xs: 0 1px 2px oklch(0.235 0.02 264 / 0.05);
     --shadow-sm: 0 1px 2px oklch(0.235 0.02 264 / 0.06),
@@ -224,6 +245,15 @@
     --chart-3: oklch(0.74 0.14 160);
     --chart-4: oklch(0.80 0.135 76);
     --chart-5: oklch(0.72 0.16 34);
+
+    /* The conveyor ramp with its anchor flipped, which a one-hue ramp on a dark
+       ground has to be: further along is *lighter* here, because on lamplight
+       it is lightness that reads as presence. Re-validated against the dark
+       ground — monotone, ΔL ≥ 0.06, dark end 2.91:1 — rather than flipped by
+       arithmetic from the daylight steps. */
+    --conveyor-1: oklch(0.50 0.15 266);          /* waiting to be read */
+    --conveyor-2: oklch(0.62 0.155 266);         /* being read */
+    --conveyor-3: oklch(0.745 0.13 266);         /* read */
 
     /* Elevation, grounded in true black for dark surfaces */
     --shadow-xs: 0 1px 2px oklch(0 0 0 / 0.35);

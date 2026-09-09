@@ -70,22 +70,22 @@ export function FileRow({
               className='shrink-0 text-[0.6875rem] tabular-nums text-muted-foreground'
             >
               {att.progress < 100
-                ? t('new.uploading', { p: att.progress })
-                : t('new.reading_pages')}
+                ? t('upload.uploading', { p: att.progress })
+                : t('upload.reading_pages')}
             </span>
           </div>
         ) : isErr ? (
           <span className='text-[0.75rem] text-destructive'>
             {att.error === 'size' || att.failureCode === 'FILE_TOO_LARGE'
-              ? t('new.err.size', { max: MAX_MB })
+              ? t('upload.err.size', { max: MAX_MB })
               : att.error === 'failed'
                 ? // The service said which rule it refused, when it got that far.
                   translateOr(
                     t,
                     `error.${att.failureCode ?? ''}`,
-                    t('new.err.failed'),
+                    t('upload.err.failed'),
                   )
-                : t('new.err.format')}
+                : t('upload.err.format')}
           </span>
         ) : (
           <span
@@ -95,8 +95,8 @@ export function FileRow({
             {att.kind === 'pdf' && att.pages != null && (
               <>
                 {att.pages === 1
-                  ? t('new.page_one')
-                  : t('new.pages', { n: att.pages })}{' '}
+                  ? t('upload.page_one')
+                  : t('upload.pages', { n: att.pages })}{' '}
                 ·{' '}
               </>
             )}
@@ -108,7 +108,7 @@ export function FileRow({
       <Button
         variant='ghost'
         size='icon-sm'
-        aria-label={t('new.remove')}
+        aria-label={t('upload.remove')}
         onClick={onRemove}
         className='shrink-0 text-muted-foreground hover:text-foreground'
       >

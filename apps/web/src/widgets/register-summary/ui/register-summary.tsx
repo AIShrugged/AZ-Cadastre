@@ -300,7 +300,7 @@ export function RegisterSummary({
       });
       return (
         <Link
-          to={{ pathname: paths.register, search: query.toString() }}
+          to={{ pathname: paths.cases, search: query.toString() }}
           className='block'
         >
           {row}
@@ -357,7 +357,7 @@ export function RegisterSummary({
                 render={
                   <Link
                     to={{
-                      pathname: paths.register,
+                      pathname: paths.cases,
                       search: registerQueryParams({
                         ...WHOLE_REGISTER,
                         standing: 'Stalled',

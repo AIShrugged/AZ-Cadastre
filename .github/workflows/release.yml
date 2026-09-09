@@ -1,9 +1,13 @@
 name: Release
 
-# Собирает три образа и катит их на стенд. Идёт после того, как CI на `main`
-# стал зелёным — не параллельно с ним: незачем публиковать сборку, которая не
-# прошла проверки. Ручной запуск (workflow_dispatch) — на случай переката без
-# нового коммита.
+# Собирает три образа и публикует их в Docker Hub. Идёт после того, как CI на
+# `main` стал зелёным — не параллельно с ним: незачем публиковать сборку,
+# которая не прошла проверки. Ручной запуск (workflow_dispatch) — на случай
+# пересборки без нового коммита.
+#
+# Выката отсюда нет намеренно: контейнеры на стенде обновляются вручную.
+# Публикуются два тега — `latest`, который тянет compose, и SHA коммита, на
+# который можно откатиться, когда latest поехал не туда.
 on:
   workflow_run:
     workflows: ['CI']
@@ -55,37 +59,3 @@ jobs:
             ekalkutin/${{ matrix.image }}:${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      # Тянет свежие образы, накатывает миграции обеих баз, поднимает стек и
-      # проверяет здоровье. Если бэкенд не отвечает — откат тегов на предыдущие
-      # и повторный up, чтобы стенд не остался лежать на сломанной сборке.
-      - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: |
-            set -e
-            cd ${{ secrets.DEPLOY_PATH }}
-            docker compose pull
-            docker compose up -d --no-deps postgres registry
-            # Реестр держит свою базу; создаём её, если это первый выкат.
-            docker compose exec -T postgres createdb -U postgres cadastre-registry || true
-            docker compose exec -T registry pnpm db:deploy
-            docker compose exec -T backend pnpm db:deploy
-            docker compose up -d
-            echo "Ожидаю готовности бэкенда…"
-            for i in $(seq 1 30); do
-              if curl -fsS http://127.0.0.1:3000/api/health >/dev/null 2>&1; then
-                echo "Стенд поднялся."; exit 0
-              fi
-              sleep 5
-            done
-            echo "Бэкенд не ответил за 150 c — откат." >&2
-            docker compose down
-            exit 1

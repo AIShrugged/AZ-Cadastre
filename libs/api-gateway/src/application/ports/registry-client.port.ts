@@ -17,5 +17,6 @@ import type { ArchiveRegistryApi } from '@cadastre/api-contracts/registry';
  */
 export abstract class RegistryClientPort {
   abstract readonly addresses: ArchiveRegistryApi['addresses'];
+  abstract readonly search: ArchiveRegistryApi['search'];
   abstract readonly summary: ArchiveRegistryApi['summary'];
 }

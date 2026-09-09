@@ -3,9 +3,13 @@ import { z } from 'zod';
 import {
   AddressLookupRequestSchema,
   AddressLookupResponseSchema,
+  ArchiveSearchRequestSchema,
+  ArchiveSearchResponseSchema,
   RegistrySummaryResponseSchema,
   type AddressLookupRequest,
   type AddressLookupResponse,
+  type ArchiveSearchRequestInput,
+  type ArchiveSearchResponse,
   type RegistrySummaryResponse,
 } from '@cadastre/api-contracts/registry';
 import {
@@ -106,6 +110,29 @@ export class RestClient {
         '/api/registry/summary',
         RegistrySummaryResponseSchema,
       ),
+
+    /**
+     * The archive searched by any of the things a property is known by, rather
+     * than resolved by the one the lookup takes. A POST, because what is
+     * searched for is somebody's name and somebody's property.
+     *
+     * The input type and not the parsed one: a caller names the criteria it
+     * has and leaves the threshold and the page size to the defaults the
+     * contract publishes, rather than restating them here.
+     */
+    search: (
+      request: ArchiveSearchRequestInput,
+    ): Promise<ApiResponse<ArchiveSearchResponse>> =>
+      this.request(
+        'POST',
+        '/api/registry/search',
+        ArchiveSearchResponseSchema,
+        ArchiveSearchRequestSchema.parse(request),
+      ),
+
+    /** Deliberately unvalidated, for the specs that check the API's own refusals. */
+    searchRaw: (body: unknown): Promise<ApiResponse<unknown>> =>
+      this.request('POST', '/api/registry/search', z.unknown(), body),
   };
 
   // --- profiles -----------------------------------------------------------

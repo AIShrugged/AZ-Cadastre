@@ -1,9 +1,13 @@
 import {
   AddressLookupResponseSchema,
+  ArchiveSearchResponseSchema,
   RegistrySummaryResponseSchema,
   type AddressesApi,
   type AddressLookupRequest,
   type AddressLookupResponse,
+  type ArchiveSearchApi,
+  type ArchiveSearchRequest,
+  type ArchiveSearchResponse,
   type RegistrySummaryApi,
   type RegistrySummaryResponse,
 } from '@cadastre/api-contracts/registry';
@@ -16,6 +20,7 @@ import {
 } from './registry.exceptions.js';
 
 const LOOKUP = '/api/addresses/lookup';
+const SEARCH = '/api/registry/search';
 const SUMMARY = '/api/registry/summary';
 
 /** Where the register answers, and how long we wait for it. */
@@ -93,6 +98,55 @@ class HttpAddresses implements AddressesApi {
 }
 
 /**
+ * The archive searched, over the same connection and with the same two
+ * failures. A POST like the lookup and for the same reason: what is being
+ * searched for is somebody's name and somebody's property.
+ */
+class HttpSearch implements ArchiveSearchApi {
+  constructor(
+    private readonly options: RegistryClientOptions,
+    private readonly logger: Logger,
+  ) {}
+
+  async search(request: ArchiveSearchRequest): Promise<ArchiveSearchResponse> {
+    const url = `${this.options.url.replace(/\/$/u, '')}${SEARCH}`;
+    const startedAt = Date.now();
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(request),
+        signal: AbortSignal.timeout(this.options.timeoutMs),
+      });
+    } catch (error) {
+      throw new RegistryUnreachableException(url, error);
+    }
+
+    const body = await response.text();
+
+    if (!response.ok) {
+      throw new RegistryRefusedException(url, response.status, body);
+    }
+
+    const answer = ArchiveSearchResponseSchema.parse(JSON.parse(body));
+
+    // What was searched for is never written to the log. What the register
+    // made of it is (ADR-0008).
+    this.logger.debug('Archive register answered a search', {
+      url,
+      threshold: answer.threshold,
+      considered: answer.considered,
+      matched: answer.matched,
+      durationMs: Date.now() - startedAt,
+    });
+
+    return answer;
+  }
+}
+
+/**
  * What the register holds, over the same connection and with the same two
  * failures. It is a read of the register itself and carries nothing about
  * anybody, so it is a GET with no body.
@@ -140,6 +194,7 @@ class HttpSummary implements RegistrySummaryApi {
 
 export class HttpArchiveRegistryClient extends RegistryClientPort {
   override readonly addresses: AddressesApi;
+  override readonly search: ArchiveSearchApi;
   override readonly summary: RegistrySummaryApi;
 
   constructor(options: RegistryClientOptions, logger: Logger) {
@@ -147,6 +202,7 @@ export class HttpArchiveRegistryClient extends RegistryClientPort {
     const scoped = logger.child({ scope: HttpArchiveRegistryClient.name });
 
     this.addresses = new HttpAddresses(options, scoped);
+    this.search = new HttpSearch(options, scoped);
     this.summary = new HttpSummary(options, scoped);
   }
 }

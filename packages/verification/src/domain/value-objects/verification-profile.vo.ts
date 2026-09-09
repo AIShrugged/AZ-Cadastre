@@ -90,6 +90,30 @@ type RegistryCheckDeclaration = {
 };
 
 /*
+ * What the case is called outside this system: the person it is for, where the
+ * property is, and the parcel that property sits on.
+ *
+ * Not a fourth kind of check — nothing here is verified, compared or held
+ * against anything. It is the profile answering one question the register asks
+ * of every submission: of all the values the pipeline read, which three name
+ * this case to a person, and off which paper is each of them believed. A list
+ * screen that decided that for itself would be a second source of truth for
+ * what a submission is, and the first row it disagreed with the package on
+ * would be a row nobody could explain.
+ *
+ * Each is [document type key, field key] in the order the papers are believed,
+ * read the same way a registry check's subject is: the first of them this
+ * package actually states is the one the row carries. Nothing is composed and
+ * nothing is joined — the value is one field as the pipeline read it, or there
+ * is none.
+ */
+export type ParticularsDeclaration = {
+  readonly applicantName: readonly (readonly [string, string])[];
+  readonly propertyAddress: readonly (readonly [string, string])[];
+  readonly cadastralNumber: readonly (readonly [string, string])[];
+};
+
+/*
  * What the applicant has to bring beyond the envelope, and how the engine works
  * out which of several sets this case needs.
  *
@@ -249,6 +273,74 @@ export class RegistryCheckSpec {
 
   get documents(): readonly { name: string; type: DocumentType }[] {
     return this.#documents;
+  }
+}
+
+/**
+ * The three values a submission is named by, as the engine reads them.
+ *
+ * Ordered lists and not single references, for the reason a registry check's
+ * subject is one: an address is printed on several of the papers and they are
+ * not equally trustworthy, and a case whose plan-scheme has not been read yet
+ * is still a case somebody has to find in a list.
+ */
+export class ParticularsSpec {
+  readonly #applicantName: readonly FieldRef[];
+  readonly #propertyAddress: readonly FieldRef[];
+  readonly #cadastralNumber: readonly FieldRef[];
+
+  private constructor(
+    applicantName: readonly FieldRef[],
+    propertyAddress: readonly FieldRef[],
+    cadastralNumber: readonly FieldRef[],
+  ) {
+    this.#applicantName = [...applicantName];
+    this.#propertyAddress = [...propertyAddress];
+    this.#cadastralNumber = [...cadastralNumber];
+  }
+
+  static of(declaration: ParticularsDeclaration): ParticularsSpec {
+    const refs = (
+      pairs: readonly (readonly [string, string])[],
+    ): readonly FieldRef[] =>
+      pairs.map(([type, field]) =>
+        FieldRef.of(DocumentType.create(type), FieldKey.create(field)),
+      );
+
+    return new ParticularsSpec(
+      refs(declaration.applicantName),
+      refs(declaration.propertyAddress),
+      refs(declaration.cadastralNumber),
+    );
+  }
+
+  // A profile that names none of the three: every submission under it is known
+  // by its id alone, which is what a list of them can then say.
+  static none(): ParticularsSpec {
+    return new ParticularsSpec([], [], []);
+  }
+
+  get applicantName(): readonly FieldRef[] {
+    return this.#applicantName;
+  }
+
+  get propertyAddress(): readonly FieldRef[] {
+    return this.#propertyAddress;
+  }
+
+  get cadastralNumber(): readonly FieldRef[] {
+    return this.#cadastralNumber;
+  }
+
+  // Every reference the three lists hold, in no particular order. What a reader
+  // of the extracted fields needs to know is which of them could ever be a
+  // particular — the ordering that decides between them is each list's own.
+  get references(): readonly FieldRef[] {
+    return [
+      ...this.#applicantName,
+      ...this.#propertyAddress,
+      ...this.#cadastralNumber,
+    ];
   }
 }
 
@@ -804,12 +896,51 @@ export class VerificationProfile {
     // not the customer's, and the mechanism that reads them is the part of this
     // that is real.
     [UNCONFIRMED_SUPPORTING_DOCUMENTS],
+    // What a case of this kind is called: the applicant, the address and the
+    // parcel, off the papers this profile believes them from.
+    {
+      // The application is the applicant's own statement of who they are, and
+      // the name the case is filed under. Then the order that allotted the
+      // land, then the two papers that name a right holder rather than an
+      // applicant — the same person on an ordinary case, and the fallback when
+      // the application's name line went unread. The identity card is not here
+      // and cannot be: it prints a surname and a given name in two fields, and
+      // a name assembled out of two readings is a value no document states.
+      applicantName: [
+        ['application', 'applicant_name'],
+        ['disposal_order', 'applicant_name'],
+        ['archive_certificate', 'owner_name'],
+        ['land_plot_plan', 'owner_name'],
+      ],
+      // The plan-scheme first and the application last, which is the order
+      // `property_of_record` asks the register in and for the same reason: the
+      // address on the plan was written by the office that surveyed the parcel,
+      // and the one on the application is filled in by hand and is where the
+      // reading went wrong in both of the real submissions (ADR-0010). The row
+      // and the register therefore name the same address wherever both have
+      // one, which is what makes the two readable side by side.
+      propertyAddress: [
+        ['land_plot_plan', 'property_address'],
+        ['sketch_project', 'property_address'],
+        ['disposal_order', 'property_address'],
+        ['archive_certificate', 'property_address'],
+        ['application', 'property_address'],
+      ],
+      // The surveyed drawing states the parcel; the application states what the
+      // applicant wrote down. That is the order the cross-check names them in
+      // too.
+      cadastralNumber: [
+        ['land_plot_plan', 'cadastral_number'],
+        ['application', 'cadastral_number'],
+      ],
+    },
   );
 
   readonly #specs: readonly DocumentTypeSpec[];
   readonly #crossChecks: readonly CrossCheckSpec[];
   readonly #registryChecks: readonly RegistryCheckSpec[];
   readonly #supportingDocuments: readonly SupportingDocumentsSpec[];
+  readonly #particulars: ParticularsSpec;
 
   private constructor(
     public readonly key: string,
@@ -817,6 +948,7 @@ export class VerificationProfile {
     crossChecks: readonly CrossCheckDeclaration[],
     registryChecks: readonly RegistryCheckDeclaration[] = [],
     supportingDocuments: readonly SupportingDocumentsDeclaration[] = [],
+    particulars: ParticularsDeclaration | null = null,
   ) {
     this.#specs = declarations.map(declaration =>
       DocumentTypeSpec.of(declaration),
@@ -830,6 +962,9 @@ export class VerificationProfile {
     this.#supportingDocuments = supportingDocuments.map(declaration =>
       SupportingDocumentsSpec.of(declaration),
     );
+    this.#particulars = particulars
+      ? ParticularsSpec.of(particulars)
+      : ParticularsSpec.none();
   }
 
   // The order a caller is offered them in, and a getter so it cannot be read
@@ -896,6 +1031,18 @@ export class VerificationProfile {
    */
   get supportingDocuments(): readonly SupportingDocumentsSpec[] {
     return this.#supportingDocuments;
+  }
+
+  /*
+   * Which of the values the pipeline read name a case of this kind, and off
+   * which paper each is believed.
+   *
+   * Answered by every profile, including one that declares none: a register
+   * that had to ask whether a profile has an opinion before it could draw a row
+   * would be a register with an opinion of its own.
+   */
+  get particulars(): ParticularsSpec {
+    return this.#particulars;
   }
 
   get documentTypes(): readonly DocumentType[] {

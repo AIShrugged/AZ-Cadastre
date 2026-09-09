@@ -28,7 +28,9 @@ export class ListPackagesHandler implements IQueryHandler<
     // with an empty page that looks like an honest answer.
     return this.packages.listSummaries({
       search: query.search ?? null,
-      standing: query.standing ? PackageStanding.named(query.standing) : null,
+      standings: (query.standings ?? []).map(standing =>
+        PackageStanding.named(standing),
+      ),
       reportStatus: query.reportStatus
         ? ReportStatus.of(query.reportStatus)
         : null,

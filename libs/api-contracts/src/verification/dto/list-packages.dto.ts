@@ -43,8 +43,28 @@ export const ListPackagesRequestSchema = z.object({
    * inspector's list is actually read by, and one of two separate questions:
    * this one is about the submission, `reportStatus` below is about what the
    * run found.
+   *
+   * Repeatable, and a row matches any of the values given: `?standing=Queued&
+   * standing=UnderVerification` is the one slice an inspector calls "in
+   * progress". A slice is a set of standings and not a standing, because the
+   * seven are what has to happen next and a tab is what somebody is doing —
+   * accepted and being read are one job. Without this a tab could only show one
+   * of them, and its own count, which is taken over a set, would never add up
+   * to what it listed.
+   *
+   * One value still works and means what it always did, so a caller that sends
+   * a single `standing` needs no change. Naming none narrows nothing; naming a
+   * standing nobody names is a 400, however many are sent with it.
    */
-  standing: PackageStandingSchema.optional(),
+  standing: z
+    .union([PackageStandingSchema, z.array(PackageStandingSchema)])
+    .transform(asked => (Array.isArray(asked) ? asked : [asked]))
+    // An empty list is no filter rather than a filter that matches nothing —
+    // the same reading a cleared search box gets above. A caller that builds
+    // the parameter off a set of ticked boxes sends one when they are all
+    // cleared, and it means the whole register.
+    .transform(asked => (asked.length === 0 ? undefined : asked))
+    .optional(),
   /**
    * What the run made of the package. Not the same question as `standing`,
    * which is why it is not the same parameter: every package still being read

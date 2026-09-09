@@ -1,3 +1,14 @@
+/**
+ * One value the package states about itself, as the pipeline read it: the value
+ * and how well it was read, and nothing about where it came from. A row names
+ * the case; the detail view is what evidences it.
+ */
+export type StatedValueView = {
+  value: string;
+  // 0..1.
+  confidence: number;
+};
+
 export type PackageSummaryView = {
   id: string;
   status: string;
@@ -6,6 +17,20 @@ export type PackageSummaryView = {
   // there is no row that can fall out of step with it (ADR-0014).
   standing: string;
   profileKey: string;
+  // What the case is called: the person it is for, the property it concerns and
+  // the parcel that property sits on. Read off the package's own extracted
+  // fields, off whichever paper the package's Verification Profile believes
+  // each of them from; null where no document of it states one yet.
+  applicantName: StatedValueView | null;
+  propertyAddress: StatedValueView | null;
+  cadastralNumber: StatedValueView | null;
+  // What the archive register answered, as one answer for the row: where more
+  // than one question was put, the one that decides what happens next. Null
+  // until the register was asked at all, which is not `NotFound`.
+  archiveOutcome: string | null;
+  // Whether an approval of the archive search is in force. False where nobody
+  // has signed and where a later run has spent the signature (ADR-0016).
+  archiveSearchApproved: boolean;
   filesCount: number;
   documentsCount: number;
   classifiedCount: number;

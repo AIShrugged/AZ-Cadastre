@@ -14,6 +14,7 @@ export type {
   RegistryCheckView,
   ReportView,
   SourceFileView,
+  StatedValueView,
 } from './package.read-model.js';
 export type {
   FindingCountView,

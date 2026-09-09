@@ -11,6 +11,23 @@ import {
   ReportStatusSchema,
 } from '../enums/index.js';
 
+/**
+ * One value the package states about itself, as the pipeline read it off the
+ * papers.
+ *
+ * Value and confidence and nothing else: a row names the case, it does not
+ * evidence it. Which sheet the value was read off, and what the run made of it,
+ * are the detail view's business — `CheckedValueDto` is where a reader goes to
+ * open the page it is printed on.
+ */
+export const StatedValueDtoSchema = z.object({
+  value: z.string(),
+  // 0..1. How well the value itself was read — not how much the submission is
+  // believed, which nothing here says.
+  confidence: z.number(),
+});
+export type StatedValueDto = z.infer<typeof StatedValueDtoSchema>;
+
 export const PackageDtoSchema = z.object({
   id: z.string(),
   status: PackageStatusSchema,
@@ -20,6 +37,36 @@ export const PackageDtoSchema = z.object({
   // it rather than deriving one of your own (ADR-0014).
   standing: PackageStandingSchema,
   profileKey: z.string(),
+  // ─── What the case is called ───────────────────────────────────────────────
+  // A submission is known by the person it is for, the property it concerns and
+  // the parcel that property sits on — never by its profile and its id, which
+  // are the row's furniture. All three are read off the package's own documents
+  // by the pipeline and stored nowhere else: which field of which document type
+  // each is believed from is the Verification Profile's to say, and it names
+  // several papers in the order it trusts them.
+  //
+  // Null means no document of this package states it yet — the run has not
+  // reached the paper, or read nothing off it. Never an empty string, and never
+  // a placeholder: a row that cannot name the case says so.
+  applicantName: StatedValueDtoSchema.nullable(),
+  propertyAddress: StatedValueDtoSchema.nullable(),
+  cadastralNumber: StatedValueDtoSchema.nullable(),
+  // ─── What the archive said ────────────────────────────────────────────────
+  // What the archive register answered about the property (ADR-0009), as one
+  // answer for the row: where the profile put more than one question to the
+  // register, this is the one that decides what happens next — a contradiction
+  // over a missing original over an unresolved record over no record at all,
+  // and `Confirmed` only when every question was answered that way.
+  //
+  // Null until the register was asked, which is not the same as `NotFound`:
+  // one is a question nobody put, the other is a question the archive answered
+  // with silence.
+  archiveOutcome: RegistryOutcomeSchema.nullable(),
+  // Whether an approval of this package's archive search is in force — a
+  // person's sign-off on what the register answered (ADR-0016). False both
+  // where nobody has signed and where a later run has spent the signature by
+  // asking the register again.
+  archiveSearchApproved: z.boolean(),
   // Files the inspector uploaded. Known at submission.
   filesCount: z.number().int().nonnegative(),
   // Documents found inside those files. A file is a container, so this is 0

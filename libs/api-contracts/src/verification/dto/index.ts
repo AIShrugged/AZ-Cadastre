@@ -57,6 +57,7 @@ export {
   RegistryDocumentDtoSchema,
   ReportDtoSchema,
   SourceFileDtoSchema,
+  StatedValueDtoSchema,
   type ApprovedCheckDto,
   type ArchiveSearchApprovalDto,
   type CheckedValueDto,
@@ -73,6 +74,7 @@ export {
   type RegistryDocumentDto,
   type ReportDto,
   type SourceFileDto,
+  type StatedValueDto,
 } from './package.dto.js';
 export {
   ArchiveTallyDtoSchema,

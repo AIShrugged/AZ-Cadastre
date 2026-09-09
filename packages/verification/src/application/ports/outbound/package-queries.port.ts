@@ -22,8 +22,16 @@ export type PackageListCriteria = {
    * same thing to a caller.
    */
   readonly search: string | null;
-  // Where the submission stands. Null narrows nothing.
-  readonly standing: PackageStanding | null;
+  /**
+   * Where the submission stands, as the set of standings asked for: a row
+   * matches any of them. Empty narrows nothing.
+   *
+   * A set and not one value because the slice an inspector reads the list by is
+   * not always a standing — accepted and being read are one job to the person
+   * doing it, and a tab that could only name one of the two would list fewer
+   * submissions than its own count.
+   */
+  readonly standings: readonly PackageStanding[];
   // What the run found. A separate question from the standing, so a separate
   // criterion: a package with no report at all answers neither.
   readonly reportStatus: ReportStatus | null;

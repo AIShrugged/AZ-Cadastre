@@ -37,6 +37,38 @@ export class RegistryOutcome {
     ];
   }
 
+  /*
+   * What the archive said about a package, as one answer, when the profile put
+   * more than one question to the register.
+   *
+   * In the order of what each asks of the inspector, most first: a record that
+   * contradicts the package, then a record that agrees over a file the archive
+   * is short a paper of — the two that are findings against the submission —
+   * then a property more than one record answers to, then no record at all,
+   * which is an absence of evidence and asks nothing. `Confirmed` is last, so
+   * it is the answer only when it is every answer.
+   *
+   * Null for a package the register was never asked about. Not `NotFound`:
+   * one is a question nobody put and the other is a question the archive
+   * answered with silence, and a row that said the same word for both would be
+   * announcing an answer nobody has.
+   */
+  static overall(outcomes: readonly RegistryOutcome[]): RegistryOutcome | null {
+    const byDemand = [
+      RegistryOutcome.DIFFERS,
+      RegistryOutcome.INCOMPLETE,
+      RegistryOutcome.AMBIGUOUS,
+      RegistryOutcome.NOT_FOUND,
+      RegistryOutcome.CONFIRMED,
+    ];
+
+    return (
+      byDemand.find(candidate =>
+        outcomes.some(outcome => outcome.equals(candidate)),
+      ) ?? null
+    );
+  }
+
   static of(raw: string): RegistryOutcome {
     const found = RegistryOutcome.all.find(
       candidate => candidate.value === raw,

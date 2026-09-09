@@ -17,6 +17,7 @@ import type {
   PackageSummaryView,
   RegistryCheckView,
   ReportView,
+  StatedValueView,
   TallyView,
 } from '../../application/read-models/index.js';
 import {
@@ -24,8 +25,11 @@ import {
   IssueKind,
   PackageStanding,
   PackageStatus,
+  ParticularsSpec,
   RegistryOutcome,
   ReportStatus,
+  VerificationProfile,
+  type FieldRef,
   type PackageId,
 } from '../../domain/value-objects/index.js';
 
@@ -117,6 +121,26 @@ const REGISTRY_CHECK_COLUMNS = {
   },
 } as const satisfies Prisma.VerificationPackage$registryChecksArgs;
 
+/*
+ * Every field key any shipped profile names as one a case is known by.
+ *
+ * The union across profiles and not this package's own, because the condition
+ * is one statement over a page of rows and a page holds packages of several
+ * profiles. It only narrows what is read: which of the values answers for a
+ * given row is decided afterwards, by that row's own profile, so a key another
+ * profile named and this one did not can never reach a summary.
+ *
+ * Without it a page of a hundred submissions drags every value the pipeline
+ * ever read into memory to print three of them.
+ */
+const PARTICULAR_FIELD_KEYS = [
+  ...new Set(
+    VerificationProfile.all.flatMap(profile =>
+      profile.particulars.references.map(reference => reference.key.value),
+    ),
+  ),
+];
+
 const SUMMARY_COLUMNS = {
   id: true,
   status: true,
@@ -135,10 +159,28 @@ const SUMMARY_COLUMNS = {
       archiveSearchApprovals: { where: { supersededAt: null } },
     },
   },
+  /*
+   * What the register answered, and only that: one enum per question put, so
+   * the row can say the answer that decides what happens next. Not the whole
+   * check — the address that was asked, the attributes and the papers are the
+   * detail view's business, and hauling them onto a page of a hundred rows to
+   * print one word would be reading the archive to draw a list.
+   */
+  registryChecks: { select: { outcome: true } },
   documents: {
+    // Two documents of one type is a duplicate the report already states, and
+    // the row still has to name the case: the first the package took in
+    // answers, which needs the order to be the same on every call.
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     select: {
       type: true,
       _count: { select: { extractedFields: true } },
+      // Only the values some profile names a case by. Which of them this row's
+      // profile believes, and off which paper, is worked out below.
+      extractedFields: {
+        where: { name: { in: PARTICULAR_FIELD_KEYS } },
+        select: { name: true, value: true, confidence: true },
+      },
     },
   },
   // The register only tallies findings; the whole of each one is the detail
@@ -247,9 +289,15 @@ type SummaryRow = {
     readonly registryChecks: number;
     readonly archiveSearchApprovals: number;
   };
+  readonly registryChecks: readonly { readonly outcome: string }[];
   readonly documents: readonly {
     readonly type: string | null;
     readonly _count: { readonly extractedFields: number };
+    readonly extractedFields: readonly {
+      readonly name: string;
+      readonly value: string;
+      readonly confidence: number;
+    }[];
   }[];
   readonly report: {
     readonly status: string;
@@ -617,8 +665,16 @@ export class PackageQueriesAdapter extends PackageQueries {
       conditions.push(PackageQueriesAdapter.matchingSearch(criteria.search));
     }
 
-    if (criteria.standing !== null) {
-      conditions.push(PackageQueriesAdapter.standingIs(criteria.standing));
+    if (criteria.standings.length > 0) {
+      // Any of them, because a slice is a set of standings: "in progress" is
+      // accepted and being read, and the two must come back as one page that
+      // adds up to one count rather than as two lists nobody can page through
+      // together.
+      conditions.push({
+        OR: criteria.standings.map(standing =>
+          PackageQueriesAdapter.standingIs(standing),
+        ),
+      });
     }
 
     if (criteria.reportStatus !== null) {
@@ -860,6 +916,7 @@ export class PackageQueriesAdapter extends PackageQueries {
 
   private static toSummary(row: SummaryRow): PackageSummaryView {
     const issues = row.report?.issues ?? [];
+    const particulars = PackageQueriesAdapter.particularsOf(row);
 
     return {
       id: row.id,
@@ -876,6 +933,20 @@ export class PackageQueriesAdapter extends PackageQueries {
         archiveSearchApproved: row._count.archiveSearchApprovals > 0,
       }).value,
       profileKey: row.profileKey,
+      applicantName: particulars.applicantName,
+      propertyAddress: particulars.propertyAddress,
+      cadastralNumber: particulars.cadastralNumber,
+      // One answer off however many questions the profile put, by the domain's
+      // own rule rather than a second copy of it in SQL — the same reason the
+      // standing above is worked out here. Null where the register was never
+      // asked, which no outcome can say.
+      archiveOutcome:
+        RegistryOutcome.overall(
+          row.registryChecks.map(check => RegistryOutcome.of(check.outcome)),
+        )?.value ?? null,
+      // The count is already narrowed to the approvals in force, which is the
+      // only thing `supersededAt` is ever read for (ADR-0016).
+      archiveSearchApproved: row._count.archiveSearchApprovals > 0,
       filesCount: row._count.sourceFiles,
       // Zero until the Segmentation stage has read the files: how many
       // documents a package holds is something the pipeline discovers, not
@@ -904,6 +975,75 @@ export class PackageQueriesAdapter extends PackageQueries {
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };
+  }
+
+  /**
+   * What this submission is called: the applicant, the address and the parcel,
+   * read off the values the pipeline already extracted.
+   *
+   * The profile decides all of it — which field of which document type each is
+   * believed from, and in what order — so the register asks it rather than
+   * holding an opinion of its own. Reading the profile off the row's own
+   * `profileKey` is what keeps a page of submissions under two profiles
+   * answering by each one's rule instead of by the majority's.
+   *
+   * A profile this build no longer ships is a package that names itself by its
+   * id: the register is a read surface, and a stored key nobody recognises must
+   * not take a whole page down over three strings nobody can print.
+   */
+  private static particularsOf(row: SummaryRow): {
+    applicantName: StatedValueView | null;
+    propertyAddress: StatedValueView | null;
+    cadastralNumber: StatedValueView | null;
+  } {
+    const spec = PackageQueriesAdapter.particularsSpecFor(row.profileKey);
+    const stated = (references: readonly FieldRef[]): StatedValueView | null =>
+      PackageQueriesAdapter.firstStated(row, references);
+
+    return {
+      applicantName: stated(spec.applicantName),
+      propertyAddress: stated(spec.propertyAddress),
+      cadastralNumber: stated(spec.cadastralNumber),
+    };
+  }
+
+  private static particularsSpecFor(profileKey: string): ParticularsSpec {
+    const profile = VerificationProfile.all.find(
+      candidate => candidate.key === profileKey,
+    );
+
+    return profile ? profile.particulars : ParticularsSpec.none();
+  }
+
+  /**
+   * The first of an ordered list of places a value is printed that this package
+   * actually states — the same walk the aggregate makes for a registry check's
+   * subject, over the rows rather than over the loaded documents.
+   *
+   * The ordering is the profile's: an address is printed on several of the
+   * papers and they are not equally trustworthy (ADR-0010). Where two documents
+   * answer to one type, the first the package took in answers, which is why the
+   * documents are read in a fixed order.
+   */
+  private static firstStated(
+    row: SummaryRow,
+    references: readonly FieldRef[],
+  ): StatedValueView | null {
+    for (const reference of references) {
+      for (const document of row.documents) {
+        if (document.type !== reference.type.value) continue;
+
+        const field = document.extractedFields.find(
+          candidate => candidate.name === reference.key.value,
+        );
+
+        if (field) {
+          return { value: field.value, confidence: field.confidence };
+        }
+      }
+    }
+
+    return null;
   }
 
   /**

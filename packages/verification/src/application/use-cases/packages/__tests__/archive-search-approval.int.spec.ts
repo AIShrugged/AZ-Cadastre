@@ -219,7 +219,7 @@ describe('approving what the archive register answered', () => {
       const page: PackageListPage = await queries.execute(
         new ListPackagesQuery(
           undefined,
-          standing.value,
+          [standing.value],
           undefined,
           LIST_PACKAGES_MAX_LIMIT,
           0,

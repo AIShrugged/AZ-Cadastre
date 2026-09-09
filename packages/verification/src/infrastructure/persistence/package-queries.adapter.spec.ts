@@ -26,7 +26,39 @@ type RowOptions = {
   readonly reportStatus?: string;
   // How many of the profile's questions the register was actually asked.
   readonly registryChecks?: number;
+  // What it answered to each of them, in the order it was asked. An empty list
+  // is a register nobody put a question to.
+  readonly registryOutcomes?: readonly string[];
+  // Approvals of the archive search still in force. At most one ever is.
+  readonly approvalsInForce?: number;
+  // Which profile decides what this package is called. A key the build no
+  // longer ships is one of the cases under test.
+  readonly profileKey?: string;
+  // The documents the pipeline read out of the files, with the values it
+  // extracted off each — as the register selects them, narrowed to the keys a
+  // profile names a case by.
+  readonly documents?: readonly Row[];
 };
+
+/** One document as the register reads it: what it was classified as, and the
+ *  values a profile might name the case by. */
+function aDocument(
+  type: string | null,
+  fields: Readonly<Record<string, string>> = {},
+  confidence = 0.9,
+): Row {
+  const extractedFields = Object.entries(fields).map(([name, value]) => ({
+    name,
+    value,
+    confidence,
+  }));
+
+  return {
+    type,
+    _count: { extractedFields: extractedFields.length },
+    extractedFields,
+  };
+}
 
 /** The one row the register reads, with the report's findings written as the
  *  kinds alone — the tally is all this adapter does with them. */
@@ -34,14 +66,19 @@ function aRow(kinds: readonly string[] | null, options: RowOptions = {}): Row {
   return {
     id: PACKAGE_ID,
     status: options.status ?? 'Completed',
-    profileKey: 'cadastre',
+    profileKey: options.profileKey ?? 'cadastre',
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
     updatedAt: new Date('2026-01-02T00:00:00.000Z'),
     _count: {
       sourceFiles: 1,
-      registryChecks: options.registryChecks ?? 0,
+      registryChecks:
+        options.registryChecks ?? options.registryOutcomes?.length ?? 0,
+      archiveSearchApprovals: options.approvalsInForce ?? 0,
     },
-    documents: [],
+    registryChecks: (options.registryOutcomes ?? []).map(outcome => ({
+      outcome,
+    })),
+    documents: options.documents ?? [],
     report:
       kinds === null
         ? null
@@ -74,7 +111,7 @@ function adapterOver(rows: readonly Row[]): PackageQueriesAdapter {
 // not about which rows it is handed.
 const EVERYTHING = {
   search: null,
-  standing: null,
+  standings: [],
   reportStatus: null,
   limit: 20,
   offset: 0,
@@ -295,6 +332,189 @@ describe('PackageQueriesAdapter', () => {
       expect(summary?.standing).toBe('ShortOfDocuments');
     });
   });
+
+  /*
+   * What the row calls the case. Nothing is stored: the register walks the
+   * profile's ordering over the values the pipeline already extracted, which is
+   * the same walk the aggregate makes for a registry check's subject. What is
+   * under test is that walk — which paper answers, which value wins when
+   * several could, and what a row says when none does.
+   */
+  describe('what the row calls the case', () => {
+    it('names the case off the papers, with the confidence each value was read at', async () => {
+      const [summary] = await summariesOf([
+        aRow([], {
+          documents: [
+            aDocument(
+              'application',
+              {
+                applicant_name: 'ELÇİN ƏLİYEV',
+                property_address: 'Azadlıq pr. 12, mən. 43',
+                cadastral_number: 'AZ-CAD-9999-000',
+              },
+              0.92,
+            ),
+          ],
+        }),
+      ]);
+
+      expect(summary?.applicantName).toEqual({
+        value: 'ELÇİN ƏLİYEV',
+        confidence: 0.92,
+      });
+      expect(summary?.propertyAddress).toEqual({
+        value: 'Azadlıq pr. 12, mən. 43',
+        confidence: 0.92,
+      });
+    });
+
+    /*
+     * The profile believes the surveyed drawing over the form filled in by
+     * hand, and the register obeys it rather than taking whichever value the
+     * database handed over first — which is the whole reason the ordering is
+     * declared (ADR-0010).
+     */
+    it('believes the paper the profile believes, not the row the database offered first', async () => {
+      const [summary] = await summariesOf([
+        aRow([], {
+          documents: [
+            aDocument('application', {
+              property_address: 'Xetan uue, Burome 98. 5-862 saha',
+              cadastral_number: 'AZ-CAD-0000-999',
+            }),
+            aDocument('land_plot_plan', {
+              property_address: 'Bakı ş., Nəsimi r., Azadlıq pr. 12',
+              cadastral_number: 'AZ-CAD-1024-311',
+            }),
+          ],
+        }),
+      ]);
+
+      expect(summary?.propertyAddress?.value).toBe(
+        'Bakı ş., Nəsimi r., Azadlıq pr. 12',
+      );
+      expect(summary?.cadastralNumber?.value).toBe('AZ-CAD-1024-311');
+    });
+
+    // The next paper down is what a case is called while the one above it is
+    // still unread — a row nobody can name is a row nobody can find.
+    it('falls through to the next paper the profile names when the first states nothing', async () => {
+      const [summary] = await summariesOf([
+        aRow([], {
+          documents: [
+            aDocument('land_plot_plan', {}),
+            aDocument('sketch_project', {
+              property_address: 'Bakı ş., Nəsimi r., Azadlıq pr. 12',
+            }),
+          ],
+        }),
+      ]);
+
+      expect(summary?.propertyAddress?.value).toBe(
+        'Bakı ş., Nəsimi r., Azadlıq pr. 12',
+      );
+    });
+
+    // Two papers of one type is a duplicate the report already states; the row
+    // still has to say one name, and it says the first the package took in.
+    it('takes the first of two documents answering to one type', async () => {
+      const [summary] = await summariesOf([
+        aRow([], {
+          documents: [
+            aDocument('application', { applicant_name: 'ELÇİN ƏLİYEV' }),
+            aDocument('application', { applicant_name: 'RÜBABƏ ƏLİYEVA' }),
+          ],
+        }),
+      ]);
+
+      expect(summary?.applicantName?.value).toBe('ELÇİN ƏLİYEV');
+    });
+
+    it('says nothing about a package whose papers have not been read yet', async () => {
+      const [summary] = await summariesOf([aRow(null, { status: 'Pending' })]);
+
+      expect(summary?.applicantName).toBeNull();
+      expect(summary?.propertyAddress).toBeNull();
+      expect(summary?.cadastralNumber).toBeNull();
+    });
+
+    // A document the classifier could not place carries no type, so no ordering
+    // reaches it: whatever was read off it names nothing.
+    it('names nothing off a document that was never placed', async () => {
+      const [summary] = await summariesOf([
+        aRow([], {
+          documents: [aDocument(null, { applicant_name: 'ELÇİN ƏLİYEV' })],
+        }),
+      ]);
+
+      expect(summary?.applicantName).toBeNull();
+    });
+
+    /*
+     * A stored profile key this build no longer ships. The register is a read
+     * surface: one such row must leave the case unnamed, never take the page
+     * down (the same rule an unrecognised finding kind is counted under).
+     */
+    it('leaves a package of a profile it no longer ships unnamed rather than failing', async () => {
+      const [summary] = await summariesOf([
+        aRow([], {
+          profileKey: 'mortgage',
+          documents: [
+            aDocument('application', { applicant_name: 'ELÇİN ƏLİYEV' }),
+          ],
+        }),
+      ]);
+
+      expect(summary?.applicantName).toBeNull();
+      expect(summary?.id).toBe(PACKAGE_ID);
+    });
+  });
+
+  /*
+   * What the archive answered, as the one word a row can carry. Which answer
+   * that is when the profile put several questions is the domain's rule; what
+   * is covered here is that the register reaches it with what the register
+   * checks actually said, and that a package nobody asked about says nothing.
+   */
+  describe('what the row says the archive answered', () => {
+    it('says nothing about a package the register was never asked about', async () => {
+      const [summary] = await summariesOf([aRow([], { reportStatus: 'OK' })]);
+
+      expect(summary?.archiveOutcome).toBeNull();
+      expect(summary?.archiveSearchApproved).toBe(false);
+    });
+
+    it('carries the answer of the one question that was put', async () => {
+      const [summary] = await summariesOf([
+        aRow([], { registryOutcomes: ['Confirmed'] }),
+      ]);
+
+      expect(summary?.archiveOutcome).toBe('Confirmed');
+    });
+
+    // Several questions, one row: the answer that decides what happens next,
+    // never the first one the database handed over.
+    it('answers with what most needs the inspector when several questions were put', async () => {
+      const [summary] = await summariesOf([
+        aRow([], { registryOutcomes: ['Confirmed', 'Differs', 'NotFound'] }),
+      ]);
+
+      expect(summary?.archiveOutcome).toBe('Differs');
+    });
+
+    it('says a signature is in force only while it stands', async () => {
+      const [signed] = await summariesOf([
+        aRow([], { registryOutcomes: ['Confirmed'], approvalsInForce: 1 }),
+      ]);
+      const [spent] = await summariesOf([
+        aRow([], { registryOutcomes: ['Confirmed'], approvalsInForce: 0 }),
+      ]);
+
+      expect(signed?.archiveSearchApproved).toBe(true);
+      expect(spent?.archiveSearchApproved).toBe(false);
+    });
+  });
+
   /*
    * The summary of a period. What it counts is counted by the database — the
    * double above will not hand a row over — so what is left to a spec here is

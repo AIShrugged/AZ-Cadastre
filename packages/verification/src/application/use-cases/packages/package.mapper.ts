@@ -19,6 +19,7 @@ import type {
   RegistryDocumentDto,
   ReportDto,
   SourceFileDto,
+  StatedValueDto,
 } from '@cadastre/api-contracts/verification';
 
 import type { PackageListPage } from '../../ports/outbound/index.js';
@@ -35,6 +36,7 @@ import type {
   RegistryCheckView,
   ReportView,
   SourceFileView,
+  StatedValueView,
 } from '../../read-models/index.js';
 
 export function toSummaryDto(view: PackageSummaryView): PackageDto {
@@ -47,6 +49,16 @@ export function toSummaryDto(view: PackageSummaryView): PackageDto {
     // is one the contract names.
     standing: view.standing as PackageDto['standing'],
     profileKey: view.profileKey,
+    // What the case is called, off the papers the package's own profile
+    // believes each value from. Carried across as read: the register decided
+    // which reading answers, and a second opinion here would be a second rule.
+    applicantName: toStatedValueDto(view.applicantName),
+    propertyAddress: toStatedValueDto(view.propertyAddress),
+    cadastralNumber: toStatedValueDto(view.cadastralNumber),
+    // Only ever worked out through the domain's own enumeration, so the string
+    // is one the contract names.
+    archiveOutcome: view.archiveOutcome as PackageDto['archiveOutcome'],
+    archiveSearchApproved: view.archiveSearchApproved,
     filesCount: view.filesCount,
     documentsCount: view.documentsCount,
     classifiedCount: view.classifiedCount,
@@ -58,6 +70,13 @@ export function toSummaryDto(view: PackageSummaryView): PackageDto {
     createdAt: view.createdAt.toISOString(),
     updatedAt: view.updatedAt.toISOString(),
   };
+}
+
+// One of the three values a row names the case by. Null stays null: a row that
+// cannot name the case says so rather than showing an empty string, which a
+// reader would take for a value somebody left blank.
+function toStatedValueDto(view: StatedValueView | null): StatedValueDto | null {
+  return view ? { value: view.value, confidence: view.confidence } : null;
 }
 
 /**

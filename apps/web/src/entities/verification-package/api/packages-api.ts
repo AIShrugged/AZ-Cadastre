@@ -13,10 +13,13 @@
 import { api } from '@/shared/api';
 import {
   AddFilesResponseSchema,
+  ApproveArchiveSearchResponseSchema,
   GetPackageResponseSchema,
   ListPackagesResponseSchema,
   type AddFilesRequest,
   type AddFilesResponse,
+  type ApproveArchiveSearchRequest,
+  type ApproveArchiveSearchResponse,
   type CreatePackageRequest,
   type CreatePackageResponse,
   type GetPackageResponse,
@@ -78,6 +81,32 @@ export const packagesApi = api.injectEndpoints({
         { type: 'Package', id },
       ],
     }),
+    /*
+     * The one write on this resource a person makes rather than the engine:
+     * their sign-off on what the archive register answered about the
+     * submission, and the conclusion they drew from it (ADR-0016).
+     *
+     * It answers with the package as it now stands, so the screen that has just
+     * signed does not have to ask again — and both tags are named because the
+     * standing is worked out from whether an approval is in force, which makes
+     * the register row stale too.
+     */
+    approveArchiveSearch: build.mutation<
+      ApproveArchiveSearchResponse,
+      { id: string; body: ApproveArchiveSearchRequest }
+    >({
+      query: ({ id, body }) => ({
+        url: `/packages/${id}/archive-search-approval`,
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (response: unknown) =>
+        ApproveArchiveSearchResponseSchema.parse(response),
+      invalidatesTags: (_result, _error, { id }) => [
+        'Package',
+        { type: 'Package', id },
+      ],
+    }),
   }),
 });
 
@@ -86,4 +115,5 @@ export const {
   useGetPackageQuery,
   useCreatePackageMutation,
   useAddFilesMutation,
+  useApproveArchiveSearchMutation,
 } = packagesApi;

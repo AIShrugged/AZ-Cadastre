@@ -23,7 +23,9 @@ import {
   ChevronRightIcon,
   FileTextIcon,
   ImageIcon,
+  MinusIcon,
   PlusIcon,
+  StampIcon,
   TriangleAlertIcon,
 } from 'lucide-react';
 import { useState, type ComponentProps, type ReactNode } from 'react';
@@ -31,8 +33,14 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import {
   documentsExpected,
+  HOLDING_KEY,
+  HOLDING_TONE,
   missingTypes,
+  OUTCOME_NOTE,
+  OutcomeMark,
   profileName,
+  RegistryOutcomeMark,
+  speaksAgainst,
   STAGES,
   STANDING_NOTE,
   StandingMark,
@@ -42,6 +50,7 @@ import {
   useGetProfilesQuery,
   type Disposition,
 } from '@/entities/verification-package';
+import { ApproveArchiveSearch } from '@/features/approve-archive-search';
 import { AddFiles } from '@/features/upload-documents';
 import { paths } from '@/shared/config';
 import { formatDate, relativeShort, translateOr, useI18n } from '@/shared/i18n';
@@ -68,7 +77,6 @@ import type {
   RegistryAttributeDto,
   RegistryCheckDto,
   RegistryDocumentDto,
-  RegistryOutcome,
   ReportDto,
   ReportStatus,
   SourceFileDto,
@@ -84,7 +92,9 @@ type WorkspaceView = 'review' | 'checks' | 'archive' | 'documents';
 
 function workspaceFromHash(hash: string): WorkspaceView {
   if (hash.startsWith('#check-')) return 'checks';
-  if (hash.startsWith('#registry-')) return 'archive';
+  if (hash.startsWith('#registry-') || hash.startsWith('#archive-')) {
+    return 'archive';
+  }
   if (hash.startsWith('#doc-') || hash.startsWith('#field-'))
     return 'documents';
   return 'review';
@@ -976,11 +986,16 @@ function FileGroup({
 function Standing({
   standing,
   onAddFiles,
+  onApprove,
 }: {
   standing: PackageStanding;
   /** Null while a run is under way: the package takes no files then, and the
    *  panel that would open says so in its own words. */
   onAddFiles: (() => void) | null;
+  /** Null unless a signature is the thing outstanding. The panel it opens is
+   *  three scrolls down a tab the reader is not on, and a standing that names
+   *  the move without offering it makes them go and find it. */
+  onApprove: (() => void) | null;
 }) {
   const { t } = useI18n();
   return (
@@ -992,15 +1007,20 @@ function Standing({
       <p className='mt-2 max-w-[40ch] text-[0.8125rem] leading-snug text-muted-foreground'>
         {t(STANDING_NOTE[standing])}
       </p>
-      {onAddFiles && (
-        <Button
-          variant='outline'
-          size='sm'
-          onClick={onAddFiles}
-          className='mt-3.5'
-        >
-          <PlusIcon /> {t('add.action')}
-        </Button>
+      {(onApprove || onAddFiles) && (
+        <div className='mt-3.5 flex flex-wrap gap-2'>
+          {/* The outstanding move first, whichever it is. */}
+          {onApprove && (
+            <Button size='sm' onClick={onApprove}>
+              <StampIcon /> {t('approve.action')}
+            </Button>
+          )}
+          {onAddFiles && (
+            <Button variant='outline' size='sm' onClick={onAddFiles}>
+              <PlusIcon /> {t('add.action')}
+            </Button>
+          )}
+        </div>
       )}
     </section>
   );
@@ -1156,9 +1176,10 @@ const isArchiveFinding = (kind: IssueKind): boolean =>
   kind === 'RegistryDocumentMissing' ||
   kind === 'RegistryUnconfirmed';
 
-// The three tones the whole surface reports in: settled, a fault, and neither
-// of the two. Named once, because a check, a report and a register answer are
-// all read off the same colours.
+// The three tones a cross-document check reports in: settled, a fault, and
+// neither of the two. The archive panel draws two more of its own — the
+// register is a source outside the system and is allowed not to know — so the
+// whole vocabulary lives with the entity that owns the mark.
 type Tone = 'ok' | 'issues' | 'incomplete';
 
 const REPORT_LABEL: Record<ReportStatus, string> = {
@@ -1608,37 +1629,6 @@ const VERDICT_LABEL: Record<CrossCheckVerdict, string> = {
   Unclear: 'detail.check_unclear',
 };
 
-/** How a check came out, as a pill. Shared by the two panels that report one,
- *  so that "agreed" reads alike whether the papers were held against each other
- *  or against the archive record — a reader should not have to learn two
- *  vocabularies for the same three tones.
- *
- *  Named for the outcome and not the standing: a Package Standing is where the
- *  whole submission stands, which the contract names and the entity draws. */
-function OutcomeMark({ tone, label }: { tone: Tone; label: string }) {
-  return (
-    <span
-      className={cn(
-        'inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-[0.6875rem] font-medium',
-        tone === 'ok' && 'bg-ok/12 text-ok-ink',
-        tone === 'issues' && 'bg-issues/12 text-issues-ink',
-        tone === 'incomplete' && 'bg-incomplete/12 text-incomplete-ink',
-      )}
-    >
-      <span
-        aria-hidden
-        className={cn(
-          'size-1.5 rounded-full',
-          tone === 'ok' && 'bg-ok',
-          tone === 'issues' && 'bg-issues',
-          tone === 'incomplete' && 'bg-incomplete',
-        )}
-      />
-      {label}
-    </span>
-  );
-}
-
 function VerdictMark({ verdict }: { verdict: CrossCheckVerdict }) {
   const { t } = useI18n();
 
@@ -1808,38 +1798,9 @@ function DocumentComparisons({
 // disagreements would be a stage an inspector could not tell had run, and "the
 // register was asked and confirmed it" is exactly the lookup they would
 // otherwise make by hand.
-const OUTCOME_TONE: Record<RegistryOutcome, Tone> = {
-  Confirmed: 'ok',
-  Differs: 'issues',
-  // A fault too, and a different one: the record agrees and the archive has no
-  // original of a paper the submission rests on.
-  Incomplete: 'issues',
-  // Neither is a fault in the package: the register holds the privatisations of
-  // the 1990s and 2000s, so silence there is an absence of evidence and two
-  // records answering to one address is a question for a person.
-  NotFound: 'incomplete',
-  Ambiguous: 'incomplete',
-};
-
-const OUTCOME_LABEL: Record<RegistryOutcome, string> = {
-  Confirmed: 'detail.reg.confirmed',
-  Differs: 'detail.reg.differs',
-  Incomplete: 'detail.reg.incomplete',
-  NotFound: 'detail.reg.not_found',
-  Ambiguous: 'detail.reg.ambiguous',
-};
-
-// What the answer means for the package, said in the reader's own language. The
-// wire carries an English audit line naming the register that answered; nothing
-// here reads it.
-const OUTCOME_NOTE: Record<RegistryOutcome, string> = {
-  Confirmed: 'detail.reg.confirmed_note',
-  Differs: 'detail.reg.differs_note',
-  Incomplete: 'detail.reg.incomplete_note',
-  NotFound: 'detail.reg.not_found_note',
-  Ambiguous: 'detail.reg.ambiguous_note',
-};
-
+// The tones, the words and the sentences are the entity's: five verdicts, five
+// tones, and the difference between "the record says otherwise" and "the
+// register has nothing" carried by the colour as well as by the word.
 /** One value held against the record: what the package states above what the
  *  register has, so the two are read down one column rather than across. */
 function RegistryAttributeRow({
@@ -1955,16 +1916,22 @@ function RegistryDocumentRow({
   onJump: Jump;
 }) {
   const { t } = useI18n();
+  const holding = HOLDING_TONE[document.holding];
 
   const body = (
     <>
       <span className='flex min-w-0 items-baseline gap-1.5 text-[0.8125rem] leading-snug text-muted-foreground'>
-        {document.holding === 'Held' ? (
+        {/* Three states, three marks. `Unknown` used to be drawn as blank
+            space, which left it reading as a row that had not loaded — it is a
+            state the archive is in, so it is stated: a dash, because a column
+            an area's presence register never kept is silence and not a gap in
+            the submission (ADR-0010). */}
+        {holding === 'ok' ? (
           <CheckIcon className='size-3 shrink-0 translate-y-0.5 text-ok-ink' />
-        ) : document.holding === 'NotHeld' ? (
+        ) : holding === 'issues' ? (
           <TriangleAlertIcon className='size-3 shrink-0 translate-y-0.5 text-issues-ink' />
         ) : (
-          <span aria-hidden className='w-3 shrink-0' />
+          <MinusIcon className='size-3 shrink-0 translate-y-0.5 text-muted-foreground/50' />
         )}
         <span className='min-w-0'>
           {translateOr(t, `doctype.${document.type}`, document.type)}
@@ -1974,14 +1941,14 @@ function RegistryDocumentRow({
         <span
           className={cn(
             'text-[0.8125rem] leading-snug',
-            document.holding === 'NotHeld'
+            holding === 'issues'
               ? 'text-issues-ink'
-              : document.holding === 'Unknown'
+              : holding === 'silent'
                 ? 'italic text-muted-foreground'
                 : 'text-muted-foreground',
           )}
         >
-          {t(`detail.reg.holding_${document.holding.toLowerCase()}`)}
+          {t(HOLDING_KEY[document.holding])}
         </span>
         {(document.number ?? document.reference) && (
           <span className='flex min-w-0 flex-wrap items-baseline gap-x-2'>
@@ -2057,10 +2024,7 @@ function RegistryCheckEntry({
           {translateOr(t, `check.${check.key}`, check.key)}
         </span>
         <span className='ml-auto flex shrink-0 items-baseline gap-2'>
-          <OutcomeMark
-            tone={OUTCOME_TONE[check.outcome]}
-            label={t(OUTCOME_LABEL[check.outcome])}
-          />
+          <RegistryOutcomeMark outcome={check.outcome} />
           <Confidence value={check.confidence} bare />
         </span>
       </summary>
@@ -2128,6 +2092,11 @@ function RegistryChecks({
   const confirmed = checks.filter(
     check => check.outcome === 'Confirmed',
   ).length;
+  // Reddened by what is actually held against the package, never by everything
+  // short of `Confirmed`: an address the register has never heard of leaves the
+  // submission with nothing against it, and a tally that coloured for it would
+  // tell the reader the register found fault where it found nothing (ADR-0009).
+  const against = checks.some(check => speaksAgainst(check.outcome));
 
   return (
     <section id='archive-comparison' className='mb-9 scroll-mt-16'>
@@ -2138,9 +2107,7 @@ function RegistryChecks({
             data-mono
             className={cn(
               'text-[0.75rem] tabular-nums',
-              confirmed === checks.length
-                ? 'text-muted-foreground'
-                : 'text-issues-ink',
+              against ? 'text-issues-ink' : 'text-muted-foreground',
             )}
           >
             {t('detail.checks_agreed', {
@@ -2303,6 +2270,19 @@ export function VerificationDetails() {
     });
   };
 
+  // Offered only while a signature is what the submission is actually waiting
+  // on — the standing is what says so, and it is the contract's answer rather
+  // than one worked out here (ADR-0014).
+  const goToApproval =
+    pkg.standing === 'AwaitingArchiveApproval'
+      ? () => {
+          setActiveView('archive');
+          requestAnimationFrame(() => {
+            window.location.hash = '#archive-approval';
+          });
+        }
+      : null;
+
   // A finding always takes the inspector to its evidence, even when the
   // evidence lives in another workspace view. The panel changes before the
   // fragment is applied, so a link never lands in content that is not mounted.
@@ -2416,6 +2396,10 @@ export function VerificationDetails() {
                   running={running}
                   onJump={jump}
                 />
+                {/* Under the answers and not over them: the conclusion is drawn
+                    from what the register said, so it is signed at the foot of
+                    what was read rather than above it. */}
+                <ApproveArchiveSearch pkg={pkg} />
               </TabsContent>
 
               <TabsContent value='documents' className='pt-7'>
@@ -2503,6 +2487,7 @@ export function VerificationDetails() {
               <Standing
                 standing={pkg.standing}
                 onAddFiles={accepting ? goToAddFiles : null}
+                onApprove={goToApproval}
               />
               <RunProgress
                 stages={stages}

@@ -1,6 +1,6 @@
 name: Release
 
-# Собирает три образа и публикует их в Docker Hub. Идёт после того, как CI на
+# Собирает четыре образа и публикует их в Docker Hub. Идёт после того, как CI на
 # `main` стал зелёным — не параллельно с ним: незачем публиковать сборку,
 # которая не прошла проверки. Ручной запуск (workflow_dispatch) — на случай
 # пересборки без нового коммита.
@@ -27,8 +27,8 @@ jobs:
       github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     strategy:
-      # Один сломанный образ не должен отменять сборку двух других: иначе в
-      # отчёте два «cancelled» вместо ответа, собираются они или нет.
+      # Один сломанный образ не должен отменять сборку остальных: иначе в
+      # отчёте три «cancelled» вместо ответа, собираются они или нет.
       fail-fast: false
       matrix:
         include:
@@ -38,6 +38,11 @@ jobs:
             dockerfile: apps/server/Dockerfile
           - image: cadastre-registry
             dockerfile: apps/registry-stub/Dockerfile
+          # Не сервис, а разовая задача: Prisma CLI, обе схемы и обе истории
+          # миграций. Едет тем же релизом, что и образы, чьи базы он мигрирует,
+          # — иначе `latest` мигратора и `latest` сервиса разойдутся (COMM-62).
+          - image: cadastre-migrator
+            dockerfile: docker/migrator/Dockerfile
     steps:
       - uses: actions/checkout@v5
 

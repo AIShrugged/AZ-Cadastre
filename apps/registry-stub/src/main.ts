@@ -33,7 +33,11 @@ async function bootstrap(): Promise<void> {
       database,
       // Named here rather than left to whoever reads the stack trace: this is
       // the whole of the fix, and the register is running so it can be applied.
-      apply: 'pnpm db:deploy && pnpm db:seed',
+      // Not `pnpm db:deploy` — the Prisma CLI is a devDependency and this image
+      // installs with `--prod`, so the schema is applied from the migrator
+      // image and only the seed runs from here (COMM-62).
+      apply:
+        'docker compose run --rm migrate registry, then docker exec cadastre-registry pnpm db:seed',
       logLevel: config.get('logger', { infer: true }).level,
     });
 

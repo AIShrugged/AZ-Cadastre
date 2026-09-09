@@ -15,7 +15,7 @@ import {
   InfrastructureException,
 } from '@cadastre/shared';
 
-import type { Refusal } from '../../http/index.js';
+import type { Refusal } from './request-logging.middleware.js';
 
 const DOMAIN_STATUS: Readonly<Record<string, number>> = {
   DOCUMENT_NOT_IN_PACKAGE: HttpStatus.NOT_FOUND,
@@ -45,12 +45,23 @@ const DOMAIN_STATUS: Readonly<Record<string, number>> = {
 
 const DOMAIN_DEFAULT_STATUS = HttpStatus.UNPROCESSABLE_ENTITY;
 
+/**
+ * Every refusal this system raises itself, in the one shape the contract
+ * publishes.
+ *
+ * It catches the kernel's three exception bases and nothing narrower, so it
+ * belongs beside the access log rather than under one area of the API: the
+ * archive-search route reaches a system outside this one and its failures come
+ * out of here too, spelt the same way as a verification refusal. An area that
+ * needed an error shape of its own would be an area the published language does
+ * not cover.
+ */
 @Catch(DomainException, ApplicationException, InfrastructureException)
-export class VerificationExceptionFilter implements ExceptionFilter {
+export class SystemExceptionFilter implements ExceptionFilter {
   private readonly logger: Logger;
 
   constructor(@Inject(Logger) logger: Logger) {
-    this.logger = logger.child({ scope: VerificationExceptionFilter.name });
+    this.logger = logger.child({ scope: SystemExceptionFilter.name });
   }
 
   catch(

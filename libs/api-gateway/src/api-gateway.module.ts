@@ -8,13 +8,15 @@ import {
 } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 
-import { RequestLoggingMiddleware } from './presentation/http/index.js';
+import {
+  HttpExceptionFilter,
+  RequestLoggingMiddleware,
+  SystemExceptionFilter,
+} from './presentation/http/index.js';
 import {
   DocumentsController,
-  HttpExceptionFilter,
   PackagesController,
   ProfilesController,
-  VerificationExceptionFilter,
 } from './presentation/verification/rest/index.js';
 
 export type ApiGatewayModuleOptions = Pick<ModuleMetadata, 'imports'> & {
@@ -52,13 +54,13 @@ export class ApiGatewayModule implements NestModule {
         // raised it.
         /*
          * Order matters, and it is the reverse of the listing: Nest applies
-         * APP_FILTER providers last-registered-first, so the domain filter must
-         * come after the framework one to get first refusal. Both render the
-         * contract's ErrorBody — the published language has one error shape and
-         * the API must not have two.
+         * APP_FILTER providers last-registered-first, so the filter over our
+         * own exception bases must come after the framework one to get first
+         * refusal. Both render the contract's ErrorBody — the published
+         * language has one error shape and the API must not have two.
          */
         { provide: APP_FILTER, useClass: HttpExceptionFilter },
-        { provide: APP_FILTER, useClass: VerificationExceptionFilter },
+        { provide: APP_FILTER, useClass: SystemExceptionFilter },
         RequestLoggingMiddleware,
       ],
     };

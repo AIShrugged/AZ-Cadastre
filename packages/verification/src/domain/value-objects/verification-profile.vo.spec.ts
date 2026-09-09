@@ -448,6 +448,95 @@ describe('VerificationProfile', () => {
     });
   });
 
+  /*
+   * What a case of this kind is called, and off which paper each of the three
+   * values is believed. The profile is the only place that decides it — a list
+   * screen choosing for itself would be a second answer to what a submission is
+   * — so what is under test here is that the ordering says what it means to say
+   * and reaches nothing the profile does not carry.
+   */
+  describe('what a case of its kind is called', () => {
+    const PARTICULARS = VerificationProfile.CADASTRE.particulars;
+
+    const named = (
+      references: readonly { type: DocumentType; key: FieldKey }[],
+    ) =>
+      references.map(
+        reference => `${reference.type.value}.${reference.key.value}`,
+      );
+
+    it('names the applicant off the papers that state one whole name', () => {
+      expect(named(PARTICULARS.applicantName)).toEqual([
+        'application.applicant_name',
+        'disposal_order.applicant_name',
+        'archive_certificate.owner_name',
+        'land_plot_plan.owner_name',
+      ]);
+    });
+
+    /*
+     * The plan-scheme first and the application last, which is the order
+     * `property_of_record` asks the register in: the address on the plan was
+     * written by the office that surveyed the parcel, and the one on the
+     * application is where the reading went wrong in both real submissions
+     * (ADR-0010). Held here so the row and the archive answer cannot drift into
+     * naming two different addresses.
+     */
+    it('believes the address the same way the register is asked it', () => {
+      const asked = named(
+        VerificationProfile.CADASTRE.registryChecks[0]!.subjects,
+      );
+      const believed = named(PARTICULARS.propertyAddress);
+
+      // Every paper the register is asked about is one the row may name the
+      // case by, and in the same relative order. The row names two more besides
+      // — a case with neither a plan nor a sketch is still a case somebody has
+      // to find — but it never prefers a paper the register trusts less.
+      expect(believed.filter(paper => asked.includes(paper))).toEqual(asked);
+      expect(believed.at(-1)).toBe('application.property_address');
+    });
+
+    it('believes the surveyed parcel over the one the applicant wrote down', () => {
+      expect(named(PARTICULARS.cadastralNumber)).toEqual([
+        'land_plot_plan.cadastral_number',
+        'application.cadastral_number',
+      ]);
+    });
+
+    // The same rule a cross-check is held to: a reference to a field no
+    // document type of this profile declares can never be read off anything,
+    // so it would leave every row unnamed and say nothing about why.
+    it('reaches only for fields the document types it names actually declare', () => {
+      for (const reference of PARTICULARS.references) {
+        expect(
+          VerificationProfile.CADASTRE.schemaFor(reference.type).declares(
+            reference.key,
+          ),
+        ).toBe(true);
+      }
+    });
+
+    // The identity card prints a surname and a given name in fields of their
+    // own. A name assembled out of two readings is a value no document states,
+    // and the row would be quoting a paper that does not say it.
+    it('never names the applicant off a paper that prints the name in pieces', () => {
+      expect(named(PARTICULARS.applicantName)).not.toContain(
+        'identity_card.last_name',
+      );
+      expect(named(PARTICULARS.applicantName)).not.toContain(
+        'identity_card.first_name',
+      );
+    });
+
+    it('holds every reference of the three lists, so a reader can narrow what it loads', () => {
+      expect(PARTICULARS.references).toHaveLength(
+        PARTICULARS.applicantName.length +
+          PARTICULARS.propertyAddress.length +
+          PARTICULARS.cadastralNumber.length,
+      );
+    });
+  });
+
   it('is equal to another handle on the same profile', () => {
     expect(
       VerificationProfile.CADASTRE.equals(VerificationProfile.of('cadastre')),

@@ -36,6 +36,14 @@ function aSummaryView(
     status: 'Completed',
     standing: 'NeedsInspector',
     profileKey: 'cadastre',
+    applicantName: { value: 'ELÇİN ƏLİYEV', confidence: 0.92 },
+    propertyAddress: {
+      value: 'Bakı ş., Nəsimi r., Azadlıq pr. 12, mən. 43',
+      confidence: 0.88,
+    },
+    cadastralNumber: { value: 'AZ-CAD-1024-311', confidence: 0.9 },
+    archiveOutcome: 'Differs',
+    archiveSearchApproved: false,
     filesCount: 2,
     documentsCount: 3,
     classifiedCount: 3,
@@ -255,6 +263,74 @@ describe('toSummaryDto', () => {
     expect([...PackageStandingSchema.options].sort()).toEqual(
       PackageStanding.all.map(standing => standing.value).sort(),
     );
+  });
+
+  /*
+   * What the row names the case by. The mapper decides none of it — the
+   * register worked out which reading answers, off the profile's own ordering —
+   * so what is held here is that all three arrive with their confidence intact
+   * and that an unread one stays null rather than becoming a blank a reader
+   * would take for a value somebody left empty.
+   */
+  it('carries the applicant, the address and the parcel across with their confidence', () => {
+    const dto = toSummaryDto(
+      aSummaryView({
+        applicantName: { value: 'ELÇİN ƏLİYEV', confidence: 0.92 },
+        propertyAddress: { value: 'Azadlıq pr. 12', confidence: 0.71 },
+        cadastralNumber: { value: 'AZ-CAD-1024-311', confidence: 0.9 },
+      }),
+    );
+
+    expect(dto.applicantName).toEqual({
+      value: 'ELÇİN ƏLİYEV',
+      confidence: 0.92,
+    });
+    expect(dto.propertyAddress).toEqual({
+      value: 'Azadlıq pr. 12',
+      confidence: 0.71,
+    });
+    expect(dto.cadastralNumber).toEqual({
+      value: 'AZ-CAD-1024-311',
+      confidence: 0.9,
+    });
+  });
+
+  it('leaves a value no paper of the package states as null, never as a blank', () => {
+    const dto = toSummaryDto(
+      aSummaryView({
+        applicantName: null,
+        propertyAddress: null,
+        cadastralNumber: null,
+      }),
+    );
+
+    expect(dto.applicantName).toBeNull();
+    expect(dto.propertyAddress).toBeNull();
+    expect(dto.cadastralNumber).toBeNull();
+  });
+
+  it('carries what the archive answered, and whether a signature is in force', () => {
+    const dto = toSummaryDto(
+      aSummaryView({
+        archiveOutcome: 'Confirmed',
+        archiveSearchApproved: true,
+      }),
+    );
+
+    expect(dto.archiveOutcome).toBe('Confirmed');
+    expect(dto.archiveSearchApproved).toBe(true);
+  });
+
+  // A question nobody put and a question the archive answered with silence are
+  // two different things, and a row that said "NotFound" for both would be
+  // announcing an answer nobody has.
+  it('says nothing about the archive on a package the register was never asked about', () => {
+    const dto = toSummaryDto(
+      aSummaryView({ archiveOutcome: null, archiveSearchApproved: false }),
+    );
+
+    expect(dto.archiveOutcome).toBeNull();
+    expect(dto.archiveSearchApproved).toBe(false);
   });
 
   it('carries every progress count across unchanged', () => {

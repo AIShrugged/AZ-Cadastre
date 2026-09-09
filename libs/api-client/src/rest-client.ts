@@ -242,7 +242,12 @@ function queryString(request: ListPackagesRequestInput): string {
   const params = new URLSearchParams();
 
   if (parsed.search !== undefined) params.set('search', parsed.search);
-  if (parsed.standing !== undefined) params.set('standing', parsed.standing);
+  // One `standing` per value asked for, which is how a repeatable query
+  // parameter travels: `set` would keep only the last and quietly narrow a
+  // slice of two to a slice of one.
+  for (const standing of parsed.standing ?? []) {
+    params.append('standing', standing);
+  }
   if (parsed.reportStatus !== undefined) {
     params.set('reportStatus', parsed.reportStatus);
   }

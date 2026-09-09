@@ -186,6 +186,29 @@ describe('a verification run whose register contradicts the package', () => {
     ]);
   });
 
+  /*
+   * The row of the list, which is the one place the archive's answer reaches a
+   * reader who has not opened the package. Held against the check the detail
+   * view carries, so the two cannot come to say different things about one
+   * submission — the same invariant the tally and the standing are held to.
+   */
+  it('says on the row what the archive answered, and that nobody has signed for it', () => {
+    // act / assert
+    expect(detail.archiveOutcome).toBe(detail.registryChecks[0]?.outcome);
+    expect(detail.archiveOutcome).toBe('Differs');
+    expect(detail.archiveSearchApproved).toBe(false);
+  });
+
+  // The three values the row names the case by, read off the same papers the
+  // detail view lists them on. A submission is found in a list by the person
+  // and the property, never by its profile and its id.
+  it('names the case on the row by the applicant, the address and the parcel', () => {
+    // act / assert
+    expect(detail.applicantName?.value).toBe('ELÇİN ƏLİYEV');
+    expect(detail.propertyAddress?.value).toBe(ADDRESS);
+    expect(detail.cadastralNumber?.value).toBe('AZ-CAD-1024-311');
+  });
+
   it('finishes the package rather than failing it', () => {
     // act / assert
     expect(detail.status).toBe('Completed');

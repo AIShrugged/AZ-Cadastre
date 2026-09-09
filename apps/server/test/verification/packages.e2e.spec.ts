@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, inject, it } from 'vitest';
 
 import { ApiError, RestClient } from '@cadastre/api-client';
 import {
+  LIST_PACKAGES_MAX_LIMIT,
   ListPackagesResponseSchema,
   type FileInput,
   type PackageDto,
@@ -131,6 +132,103 @@ describe('the submission round trip over HTTP', () => {
     expect(cleared.body.items.map(summary => summary.id)).not.toContain(
       created.id,
     );
+  });
+
+  /*
+   * The slice an inspector calls "in progress" is two standings, and it travels
+   * as the parameter repeated. Over HTTP because that is where it can go wrong:
+   * a query string is parsed by the server, not by the schema, and a reading
+   * that kept only the last value would answer a tab of two with a list of one.
+   */
+  it('narrows by several standings at once, sent as the parameter repeated', async () => {
+    // arrange
+    const created = await submit(['erize-qeydiyyat.pdf']);
+    await settled(created.id);
+
+    // act — the run has nothing to read, so the envelope is short a paper; the
+    // slice asked for is two standings it is not among and the one it is
+    const slice = await api.packages.findMany({
+      standing: ['Queued', 'UnderVerification', 'ShortOfDocuments'],
+      limit: LIST_PACKAGES_MAX_LIMIT,
+    });
+    const cleared = await api.packages.findMany({
+      standing: ['Cleared', 'NeedsInspector'],
+      limit: LIST_PACKAGES_MAX_LIMIT,
+    });
+
+    // assert
+    expect(slice.body.items.map(summary => summary.id)).toContain(created.id);
+    // Any of the three and nothing else: a slice widened by one bad reading of
+    // the parameter would show rows nobody asked for.
+    expect(
+      slice.body.items.every(summary =>
+        ['Queued', 'UnderVerification', 'ShortOfDocuments'].includes(
+          summary.standing,
+        ),
+      ),
+    ).toBe(true);
+    expect(cleared.body.items.map(summary => summary.id)).not.toContain(
+      created.id,
+    );
+  });
+
+  // A slice of one is the filter this endpoint always took, which is what makes
+  // the change something no existing caller has to notice.
+  it('answers a single standing the same whether it is sent alone or as a list of one', async () => {
+    // arrange
+    const created = await submit(['erize-qeydiyyat.pdf']);
+    await settled(created.id);
+
+    // act
+    const alone = await api.packages.findManyRaw(
+      `?standing=ShortOfDocuments&limit=${LIST_PACKAGES_MAX_LIMIT}`,
+    );
+    const asList = await api.packages.findMany({
+      standing: ['ShortOfDocuments'],
+      limit: LIST_PACKAGES_MAX_LIMIT,
+    });
+
+    // assert
+    const page = ListPackagesResponseSchema.parse(alone.body);
+    expect(page.items.map(summary => summary.id)).toContain(created.id);
+    expect(asList.body.items.map(summary => summary.id)).toEqual(
+      page.items.map(summary => summary.id),
+    );
+  });
+
+  // One bad value among good ones is still a filter nobody named: answering the
+  // good ones would silently widen the slice somebody asked for.
+  it('refuses a slice in which one standing is a word nobody names', async () => {
+    // act / assert
+    await expect(
+      api.packages.findManyRaw('?standing=Queued&standing=Whenever'),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  /*
+   * What the row calls the case, published as three readings and an archive
+   * answer. Nothing in this set uploads bytes, so nothing was read off a sheet
+   * and every one of them is null — which is the promise: a row that cannot
+   * name the case says nothing rather than showing a blank a reader would take
+   * for a value somebody left out.
+   */
+  it('names the case on every row, or says null where no paper states it', async () => {
+    // arrange
+    const created = await submit(['erize-qeydiyyat.pdf']);
+    await settled(created.id);
+
+    // act
+    const { body } = await api.packages.findMany({ search: created.id });
+
+    // assert
+    const row = body.items[0];
+    expect(row?.id).toBe(created.id);
+    expect(row).toHaveProperty('applicantName');
+    expect(row).toHaveProperty('propertyAddress');
+    expect(row).toHaveProperty('cadastralNumber');
+    // Never asked, which is not the same answer as `NotFound`.
+    expect(row?.archiveOutcome).toBeNull();
+    expect(row?.archiveSearchApproved).toBe(false);
   });
 
   it('refuses a page nobody may ask for, rather than serving the whole list', async () => {

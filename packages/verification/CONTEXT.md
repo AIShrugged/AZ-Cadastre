@@ -31,6 +31,10 @@ _Avoid_: attribute, property
 A reference list of Document Types that no Verification Profile asks for, but that arrive in the envelopes anyway: the registrar's routing sheet, a courier waybill, a covering letter. Matching one names an out-of-profile Document in the Verification Report instead of leaving it a generic "extra document"; it never places the Document, answers a requirement or carries fields (ADR-0012).
 _Avoid_: extra types, known documents, secondary profile
 
+**Particulars**:
+What a Verification Package is called outside this system: the applicant, the address of the property and the cadastral number of the parcel, as the pipeline read them. Not a check and not evidence — nothing here is compared with anything — but the answer to how a submission is named in a list, where its id and its profile key say nothing a person recognises. Which field of which Document Type each is believed from, and in what order, is the Verification Profile's to declare; the first of the papers it names that the package actually states is the one that answers, and where none does the value is absent rather than blank. Read off the Extracted Fields on every request and stored nowhere, for the reason a Package Standing is (ADR-0018).
+_Avoid_: title, headline, summary, metadata
+
 **Verification Profile**:
 A declarative definition of what a valid Package looks like: which Document Types exist, their field schemas, which documents are required, and the cross-document rules. Domains (cadastre, …) are expressed as profiles; the engine only interprets them.
 _Avoid_: ruleset, config, template

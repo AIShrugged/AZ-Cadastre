@@ -47,11 +47,13 @@ export {
   CrossCheckSpec,
   DocumentTypeSpec,
   FieldRef,
+  ParticularsSpec,
   RegistryCheckSpec,
   RequirementBand,
   SupportingDocumentsSpec,
   VerificationProfile,
   type CatalogueDeclaration,
+  type ParticularsDeclaration,
   type RequirementBandDeclaration,
   type SupportingDocumentsDeclaration,
 } from './verification-profile.vo.js';

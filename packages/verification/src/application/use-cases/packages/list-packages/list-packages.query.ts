@@ -13,7 +13,10 @@ import type { PackageListPage } from '../../../ports/outbound/index.js';
 export class ListPackagesQuery extends Query<PackageListPage> {
   constructor(
     public readonly search: string | undefined,
-    public readonly standing: string | undefined,
+    // Every standing asked for, and a row matches any of them. Undefined
+    // narrows nothing; a single-element list is the one-standing filter this
+    // used to take, which is why the caller says it as a list either way.
+    public readonly standings: readonly string[] | undefined,
     public readonly reportStatus: string | undefined,
     public readonly limit: number,
     public readonly offset: number,

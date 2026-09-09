@@ -31,7 +31,7 @@ import {
   isAskable,
   LOOKUP_KEY,
   LOOKUP_NOTE,
-  LookupOutcomeMark,
+  LookupOutcomeGlyph,
   RECORD_FIELD_KEY,
   RECORD_FIELDS,
   toLookupRequest,
@@ -171,11 +171,13 @@ function VerdictBand({ answer }: { answer: AddressLookupResponse }) {
   return (
     <div className='flex flex-col gap-2 border-b border-rule-strong px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6'>
       <div className='flex min-w-0 flex-col gap-1.5'>
-        <div className='flex flex-wrap items-center gap-2.5'>
+        {/* The mark and the word, once. Drawn at heading scale rather than as a
+            pill beside a heading that repeats it: the answer is the heading. */}
+        <div className='flex flex-wrap items-center gap-2'>
+          <LookupOutcomeGlyph outcome={answer.outcome} />
           <h2 className='text-[1.0625rem] font-semibold tracking-tight text-foreground'>
             {t(LOOKUP_KEY[answer.outcome])}
           </h2>
-          <LookupOutcomeMark outcome={answer.outcome} />
         </div>
         <p className='text-[0.8125rem] leading-relaxed text-muted-foreground'>
           {t(LOOKUP_NOTE[answer.outcome])}

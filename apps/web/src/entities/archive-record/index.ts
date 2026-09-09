@@ -31,5 +31,5 @@ export { useArchiveReachQuery, useLookupAddressQuery } from './api/archive-api';
 export {
   AttributeMatchMark,
   DocumentHoldingMark,
-  LookupOutcomeMark,
+  LookupOutcomeGlyph,
 } from './ui/lookup-marks';

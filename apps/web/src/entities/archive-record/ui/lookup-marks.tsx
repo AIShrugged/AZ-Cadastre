@@ -17,7 +17,8 @@ import {
 import type { ComponentType } from 'react';
 
 import { useI18n } from '@/shared/i18n';
-import { OutcomeMark } from '@/shared/ui/outcome-mark';
+import { cn } from '@/shared/lib/cn';
+import { OutcomeMark, type OutcomeTone } from '@/shared/ui/outcome-mark';
 import type {
   AttributeMatch,
   DocumentHolding,
@@ -27,7 +28,6 @@ import type {
 import {
   HOLDING_KEY,
   HOLDING_TONE,
-  LOOKUP_KEY,
   LOOKUP_TONE,
   MATCH_KEY,
   MATCH_TONE,
@@ -62,17 +62,33 @@ const HOLDING_ICON: Record<
   Unknown: MinusIcon,
 };
 
-export function LookupOutcomeMark({ outcome }: { outcome: LookupOutcome }) {
-  const { t } = useI18n();
+/**
+ * The lookup's answer at heading scale — the icon in its tone, the word beside
+ * it in ink. Used where the answer *is* the heading: a pill next to a title
+ * that repeats it says the same thing twice.
+ */
+export function LookupOutcomeGlyph({ outcome }: { outcome: LookupOutcome }) {
   const Icon = LOOKUP_ICON[outcome];
   return (
-    <OutcomeMark
-      tone={LOOKUP_TONE[outcome]}
-      label={t(LOOKUP_KEY[outcome])}
-      icon={<Icon className='size-3 shrink-0' />}
-    />
+    <span
+      aria-hidden
+      className={cn(
+        'grid size-6 shrink-0 place-items-center rounded-full',
+        GLYPH[LOOKUP_TONE[outcome]],
+      )}
+    >
+      <Icon className='size-3.5' />
+    </span>
   );
 }
+
+const GLYPH: Record<OutcomeTone, string> = {
+  ok: 'bg-ok/12 text-ok-ink',
+  issues: 'bg-issues/12 text-issues-ink',
+  incomplete: 'bg-incomplete/12 text-incomplete-ink',
+  silent: 'bg-muted text-muted-foreground',
+  question: 'bg-accent-2/12 text-accent-2-ink',
+};
 
 export function AttributeMatchMark({ match }: { match: AttributeMatch }) {
   const { t } = useI18n();

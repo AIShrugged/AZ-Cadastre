@@ -1,7 +1,8 @@
 /**
  * verification-package — the register's core domain: the package aggregate, its
  * standing and the outcome of the run on it (both read off the contract, never
- * worked out here), the question the register puts to the server, the governing
+ * worked out here), what the run says has to be brought next and whether it
+ * could work out which set, the question the register puts to the server, the governing
  * Profile policy (read live from the engine, never copied), the pipeline stage
  * count, the live package API, and the entity's read-only UI marks.
  */
@@ -34,6 +35,17 @@ export {
 } from './model/archive-search';
 
 export { REPORT_KEY, REPORT_TONE } from './model/report-outcome';
+
+export type {
+  ReportReading,
+  SupportingSet,
+} from './model/supporting-documents';
+export {
+  anyUnplaced,
+  readReport,
+  supportingSetsOf,
+  SUPPORTING_DOCUMENTS,
+} from './model/supporting-documents';
 
 export type { RegisterQuery } from './model/register-query';
 export {

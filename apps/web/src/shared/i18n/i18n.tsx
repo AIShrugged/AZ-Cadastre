@@ -241,6 +241,8 @@ const en: Dict = {
   'detail.sec.supporting': 'Supporting documents to bring',
   'detail.clean':
     'No issues found — every required document is present and read above the confidence threshold.',
+  'detail.clean_open_set':
+    'Which supporting documents this case needs, though, could not be worked out — see below.',
   'detail.f.missing_sub': 'Not found in the package',
   'detail.f.unplaced_sub': 'Type not recognized',
   'detail.f.unread_sheet_sub': 'Sheet could not be read',
@@ -256,10 +258,16 @@ const en: Dict = {
     'The archive keeps no original of this paper',
   'detail.f.registry_unconfirmed_sub': 'No record of it, or more than one',
   'detail.f.attestation_sub': 'No stamp or signature was read on it',
-  'detail.f.supporting': 'Supporting documents',
-  'detail.f.supporting_sub': 'Required for this building',
-  'detail.f.supporting_undecided_sub':
-    'Which set is required could not be determined',
+  'supporting.lead':
+    'Papers the applicant has to bring beyond the package. None of them was ever in the envelope, so nothing here is counted against the submission and nothing here is a fault.',
+  'supporting.bring': 'The applicant must bring a set of supporting documents.',
+  'supporting.placed':
+    'Which set applies was worked out from the reading below.',
+  'supporting.unplaced':
+    'Which set applies could not be worked out from this package — the height or the year it turns on was not read off any of these papers. Settle it with the applicant before the registration is completed.',
+  'supporting.defined_by':
+    'The “{profile}” profile defines what each set contains. The papers themselves are not published to this screen yet.',
+  'supporting.decided_on': 'Decided on',
   'detail.checks': 'Cross-document checks',
   'detail.checks_result': 'Document comparison results',
   'detail.checks_result_note':
@@ -346,6 +354,10 @@ const en: Dict = {
   'field.designer_name': 'Design organisation',
   'field.total_area': 'Total area',
   'field.approval_date': 'Approval date',
+  // The figure the supporting-documents branch turns on. The sketch design
+  // gained it with that branch (ADR-0013); a dictionary that had not been
+  // taught it prints the raw key at the reader.
+  'field.building_height': 'Building height',
   'field.issuing_authority': 'Issuing authority',
   'field.plot_area': 'Plot area',
   'field.plan_date': 'Plan date',
@@ -730,6 +742,8 @@ const ru: Dict = {
   'detail.sec.supporting': 'Какие документы нужно принести',
   'detail.clean':
     'Замечаний нет — все обязательные документы присутствуют и распознаны выше порога уверенности.',
+  'detail.clean_open_set':
+    'Но какой комплект подтверждающих документов нужен по этому делу — определить не удалось, см. ниже.',
   'detail.f.missing_sub': 'Не найден в пакете',
   'detail.f.unplaced_sub': 'Тип не распознан',
   'detail.f.unread_sheet_sub': 'Лист не распознан',
@@ -745,9 +759,16 @@ const ru: Dict = {
     'Подлинник этого документа в архиве не хранится',
   'detail.f.registry_unconfirmed_sub': 'Записи нет или их несколько',
   'detail.f.attestation_sub': 'Печать или подпись на нём не прочитаны',
-  'detail.f.supporting': 'Подтверждающие документы',
-  'detail.f.supporting_sub': 'Требуются для этого здания',
-  'detail.f.supporting_undecided_sub': 'Какой комплект — определить не удалось',
+  'supporting.lead':
+    'Документы, которые заявитель должен принести дополнительно к пакету. Ни одного из них в пакете не было и быть не могло, поэтому ничто здесь не засчитывается пакету в минус и нарушением не является.',
+  'supporting.bring':
+    'Заявитель должен принести комплект подтверждающих документов.',
+  'supporting.placed': 'Какой именно комплект — определено по показанию ниже.',
+  'supporting.unplaced':
+    'Какой именно комплект — по этому пакету определить не удалось: ни в одном из документов не прочитаны высота здания или год, от которых зависит выбор. Уточните комплект у заявителя до завершения регистрации.',
+  'supporting.defined_by':
+    'Состав комплектов задаёт профиль «{profile}». Сам перечень бумаг на этот экран пока не передаётся.',
+  'supporting.decided_on': 'Определено по',
   'detail.checks': 'Сверка документов',
   'detail.checks_result': 'Результаты сверки документов',
   'detail.checks_result_note':
@@ -831,6 +852,7 @@ const ru: Dict = {
   'field.designer_name': 'Проектная организация',
   'field.total_area': 'Общая площадь',
   'field.approval_date': 'Дата утверждения',
+  'field.building_height': 'Высота здания',
   'field.issuing_authority': 'Выдавший орган',
   'field.plot_area': 'Площадь участка',
   'field.plan_date': 'Дата плана',
@@ -1209,6 +1231,8 @@ const az: Dict = {
   'detail.sec.supporting': 'Gətirilməli təsdiqedici sənədlər',
   'detail.clean':
     'Qüsur yoxdur — bütün tələb olunan sənədlər mövcuddur və etibar həddindən yuxarı oxunub.',
+  'detail.clean_open_set':
+    'Lakin bu iş üçün hansı təsdiqedici sənəd dəstinin tələb olunduğu müəyyən edilə bilmədi — aşağıya baxın.',
   'detail.f.missing_sub': 'Paketdə tapılmadı',
   'detail.f.unplaced_sub': 'Növü tanınmadı',
   'detail.f.unread_sheet_sub': 'Vərəq oxuna bilmədi',
@@ -1224,10 +1248,16 @@ const az: Dict = {
     'Bu sənədin əsli arxivdə saxlanılmır',
   'detail.f.registry_unconfirmed_sub': 'Qeyd yoxdur və ya birdən çoxdur',
   'detail.f.attestation_sub': 'Üzərində möhür və ya imza oxunmadı',
-  'detail.f.supporting': 'Təsdiqedici sənədlər',
-  'detail.f.supporting_sub': 'Bu bina üçün tələb olunur',
-  'detail.f.supporting_undecided_sub':
-    'Hansı dəstin tələb olunduğu müəyyən edilmədi',
+  'supporting.lead':
+    'Ərizəçinin paketdən əlavə gətirməli olduğu sənədlər. Onların heç biri paketdə olmayıb və olmalı da deyildi, ona görə buradakı heç nə təqdimata qarşı sayılmır və qüsur deyil.',
+  'supporting.bring': 'Ərizəçi təsdiqedici sənəd dəstini gətirməlidir.',
+  'supporting.placed':
+    'Hansı dəstin tələb olunduğu aşağıdakı oxunuşa əsasən müəyyən edilib.',
+  'supporting.unplaced':
+    'Hansı dəstin tələb olunduğu bu paket üzrə müəyyən edilə bilmədi: seçimin asılı olduğu binanın hündürlüyü və ya il sənədlərin heç birindən oxunmadı. Qeydiyyat tamamlanmadan dəsti ərizəçi ilə dəqiqləşdirin.',
+  'supporting.defined_by':
+    '«{profile}» profili hər dəstin tərkibini müəyyən edir. Sənədlərin özləri hələ bu ekrana ötürülmür.',
+  'supporting.decided_on': 'Nəyə əsasən',
   'detail.checks': 'Sənədlərarası yoxlama',
   'detail.checks_result': 'Sənədlərin müqayisə nəticələri',
   'detail.checks_result_note':
@@ -1310,6 +1340,7 @@ const az: Dict = {
   'field.designer_name': 'Layihə təşkilatı',
   'field.total_area': 'Ümumi sahə',
   'field.approval_date': 'Təsdiq tarixi',
+  'field.building_height': 'Binanın hündürlüyü',
   'field.issuing_authority': 'Verən orqan',
   'field.plot_area': 'Torpaq sahəsinin ölçüsü',
   'field.plan_date': 'Planın tarixi',

@@ -21,6 +21,7 @@ import {
   ArrowLeftIcon,
   CheckIcon,
   ChevronRightIcon,
+  ClipboardListIcon,
   FileTextIcon,
   ImageIcon,
   MinusIcon,
@@ -39,17 +40,20 @@ import {
   OUTCOME_NOTE,
   OutcomeMark,
   profileName,
+  readReport,
   RegistryOutcomeMark,
   REPORT_KEY,
   speaksAgainst,
   STAGES,
   STANDING_NOTE,
   StandingMark,
+  supportingSetsOf,
   takesFiles,
   toViewPackage,
   useGetPackageQuery,
   useGetProfilesQuery,
   type Disposition,
+  type SupportingSet,
 } from '@/entities/verification-package';
 import { ApproveArchiveSearch } from '@/features/approve-archive-search';
 import { AddFiles } from '@/features/upload-documents';
@@ -1112,7 +1116,14 @@ function RequiredDocuments({
 // shortfall, so a report that notes the registry's own service sheets must not
 // announce five problems. Deriving the count from here is what keeps the client
 // from disagreeing with the server about which kinds are informational.
-type SectionTone = 'finding' | 'note';
+//
+// Three tones and not two, because there are three things a report says and
+// they are told apart here or nowhere: what is wrong with the package
+// (`finding`), what was in the envelope beyond it (`note`), and what has to be
+// brought next for the case it turned out to be (`requirement`). The third
+// counts against nothing — like a note — and is not folded away with the notes
+// either: it is the only line the applicant has to act on (ADR-0013).
+type SectionTone = 'finding' | 'note' | 'requirement';
 
 const SECTIONS: Record<IssueKind, { heading: string; tone: SectionTone }> = {
   MissingDocument: { heading: 'detail.sec.missing', tone: 'finding' },
@@ -1151,7 +1162,7 @@ const SECTIONS: Record<IssueKind, { heading: string; tone: SectionTone }> = {
   // (ADR-0013).
   SupportingDocumentsRequired: {
     heading: 'detail.sec.supporting',
-    tone: 'note',
+    tone: 'requirement',
   },
 };
 
@@ -1165,7 +1176,15 @@ const ISSUE_SECTIONS = ORDERED.filter(
 );
 const NOTE_SECTIONS = ORDERED.filter(([, section]) => section.tone === 'note');
 
-const isInformational = (kind: IssueKind): boolean =>
+/** Whether a line of this kind is held against the package. The report's own
+ *  rule, and the only place the client states it: what is counted in the
+ *  conclusion, in the tab's badge and in the worklist all read it. */
+const countsAgainstPackage = (kind: IssueKind): boolean =>
+  SECTIONS[kind].tone === 'finding';
+
+/** What the envelope carried beyond the profile's list. Folded away by default,
+ *  which is why what has to be brought next may not join it. */
+const isObservation = (kind: IssueKind): boolean =>
   SECTIONS[kind].tone === 'note';
 
 // Archive answers have their own comparison surface below. Keeping them out of
@@ -1338,27 +1357,10 @@ function findingOf(
     };
   }
 
-  /*
-   * What the applicant must bring beyond the envelope. The papers themselves
-   * are only in the English audit line — the contract carries no list of them
-   * yet — so the row states that there is a set and whether the engine could
-   * work out which one, and leaves naming the papers to whoever publishes them.
-   *
-   * A message that placed the case carries the reading it was decided on; one
-   * that could not carries none, which is how the two are told apart here
-   * (ADR-0013).
-   */
-  if (issue.kind === 'SupportingDocumentsRequired') {
-    return {
-      subject: t('detail.f.supporting'),
-      where:
-        issue.confidence === null
-          ? t('detail.f.supporting_undecided_sub')
-          : [t('detail.f.supporting_sub'), within].filter(Boolean).join(' · '),
-      anchor,
-      docId: document?.id ?? null,
-    };
-  }
+  // What the applicant must bring beyond the envelope is not a finding and does
+  // not appear in this list at all: it has a panel of its own, below the
+  // worklist, where it can be read as an instruction rather than as a row in a
+  // register of faults (`SupportingDocuments`, ADR-0013).
 
   // A document that read perfectly well. It is named by where it sits, and the
   // sub-line says what it is — not in the profile, or a second answer to a type
@@ -1490,12 +1492,16 @@ function Worklist({
     isArchiveFinding(issue.kind),
   );
   const findings = report.issues.filter(
-    issue => !isInformational(issue.kind) && !isArchiveFinding(issue.kind),
+    issue => countsAgainstPackage(issue.kind) && !isArchiveFinding(issue.kind),
   );
   const notes = report.issues.filter(
-    issue => isInformational(issue.kind) && !isArchiveFinding(issue.kind),
+    issue => isObservation(issue.kind) && !isArchiveFinding(issue.kind),
   );
   const named = pkg.files.length > 1;
+  // Which of the three the conclusion line is allowed to state. Read off the
+  // entity so the panel below and this sentence cannot come to disagree about
+  // whether the run settled the question.
+  const reading = readReport(findings.length, supportingSetsOf(report));
 
   // The report's remaining attention belongs to the archive comparison. A
   // second empty conclusion here would say "no issues" above a disagreement.
@@ -1546,6 +1552,19 @@ function Worklist({
       {findings.length === 0 ? (
         <p className='mt-3 max-w-[70ch] text-[0.8125rem] leading-relaxed text-muted-foreground'>
           {t('detail.clean')}
+          {/* And the sentence stops short of "so there is nothing left to do"
+              when a set could not be placed. "We found nothing against it" and
+              "we could not work out which papers it needs" are two answers, and
+              a conclusion that gave only the first is how the second gets
+              missed by the reader it was written for (ADR-0013). */}
+          {reading === 'could_not_place' && (
+            <>
+              {' '}
+              <span className='text-foreground/80'>
+                {t('detail.clean_open_set')}
+              </span>
+            </>
+          )}
         </p>
       ) : (
         <div className='mt-4 flex flex-col gap-5'>
@@ -1580,6 +1599,168 @@ function Worklist({
         </details>
       )}
     </section>
+  );
+}
+
+// ─── What the applicant has to bring next ────────────────────────────────────
+// The third thing a report says, and the only one that is not about the
+// envelope that arrived: for the case this submission turned out to be, these
+// papers are wanted, and none of them was ever in the package to be judged.
+//
+// It has a panel of its own, outside the worklist and outside the folded
+// observations, for the reason ADR-0013 gives: it is the only line anybody has
+// to act on after the report, and both of the places it could have gone say
+// something about it that is not true — the worklist would report it as a fault
+// of the submission, and the fold would file it with the stray papers nobody
+// needs to read.
+//
+// Nothing here is tinted. The register keeps amber and red for what is wrong
+// with a package, and being asked for a document is not a finding against
+// anybody: an applicant who reads a warning colour beside this concludes they
+// have made a mistake, and an inspector concludes the package is short of
+// something. Neither is what it says.
+function SupportingDocuments({
+  report,
+  pkg,
+  onJump,
+}: {
+  report: ReportDto;
+  pkg: PackageDetailDto;
+  onJump: Jump;
+}) {
+  const { t } = useI18n();
+  const sets = supportingSetsOf(report);
+
+  if (sets.length === 0) return null;
+
+  return (
+    <section id='supporting' className='mb-9 scroll-mt-16'>
+      <h2 className='register-label'>{t('detail.sec.supporting')}</h2>
+      <p className='mt-3 max-w-[70ch] text-[0.8125rem] leading-relaxed text-muted-foreground'>
+        {t('supporting.lead')}
+      </p>
+      <ul className='mt-4 flex flex-col gap-3'>
+        {sets.map((set, index) => (
+          <SupportingSetEntry
+            key={`${set.placed}-${index}`}
+            set={set}
+            pkg={pkg}
+            onJump={onJump}
+          />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/**
+ * One set, written as an instruction.
+ *
+ * Both readings open on the same sentence — what has to be brought — and differ
+ * only in what follows it. That order is the point: a message that opened on
+ * "the height could not be read" would be a report about our own machinery,
+ * and the applicant standing at the counter would still not know what to
+ * collect. What we could not work out is context for the instruction, never a
+ * substitute for it.
+ *
+ * The papers themselves are not named. `IssueDto` carries no list of them —
+ * they travel only in the English audit line, which is written for the record
+ * and not for a reader — so the panel says which profile defines the set rather
+ * than inventing names for it. Publishing them is a contract change (ADR-0013,
+ * "Consequences"), and it lands in the block below and nowhere else.
+ */
+function SupportingSetEntry({
+  set,
+  pkg,
+  onJump,
+}: {
+  set: SupportingSet;
+  pkg: PackageDetailDto;
+  onJump: Jump;
+}) {
+  const { t } = useI18n();
+  const { issue, placed } = set;
+
+  const document = documentsOf(pkg).find(
+    candidate => candidate.id === issue.documentId,
+  );
+  const file = pkg.files.find(candidate => candidate.id === issue.sourceFileId);
+  // Same addressing the worklist uses, so the reading the branch turned on is a
+  // jump into the sheet rather than a sentence about it.
+  const anchor = document
+    ? issue.fieldName
+      ? `#field-${document.id}-${issue.fieldName}`
+      : `#doc-${document.id}`
+    : null;
+
+  const subject = issue.fieldName
+    ? translateOr(t, `field.${issue.fieldName}`, issue.fieldName)
+    : translateOr(t, `doctype.${issue.documentType}`, issue.documentType ?? '');
+  const seat = [
+    pkg.files.length > 1 ? file?.originalFilename : undefined,
+    issue.pageNumber === null
+      ? undefined
+      : t('detail.page_single', { n: issue.pageNumber }),
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  return (
+    <li className='rounded-lg border border-rule px-4 py-3.5'>
+      <div className='flex items-start gap-2.5'>
+        <ClipboardListIcon
+          aria-hidden
+          className='size-4 shrink-0 translate-y-0.5 text-muted-foreground'
+        />
+        <div className='min-w-0 flex-1'>
+          <p className='text-[0.875rem] font-[550] leading-snug text-foreground'>
+            {t('supporting.bring')}
+          </p>
+          <p className='mt-1.5 max-w-[65ch] text-[0.8125rem] leading-relaxed text-muted-foreground'>
+            {placed ? t('supporting.placed') : t('supporting.unplaced')}
+          </p>
+
+          {/* Which profile the set is defined by. Said in both readings,
+              because it is the only place a reader can go for the papers
+              themselves until the contract carries them. */}
+          <p className='mt-2 max-w-[65ch] text-[0.8125rem] leading-relaxed text-muted-foreground'>
+            {t('supporting.defined_by', {
+              profile: profileName(t, pkg.profileKey),
+            })}
+          </p>
+
+          {placed && (
+            <div className='mt-3 border-t border-rule pt-2.5'>
+              <h3 className='register-label'>{t('supporting.decided_on')}</h3>
+              <div className='mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-1'>
+                {anchor ? (
+                  <a
+                    href={anchor}
+                    onClick={onJump(document?.id ?? null, anchor)}
+                    title={t('detail.attention_go')}
+                    className='text-[0.8125rem] leading-snug text-foreground underline decoration-rule-strong underline-offset-3 transition-colors hover:decoration-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
+                  >
+                    {subject}
+                  </a>
+                ) : (
+                  <span className='text-[0.8125rem] leading-snug text-foreground'>
+                    {subject}
+                  </span>
+                )}
+                {seat && (
+                  <span className='text-[0.75rem] leading-snug text-muted-foreground'>
+                    {seat}
+                  </span>
+                )}
+                {issue.confidence !== null && (
+                  <Confidence value={issue.confidence} bare />
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </li>
   );
 }
 
@@ -2220,7 +2401,8 @@ export function VerificationDetails() {
   };
   const reviewCount = pkg.report
     ? pkg.report.issues.filter(
-        issue => !isInformational(issue.kind) && !isArchiveFinding(issue.kind),
+        issue =>
+          countsAgainstPackage(issue.kind) && !isArchiveFinding(issue.kind),
       ).length
     : counts.review;
   const workspaceTabs: {
@@ -2370,7 +2552,20 @@ export function VerificationDetails() {
 
               <TabsContent value='review' className='pt-7'>
                 {pkg.report ? (
-                  <Worklist report={pkg.report} pkg={pkg} onJump={jump} />
+                  <>
+                    <Worklist report={pkg.report} pkg={pkg} onJump={jump} />
+                    {/* Its own panel and not part of the worklist above, which
+                        returns nothing at all once the attention has moved to
+                        the archive comparison. What has to be brought next
+                        survives that: it is stated on every report the profile
+                        branches on, and it is the one line that outlives the
+                        review. */}
+                    <SupportingDocuments
+                      report={pkg.report}
+                      pkg={pkg}
+                      onJump={jump}
+                    />
+                  </>
                 ) : (
                   <PendingReview running={running} />
                 )}

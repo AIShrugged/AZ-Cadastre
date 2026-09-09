@@ -2014,8 +2014,49 @@ const INTL_LOCALE: Record<Locale, string> = {
   az: 'az-Latn-AZ',
 };
 
+/**
+ * The Azerbaijani months, written out because the browser does not have them.
+ *
+ * Chromium ships no `az` date data at all — checked in Chromium 153, headless
+ * and headed alike: `Intl.DateTimeFormat('az-Latn-AZ')` resolves to `az`, falls
+ * back to the root locale and answers **"2026 M09 09"**, for `month: 'short'`
+ * and `month: 'long'` equally, so asking for the long form is not a way out.
+ * Node with full ICU has the data and answers "09 sen 2026", which is why this
+ * only shows up in a browser.
+ *
+ * These are CLDR's own abbreviated forms — the same strings full ICU returns —
+ * so the table is not a translation this repository invented: it is the data
+ * the browser is missing, and a browser that gains it will agree with it.
+ *
+ * AZ is the customer's language. "M09" in it is not a rough edge, it is a date
+ * they cannot read.
+ */
+const AZ_MONTHS_SHORT = [
+  'yan',
+  'fev',
+  'mar',
+  'apr',
+  'may',
+  'iyn',
+  'iyl',
+  'avq',
+  'sen',
+  'okt',
+  'noy',
+  'dek',
+];
+
 export function formatDate(iso: string, locale: Locale): string {
   const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+
+  // Local time on both branches — `getDate` and `Intl` without a `timeZone`
+  // read the same clock, so the two locales never disagree about the day.
+  if (locale === 'az') {
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${day} ${AZ_MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}`;
+  }
+
   try {
     return new Intl.DateTimeFormat(INTL_LOCALE[locale], {
       day: '2-digit',

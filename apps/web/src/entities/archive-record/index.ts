@@ -26,6 +26,7 @@ export {
 } from './model/lookup';
 
 export {
+  archiveHoldingsChanged,
   useArchiveSummaryQuery,
   useLookupAddressQuery,
 } from './api/archive-api';

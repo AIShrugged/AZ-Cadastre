@@ -7,7 +7,6 @@
  * column of each one it refused (ADR-0011 §4) — so the outcome is a report and
  * only a file the register could not open at all is an error.
  */
-import axios from 'axios';
 import {
   FileSpreadsheetIcon,
   TriangleAlertIcon,
@@ -15,9 +14,9 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { apiFailure } from '@/shared/api';
 import { useI18n } from '@/shared/i18n';
 import { cn } from '@/shared/lib/cn';
+import { useAppDispatch } from '@/shared/lib/store-hooks';
 import { Button } from '@/shared/ui/button';
 import {
   Dialog,
@@ -36,8 +35,8 @@ import {
   TableRow,
 } from '@/shared/ui/table';
 
-import { importRegistryWorkbook } from '../api/registry-import-api';
 import { ACCEPT, MAX_MB, refusalFor } from '../lib/workbook';
+import { runImport } from '../model/import-run';
 import type { ImportPhase, RegistryImportReport } from '../model/types';
 
 const ROW_KEYS: (keyof RegistryImportReport['rows'])[] = [
@@ -56,6 +55,7 @@ export function ImportRegistryDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const { t } = useI18n();
+  const dispatch = useAppDispatch();
   const inputRef = useRef<HTMLInputElement>(null);
   const aborter = useRef<AbortController | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -98,25 +98,13 @@ export function ImportRegistryDialog({
 
     const controller = new AbortController();
     aborter.current = controller;
-    setPhase({ kind: 'sending', progress: 0 });
 
     try {
-      const report = await importRegistryWorkbook(file, {
+      await runImport(file, {
+        onPhase: setPhase,
+        dispatch,
         signal: controller.signal,
-        onProgress: progress => setPhase({ kind: 'sending', progress }),
-      });
-      setPhase({ kind: 'reported', report });
-    } catch (error) {
-      // The modal aborts its own transfer when it closes — that is not a failure.
-      if (axios.isCancel(error)) return;
-      // The register answers a refusal in the published `ErrorBody`, but with one
-      // code for all of them (`VALIDATION_FAILED`) — so unlike the core API there
-      // is nothing to key a translation on, and its sentence names the actual
-      // fault. Shown as it came; the fallback covers a register that never
-      // answered at all.
-      setPhase({
-        kind: 'failed',
-        message: apiFailure(error)?.message ?? t('reg.import.err.unreachable'),
+        unreachable: t('reg.import.err.unreachable'),
       });
     } finally {
       aborter.current = null;

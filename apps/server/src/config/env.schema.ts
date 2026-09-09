@@ -3,6 +3,8 @@ import { z } from 'zod';
 import type { LoggerModuleOptions } from '@cadastre/logger';
 import type { VerificationModuleOptions } from '@cadastre/verification';
 
+import type { RegistryClientOptions } from '../infrastructure/registry/index.js';
+
 /**
  * The whole environment, validated once at startup and typed thereafter. This
  * is the only schema in the system that reads `process.env`: each module is
@@ -117,6 +119,17 @@ export const EnvironmentSchema = z
     web: {
       origin: env.WEB_ORIGIN,
     },
+    /*
+     * The register as the edge reaches it, for the operator's own archive
+     * search. The same address the verification context is given, because there
+     * is one register — but no `provider`: `mock` is that context's way of
+     * running a submission's pipeline offline, and an operator searching the
+     * archive is asking the archive, not a stand-in for it (ADR-0009).
+     */
+    registry: {
+      url: env.REGISTRY_URL,
+      timeoutMs: env.REGISTRY_TIMEOUT_MS,
+    } satisfies RegistryClientOptions,
     logger: {
       // The name on every line. One process today; when a context is extracted
       // into its own, this is what tells two logs apart.

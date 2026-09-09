@@ -42,6 +42,11 @@ async function bootstrap(): Promise<void> {
       crossChecker: `${verification.crossChecker.provider}:${verification.crossChecker.model || '—'}`,
       registry: `${verification.registry.provider}:${verification.registry.provider === 'http' ? verification.registry.url : '—'}`,
     },
+    // Named separately from the `registry` provider above, which is the
+    // context's own switch for running a submission's pipeline offline. This
+    // is the address the archive-search route calls, and it is always a real
+    // register (ADR-0009).
+    archiveRegister: config.get('registry', { infer: true }).url,
     storage: {
       endpoint: verification.storage.endpoint,
       bucket: verification.storage.bucket,

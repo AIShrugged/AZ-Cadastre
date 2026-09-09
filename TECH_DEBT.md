@@ -181,7 +181,7 @@ would be a second, looser copy of the rule, which is what `libs/matching-engine`
 exists to prevent. Until then the adapter says in its own doc comment that this
 is what it does.
 
-## 10. The client calls the archive register directly, and the register has no door
+## 10. The workbook import calls the archive register directly, and the register has no door
 
 **Not done.** `apps/web` speaks `@cadastre/api-contracts` through
 `libs/api-gateway` and nothing else (`CONTEXT-MAP.md`). The workbook import does
@@ -189,6 +189,12 @@ not: `features/import-registry` posts straight to `apps/registry-stub`'s
 `POST /api/import/records`, proxied at `/registry` by the dev server and by
 `apps/web/nginx.conf` in a deployment, with the report's shape restated in the
 feature's own `model/types.ts`.
+
+**Half of this entry is closed.** The archive search used to make the same
+crossing and does not any more — the paragraph at the end says what was done and
+what it did not touch. What is below is about the import, and about the register
+answering the open internet, which is the half the search's fix could not
+address.
 
 It is deliberate on both counts. The endpoint is not in the contract because no
 verification of a submission ever loads a register file, and publishing it would
@@ -234,25 +240,40 @@ is an API-set case in `apps/registry-stub` that asserts the report against the
 same literal the feature restates. Whichever
 happens, the `/registry` proxies in `apps/web/vite.config.ts` and
 `apps/web/nginx.conf` and this entry go together — remove one and the rest are a
-lie.
+lie. **The proxies stay for now**, and deliberately: the import is not their only
+user any more but it is still one of them, and the sidebar's liveness probe
+(`entities/archive-record`, `archiveReach`) is the other. Neither is in
+`@cadastre/api-contracts` and neither should be — a register file is not part of
+verifying a submission (ADR-0011 §1), and whether a stand-in process is up is a
+fact about this deployment rather than something a real state register would have
+to publish. So `/registry` is down to two users from three, and it goes when the
+import does.
 
-**A second crossing now uses the same road.** The operator's archive search
-(`apps/web/src/entities/archive-record`) posts to the register's
-`POST /api/addresses/lookup` through the same `/registry` proxies. It is not the
-same debt as the import above and it must not be filed away with it: the lookup
-**is** in `@cadastre/api-contracts` — `AddressesApi`, request and response — so
-nothing about it is restated in the client and the response is parsed through
-the contract's own Zod schema. What is missing is a door: `libs/api-gateway`
-publishes the verification area only, so there is no `/api` route the browser
-can reach a published contract through, and the client goes round the gateway to
-call it. It is also a **read**, which is the half of the exposure above that
-does not let a stranger write to the archive.
+**The second crossing is closed (COMM-55).** The operator's archive search
+(`apps/web/src/entities/archive-record`) used to post to the register's
+`POST /api/addresses/lookup` through the same `/registry` proxies, for want of a
+door rather than for want of a contract: the lookup **is** in
+`@cadastre/api-contracts` — `AddressesApi`, request and response — and nothing
+about it was ever restated in the client. `libs/api-gateway` published the
+verification area only, so there was no `/api` route the browser could reach a
+published contract through.
 
-The fix is a gateway route over `AddressesApi` and not a fourth proxy: one
-`GET`-free controller in `libs/api-gateway` and the client's own origin
-(`/api`), after which this paragraph and the `registryBase` default go together
-with the import's. Until then the search screen shares the port-mapping exposure
-named above — a reader of the archive is a reader of somebody's property record.
+There is one now. The gateway declares `RegistryClientPort` over the contract's
+`addresses` slice, `POST /api/addresses/lookup` sits over it, validated by the
+same `AddressLookupRequestSchema` and refused through the same pair of filters as
+everything else, and `apps/server` binds the port to an HTTP client of the
+register. The screen calls its own origin; a register that is down or that
+refuses us comes back as `REGISTRY_UNREACHABLE` (504) or `REGISTRY_REFUSED`
+(502) in the published `ErrorBody`, not as a browser-side network error nobody
+can read. `apps/server/test/registry/addresses.e2e.spec.ts` runs the register
+beside the API and checks the crossing end to end.
+
+**What it did not fix.** The register still answers with no authentication in
+front of it and none behind it, and `docker-compose.yml` still publishes it on
+`3100:3100` — so the exposure named above is exactly as it was, and the search
+screen no longer needing that address does not close it. Nor does it publish the
+import: that endpoint stays outside the contract on purpose, and the paragraph
+about it above is the live half of this entry.
 
 ## 11. The supporting-documents thresholds are ours, not the customer's
 

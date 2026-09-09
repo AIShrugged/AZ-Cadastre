@@ -16,8 +16,11 @@ export default defineConfig({
       },
       // The archive register (apps/registry-stub). Proxied for the same reason as
       // /documents — the register answers with no CORS headers, so the browser
-      // has to stay on localhost:5173 — and reached at all because its workbook
-      // import is not part of @cadastre/api-contracts (ADR-0011 §1, TECH_DEBT §10).
+      // has to stay on localhost:5173 — and reached at all by the two crossings
+      // that are deliberately outside @cadastre/api-contracts: its workbook
+      // import (ADR-0011 §1) and its own liveness. The archive search was a
+      // third until the gateway published a route over the lookup; it now goes
+      // to /api like everything else (COMM-55, TECH_DEBT §10).
       '/registry': {
         target: process.env.VITE_REGISTRY_URL ?? 'http://localhost:3100',
         changeOrigin: true,

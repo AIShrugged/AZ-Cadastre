@@ -1,6 +1,12 @@
 import { z } from 'zod';
 
 import {
+  AddressLookupRequestSchema,
+  AddressLookupResponseSchema,
+  type AddressLookupRequest,
+  type AddressLookupResponse,
+} from '@cadastre/api-contracts/registry';
+import {
   ErrorBodySchema,
   type ErrorBody,
 } from '@cadastre/api-contracts/shared';
@@ -60,6 +66,29 @@ export class ApiError extends Error {
  */
 export class RestClient {
   constructor(private readonly baseUrl: string) {}
+
+  // --- addresses ----------------------------------------------------------
+
+  /**
+   * The archive register's area of the API. The register is a system outside
+   * this one and the route is a door onto it (ADR-0009), so what a caller sees
+   * here is the register's own published shapes and no wrapper of ours.
+   */
+  addresses = {
+    lookup: (
+      request: AddressLookupRequest,
+    ): Promise<ApiResponse<AddressLookupResponse>> =>
+      this.request(
+        'POST',
+        '/api/addresses/lookup',
+        AddressLookupResponseSchema,
+        AddressLookupRequestSchema.parse(request),
+      ),
+
+    /** Deliberately unvalidated, for the specs that check the API's own refusals. */
+    lookupRaw: (body: unknown): Promise<ApiResponse<unknown>> =>
+      this.request('POST', '/api/addresses/lookup', z.unknown(), body),
+  };
 
   // --- profiles -----------------------------------------------------------
 

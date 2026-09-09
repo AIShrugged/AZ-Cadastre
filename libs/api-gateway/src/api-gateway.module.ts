@@ -13,6 +13,7 @@ import {
   RequestLoggingMiddleware,
   SystemExceptionFilter,
 } from './presentation/http/index.js';
+import { AddressesController } from './presentation/registry/rest/index.js';
 import {
   DocumentsController,
   PackagesController,
@@ -46,6 +47,14 @@ export class ApiGatewayModule implements NestModule {
         DocumentsController,
         PackagesController,
         ProfilesController,
+        /*
+         * The archive register's area. It is not a context of ours and it is
+         * not reached through one (ADR-0009) — the route exists so that the
+         * browser reaches a published contract at this system's origin instead
+         * of going round the API to a register with nothing in front of it
+         * (TECH_DEBT §10).
+         */
+        AddressesController,
       ],
       providers: [
         ...options.providers,

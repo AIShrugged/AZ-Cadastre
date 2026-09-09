@@ -29,13 +29,18 @@ One context, on purpose. The system does one thing, and a second context would t
 
 ```
 apps/web  ──HTTP──▶  libs/api-gateway  ──VerificationClientPort──▶  packages/verification
-                            ▲                                              ▲   │
-                            └────── @cadastre/api-contracts ───────────────┘   │ ArchiveRegistryPort
-                                    (the language both sides speak)            │
-                                                                               ▼
-                                                            apps/registry-stub  ──▶  libs/matching-engine
-                                                            (a stand-in for a system
-                                                             outside this one)
+                            ▲       │                                          │
+                            └────── │ ─── @cadastre/api-contracts ─────────────┘
+                                    │     (the language every arrow is drawn in)
+                                    │                                          │
+                     RegistryClientPort                          ArchiveRegistryPort
+                                    │                                          │
+                                    └──────▶  apps/registry-stub  ◀────────────┘
+                                              (a stand-in for a system
+                                               outside this one)
+                                                       │
+                                                       ▼
+                                              libs/matching-engine
 ```
 
 **The archive register is upstream of verification, and outside the system.** It
@@ -45,6 +50,15 @@ ingested or a real state register appears (ADR-0009). What crosses that boundary
 is facts — what the register holds about a property and which of its papers the
 archive has — never a verdict about a submission, because the register does not
 know what is being registered.
+
+**Two callers ask it, and neither goes through the other.** Verification asks on
+a submission's behalf, as one stage of a run; the edge asks on the operator's
+behalf, for the archive-search screen. Each declares an outbound port over the
+published `addresses` slice — `ArchiveRegistryPort` and `RegistryClientPort` —
+and the composition root binds both. The edge deliberately does not reach the
+register through the context: that would make the operator's search depend on
+whether a submission's pipeline is running its register mocked, and would put a
+context on the path of a question that is not about a submission at all.
 
 It has a **database of its own**, `cadastre-registry`, with its own schema,
 migration history and seed (ADR-0010). Not `cadastre-db`: that one belongs to

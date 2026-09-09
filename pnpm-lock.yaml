@@ -393,12 +393,18 @@ importers:
 
   apps/server:
     dependencies:
+      '@cadastre/api-contracts':
+        specifier: workspace:*
+        version: link:../../libs/api-contracts
       '@cadastre/api-gateway':
         specifier: workspace:*
         version: link:../../libs/api-gateway
       '@cadastre/logger':
         specifier: workspace:*
         version: link:../../libs/logger
+      '@cadastre/shared':
+        specifier: workspace:*
+        version: link:../../libs/shared
       '@cadastre/verification':
         specifier: workspace:*
         version: link:../../packages/verification
@@ -424,9 +430,9 @@ importers:
       '@cadastre/api-client':
         specifier: workspace:*
         version: link:../../libs/api-client
-      '@cadastre/api-contracts':
+      '@cadastre/registry-stub':
         specifier: workspace:*
-        version: link:../../libs/api-contracts
+        version: link:../registry-stub
       '@testcontainers/postgresql':
         specifier: ^12.1.0
         version: 12.1.0(supports-color@7.2.0)

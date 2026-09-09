@@ -8,6 +8,13 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({ baseUrl: '/api' }),
-  tagTypes: ['Package'],
+  /*
+   * What a cached answer can be keyed on, and so what a mutation can make
+   * stale. `RegistrySummary` is the archive band's figures: they are the
+   * register's own count, and the one thing that moves them — a workbook
+   * import — does not pass through this base query at all (ADR-0011 §1), so the
+   * tag is what gives that import somewhere to say the count has changed.
+   */
+  tagTypes: ['Package', 'RegistrySummary'],
   endpoints: () => ({}),
 });

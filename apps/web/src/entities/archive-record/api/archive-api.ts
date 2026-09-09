@@ -27,6 +27,15 @@ import {
   type RegistrySummaryResponse,
 } from '@cadastre/api-contracts/registry';
 
+/**
+ * The cache tag the register's own count of itself is held under.
+ *
+ * One tag and no id: there is a single summary, asked with no argument, and a
+ * per-source tag would promise a granularity the register does not answer at —
+ * it recounts the whole archive or nothing.
+ */
+const HOLDINGS_TAG = 'RegistrySummary' as const;
+
 export const archiveApi = api.injectEndpoints({
   endpoints: build => ({
     /*
@@ -69,8 +78,25 @@ export const archiveApi = api.injectEndpoints({
       query: () => '/registry/summary',
       transformResponse: (response: unknown): RegistrySummaryResponse =>
         RegistrySummaryResponseSchema.parse(response),
+      // The figures are cacheable and they do move, so they are tagged: an
+      // import loads the archive from outside this base query entirely, and
+      // `archiveHoldingsChanged` below is the only way it can say so.
+      providesTags: [HOLDINGS_TAG],
     }),
   }),
 });
 
 export const { useLookupAddressQuery, useArchiveSummaryQuery } = archiveApi;
+
+/**
+ * The archive is not what it was — forget what was said about it.
+ *
+ * Dispatched by whoever loaded it. That is the workbook import, and it is a
+ * bare axios call to the register's own origin rather than an endpoint on this
+ * base query (ADR-0011 §1, TECH_DEBT §10), so it has no `invalidatesTags` of
+ * its own to declare; this is what it uses instead. The band re-asks the moment
+ * the register reports what it stored, rather than at the end of a poll the
+ * operator has no reason to wait through.
+ */
+export const archiveHoldingsChanged = () =>
+  api.util.invalidateTags([HOLDINGS_TAG]);

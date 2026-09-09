@@ -1,6 +1,7 @@
 /**
  * verification-package — the register's core domain: the package aggregate, its
- * standing (read off the contract, never worked out here), the governing
+ * standing and the outcome of the run on it (both read off the contract, never
+ * worked out here), the question the register puts to the server, the governing
  * Profile policy (read live from the engine, never copied), the pipeline stage
  * count, the live package API, and the entity's read-only UI marks.
  */
@@ -32,6 +33,19 @@ export {
   spentApprovals,
 } from './model/archive-search';
 
+export { REPORT_KEY, REPORT_TONE } from './model/report-outcome';
+
+export type { RegisterQuery } from './model/register-query';
+export {
+  isNarrowed,
+  pageCount,
+  parseRegisterQuery,
+  REGISTER_PAGE_SIZE,
+  registerQueryParams,
+  toListRequest,
+  WHOLE_REGISTER,
+} from './model/register-query';
+
 export type { PackageStanding, StandingTone } from './model/standing';
 export {
   isRunning,
@@ -44,16 +58,10 @@ export {
 export type {
   Disposition,
   VerificationPackage,
-  Segment,
 } from './model/verification-package';
-export {
-  inSegment,
-  packageRef,
-  segmentCounts,
-  matchesQuery,
-  toViewPackage,
-} from './model/verification-package';
+export { packageRef, toViewPackage } from './model/verification-package';
 
+export type { PackagePage } from './api/packages-api';
 export {
   useGetPackagesQuery,
   useGetPackageQuery,
@@ -63,7 +71,6 @@ export {
 } from './api/packages-api';
 export { useGetProfilesQuery } from './api/profiles-api';
 
-export { DispositionMark } from './ui/disposition-mark';
 export { OutcomeMark, RegistryOutcomeMark } from './ui/outcome-mark';
 export { StandingMark } from './ui/standing-mark';
 export { ProfileGlyph } from './ui/profile-glyph';

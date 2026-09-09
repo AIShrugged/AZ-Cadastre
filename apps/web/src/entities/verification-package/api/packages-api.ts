@@ -23,6 +23,7 @@ import {
   type CreatePackageRequest,
   type CreatePackageResponse,
   type GetPackageResponse,
+  type ListPackagesRequestInput,
 } from '@cadastre/api-contracts/verification';
 
 import {
@@ -30,18 +31,44 @@ import {
   type VerificationPackage,
 } from '../model/verification-package';
 
+/**
+ * One page of the register, and how many rows the question matched in total.
+ *
+ * `limit` and `offset` are kept as the answer echoed them rather than as the
+ * screen remembers asking: an answer that arrives after the reader has moved on
+ * says which page it is, so it cannot be drawn as the page they are looking at.
+ */
+export type PackagePage = {
+  items: VerificationPackage[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
 export const packagesApi = api.injectEndpoints({
   endpoints: build => ({
     /*
-     * The newest page, on the server's own defaults: the endpoint pages,
-     * searches and filters (ADR-0015), and the screen that puts a search box
-     * and a pager over it is still to be built — until it is, asking for
-     * nothing is asking for the first page.
+     * One page of the submissions, narrowed by what the register was asked for.
+     * Never the whole list: the endpoint searches, filters and pages over every
+     * submission the office has taken in (ADR-0015), and the two filters go on
+     * the wire as two parameters because they answer two questions — where a
+     * submission stands, and what the run found.
+     *
+     * The request is the cache key, so each question keeps its own answer and
+     * a page already read comes back without a call. `fetchBaseQuery` drops the
+     * undefined members, so a filter nobody set is a parameter nobody sends.
      */
-    getPackages: build.query<VerificationPackage[], void>({
-      query: () => '/packages',
-      transformResponse: (response: unknown) =>
-        ListPackagesResponseSchema.parse(response).items.map(toViewPackage),
+    getPackages: build.query<PackagePage, ListPackagesRequestInput>({
+      query: params => ({ url: '/packages', params }),
+      transformResponse: (response: unknown): PackagePage => {
+        const page = ListPackagesResponseSchema.parse(response);
+        return {
+          items: page.items.map(toViewPackage),
+          total: page.total,
+          limit: page.limit,
+          offset: page.offset,
+        };
+      },
       providesTags: ['Package'],
     }),
     getPackage: build.query<GetPackageResponse, string>({

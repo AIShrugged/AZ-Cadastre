@@ -1,8 +1,22 @@
 /**
  * Verification register — the inspector's queue-first work surface. Governed by
  * The Register world: a ruled table, tabular mono data, one indigo signal, and
- * disposition marks that report (never decide). Doubles as the archive via
- * search + segment filters. Adaptive density; scales via pagination.
+ * marks that report (never decide). Adaptive density; scales via pagination.
+ *
+ * The register asks the server its question and draws the answer. Searching,
+ * narrowing and paging happen over every submission the office has taken in and
+ * never over the page it last sent (ADR-0015) — this screen holds no list to
+ * filter, and the twenty rows it has are twenty rows and not the register.
+ *
+ * **Two filters, because there are two questions.** Where a submission stands is
+ * what has to happen to it next; what the run found is what the report holds
+ * against the papers. They are shown in two columns and narrowed by two
+ * controls, and neither is ever folded into the other: a submission can be
+ * finished and still carry findings, and one control over both could only ever
+ * answer one of them.
+ *
+ * The question lives in the address bar, so a narrowed register can be linked to
+ * and returned to — the same reason a package has an address of its own.
  */
 import {
   ChevronRightIcon,
@@ -12,23 +26,31 @@ import {
   Rows2Icon,
   Rows4Icon,
   SearchIcon,
+  UnplugIcon,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import {
-  DispositionMark,
   documentsExpected,
-  inSegment,
-  matchesQuery,
+  isNarrowed,
+  OutcomeMark,
   packageRef,
+  pageCount,
+  parseRegisterQuery,
   profileName,
-  segmentCounts,
+  registerQueryParams,
+  REPORT_KEY,
+  REPORT_TONE,
   StageBar,
+  STANDING_KEY,
+  StandingMark,
+  toListRequest,
   useGetPackagesQuery,
   useGetProfilesQuery,
+  WHOLE_REGISTER,
   type ProfileDto,
-  type Segment,
+  type RegisterQuery,
   type VerificationPackage,
 } from '@/entities/verification-package';
 import { ImportRegistryButton } from '@/features/import-registry';
@@ -45,6 +67,12 @@ import {
   EmptyTitle,
 } from '@/shared/ui/empty';
 import { Input } from '@/shared/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from '@/shared/ui/select';
 import { Skeleton } from '@/shared/ui/skeleton';
 import {
   SurfaceBody,
@@ -62,53 +90,57 @@ import {
 } from '@/shared/ui/table';
 import { ToggleGroup, ToggleGroupItem } from '@/shared/ui/toggle-group';
 import { HeaderActions } from '@/widgets/app-shell';
+import {
+  PackageStandingSchema,
+  ReportStatusSchema,
+} from '@cadastre/api-contracts/verification';
 
 type Density = 'comfortable' | 'compact';
 
-const SEGMENTS: Segment[] = [
-  'all',
-  'in_progress',
-  'issues',
-  'incomplete',
-  'ok',
-  'failed',
-];
+// The filter's own word for "do not narrow by this at all". Not a member of
+// either enum and never sent: a select needs a value for the choice of making
+// no choice, and an empty string is how a select says "nothing chosen yet".
+const ANY = 'any';
 
-const SEG_KEY: Record<Segment, string> = {
-  all: 'seg.all',
-  in_progress: 'seg.in_progress',
-  issues: 'seg.issues',
-  incomplete: 'seg.incomplete',
-  ok: 'seg.ok',
-  failed: 'seg.failed',
-};
+// Both lists are read off the contract's own enums rather than written out
+// here, so a standing or an outcome the engine starts publishing appears in the
+// filter with it — a list this screen kept would silently hide the new one.
+const STANDINGS = PackageStandingSchema.options;
+const OUTCOMES = ReportStatusSchema.options;
 
-// ─── Findings cell ──────────────────────────────────────────────────────────
-function Findings({ p }: { p: VerificationPackage }) {
+// How long the register waits after the last keystroke before it asks. A call
+// per character would ask the database a question the inspector has not
+// finished putting.
+const TYPING_SETTLES_MS = 300;
+
+// ─── Outcome cell ───────────────────────────────────────────────────────────
+// What the run made of the papers, and the findings behind it. Separate from
+// the standing column on purpose: this says what was found, that one says what
+// happens next, and a finished submission can carry findings.
+function Outcome({ p }: { p: VerificationPackage }) {
   const { t } = useI18n();
-  if (p.disposition === 'in_progress' || p.disposition === 'failed') {
+  if (p.reportStatus === null) {
+    // No run has reported on this one yet. Drawn as silence rather than as "no
+    // issues": a package nothing has read is not a package nothing was found in.
     return <span className='text-muted-foreground/60'>—</span>;
   }
-  if (p.issues === 0 && p.lowConfidence === 0) {
-    return <span className='text-muted-foreground'>{t('findings.none')}</span>;
-  }
   return (
-    <span className='flex flex-col gap-0.5 leading-tight'>
-      {p.issues > 0 && (
-        <span className='font-medium text-issues-ink'>
-          {p.issues === 1
-            ? t('findings.issue_one')
-            : t('findings.issues', { n: p.issues })}
-        </span>
-      )}
-      {p.lowConfidence > 0 && (
-        <span className='text-[0.75rem] text-muted-foreground'>
-          {t('findings.low', { n: p.lowConfidence })}
-          {typeof p.minConfidence === 'number' && (
-            <>
-              {' · '}
-              <span data-mono>{t('min_conf', { c: p.minConfidence })}</span>
-            </>
+    <span className='flex flex-col items-start gap-1 leading-tight'>
+      <OutcomeMark
+        tone={REPORT_TONE[p.reportStatus]}
+        label={t(REPORT_KEY[p.reportStatus])}
+      />
+      {(p.issues > 0 || p.lowConfidence > 0) && (
+        <span className='flex flex-col gap-0.5 text-[0.75rem] text-muted-foreground'>
+          {p.issues > 0 && (
+            <span className='font-medium text-issues-ink'>
+              {p.issues === 1
+                ? t('findings.issue_one')
+                : t('findings.issues', { n: p.issues })}
+            </span>
+          )}
+          {p.lowConfidence > 0 && (
+            <span>{t('findings.low', { n: p.lowConfidence })}</span>
           )}
         </span>
       )}
@@ -155,7 +187,7 @@ function Submitted({
   now: number;
 }) {
   const { t } = useI18n();
-  if (p.disposition === 'in_progress') {
+  if (p.stage !== undefined) {
     return (
       <span className='flex flex-col gap-0.5 leading-tight'>
         <span data-mono className='text-[0.8125rem] text-foreground/80'>
@@ -174,12 +206,17 @@ function Submitted({
   );
 }
 
-// ─── Status cell ────────────────────────────────────────────────────────────
-function Status({ p }: { p: VerificationPackage }) {
-  if (p.disposition === 'in_progress' && p.stage) {
-    return <StageBar stage={p.stage} />;
-  }
-  return <DispositionMark disposition={p.disposition} />;
+// ─── Standing cell ──────────────────────────────────────────────────────────
+// The word first, then how far the run has got where one is under way. The word
+// is always drawn, even mid-run: it is what the standing filter narrows by, and
+// a row narrowed to a word it never shows is a row the inspector cannot check.
+function Standing({ p }: { p: VerificationPackage }) {
+  return (
+    <span className='flex flex-col items-start gap-1.5'>
+      <StandingMark standing={p.standing} />
+      {p.stage !== undefined && <StageBar stage={p.stage} />}
+    </span>
+  );
 }
 
 // ─── Desktop table ──────────────────────────────────────────────────────────
@@ -208,13 +245,15 @@ function RegisterTable({
       <TableHeader>
         <TableRow className='border-0 hover:bg-transparent'>
           {/* No Profile column: the entry now leads with the profile's name, and
-              the same string twice in one row is a column that reports nothing. */}
+              the same string twice in one row is a column that reports nothing.
+              Outcome and Standing are two columns for the same reason they are
+              two filters — they answer two questions. */}
           {[
             'col.package',
             'col.documents',
-            'col.findings',
+            'col.outcome',
             'col.submitted',
-            'col.status',
+            'col.standing',
           ].map((c, i, all) => (
             <TableHead
               key={c}
@@ -264,15 +303,12 @@ function RegisterTable({
                   <span className='text-[0.8125rem] font-medium text-foreground'>
                     {profileName(t, p.profile)}
                   </span>
-                  <span className='flex items-baseline gap-2 text-[0.8125rem] text-muted-foreground'>
-                    <span data-mono title={p.id}>
-                      {packageRef(p.id)}
-                    </span>
-                    {p.applicant && (
-                      <span className='max-w-[22ch] truncate'>
-                        {p.applicant}
-                      </span>
-                    )}
+                  <span
+                    data-mono
+                    title={p.id}
+                    className='text-[0.8125rem] text-muted-foreground'
+                  >
+                    {packageRef(p.id)}
                   </span>
                 </div>
               </TableCell>
@@ -290,7 +326,7 @@ function RegisterTable({
               <TableCell
                 className={cn('border-b border-rule px-4 align-middle', pad)}
               >
-                <Findings p={p} />
+                <Outcome p={p} />
               </TableCell>
               <TableCell
                 className={cn('border-b border-rule px-4 align-middle', pad)}
@@ -304,7 +340,7 @@ function RegisterTable({
                 )}
               >
                 <div className='flex items-center justify-between gap-3'>
-                  <Status p={p} />
+                  <Standing p={p} />
                   <ChevronRightIcon className='size-4 shrink-0 text-muted-foreground/0 transition-colors group-hover:text-muted-foreground group-focus-visible:text-muted-foreground' />
                 </div>
               </TableCell>
@@ -342,33 +378,28 @@ function RegisterEntries({
                 <span className='text-[0.8125rem] font-medium text-foreground'>
                   {profileName(t, p.profile)}
                 </span>
-                <span className='flex items-baseline gap-2 truncate text-[0.8125rem] text-muted-foreground'>
-                  <span data-mono>{packageRef(p.id)}</span>
-                  {p.applicant && (
-                    <span className='truncate'>{p.applicant}</span>
-                  )}
+                <span
+                  data-mono
+                  className='truncate text-[0.8125rem] text-muted-foreground'
+                >
+                  {packageRef(p.id)}
                 </span>
               </div>
-              {p.disposition !== 'in_progress' && (
-                <DispositionMark disposition={p.disposition} />
-              )}
+              <StandingMark standing={p.standing} className='shrink-0' />
             </div>
-            {p.disposition === 'in_progress' && p.stage ? (
-              <StageBar stage={p.stage} />
-            ) : (
-              <div className='flex items-center gap-x-4 gap-y-1 text-[0.75rem] text-muted-foreground'>
-                <span>
-                  {t('col.documents')}{' '}
-                  <span data-mono className='text-foreground/70'>
-                    {p.docsClassified}/
-                    {documentsExpected(profiles, p.profile) ??
-                      (p.docsFound || p.filesAttached)}
-                  </span>
+            {p.stage !== undefined && <StageBar stage={p.stage} />}
+            <div className='flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[0.75rem] text-muted-foreground'>
+              <span>
+                {t('col.documents')}{' '}
+                <span data-mono className='text-foreground/70'>
+                  {p.docsClassified}/
+                  {documentsExpected(profiles, p.profile) ??
+                    (p.docsFound || p.filesAttached)}
                 </span>
-                <span data-mono>{formatDate(p.submittedAt, locale)}</span>
-                <Findings p={p} />
-              </div>
-            )}
+              </span>
+              <span data-mono>{formatDate(p.submittedAt, locale)}</span>
+              <Outcome p={p} />
+            </div>
           </button>
         </li>
       ))}
@@ -408,12 +439,15 @@ function RegisterSkeleton({ density }: { density: Density }) {
   );
 }
 
-// ─── Empty states ───────────────────────────────────────────────────────────
+// ─── Empty and unreachable states ───────────────────────────────────────────
+// Three different pieces of news, and never one another: a register with
+// nothing in it, a question nothing answered to, and a server that did not
+// answer at all.
 function EmptyRegister({
-  filtered,
+  narrowed,
   onClear,
 }: {
-  filtered: boolean;
+  narrowed: boolean;
   onClear: () => void;
 }) {
   const { t } = useI18n();
@@ -424,7 +458,7 @@ function EmptyRegister({
         variant='icon'
         className='mb-0 size-12 rounded-xl border border-rule-strong bg-card text-muted-foreground shadow-[var(--shadow-sm)]'
       >
-        {filtered ? (
+        {narrowed ? (
           <FilterXIcon className='size-5' />
         ) : (
           <InboxIcon className='size-5' />
@@ -432,14 +466,14 @@ function EmptyRegister({
       </EmptyMedia>
       <EmptyHeader className='gap-1.5'>
         <EmptyTitle className='text-[1.0625rem] font-semibold tracking-tight text-foreground'>
-          {t(filtered ? 'empty.filtered.title' : 'empty.title')}
+          {t(narrowed ? 'empty.filtered.title' : 'empty.title')}
         </EmptyTitle>
         <EmptyDescription className='text-[0.875rem] leading-relaxed text-muted-foreground'>
-          {t(filtered ? 'empty.filtered.body' : 'empty.body')}
+          {t(narrowed ? 'empty.filtered.body' : 'empty.body')}
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
-        {filtered ? (
+        {narrowed ? (
           <Button variant='outline' onClick={onClear}>
             <FilterXIcon /> {t('empty.clear')}
           </Button>
@@ -453,52 +487,167 @@ function EmptyRegister({
   );
 }
 
+function UnreachableRegister({ onRetry }: { onRetry: () => void }) {
+  const { t } = useI18n();
+  return (
+    <Empty className='register-hatch flex-1 rounded-none border-0 border-t border-rule-strong px-6 py-24'>
+      <EmptyMedia
+        variant='icon'
+        className='mb-0 size-12 rounded-xl border border-rule-strong bg-card text-muted-foreground shadow-[var(--shadow-sm)]'
+      >
+        <UnplugIcon className='size-5' />
+      </EmptyMedia>
+      <EmptyHeader className='gap-1.5'>
+        <EmptyTitle className='text-[1.0625rem] font-semibold tracking-tight text-foreground'>
+          {t('register.error.title')}
+        </EmptyTitle>
+        <EmptyDescription className='text-[0.875rem] leading-relaxed text-muted-foreground'>
+          {t('register.error.body')}
+        </EmptyDescription>
+      </EmptyHeader>
+      <EmptyContent>
+        <Button variant='outline' onClick={onRetry}>
+          {t('register.error.retry')}
+        </Button>
+      </EmptyContent>
+    </Empty>
+  );
+}
+
+// ─── One filter ─────────────────────────────────────────────────────────────
+// A select and not a chip rail: seven standings, each named by a sentence
+// fragment in three languages, do not fit a row of chips at any width — and a
+// rail that scrolls sideways hides the choices it exists to show.
+function Filter<T extends string>({
+  label,
+  anyLabel,
+  value,
+  options,
+  optionLabel,
+  onChange,
+}: {
+  label: string;
+  anyLabel: string;
+  value: T | null;
+  options: readonly T[];
+  optionLabel: (option: T) => string;
+  onChange: (value: T | null) => void;
+}) {
+  return (
+    <Select
+      value={value ?? ANY}
+      onValueChange={v => onChange(v === ANY ? null : (v as T))}
+    >
+      <SelectTrigger
+        aria-label={label}
+        className='h-8 max-w-[15rem] gap-2 border-input bg-background px-2.5 text-foreground hover:bg-accent hover:text-foreground'
+      >
+        <span className='flex min-w-0 items-baseline gap-1.5 text-[0.8125rem]'>
+          <span className='shrink-0 text-muted-foreground'>{label}</span>
+          <span className='truncate font-medium'>
+            {value === null ? anyLabel : optionLabel(value)}
+          </span>
+        </span>
+      </SelectTrigger>
+      <SelectContent align='end'>
+        <SelectItem value={ANY}>{anyLabel}</SelectItem>
+        {options.map(option => (
+          <SelectItem key={option} value={option}>
+            {optionLabel(option)}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 // ─── Page ───────────────────────────────────────────────────────────────────
 export function Dashboard() {
   const { t, locale } = useI18n();
   const navigate = useNavigate();
-  // Poll while any package is still being processed, so pipeline progress lands
-  // without a manual refresh; stop once the register is quiet. `pollingInterval`
-  // is re-read each render, so we adjust it during render (no effect) from the
-  // data we just received.
-  const [polling, setPolling] = useState(true);
-  const { data: packages = [], isLoading: loading } = useGetPackagesQuery(
-    undefined,
-    { pollingInterval: polling ? 1500 : 0, skipPollingIfUnfocused: true },
+  const [params, setParams] = useSearchParams();
+
+  const query = useMemo(() => parseRegisterQuery(params), [params]);
+  const request = useMemo(() => toListRequest(query), [query]);
+
+  const ask = useCallback(
+    (change: Partial<RegisterQuery>, replace = false) => {
+      setParams(registerQueryParams({ ...query, ...change }), { replace });
+    },
+    [query, setParams],
   );
-  const shouldPoll = packages.some(p => p.disposition === 'in_progress');
+
+  // Poll while anything on this page is still being read, so pipeline progress
+  // lands without a manual refresh; stop once the page is quiet. Only this page
+  // is watched, because only this page is on the screen — the register is not
+  // held in the client to be scanned. `pollingInterval` is re-read each render,
+  // so we adjust it during render (no effect) from the data we just received.
+  const [polling, setPolling] = useState(true);
+  const { currentData, data, isError, refetch } = useGetPackagesQuery(request, {
+    pollingInterval: polling ? 1500 : 0,
+    skipPollingIfUnfocused: true,
+  });
+
+  // `currentData` is the answer to the question being asked now; `data` is the
+  // last answer to any question. Holding the older one on the screen while a new
+  // one is in flight is what keeps a filter change from flashing the register
+  // away — and `answered` is what stops an old empty page being read as an
+  // answer to the new question.
+  const page = currentData ?? data;
+  const answered = currentData !== undefined;
+  const rows = useMemo(() => page?.items ?? [], [page]);
+
+  const shouldPoll = rows.some(p => p.stage !== undefined);
   if (shouldPoll !== polling) setPolling(shouldPoll);
+
   // Which documents each profile expects — policy, so it is asked for once and
   // cached, never polled alongside the packages.
   const { data: profiles = [] } = useGetProfilesQuery();
   const [now] = useState(() => Date.now());
-  const [query, setQuery] = useState('');
-  const [segment, setSegment] = useState<Segment>('all');
   const [density, setDensity] = useState<Density>('comfortable');
-  const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<string | null>(null);
 
-  const counts = useMemo(() => segmentCounts(packages), [packages]);
+  // The box holds what is being typed; the address bar holds what has been
+  // asked. They part company for as long as the pause lasts, and meet again
+  // whenever the address changes from anywhere else — a link, the back button,
+  // the clear action.
+  const [term, setTerm] = useState(query.search);
+  useEffect(() => setTerm(query.search), [query.search]);
+  useEffect(() => {
+    if (term.trim() === query.search) return;
+    const settle = setTimeout(
+      () => ask({ search: term.trim(), page: 1 }, true),
+      TYPING_SETTLES_MS,
+    );
+    return () => clearTimeout(settle);
+  }, [term, query.search, ask]);
 
-  const filtered = useMemo(
-    () => packages.filter(p => inSegment(p, segment) && matchesQuery(p, query)),
-    [packages, segment, query],
-  );
-
-  const pageSize = density === 'compact' ? 12 : 8;
-  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const current = Math.min(page, pageCount);
-  const start = (current - 1) * pageSize;
-  const rows = filtered.slice(start, start + pageSize);
-
-  const resetPage = () => setPage(1);
+  const pages = page ? pageCount(page.total, page.limit) : 1;
+  // A link can name a page the answer does not reach — the filter was narrowed
+  // since, or the row was on the last page of a longer register. Walk back to
+  // the last page there is rather than leaving the reader on a blank one.
+  useEffect(() => {
+    if (answered && query.page > pages) ask({ page: pages }, true);
+  }, [answered, query.page, pages, ask]);
 
   const onSelect = (p: VerificationPackage) => {
     setSelected(p.id);
     navigate(paths.package(p.id));
   };
 
-  const isFiltered = segment !== 'all' || query.trim().length > 0;
+  const narrowed = isNarrowed(query);
+  const clear = () => setParams(registerQueryParams(WHOLE_REGISTER));
+
+  // Nothing has ever been answered for this question or any other — the one
+  // state in which the register genuinely does not know what it holds.
+  const waiting = page === undefined;
+  const shown = page
+    ? {
+        first: page.total === 0 ? 0 : page.offset + 1,
+        last: Math.min(page.offset + rows.length, page.total),
+        total: page.total,
+      }
+    : null;
 
   return (
     <SurfacePage>
@@ -523,59 +672,39 @@ export function Dashboard() {
 
       {/* ── Filter / control strip ── */}
       <div className='flex shrink-0 flex-col gap-3 border-b border-rule px-4 py-2.5 md:flex-row md:items-center md:justify-between md:px-6'>
-        {/* Segments — horizontal scroll on overflow. The active underline is
-            drawn at after:bottom-0, i.e. inside the button box rather than a
-            negative offset that escapes the scroller, so overflow-x can't spawn
-            a stray vertical scrollbar. It anchors to the chips (not pinned onto
-            the strip's rule) so it never crowds the register below. */}
-        <div className='-mx-1 flex items-stretch gap-0.5 overflow-x-auto px-1'>
-          {SEGMENTS.map(seg => {
-            const active = segment === seg;
-            return (
-              <button
-                key={seg}
-                onClick={() => {
-                  setSegment(seg);
-                  resetPage();
-                }}
-                aria-pressed={active}
-                className={cn(
-                  'relative flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2.5 py-1.5 text-[0.8125rem] transition-colors',
-                  'after:absolute after:inset-x-2 after:bottom-0 after:h-[2px] after:bg-transparent',
-                  active
-                    ? 'font-medium text-foreground after:bg-foreground'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {t(SEG_KEY[seg])}
-                <span
-                  data-mono
-                  className={cn(
-                    'text-[0.6875rem]',
-                    active ? 'text-foreground/60' : 'text-muted-foreground/60',
-                  )}
-                >
-                  {counts[seg]}
-                </span>
-              </button>
-            );
-          })}
+        <div className='relative md:w-80'>
+          <SearchIcon className='pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground' />
+          <Input
+            value={term}
+            onChange={e => setTerm(e.target.value)}
+            placeholder={t('search.placeholder')}
+            aria-label={t('search.label')}
+            className='h-8 border-input bg-background pl-8 text-[0.8125rem]'
+          />
         </div>
 
-        {/* Search + density */}
-        <div className='flex items-center gap-2'>
-          <div className='relative flex-1 md:w-72 md:flex-none'>
-            <SearchIcon className='pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground' />
-            <Input
-              value={query}
-              onChange={e => {
-                setQuery(e.target.value);
-                resetPage();
-              }}
-              placeholder={t('search.placeholder')}
-              className='h-8 border-input bg-background pl-8 text-[0.8125rem]'
-            />
-          </div>
+        <div className='flex flex-wrap items-center gap-2'>
+          <Filter
+            label={t('filter.standing')}
+            anyLabel={t('filter.any_standing')}
+            value={query.standing}
+            options={STANDINGS}
+            optionLabel={standing => t(STANDING_KEY[standing])}
+            onChange={standing => ask({ standing, page: 1 })}
+          />
+          <Filter
+            label={t('filter.outcome')}
+            anyLabel={t('filter.any_outcome')}
+            value={query.reportStatus}
+            options={OUTCOMES}
+            optionLabel={outcome => t(REPORT_KEY[outcome])}
+            onChange={reportStatus => ask({ reportStatus, page: 1 })}
+          />
+          {narrowed && (
+            <Button variant='ghost' size='sm' onClick={clear}>
+              <FilterXIcon /> {t('empty.clear')}
+            </Button>
+          )}
           <ToggleGroup
             value={[density]}
             onValueChange={(v: string[]) => {
@@ -603,21 +732,26 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* ── Register body ── the one scrolling region between the bands */}
+      {/* ── Register body ── the one scrolling region between the bands.
+          Four states, and each is told apart from the rest: nothing answered
+          yet, nothing answered at all, an answer with no rows in it, and rows.
+          An answer to the *previous* question is never drawn as an empty one —
+          that is the difference between "no packages match" and "still asking". */}
       <SurfaceBody>
-        {loading ? (
+        {isError && waiting ? (
+          <UnreachableRegister onRetry={() => void refetch()} />
+        ) : waiting || (rows.length === 0 && !answered) ? (
           <RegisterSkeleton density={density} />
         ) : rows.length === 0 ? (
-          <EmptyRegister
-            filtered={isFiltered}
-            onClear={() => {
-              setSegment('all');
-              setQuery('');
-              resetPage();
-            }}
-          />
+          <EmptyRegister narrowed={narrowed} onClear={clear} />
         ) : (
-          <>
+          <div
+            aria-busy={!answered}
+            className={cn(
+              'flex flex-1 flex-col transition-opacity',
+              !answered && 'opacity-60',
+            )}
+          >
             <div className='hidden flex-1 md:block md:pt-3'>
               <RegisterTable
                 rows={rows}
@@ -637,25 +771,26 @@ export function Dashboard() {
                 locale={locale}
               />
             </div>
-          </>
+          </div>
         )}
       </SurfaceBody>
 
       {/* ── Pagination footer ── always rendered so the register's closing rule
           and the h-16 bookend hold across loading, empty, and populated states.
-          While loading, counts are unknown, so the row placeholders a skeleton
-          in place of the tally rather than showing a misleading 0. */}
+          Until something has been answered the counts are unknown, so the row
+          places a skeleton where the tally goes rather than showing a
+          misleading 0. */}
       <SurfaceFooter>
-        {loading ? (
+        {shown === null ? (
           <Skeleton className='h-3 w-40' />
         ) : (
           <>
             <p className='text-[0.8125rem] text-muted-foreground'>
               <span data-mono className='text-foreground/70'>
                 {t('page.showing', {
-                  a: filtered.length === 0 ? 0 : start + 1,
-                  b: Math.min(start + pageSize, filtered.length),
-                  n: filtered.length,
+                  a: shown.first,
+                  b: shown.last,
+                  n: shown.total,
                 })}
               </span>
             </p>
@@ -663,8 +798,8 @@ export function Dashboard() {
               <Button
                 variant='outline'
                 size='sm'
-                disabled={current <= 1}
-                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={query.page <= 1}
+                onClick={() => ask({ page: Math.max(1, query.page - 1) })}
               >
                 {t('page.prev')}
               </Button>
@@ -672,13 +807,13 @@ export function Dashboard() {
                 data-mono
                 className='px-1 text-[0.8125rem] text-muted-foreground'
               >
-                {current} / {pageCount}
+                {query.page} / {pages}
               </span>
               <Button
                 variant='outline'
                 size='sm'
-                disabled={current >= pageCount}
-                onClick={() => setPage(p => Math.min(pageCount, p + 1))}
+                disabled={query.page >= pages}
+                onClick={() => ask({ page: Math.min(pages, query.page + 1) })}
               >
                 {t('page.next')}
               </Button>

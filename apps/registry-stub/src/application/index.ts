@@ -1,9 +1,12 @@
 export { AddressesService } from './addresses.service.js';
+export { ArchiveSearchService } from './archive-search.service.js';
 export {
   RegistrySource,
   RegistryWriter,
   WorkbookClassifier,
   WorkbookReader,
+  type ArchiveCandidate,
+  type ArchiveSearchCriteria,
   type SourceHolding,
   type WorkbookClassification,
 } from './ports/index.js';

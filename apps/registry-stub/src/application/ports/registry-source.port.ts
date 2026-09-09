@@ -15,6 +15,43 @@ export type SourceHolding = {
 };
 
 /**
+ * What the operator is searching the archive by, and how deep to look.
+ *
+ * The threshold travels with the criteria rather than staying above this port,
+ * and it is not a filter the source applies: a record's confidence is the
+ * average over the criteria it could answer, so it can never exceed the best of
+ * them. That makes "the best single criterion reaches the threshold" the widest
+ * net that cannot drop a record the service would have offered — and the source
+ * is the only place that can narrow before reading the whole archive.
+ */
+export type ArchiveSearchCriteria = {
+  readonly address?: string;
+  readonly ownerName?: string;
+  readonly cadastralNumber?: string;
+  readonly threshold: number;
+};
+
+/**
+ * One record a search might offer, with the two things the record itself does
+ * not carry.
+ *
+ * `source` is where it was read out of, which is the whole of the answer to
+ * "which register said this" — six overlapping registers contradict each other,
+ * and an answer without its provenance is not usable (ADR-0010).
+ *
+ * `addresses` is every spelling the register holds for the property and not
+ * only the one the record is filed under. A submission written against the
+ * `köhnə ünvan` is about the same property, so the lookup searches all of them
+ * — and a search that graded only the current spelling would score a record it
+ * found by its legacy one as a poor match for the words that found it.
+ */
+export type ArchiveCandidate = {
+  readonly record: ArchiveRecordDto;
+  readonly source: string;
+  readonly addresses: readonly string[];
+};
+
+/**
  * Where the records come from, as a port rather than as a file.
  *
  * The stand-in answers from fixtures; the ingested register files would answer
@@ -25,6 +62,19 @@ export type SourceHolding = {
 export abstract class RegistrySource {
   /** Every record that answers to this address, in no particular order. */
   abstract findByAddress(address: string): Promise<readonly ArchiveRecordDto[]>;
+
+  /**
+   * Every record that could answer the search, in no particular order.
+   *
+   * Candidates and not matches: the source narrows, and what a record is
+   * finally worth is graded once, above this port, so that the stand-in and
+   * whatever replaces it cannot grade the same pair differently (ADR-0009 §8).
+   * A source that can narrow no further is allowed to hand back everything it
+   * holds.
+   */
+  abstract findCandidates(
+    criteria: ArchiveSearchCriteria,
+  ): Promise<readonly ArchiveCandidate[]>;
 
   /** How many records the source holds at all — for the audit line, not for a rule. */
   abstract size(): Promise<number>;

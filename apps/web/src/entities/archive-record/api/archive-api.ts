@@ -1,11 +1,19 @@
 /**
  * The archive register, as the browser reaches it.
  *
- * Both questions go through the gateway like everything else: both **are** in
- * the contract — `AddressesApi` and `RegistrySummaryApi` in
- * `@cadastre/api-contracts/registry` — and since COMM-55 and COMM-58 there is
- * an `/api` route over each, so the screen speaks to this system's own origin
- * and the register is not on the browser's map at all.
+ * Every question goes through the gateway like everything else: all three
+ * **are** in the contract — `AddressesApi`, `ArchiveSearchApi` and
+ * `RegistrySummaryApi` in `@cadastre/api-contracts/registry` — and since
+ * COMM-55, COMM-56 and COMM-58 there is an `/api` route over each, so the
+ * screen speaks to this system's own origin and the register is not on the
+ * browser's map at all.
+ *
+ * The lookup and the search sit side by side and are not one endpoint with a
+ * flag, for the reason the contract keeps them apart: a lookup is asked on a
+ * submission's behalf and resolves to the one record a verification stage may
+ * act on; a search is asked by a person at the counter and offers everything
+ * that might be it. Folding them together would make the lookup forgiving,
+ * which is the one thing it must not be.
  *
  * What it does **not** do is restate the shapes: request and response are the
  * contract's own, and each answer is parsed through the contract's own Zod
@@ -21,9 +29,12 @@
 import { api } from '@/shared/api';
 import {
   AddressLookupResponseSchema,
+  ArchiveSearchResponseSchema,
   RegistrySummaryResponseSchema,
   type AddressLookupRequest,
   type AddressLookupResponse,
+  type ArchiveSearchRequest,
+  type ArchiveSearchResponse,
   type RegistrySummaryResponse,
 } from '@cadastre/api-contracts/registry';
 
@@ -61,6 +72,32 @@ export const archiveApi = api.injectEndpoints({
         AddressLookupResponseSchema.parse(response),
     }),
     /*
+     * The archive searched by any of the three criteria an operator has —
+     * a name, half a parcel number, an address written the way the applicant
+     * wrote it — with a confidence per record and per criterion.
+     *
+     * A POST for the same reason the lookup is one, and the reason the summary
+     * beside it is not: a name and an address are somebody's property, and the
+     * summary carries nothing about anybody.
+     *
+     * The request is the cache key, threshold included, so moving the
+     * threshold asks a new question rather than re-filtering an old answer —
+     * which is what it has to be: the register decides what clears the bar and
+     * counts `matched` and `considered` against it, and a client that filtered
+     * its own cached rows would print figures the register never wrote.
+     */
+    searchArchive: build.query<ArchiveSearchResponse, ArchiveSearchRequest>({
+      query: request => ({
+        url: '/registry/search',
+        method: 'POST',
+        body: request,
+      }),
+      // Parsed and not cast, as the lookup is: the gateway hands the
+      // register's answer through untouched.
+      transformResponse: (response: unknown): ArchiveSearchResponse =>
+        ArchiveSearchResponseSchema.parse(response),
+    }),
+    /*
      * How much of the archive the register is holding, and since when.
      *
      * The sidebar's one standing question, and it is two questions answered by
@@ -86,7 +123,11 @@ export const archiveApi = api.injectEndpoints({
   }),
 });
 
-export const { useLookupAddressQuery, useArchiveSummaryQuery } = archiveApi;
+export const {
+  useArchiveSummaryQuery,
+  useLookupAddressQuery,
+  useSearchArchiveQuery,
+} = archiveApi;
 
 /**
  * The archive is not what it was — forget what was said about it.

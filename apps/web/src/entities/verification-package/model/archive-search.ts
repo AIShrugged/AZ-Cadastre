@@ -17,6 +17,7 @@
  * are what keep the two apart at a glance rather than in a sentence they have
  * to read first.
  */
+import type { OutcomeTone } from '@/shared/ui/outcome-mark';
 import type {
   ArchiveHolding,
   ArchiveSearchApprovalDto,
@@ -26,20 +27,14 @@ import type {
 } from '@cadastre/api-contracts/verification';
 
 /**
- * The tones an archive answer is set in.
+ * The tones an archive answer is set in — the surface's own five, defined with
+ * the pill that draws them (`shared/ui/outcome-mark`) and re-exported here so a
+ * reader of this module sees the vocabulary it maps onto.
  *
- * `ok`, `issues` and `incomplete` are the register's own three, shared with
- * every other panel on the surface. The two below them exist because this panel
- * reports something no other one does — a source outside the system that is
- * allowed not to know:
- *
- *  - `silent`  — the register holds nothing under this address. Neutral, and
- *                deliberately without a fault's colour.
- *  - `question`— the register holds more than one answer. Not a fault either,
- *                but not silence: somebody has to say which record applies.
+ * The distinction they exist for: `silent` is the register holding nothing, and
+ * `question` is the register holding more than one answer. Neither is a fault.
  */
-export type OutcomeTone =
-  'ok' | 'issues' | 'incomplete' | 'silent' | 'question';
+export type { OutcomeTone };
 
 /**
  * One tone per verdict, all five different.

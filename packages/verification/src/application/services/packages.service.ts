@@ -43,7 +43,14 @@ export class PackagesService implements PackagesApi {
 
   async create(request: CreatePackageRequest): Promise<PackageDto> {
     const packageId = await this.commands.execute(
-      new CreatePackageCommand(request.profileKey, request.files),
+      new CreatePackageCommand(
+        request.profileKey,
+        request.files,
+        // The operator's own choice of profile, and what they declared about
+        // the case beside it. A request that declares nothing is the one this
+        // endpoint has always taken.
+        request.declared ?? {},
+      ),
     );
 
     return toSummaryDto(

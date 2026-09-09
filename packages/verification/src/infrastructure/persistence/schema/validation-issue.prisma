@@ -15,6 +15,7 @@ enum IssueKind {
   RegistryUnconfirmed // the register held no record of the property, or held two
   MissingAttestation // a paper the profile expects sealed or signed carries no such mark
   SupportingDocumentsRequired // what the applicant must bring beyond the envelope, for the case this package turned out to be
+  DeclaredValueMismatch // what the office declared at intake is not what the papers state
 }
 
 model ValidationIssue {

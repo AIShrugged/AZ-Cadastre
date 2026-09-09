@@ -36,6 +36,7 @@ function aSummaryView(
     status: 'Completed',
     standing: 'NeedsInspector',
     profileKey: 'cadastre',
+    declared: { legalBasis: null, builtYear: null },
     applicantName: { value: 'ELÇİN ƏLİYEV', confidence: 0.92 },
     propertyAddress: {
       value: 'Bakı ş., Nəsimi r., Azadlıq pr. 12, mən. 43',
@@ -244,6 +245,35 @@ describe('toSummaryDto', () => {
     expect(dto.id).toBe(view.id);
     expect(dto.status).toBe('Completed');
     expect(dto.profileKey).toBe('cadastre');
+  });
+
+  /*
+   * Two sources and one row. What the office declared at the counter travels as
+   * a field of its own, beside — and never merged into — the values the
+   * pipeline read off the papers: a reader who could no longer tell them apart
+   * could not tell a machine's reading from a person's statement.
+   */
+  it('carries what was declared at intake apart from what was read', () => {
+    const dto = toSummaryDto(
+      aSummaryView({
+        declared: { legalBasis: 'disposal_order', builtYear: 1998 },
+      }),
+    );
+
+    expect(dto.declared).toEqual({
+      legalBasis: 'disposal_order',
+      builtYear: 1998,
+    });
+    // The readings are still the readings, and they still carry a confidence.
+    expect(dto.applicantName?.confidence).toBe(0.92);
+  });
+
+  // A package taken in before intake asked declared nothing, which is a fact
+  // about it and not a gap: it says so rather than showing an empty string.
+  it('says nothing was declared where nothing was', () => {
+    const dto = toSummaryDto(aSummaryView());
+
+    expect(dto.declared).toEqual({ legalBasis: null, builtYear: null });
   });
 
   it('carries the standing across, so a client shows it instead of working out its own', () => {

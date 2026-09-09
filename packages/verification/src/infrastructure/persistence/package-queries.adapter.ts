@@ -145,6 +145,11 @@ const SUMMARY_COLUMNS = {
   id: true,
   status: true,
   profileKey: true,
+  // What the office declared when it took the submission in. Two scalar columns
+  // on the row itself, so a page of a hundred submissions carries them for the
+  // cost of reading the row.
+  declaredLegalBasis: true,
+  declaredBuiltYear: true,
   createdAt: true,
   updatedAt: true,
   // The registry checks are counted and not read: whether the register was
@@ -282,6 +287,8 @@ type SummaryRow = {
   readonly id: string;
   readonly status: string;
   readonly profileKey: string;
+  readonly declaredLegalBasis: string | null;
+  readonly declaredBuiltYear: number | null;
   readonly createdAt: Date;
   readonly updatedAt: Date;
   readonly _count: {
@@ -933,6 +940,13 @@ export class PackageQueriesAdapter extends PackageQueries {
         archiveSearchApproved: row._count.archiveSearchApprovals > 0,
       }).value,
       profileKey: row.profileKey,
+      // Carried across as it was declared and never reconciled with the
+      // readings below: they are two sources, and a register that merged them
+      // would be the one place a reader could no longer tell them apart.
+      declared: {
+        legalBasis: row.declaredLegalBasis,
+        builtYear: row.declaredBuiltYear,
+      },
       applicantName: particulars.applicantName,
       propertyAddress: particulars.propertyAddress,
       cadastralNumber: particulars.cadastralNumber,

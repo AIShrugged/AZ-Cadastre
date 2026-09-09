@@ -14,9 +14,11 @@ export {
 export {
   CreatePackageRequestSchema,
   CreatePackageResponseSchema,
+  DeclaredAtIntakeInputSchema,
   FileInputSchema,
   type CreatePackageRequest,
   type CreatePackageResponse,
+  type DeclaredAtIntakeInput,
   type FileInput,
 } from './create-package.dto.js';
 export {
@@ -45,6 +47,9 @@ export {
   ArchiveSearchApprovalDtoSchema,
   CheckedValueDtoSchema,
   CrossCheckDtoSchema,
+  DECLARED_YEAR_EARLIEST,
+  DECLARED_YEAR_LATEST,
+  DeclaredAtIntakeDtoSchema,
   DocumentDtoSchema,
   FieldDtoSchema,
   IssueDtoSchema,
@@ -62,6 +67,7 @@ export {
   type ArchiveSearchApprovalDto,
   type CheckedValueDto,
   type CrossCheckDto,
+  type DeclaredAtIntakeDto,
   type DocumentDto,
   type FieldDto,
   type IssueDto,
@@ -95,6 +101,15 @@ export {
   type PackagesOverviewResponse,
   type PipelineTallyDto,
 } from './packages-overview.dto.js';
+export {
+  ProfileSuggestionDtoSchema,
+  SuggestProfileRequestSchema,
+  SuggestionReasonDtoSchema,
+  type ProfileSuggestionDto,
+  type SuggestProfileRequest,
+  type SuggestProfileRequestInput,
+  type SuggestionReasonDto,
+} from './suggest-profile.dto.js';
 export {
   PresignRequestSchema,
   PresignResponseSchema,

@@ -10,9 +10,21 @@
  * happen to run on them entirely, and the model-backed ones check their answers
  * against them — but neither owns them.
  */
-export { heightInMetres, yearIn } from './building-measures.service.js';
+export {
+  EARLIEST_YEAR,
+  heightInMetres,
+  LATEST_YEAR,
+  yearIn,
+} from './building-measures.service.js';
 export { looksLike } from './document-hints.service.js';
 export { tileIntoRanges } from './page-tiling.service.js';
+export {
+  suggestProfile,
+  type ProfileIntake,
+  type ProfileSuggestion,
+  type SuggestionCriterion,
+  type SuggestionReason,
+} from './profile-suggestion.service.js';
 export { quotedIn } from './quotation-evidence.service.js';
 export {
   attestationIn,

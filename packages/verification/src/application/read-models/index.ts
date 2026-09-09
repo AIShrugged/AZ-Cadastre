@@ -3,6 +3,7 @@ export type {
   ArchiveSearchApprovalView,
   CheckedValueView,
   CrossCheckView,
+  DeclaredAtIntakeView,
   DocumentView,
   FieldView,
   IssueView,
@@ -25,5 +26,7 @@ export type {
 } from './packages-overview.read-model.js';
 export type {
   ProfileDocumentTypeView,
+  ProfileSuggestionView,
   ProfileView,
+  SuggestionReasonView,
 } from './profile.read-model.js';

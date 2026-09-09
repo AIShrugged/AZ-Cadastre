@@ -57,6 +57,23 @@ export class IssueKind {
   static readonly SUPPORTING_DOCUMENTS_REQUIRED = new IssueKind(
     'SupportingDocumentsRequired',
   );
+  /*
+   * What the office declared when it took the submission in is not what the
+   * papers turned out to say.
+   *
+   * Not FIELD_MISMATCH, which is two papers of one submission disagreeing, and
+   * not REGISTRY_MISMATCH, which is the papers disagreeing with the record of
+   * what was registered. This is the papers disagreeing with the counter, and
+   * it is the only one of the three where one side was typed by a person.
+   *
+   * Neither side is presumed right — a year is as easy to mistype at a counter
+   * as it is to misread off a scan — so it is stated for the record and never
+   * counted against the package. It is filed against the reading it disagrees
+   * with, so the inspector opens the sheet and settles it.
+   */
+  static readonly DECLARED_VALUE_MISMATCH = new IssueKind(
+    'DeclaredValueMismatch',
+  );
 
   private constructor(public readonly value: string) {}
 
@@ -73,6 +90,7 @@ export class IssueKind {
       IssueKind.REGISTRY_UNCONFIRMED,
       IssueKind.MISSING_ATTESTATION,
       IssueKind.SUPPORTING_DOCUMENTS_REQUIRED,
+      IssueKind.DECLARED_VALUE_MISMATCH,
     ];
   }
 
@@ -81,13 +99,17 @@ export class IssueKind {
   // to resolve before registering. The supporting documents are here for a
   // slightly different reason than the rest — they are not a finding about the
   // package at all — but the rule they need is the same one: absence of data is
-  // not a violation (ADR-0013).
+  // not a violation (ADR-0013). A declared value the papers contradict is here
+  // for a third reason: the applicant is not answerable for what the office
+  // typed about their case, and scoring the package down for it would hold them
+  // to it.
   get isInformational(): boolean {
     return (
       this.equals(IssueKind.EXTRA_DOCUMENT) ||
       this.equals(IssueKind.DUPLICATE_DOCUMENT) ||
       this.equals(IssueKind.REGISTRY_UNCONFIRMED) ||
-      this.equals(IssueKind.SUPPORTING_DOCUMENTS_REQUIRED)
+      this.equals(IssueKind.SUPPORTING_DOCUMENTS_REQUIRED) ||
+      this.equals(IssueKind.DECLARED_VALUE_MISMATCH)
     );
   }
 

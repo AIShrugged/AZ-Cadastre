@@ -17,6 +17,7 @@ import {
   CrossCheck,
   CrossCheckKey,
   CrossCheckVerdict,
+  DeclaredAtIntake,
   DocumentId,
   DocumentType,
   FieldKey,
@@ -57,6 +58,10 @@ export type PackageRow = {
   readonly id: string;
   readonly status: string;
   readonly profileKey: string;
+  // What the office declared when it took the submission in. Null on a package
+  // taken in before intake asked, and on one where the office knew neither.
+  readonly declaredLegalBasis: string | null;
+  readonly declaredBuiltYear: number | null;
   readonly version: number;
   readonly sourceFiles: readonly SourceFileRow[];
   readonly documents: readonly DocumentRow[];
@@ -195,6 +200,8 @@ export type PackageWrite = {
   readonly id: string;
   readonly status: StatusColumn;
   readonly profileKey: string;
+  readonly declaredLegalBasis: string | null;
+  readonly declaredBuiltYear: number | null;
   readonly sourceFiles: readonly SourceFileWrite[];
   readonly documents: readonly DocumentWrite[];
   readonly crossChecks: readonly CrossCheckWrite[];
@@ -338,6 +345,12 @@ export class VerificationPackageMapper {
       id: PackageId.of(row.id),
       version: row.version,
       profile: VerificationProfile.of(row.profileKey),
+      declared: DeclaredAtIntake.of({
+        legalBasis: row.declaredLegalBasis
+          ? DocumentType.create(row.declaredLegalBasis)
+          : null,
+        builtYear: row.declaredBuiltYear,
+      }),
       status: PackageStatus.of(row.status),
       files: row.sourceFiles.map(file =>
         VerificationPackageMapper.fileToDomain(file),
@@ -365,6 +378,8 @@ export class VerificationPackageMapper {
       id: aggregate.id.value,
       status: VerificationPackageMapper.statusColumn(aggregate.status),
       profileKey: aggregate.profile.key,
+      declaredLegalBasis: aggregate.declared.legalBasis?.value ?? null,
+      declaredBuiltYear: aggregate.declared.builtYear,
       sourceFiles: aggregate.files.map(file => ({
         id: file.id.value,
         originalFilename: file.filename.value,

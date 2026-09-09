@@ -6,6 +6,7 @@ export {
 export {
   CreatePackageCommand,
   CreatePackageHandler,
+  type DeclaredAtIntakeInput,
   type SubmittedFile,
 } from './create-package/index.js';
 export { GetPackageHandler, GetPackageQuery } from './get-package/index.js';

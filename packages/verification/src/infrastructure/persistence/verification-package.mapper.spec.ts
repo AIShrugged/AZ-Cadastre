@@ -16,6 +16,7 @@ import {
   ApprovedCheck,
   ArchiveSearchApproval,
   ContentType,
+  DeclaredAtIntake,
   DocumentId,
   DocumentType,
   Filename,
@@ -90,6 +91,8 @@ function aPackageRow(overrides: Partial<PackageRow> = {}): PackageRow {
     id: anId(),
     status: 'Processing',
     profileKey: 'cadastre',
+    declaredLegalBasis: null,
+    declaredBuiltYear: null,
     version: 3,
     sourceFiles: [aSourceFileRow()],
     documents: [aDocumentRow()],
@@ -271,6 +274,46 @@ describe('VerificationPackageMapper', () => {
       expect(file?.pages.map(page => page.number.value)).toEqual([1, 2, 3]);
     });
 
+    /*
+     * Two columns of their own, rebuilt into the domain's own vocabulary. A
+     * declaration is not an extracted field and never becomes one: everything
+     * the pipeline read carries a confidence, and this was typed by a person.
+     */
+    it('rebuilds what the office declared when it took the submission in', () => {
+      const aggregate = VerificationPackageMapper.toDomain(
+        aPackageRow({
+          declaredLegalBasis: 'disposal_order',
+          declaredBuiltYear: 1998,
+        }),
+      );
+
+      expect(aggregate.declared.legalBasis?.value).toBe('disposal_order');
+      expect(aggregate.declared.builtYear).toBe(1998);
+    });
+
+    // Every row written before intake asked, and every one where the office
+    // knew neither figure.
+    it('rebuilds a package that declared nothing as one that declares nothing', () => {
+      const aggregate = VerificationPackageMapper.toDomain(aPackageRow());
+
+      expect(aggregate.declared.statesAnything).toBe(false);
+    });
+
+    /*
+     * A ground is checked against the profile when a submission is taken in and
+     * never again. A profile that stops registering one does not make the
+     * packages filed under it unreadable: the declaration is what was said at
+     * the counter, it stays true of that submission, and a read surface that
+     * refused the row would leave a real package nobody could open.
+     */
+    it('rebuilds a stored ground the profile has since stopped registering', () => {
+      const aggregate = VerificationPackageMapper.toDomain(
+        aPackageRow({ declaredLegalBasis: 'payment_receipt' }),
+      );
+
+      expect(aggregate.declared.legalBasis?.value).toBe('payment_receipt');
+    });
+
     it('records nothing, because a package read from storage has not just done anything', () => {
       const aggregate = VerificationPackageMapper.toDomain(aPackageRow());
 
@@ -355,6 +398,9 @@ describe('VerificationPackageMapper', () => {
       expect(row.status).toBe('Pending');
       expect(row.profileKey).toBe('cadastre');
       expect(row.documents).toEqual([]);
+      // Nothing was declared, so the columns say nothing rather than ''.
+      expect(row.declaredLegalBasis).toBeNull();
+      expect(row.declaredBuiltYear).toBeNull();
       expect(row.sourceFiles).toEqual([
         {
           id: aggregate.files[0]!.id.value,
@@ -578,6 +624,7 @@ describe('VerificationPackageMapper', () => {
         id: PackageId.of(anId()),
         version: 2,
         profile: VerificationProfile.CADASTRE,
+        declared: DeclaredAtIntake.none(),
         status: PackageStatus.PROCESSING,
         files: [file],
         crossChecks: [],
@@ -614,6 +661,7 @@ describe('VerificationPackageMapper', () => {
         id: PackageId.of(anId()),
         version: 2,
         profile: VerificationProfile.CADASTRE,
+        declared: DeclaredAtIntake.none(),
         status: PackageStatus.PROCESSING,
         files: [],
         documents: [],

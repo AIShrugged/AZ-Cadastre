@@ -1,0 +1,13 @@
+-- A report could say that two papers of one submission disagree, and that a
+-- paper disagrees with the archive's record of the property. It could not say
+-- that a paper disagrees with what the office typed when it took the submission
+-- in — because until now the office typed nothing.
+--
+-- Stated for the record and never against the package: the applicant did not
+-- write the declaration, and a year is as easy to mistype at a counter as it is
+-- to misread off a scan. Which side is right is the inspector's to settle, and
+-- the finding is filed against the reading so they can open the sheet.
+--
+-- Its own migration, as the last enum value was: adding a member to a Postgres
+-- enum and writing rows that use it do not belong in one transaction.
+ALTER TYPE "IssueKind" ADD VALUE IF NOT EXISTS 'DeclaredValueMismatch';

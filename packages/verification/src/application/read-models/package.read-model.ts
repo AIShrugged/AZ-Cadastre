@@ -9,6 +9,21 @@ export type StatedValueView = {
   confidence: number;
 };
 
+/**
+ * What the office declared about a submission when it took it in, as the
+ * register holds it: a source of its own, never merged with what was read.
+ *
+ * No confidence on either, and that is the point of the type: a reading can be
+ * a bad reading and says how sure it is, a declaration was typed by a person
+ * and is only ever what they said.
+ */
+export type DeclaredAtIntakeView = {
+  // A document type key of the package's profile, or null where none was
+  // declared.
+  legalBasis: string | null;
+  builtYear: number | null;
+};
+
 export type PackageSummaryView = {
   id: string;
   status: string;
@@ -17,6 +32,9 @@ export type PackageSummaryView = {
   // there is no row that can fall out of step with it (ADR-0014).
   standing: string;
   profileKey: string;
+  // What the office declared at the counter, kept apart from what the pipeline
+  // read off the papers below.
+  declared: DeclaredAtIntakeView;
   // What the case is called: the person it is for, the property it concerns and
   // the parcel that property sits on. Read off the package's own extracted
   // fields, off whichever paper the package's Verification Profile believes

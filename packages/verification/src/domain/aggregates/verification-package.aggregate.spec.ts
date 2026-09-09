@@ -30,6 +30,7 @@ import {
   DocumentTypeNotInProfileException,
   DuplicateStorageKeyException,
   FieldNotInSchemaException,
+  LegalBasisNotInProfileException,
   PackageAlreadyFinishedException,
   PackageMustGainAFileException,
   PackageMustHaveAFileException,
@@ -55,6 +56,7 @@ import {
   CrossCheck,
   CrossCheckKey,
   CrossCheckVerdict,
+  DeclaredAtIntake,
   DocumentId,
   DocumentType,
   FailureReason,
@@ -147,6 +149,7 @@ const REQUIRED_TYPES = VerificationProfile.CADASTRE.requiredTypes.map(
 type Options = {
   profile?: VerificationProfile;
   files?: readonly SourceFile[];
+  declared?: DeclaredAtIntake;
 };
 
 function aPackage(options: Options = {}) {
@@ -155,6 +158,7 @@ function aPackage(options: Options = {}) {
     PackageId.of(anId()),
     options.profile ?? VerificationProfile.CADASTRE,
     files,
+    options.declared ?? DeclaredAtIntake.none(),
   );
 
   return { verification, files, file: files[0]! };
@@ -474,6 +478,7 @@ describe('VerificationPackage', () => {
         id: PackageId.of(anId()),
         version: 4,
         profile: VerificationProfile.CADASTRE,
+        declared: DeclaredAtIntake.none(),
         status: PackageStatus.PROCESSING,
         files: [aFile()],
         documents: [],
@@ -494,6 +499,7 @@ describe('VerificationPackage', () => {
         id: PackageId.of(anId()),
         version: 7,
         profile: VerificationProfile.CADASTRE,
+        declared: DeclaredAtIntake.none(),
         status: PackageStatus.COMPLETED,
         files: [file],
         documents: [document],
@@ -514,6 +520,7 @@ describe('VerificationPackage', () => {
         id: PackageId.of(anId()),
         version: 1,
         profile: VerificationProfile.CADASTRE,
+        declared: DeclaredAtIntake.none(),
         status: PackageStatus.PENDING,
         files: [],
         documents: [],
@@ -1624,6 +1631,7 @@ describe('VerificationPackage', () => {
         id: verification.id,
         version: 2,
         profile: VerificationProfile.CADASTRE,
+        declared: DeclaredAtIntake.none(),
         status: PackageStatus.PROCESSING,
         files: [
           SourceFile.restore({
@@ -1669,6 +1677,7 @@ describe('VerificationPackage', () => {
         id: verification.id,
         version: 2,
         profile: VerificationProfile.CADASTRE,
+        declared: DeclaredAtIntake.none(),
         status: PackageStatus.PROCESSING,
         files: verification.files,
         documents: verification.documents,
@@ -1711,11 +1720,13 @@ describe('VerificationPackage', () => {
       );
     }
 
-    // A package holding one sketch design and whatever it was read to state.
+    // A package holding one sketch design and whatever it was read to state,
+    // under whatever the office declared about it at the counter.
     function aDesignStating(
       fields: readonly (readonly [string, string, number?])[],
+      declared: DeclaredAtIntake = DeclaredAtIntake.none(),
     ): VerificationPackage {
-      const built = aSegmentedPackage();
+      const built = aSegmentedPackage(1, { declared });
       built.verification.classify(
         built.document.id,
         aClassification('sketch_project'),
@@ -1946,6 +1957,63 @@ describe('VerificationPackage', () => {
       expect(built.verification.report?.status.value).toBe('OK');
     });
 
+    /*
+     * The year the office declared at the counter, where no paper states one.
+     *
+     * The fallback is a fallback and not a second opinion: a figure printed on
+     * a paper is what the case rests on, and the declaration is only what
+     * somebody said about it. Where the papers state a year, they decide.
+     */
+    it('decides a band on the declared year when no paper of the package states one', () => {
+      const verification = aDesignStating(
+        [['building_height', '9,4 m']],
+        DeclaredAtIntake.of({ builtYear: 2005 }),
+      );
+
+      expect(messageOf(verification).message).toContain('low_rise_legacy');
+    });
+
+    // The reader has to be able to check the figure, and a year nobody read off
+    // a sheet is checked at the counter rather than in the file.
+    it('says the year it fell back on was declared at intake', () => {
+      const verification = aDesignStating(
+        [['building_height', '9,4 m']],
+        DeclaredAtIntake.of({ builtYear: 2005 }),
+      );
+
+      expect(messageOf(verification).message).toContain(
+        'dated 2005 as declared at intake',
+      );
+    });
+
+    it('reads the papers rather than the declaration where both state a year', () => {
+      const verification = aDesignStating(
+        [
+          ['building_height', '9,4 m'],
+          ['approval_date', '18.12.2025'],
+        ],
+        DeclaredAtIntake.of({ builtYear: 2005 }),
+      );
+
+      const told = messageOf(verification);
+      expect(told.message).toContain('low_rise_recent');
+      expect(told.message).not.toContain('as declared at intake');
+    });
+
+    // Nothing is declared about the height, so a declaration cannot rescue a
+    // sketch design nobody could read a height off.
+    it('still decides no band when the height could not be read, whatever was declared', () => {
+      const verification = aDesignStating(
+        [['building_height', '2 mərtəbə']],
+        DeclaredAtIntake.of({ builtYear: 2005 }),
+      );
+
+      expect(messageOf(verification).message).toContain('could not be decided');
+      expect(messageOf(verification).message).toContain(
+        'the height of the building could not be read',
+      );
+    });
+
     // One message per branch the profile declares, and the profile declares
     // one: a re-run works the report out from scratch, so this cannot double up.
     it('tells it once per branch the profile declares', () => {
@@ -1956,6 +2024,203 @@ describe('VerificationPackage', () => {
           issue => issue.kind.value === 'SupportingDocumentsRequired',
         ),
       ).toHaveLength(VerificationProfile.CADASTRE.supportingDocuments.length);
+    });
+  });
+
+  /*
+   * The one thing about a package a person put there rather than the engine
+   * reading it: what the office declared when it took the submission in.
+   *
+   * Two questions are asked of it and no others. Does it contradict the profile
+   * the operator filed the case under — which is refused, because a policy that
+   * does not register this ground cannot verify this case. And does it
+   * contradict the papers — which is told to the inspector and never held
+   * against the applicant, who did not write it.
+   */
+  describe('what the office declared when it took the submission in', () => {
+    function aValue(
+      key: string,
+      value: string,
+      confidence = 0.9,
+    ): ExtractedField {
+      return ExtractedField.of(
+        FieldKey.create(key),
+        FieldValue.create(value),
+        Confidence.of(confidence),
+        PageNumber.first(),
+      );
+    }
+
+    // A package holding one sketch design stating a year, taken in under
+    // whatever the office declared about it.
+    function aCaseDated(
+      approvalDate: string | null,
+      declared: DeclaredAtIntake,
+    ): VerificationPackage {
+      const built = aSegmentedPackage(1, { declared });
+      built.verification.classify(
+        built.document.id,
+        aClassification('sketch_project'),
+      );
+      if (approvalDate !== null) {
+        built.verification.recordExtractedFields(built.document.id, [
+          aValue('approval_date', approvalDate, 0.77),
+        ]);
+      }
+      built.verification.complete();
+
+      return built.verification;
+    }
+
+    function mismatchesOf(
+      verification: VerificationPackage,
+    ): readonly ValidationIssue[] {
+      return (verification.report?.issues ?? []).filter(
+        issue => issue.kind.value === 'DeclaredValueMismatch',
+      );
+    }
+
+    it('keeps what was declared on the package, apart from anything read', () => {
+      const { verification } = aPackage({
+        declared: DeclaredAtIntake.of({
+          legalBasis: DocumentType.create('disposal_order'),
+          builtYear: 1998,
+        }),
+      });
+
+      expect(verification.declared.legalBasis?.value).toBe('disposal_order');
+      expect(verification.declared.builtYear).toBe(1998);
+    });
+
+    it('takes a submission that declares nothing, which is the ordinary one', () => {
+      const { verification } = aPackage();
+
+      expect(verification.declared.legalBasis).toBeNull();
+      expect(verification.declared.builtYear).toBeNull();
+    });
+
+    it('takes a ground the profile registers a right on', () => {
+      expect(() =>
+        aPackage({
+          declared: DeclaredAtIntake.of({
+            legalBasis: DocumentType.create('disposal_order'),
+          }),
+        }),
+      ).not.toThrow();
+    });
+
+    /*
+     * Not a second-guessing of the operator's choice of profile — that choice
+     * is theirs and nothing here overrules it. It is the two halves of one
+     * statement contradicting each other: a case founded on a paper this policy
+     * does not register is a case this policy cannot verify.
+     */
+    it('refuses a ground the chosen profile does not register a right on', () => {
+      expect(() =>
+        aPackage({
+          declared: DeclaredAtIntake.of({
+            legalBasis: DocumentType.create('payment_receipt'),
+          }),
+        }),
+      ).toThrow(LegalBasisNotInProfileException);
+    });
+
+    // The refusal is only useful if it says what would have been accepted.
+    it('names the grounds the profile does register when it refuses one', () => {
+      expect(() =>
+        aPackage({
+          declared: DeclaredAtIntake.of({
+            legalBasis: DocumentType.create('payment_receipt'),
+          }),
+        }),
+      ).toThrow(/disposal_order/u);
+    });
+
+    it('reports a declared year the papers contradict', () => {
+      const verification = aCaseDated(
+        '18.12.2025',
+        DeclaredAtIntake.of({ builtYear: 2005 }),
+      );
+
+      expect(mismatchesOf(verification)).toHaveLength(1);
+      expect(mismatchesOf(verification)[0]!.message).toContain('2005');
+      expect(mismatchesOf(verification)[0]!.message).toContain('2025');
+    });
+
+    // Filed against the reading, so settling it means opening the sheet the
+    // figure was read off. There is no such anchor on the other side: nothing
+    // was read at the counter.
+    it('files the disagreement against the reading it disagrees with', () => {
+      const verification = aCaseDated(
+        '18.12.2025',
+        DeclaredAtIntake.of({ builtYear: 2005 }),
+      );
+
+      const told = mismatchesOf(verification)[0]!;
+      expect(told.documentType?.value).toBe('sketch_project');
+      expect(told.fieldKey?.value).toBe('approval_date');
+      expect(told.pageNumber?.value).toBe(1);
+      expect(told.confidence?.value).toBe(0.77);
+    });
+
+    /*
+     * Neither side is presumed right — a year is as easy to mistype at a
+     * counter as it is to misread off a scan — and the applicant did not write
+     * the declaration. Scoring the package down for it would hold them to
+     * something somebody else typed.
+     */
+    it('states the disagreement for the record and never against the package', () => {
+      const verification = aCaseDated(
+        '18.12.2025',
+        DeclaredAtIntake.of({ builtYear: 2005 }),
+      );
+
+      expect(mismatchesOf(verification)[0]!.kind.isInformational).toBe(true);
+    });
+
+    it('says nothing where the declaration and the papers agree', () => {
+      const verification = aCaseDated(
+        '18.12.2025',
+        DeclaredAtIntake.of({ builtYear: 2025 }),
+      );
+
+      expect(mismatchesOf(verification)).toHaveLength(0);
+    });
+
+    // A declaration nothing contradicts is silence. A package whose papers
+    // state no year is one the declaration was useful for, not one it argues
+    // with.
+    it('says nothing where the papers state no year at all', () => {
+      const verification = aCaseDated(
+        null,
+        DeclaredAtIntake.of({ builtYear: 2005 }),
+      );
+
+      expect(mismatchesOf(verification)).toHaveLength(0);
+    });
+
+    it('says nothing where the office declared no year', () => {
+      const verification = aCaseDated('18.12.2025', DeclaredAtIntake.none());
+
+      expect(mismatchesOf(verification)).toHaveLength(0);
+    });
+
+    // Worked out from scratch on every run, so a re-run cannot leave two of
+    // them behind.
+    it('tells it once, however many times the report is compiled', () => {
+      const built = aSegmentedPackage(1, {
+        declared: DeclaredAtIntake.of({ builtYear: 2005 }),
+      });
+      built.verification.classify(
+        built.document.id,
+        aClassification('sketch_project'),
+      );
+      built.verification.recordExtractedFields(built.document.id, [
+        aValue('approval_date', '18.12.2025'),
+      ]);
+      built.verification.complete();
+
+      expect(mismatchesOf(built.verification)).toHaveLength(1);
     });
   });
 
@@ -2219,6 +2484,7 @@ describe('VerificationPackage', () => {
         id: verification.id,
         version: 2,
         profile: VerificationProfile.CADASTRE,
+        declared: DeclaredAtIntake.none(),
         status: PackageStatus.PROCESSING,
         files: verification.files,
         documents: verification.documents,

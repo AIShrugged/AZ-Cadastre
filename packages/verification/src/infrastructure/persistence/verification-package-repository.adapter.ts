@@ -150,6 +150,12 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
         id: row.id,
         status: row.status,
         profileKey: row.profileKey,
+        // Written once, at submission, and never in the update below: a
+        // package's declaration is what the office said when it took the
+        // submission in, and nothing that happens to it afterwards changes what
+        // was said.
+        declaredLegalBasis: row.declaredLegalBasis,
+        declaredBuiltYear: row.declaredBuiltYear,
         version: FIRST_STORED_VERSION,
       },
     });

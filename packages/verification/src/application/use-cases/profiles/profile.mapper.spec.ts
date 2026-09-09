@@ -14,6 +14,7 @@ function aProfileView(overrides: Partial<ProfileView> = {}): ProfileView {
       { key: 'identity_card', required: true, fields: ['document_no'] },
       { key: 'payment_receipt', required: true, fields: [] },
     ],
+    grounds: ['land_plot_plan'],
     ...overrides,
   };
 }
@@ -109,10 +110,26 @@ describe('toProfileDto', () => {
     expect(dto.documentTypes[2]?.fields).toEqual([]);
   });
 
-  it('says nothing else about a profile than its key and its types', () => {
+  it('says nothing else about a profile than its key, its types and its grounds', () => {
     const dto = toProfileDto(aProfileView());
 
-    expect(Object.keys(dto)).toEqual(['key', 'documentTypes']);
+    expect(Object.keys(dto)).toEqual(['key', 'documentTypes', 'grounds']);
+  });
+
+  // What an intake screen offers the operator to declare the case on, so a
+  // ground the profile stopped registering must not go on being offered.
+  it('carries the grounds across in the order the profile declares them', () => {
+    const dto = toProfileDto(
+      aProfileView({ grounds: ['disposal_order', 'land_plot_plan'] }),
+    );
+
+    expect(dto.grounds).toEqual(['disposal_order', 'land_plot_plan']);
+  });
+
+  it('answers with no grounds where the profile names none, which no suggestion can point at', () => {
+    const dto = toProfileDto(aProfileView({ grounds: [] }));
+
+    expect(dto.grounds).toEqual([]);
   });
 
   it('answers a shape the published profile contract accepts', () => {

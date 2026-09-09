@@ -11,6 +11,12 @@ import {
   ReportStatusSchema,
 } from '../enums/index.js';
 
+// Outside these a four-digit figure is not a year, which is the window the
+// engine reads one in off a paper (`yearIn`). Stated here as well because the
+// edge refuses a body the context would only have to refuse again.
+export const DECLARED_YEAR_EARLIEST = 1800;
+export const DECLARED_YEAR_LATEST = 2200;
+
 /**
  * One value the package states about itself, as the pipeline read it off the
  * papers.
@@ -28,6 +34,38 @@ export const StatedValueDtoSchema = z.object({
 });
 export type StatedValueDto = z.infer<typeof StatedValueDtoSchema>;
 
+/**
+ * The two figures the office declares about a submission when it takes it in.
+ *
+ * A source of its own, and never mixed with what the pipeline read: one is what
+ * the applicant said at the counter, the other is what the papers turn out to
+ * say, and telling them apart is what makes a disagreement between them
+ * legible. A reading is a `StatedValueDto` and carries a confidence, because
+ * something read can be read badly; a declaration carries none, because
+ * somebody typed it.
+ *
+ * Both are optional at intake and both stay null where nothing was declared:
+ * the office may take a package in knowing neither, and a placeholder here
+ * would be a claim nobody made.
+ */
+export const DeclaredAtIntakeDtoSchema = z.object({
+  // The ground the claimed right rests on, as one of the document type keys the
+  // package's profile publishes as a ground — `GET /profiles` says which. Not
+  // free text: a basis nothing can be matched against could suggest no profile
+  // and could be held against no reading.
+  legalBasis: z.string().nullable(),
+  // The year the building is declared to have been built. The same window the
+  // engine reads a year in, so a figure this accepts is one the branch can
+  // compare against what the papers state.
+  builtYear: z
+    .number()
+    .int()
+    .min(DECLARED_YEAR_EARLIEST)
+    .max(DECLARED_YEAR_LATEST)
+    .nullable(),
+});
+export type DeclaredAtIntakeDto = z.infer<typeof DeclaredAtIntakeDtoSchema>;
+
 export const PackageDtoSchema = z.object({
   id: z.string(),
   status: PackageStatusSchema,
@@ -37,6 +75,11 @@ export const PackageDtoSchema = z.object({
   // it rather than deriving one of your own (ADR-0014).
   standing: PackageStandingSchema,
   profileKey: z.string(),
+  // ─── What the office declared when it took the submission in ──────────────
+  // Not a reading and never merged with one: the values below this are what the
+  // papers state, and these are what somebody typed at the counter. Where both
+  // exist and disagree, the report says so.
+  declared: DeclaredAtIntakeDtoSchema,
   // ─── What the case is called ───────────────────────────────────────────────
   // A submission is known by the person it is for, the property it concerns and
   // the parcel that property sits on — never by its profile and its id, which

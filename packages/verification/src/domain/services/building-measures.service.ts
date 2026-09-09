@@ -60,8 +60,13 @@ export function heightInMetres(raw: string): number | null {
 
 // Outside these a four-digit run is not a year: a receipt number, a cadastral
 // group, a sum in manats.
-const EARLIEST = 1800;
-const LATEST = 2200;
+//
+// Exported because a year the office declares at intake is held to the same
+// window as one read off a paper: the two are compared, and a window that let
+// one side hold a figure the other never could would make the comparison a
+// question about the window rather than about the case.
+export const EARLIEST_YEAR = 1800;
+export const LATEST_YEAR = 2200;
 
 /**
  * The year a value is dated by — the year out of "18.12.2025", "2025-12-18" or
@@ -73,7 +78,7 @@ export function yearIn(raw: string): number | null {
   for (const match of raw.matchAll(/(?<!\d)(\d{4})(?!\d)/gu)) {
     const year = Number(match[1]);
 
-    if (year >= EARLIEST && year <= LATEST) return year;
+    if (year >= EARLIEST_YEAR && year <= LATEST_YEAR) return year;
   }
 
   return null;

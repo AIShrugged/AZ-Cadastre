@@ -242,7 +242,8 @@ happens, the `/registry` proxies in `apps/web/vite.config.ts` and
 `apps/web/nginx.conf` and this entry go together — remove one and the rest are a
 lie. **The proxies stay for now**, and deliberately: the import is not their only
 user any more but it is still one of them, and the sidebar's liveness probe
-(`entities/archive-record`, `archiveReach`) is the other. Neither is in
+(`entities/archive-record`, `archiveReach`) is the other — though that one now
+has somewhere to go, see below. Neither is in
 `@cadastre/api-contracts` and neither should be — a register file is not part of
 verifying a submission (ADR-0011 §1), and whether a stand-in process is up is a
 fact about this deployment rather than something a real state register would have
@@ -267,6 +268,17 @@ refuses us comes back as `REGISTRY_UNREACHABLE` (504) or `REGISTRY_REFUSED`
 (502) in the published `ErrorBody`, not as a browser-side network error nobody
 can read. `apps/server/test/registry/addresses.e2e.spec.ts` runs the register
 beside the API and checks the crossing end to end.
+
+**The liveness probe has a door too now (COMM-58).** `GET /api/registry/summary`
+publishes what the register holds — how many of the archive's sources are in,
+how many records they hold, and when each last arrived — through
+`RegistryClientPort` and the gateway, exactly as the lookup goes. That is not a
+health check and it does not replace one: `/api/health` stays as cheap as it is,
+for compose and for the start-up wait. But it answers everything the sidebar
+band was reaching round the API to ask and more, because a register that answers
+it is by definition answering. When `archiveReach` moves onto it, `/registry` is
+down to one user — the import — and this entry and the proxies go together with
+that one.
 
 **What it did not fix.** The register still answers with no authentication in
 front of it and none behind it, and `docker-compose.yml` still publishes it on

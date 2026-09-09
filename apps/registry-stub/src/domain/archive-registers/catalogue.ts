@@ -295,6 +295,33 @@ export function paperOf(register: ArchiveRegister, sheet: string): PaperKind {
   return register.paperBySheet?.[sheet.trim()] ?? register.paper;
 }
 
+/**
+ * How a record records which register and which sheet it was read out of.
+ *
+ * The sheet is part of it and not a detail: two sheets of one workbook disagree
+ * about what a row records — `emdk` holds contracts where `Mulkuyat` holds
+ * certificates — and where the registers disagree somebody has to be told which
+ * one said what (ADR-0010).
+ */
+export function sourceOf(register: ArchiveRegister, sheet: string): string {
+  return `${register.id}:${sheet}`;
+}
+
+/**
+ * Which register a stored source name belongs to — the other half of
+ * `sourceOf`, for a tally that counts by register rather than by sheet.
+ *
+ * A name with no sheet on it is its own answer. The seeded cases and the
+ * register's own import template carry whatever the operator wrote there, and a
+ * tally states that as written rather than dropping the records it cannot place
+ * in the catalogue.
+ */
+export function registerOfSource(source: string): string {
+  const [register] = source.split(':');
+
+  return register ?? source;
+}
+
 /** A sheet name as the fingerprint compares them. */
 export function foldSheet(name: string): string {
   return foldHeader(name);

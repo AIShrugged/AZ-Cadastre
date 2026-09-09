@@ -7,7 +7,10 @@ import type {
 import { Logger } from '@cadastre/logger';
 import { addressesAgree } from '@cadastre/matching-engine';
 
-import { RegistrySource } from '../../application/ports/index.js';
+import {
+  RegistrySource,
+  type SourceHolding,
+} from '../../application/ports/index.js';
 
 import { Prisma } from './generated/client.js';
 import { RegistryPrismaService } from './registry-prisma.service.js';
@@ -82,6 +85,33 @@ export class PrismaRegistrySourceAdapter extends RegistrySource {
 
   async size(): Promise<number> {
     return this.prisma.registryObject.count();
+  }
+
+  /*
+   * One statement, and deliberately: the sidebar asks this on every page and it
+   * must not become a query per source. Grouping on the column the objects
+   * already carry gives the count and the last write of each in the same pass,
+   * and the totals are read off the groups rather than counted again.
+   *
+   * `updatedAt` and not `createdAt`, because the question is when this source
+   * was last loaded and an import upserts: a corrected workbook loaded a second
+   * time is a fresher archive, not the one from the first attempt.
+   */
+  async holdings(): Promise<readonly SourceHolding[]> {
+    const groups = await this.prisma.registryObject.groupBy({
+      by: ['sourceDatabase'],
+      _count: { _all: true },
+      _max: { updatedAt: true },
+      // So a register holding rows under a name the catalogue does not carry
+      // lists them in the same order every time it is asked.
+      orderBy: { sourceDatabase: 'asc' },
+    });
+
+    return groups.map(group => ({
+      source: group.sourceDatabase,
+      records: group._count._all,
+      loadedAt: group._max.updatedAt,
+    }));
   }
 }
 

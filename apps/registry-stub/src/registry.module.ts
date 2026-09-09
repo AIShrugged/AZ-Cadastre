@@ -7,6 +7,7 @@ import { LoggerModule } from '@cadastre/logger';
 import {
   AddressesService,
   RegistryImportService,
+  RegistrySummaryService,
 } from './application/index.js';
 import { EnvironmentSchema, type Environment } from './config/index.js';
 import { REGISTRY_INFRASTRUCTURE } from './infrastructure/index.js';
@@ -15,6 +16,7 @@ import {
   HealthController,
   HttpExceptionFilter,
   ImportController,
+  RegistrySummaryController,
 } from './presentation/http/index.js';
 
 /**
@@ -36,10 +38,16 @@ import {
         config.get('logger', { infer: true }),
     }),
   ],
-  controllers: [AddressesController, HealthController, ImportController],
+  controllers: [
+    AddressesController,
+    HealthController,
+    ImportController,
+    RegistrySummaryController,
+  ],
   providers: [
     AddressesService,
     RegistryImportService,
+    RegistrySummaryService,
     ...REGISTRY_INFRASTRUCTURE,
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
   ],

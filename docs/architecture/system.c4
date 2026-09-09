@@ -190,6 +190,12 @@ model {
         description 'Reads the whole address table on every call, because the rule that decides whether two spellings mean one place is JavaScript and not a SQL predicate (TECH_DEBT.md §9).'
       }
 
+      holdings = component 'Archive holdings summary' {
+        technology 'apps/registry-stub/src/application'
+        summary 'How many of the archive\'s sources are loaded, how many records they hold and when they last arrived'
+        description 'A published area of the contract and not a health check: `GET /api/registry/summary` states facts about the register, and what four sources out of six means is the caller\'s rule (ADR-0009).'
+      }
+
       matching = component 'libs/matching-engine' {
         technology 'Pure rules, no dependencies'
         summary 'Whether two ways of writing an address, a name, an area or a reference number mean the same thing'
@@ -213,7 +219,7 @@ model {
   // ── relationships ─────────────────────────────────────────────────────────
   inspector -[https]-> web 'submits packages, reads reports'
   registryOperator -[https]-> web 'loads an archive register workbook'
-  web -[https]-> gateway 'REST /api/packages, /api/documents/presign, /api/addresses/lookup'
+  web -[https]-> gateway 'REST /api/packages, /api/documents/presign, /api/addresses/lookup, /api/registry/summary'
   web -[https]-> files 'PUTs the file bytes to a presigned URL'
 
   // The one call apps/web makes that does not go through libs/api-gateway. The
@@ -243,9 +249,10 @@ model {
   objectStorageAdapter -> files 'presign, get, put' 'S3 API'
   readers -[https]-> openrouter 'one route per stage, images and text'
   registryClient -[https]-> registryApi '@cadastre/api-contracts/registry'
-  edgeRegistryClient -[https]-> registryApi 'POST /api/addresses/lookup — the same published contract'
+  edgeRegistryClient -[https]-> registryApi 'POST /api/addresses/lookup and GET /api/registry/summary — the same published contract'
 
   lookup -> matching 'do these two spellings mean one place?'
   lookup -[sql]-> registryDb 'objects, addresses, right holders, papers, locations'
+  holdings -[sql]-> registryDb 'objects, grouped by the source each was read out of'
   workbookImport -[sql]-> registryDb 'one object with its children per import unit'
 }

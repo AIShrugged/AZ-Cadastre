@@ -20,3 +20,9 @@ export {
   type ArchiveLocationDto,
   type ArchiveRecordDto,
 } from './archive-record.dto.js';
+export {
+  RegistrySourceSummaryDtoSchema,
+  RegistrySummaryResponseSchema,
+  type RegistrySourceSummaryDto,
+  type RegistrySummaryResponse,
+} from './registry-summary.dto.js';

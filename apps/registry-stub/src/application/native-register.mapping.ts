@@ -16,6 +16,7 @@ import {
   fieldOfColumn,
   kindOfHolder,
   paperOf,
+  sourceOf,
   type ArchiveRegister,
   type NativeField,
   type PaperKind,
@@ -89,7 +90,7 @@ export function objectsFromSheet(
   table: SheetTable,
 ): NativeSheetResult {
   const columns = columnsOf(table);
-  const sourceDatabase = `${register.id}:${table.name}`;
+  const sourceDatabase = sourceOf(register, table.name);
   const paper = paperOf(register, table.name);
   // No row of a register the catalogue recognises is refused. What a source
   // register carries is what it carries: a row with no number of its own is

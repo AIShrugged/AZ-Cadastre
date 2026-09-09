@@ -3,8 +3,10 @@ import { z } from 'zod';
 import {
   AddressLookupRequestSchema,
   AddressLookupResponseSchema,
+  RegistrySummaryResponseSchema,
   type AddressLookupRequest,
   type AddressLookupResponse,
+  type RegistrySummaryResponse,
 } from '@cadastre/api-contracts/registry';
 import {
   ErrorBodySchema,
@@ -88,6 +90,22 @@ export class RestClient {
     /** Deliberately unvalidated, for the specs that check the API's own refusals. */
     lookupRaw: (body: unknown): Promise<ApiResponse<unknown>> =>
       this.request('POST', '/api/addresses/lookup', z.unknown(), body),
+  };
+
+  // --- registry -----------------------------------------------------------
+
+  /**
+   * The register asked about itself rather than about a property: how many of
+   * the archive's sources are in and how many records they hold. A GET, because
+   * there is nothing about anybody in the request.
+   */
+  registry = {
+    summary: (): Promise<ApiResponse<RegistrySummaryResponse>> =>
+      this.request(
+        'GET',
+        '/api/registry/summary',
+        RegistrySummaryResponseSchema,
+      ),
   };
 
   // --- profiles -----------------------------------------------------------

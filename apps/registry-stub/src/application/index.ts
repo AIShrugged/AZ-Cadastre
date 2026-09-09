@@ -4,11 +4,13 @@ export {
   RegistryWriter,
   WorkbookClassifier,
   WorkbookReader,
+  type SourceHolding,
   type WorkbookClassification,
 } from './ports/index.js';
 export { WorkbookUnreadableError } from './ports/index.js';
 export { objectsFromSheet } from './native-register.mapping.js';
 export { RegistryImportService } from './registry-import.service.js';
+export { RegistrySummaryService } from './registry-summary.service.js';
 export {
   RegistryImportReportSchema,
   RegistryImportSourceSchema,

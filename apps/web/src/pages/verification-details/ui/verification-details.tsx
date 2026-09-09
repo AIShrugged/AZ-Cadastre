@@ -535,7 +535,8 @@ function PageTally({ file, failed }: { file: SourceFileDto; failed: boolean }) {
     );
   }
 
-  const pages = total === 1 ? t('new.page_one') : t('new.pages', { n: total });
+  const pages =
+    total === 1 ? t('upload.page_one') : t('upload.pages', { n: total });
   // A running count earns its place only where there is a queue to watch: with a
   // single sheet, or none left unread, the total already says everything.
   if (total === 1 || read === total) return <>{` · ${pages}`}</>;
@@ -2384,7 +2385,7 @@ export function VerificationDetails() {
         />
         <SurfaceBody>
           <div className='px-4 py-8 md:px-6'>
-            <Button variant='outline' onClick={() => navigate(paths.register)}>
+            <Button variant='outline' onClick={() => navigate(paths.cases)}>
               <ArrowLeftIcon /> {t('detail.back')}
             </Button>
           </div>
@@ -2715,7 +2716,7 @@ export function VerificationDetails() {
         <span className='text-[0.8125rem] text-muted-foreground'>
           {t('updated.ago', { t: relativeShort(pkg.updatedAt, Date.now()) })}
         </span>
-        <Button variant='outline' onClick={() => navigate(paths.register)}>
+        <Button variant='outline' onClick={() => navigate(paths.cases)}>
           <ArrowLeftIcon /> {t('detail.back')}
         </Button>
       </SurfaceFooter>

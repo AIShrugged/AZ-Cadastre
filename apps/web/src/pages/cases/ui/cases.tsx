@@ -1,6 +1,6 @@
 /**
- * Verification register — the inspector's queue-first work surface. Governed by
- * The Register world: a ruled table, tabular mono data, one indigo signal, and
+ * Cases — the register of applications the office has taken in, and the
+ * inspector's queue-first work surface. Governed by The Register world: a ruled table, tabular mono data, one indigo signal, and
  * marks that report (never decide). Adaptive density; scales via pagination.
  *
  * The register asks the server its question and draws the answer. Searching,
@@ -16,7 +16,15 @@
  * answer one of them.
  *
  * The question lives in the address bar, so a narrowed register can be linked to
- * and returned to — the same reason a package has an address of its own.
+ * and returned to — the same reason a case has an address of its own.
+ *
+ * **The six tabs are shorthands and not a seventh filter.** Each stands for a
+ * value of one of the two filters (`case-slice.ts` says which and why), so the
+ * strip and the selects can never disagree about what is on screen: choosing a
+ * tab writes the filter it stands for, and a filter chosen by hand lights the
+ * tab that matches or none at all. Their counts come off the one summary call,
+ * which counts every slice in a single transaction — six calls would count six
+ * moments and the tabs would not add up to All.
  *
  * **The summary sits on this screen and not beside it.** The four things an
  * inspector opens a summary to ask are questions about the very submissions
@@ -45,6 +53,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import {
+  CASE_SLICES,
   documentsExpected,
   isNarrowed,
   OutcomeMark,
@@ -56,14 +65,22 @@ import {
   registerQueryParams,
   REPORT_KEY,
   REPORT_TONE,
+  SLICE_KEY,
+  sliceCounts,
+  sliceFilters,
+  sliceOf,
   StageBar,
   STANDING_KEY,
   StandingMark,
   toListRequest,
+  toOverviewRequest,
+  useGetPackagesOverviewQuery,
   useGetPackagesQuery,
   useGetProfilesQuery,
   WHOLE_REGISTER,
+  WHOLE_REGISTER_PERIOD,
   withOverviewPeriod,
+  type CaseSlice,
   type OverviewPeriod,
   type ProfileDto,
   type RegisterQuery,
@@ -131,9 +148,9 @@ const OUTCOMES = ReportStatusSchema.options;
 const TYPING_SETTLES_MS = 300;
 
 // ─── Outcome cell ───────────────────────────────────────────────────────────
-// What the run made of the papers, and the findings behind it. Separate from
-// the standing column on purpose: this says what was found, that one says what
-// happens next, and a finished submission can carry findings.
+// What the run made of the papers. Separate from the standing column on
+// purpose: this says what was found, that one says what happens next, and a
+// finished submission can carry findings.
 function Outcome({ p }: { p: VerificationPackage }) {
   const { t } = useI18n();
   if (p.reportStatus === null) {
@@ -142,24 +159,43 @@ function Outcome({ p }: { p: VerificationPackage }) {
     return <span className='text-muted-foreground/60'>—</span>;
   }
   return (
-    <span className='flex flex-col items-start gap-1 leading-tight'>
-      <OutcomeMark
-        tone={REPORT_TONE[p.reportStatus]}
-        label={t(REPORT_KEY[p.reportStatus])}
-      />
-      {(p.issues > 0 || p.lowConfidence > 0) && (
-        <span className='flex flex-col gap-0.5 text-[0.75rem] text-muted-foreground'>
-          {p.issues > 0 && (
-            <span className='font-medium text-issues-ink'>
-              {p.issues === 1
-                ? t('findings.issue_one')
-                : t('findings.issues', { n: p.issues })}
-            </span>
-          )}
-          {p.lowConfidence > 0 && (
-            <span>{t('findings.low', { n: p.lowConfidence })}</span>
-          )}
+    <OutcomeMark
+      tone={REPORT_TONE[p.reportStatus]}
+      label={t(REPORT_KEY[p.reportStatus])}
+    />
+  );
+}
+
+// ─── Remarks cell ───────────────────────────────────────────────────────────
+// The findings behind the outcome, in the two groups the report keeps them in
+// and never added into one number: a shortfall somebody has to resolve, and a
+// reading the engine was unsure of. A column of its own because it is what the
+// inspector counts their day by — and, until a run has reported, silence rather
+// than a zero, which would read as "nothing was found" in a package nothing has
+// read.
+function Remarks({ p }: { p: VerificationPackage }) {
+  const { t } = useI18n();
+  if (p.reportStatus === null) {
+    return <span className='text-muted-foreground/60'>—</span>;
+  }
+  if (p.issues === 0 && p.lowConfidence === 0) {
+    return (
+      <span className='text-[0.75rem] text-muted-foreground'>
+        {t('findings.none')}
+      </span>
+    );
+  }
+  return (
+    <span className='flex flex-col gap-0.5 text-[0.75rem] leading-tight text-muted-foreground'>
+      {p.issues > 0 && (
+        <span className='font-medium text-issues-ink'>
+          {p.issues === 1
+            ? t('findings.issue_one')
+            : t('findings.issues', { n: p.issues })}
         </span>
+      )}
+      {p.lowConfidence > 0 && (
+        <span>{t('findings.low', { n: p.lowConfidence })}</span>
       )}
     </span>
   );
@@ -261,13 +297,16 @@ function RegisterTable({
     <Table className='border-separate border-spacing-0'>
       <TableHeader>
         <TableRow className='border-0 hover:bg-transparent'>
-          {/* No Profile column: the entry now leads with the profile's name, and
-              the same string twice in one row is a column that reports nothing.
-              Outcome and Standing are two columns for the same reason they are
-              two filters — they answer two questions. */}
+          {/* The mockup's six columns. No Profile column of its own: the entry
+              leads with the profile's name, and the same string twice in one row
+              is a column that reports nothing. Remarks, Outcome and Standing are
+              three columns and not one — what was found, what it came to, and
+              what happens next are three questions, and the last two are also
+              the two filters. */}
           {[
-            'col.package',
+            'col.case',
             'col.documents',
+            'col.remarks',
             'col.outcome',
             'col.submitted',
             'col.standing',
@@ -339,6 +378,11 @@ function RegisterTable({
                   p={p}
                   expected={documentsExpected(profiles, p.profile)}
                 />
+              </TableCell>
+              <TableCell
+                className={cn('border-b border-rule px-4 align-middle', pad)}
+              >
+                <Remarks p={p} />
               </TableCell>
               <TableCell
                 className={cn('border-b border-rule px-4 align-middle', pad)}
@@ -416,6 +460,7 @@ function RegisterEntries({
               </span>
               <span data-mono>{formatDate(p.submittedAt, locale)}</span>
               <Outcome p={p} />
+              <Remarks p={p} />
             </div>
           </button>
         </li>
@@ -495,8 +540,8 @@ function EmptyRegister({
             <FilterXIcon /> {t('empty.clear')}
           </Button>
         ) : (
-          <Button onClick={() => navigate(paths.new)}>
-            <PlusIcon /> {t('action.new')}
+          <Button onClick={() => navigate(paths.intake)}>
+            <PlusIcon /> {t('action.intake')}
           </Button>
         )}
       </EmptyContent>
@@ -528,6 +573,67 @@ function UnreachableRegister({ onRetry }: { onRetry: () => void }) {
         </Button>
       </EmptyContent>
     </Empty>
+  );
+}
+
+// ─── Slice tabs ─────────────────────────────────────────────────────────────
+// The six views the mockup opens the register by, with what each holds beside
+// its name. A tab writes the filter it stands for and nothing else, so the
+// strip and the two selects below it are one control surface rather than two
+// that can disagree — and a narrowing no tab stands for lights none of them.
+//
+// The counts are the summary's, read in one transaction over the whole
+// register; a tally the summary has not answered yet is drawn as a space and
+// never as 0, which would read as an empty slice.
+function SliceTabs({
+  active,
+  counts,
+  onPick,
+}: {
+  active: CaseSlice | null;
+  counts: Record<CaseSlice, number> | null;
+  onPick: (slice: CaseSlice) => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <div
+      role='tablist'
+      aria-label={t('slice.label')}
+      className='-mx-1 flex min-w-0 items-center gap-0.5 overflow-x-auto px-1'
+    >
+      {CASE_SLICES.map(slice => {
+        const selected = slice === active;
+        return (
+          <button
+            key={slice}
+            type='button'
+            role='tab'
+            aria-selected={selected}
+            onClick={() => onPick(slice)}
+            className={cn(
+              'flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-[0.8125rem] whitespace-nowrap transition-colors outline-none',
+              'focus-visible:ring-2 focus-visible:ring-ring/50',
+              selected
+                ? 'bg-accent font-medium text-foreground'
+                : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+            )}
+          >
+            <span>{t(SLICE_KEY[slice])}</span>
+            <span
+              data-mono
+              className={cn(
+                'min-w-4 rounded-full px-1 text-[0.6875rem] tabular-nums',
+                selected
+                  ? 'bg-background text-foreground/80'
+                  : 'bg-muted text-muted-foreground',
+              )}
+            >
+              {counts === null ? '\u00A0' : counts[slice]}
+            </span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -579,7 +685,7 @@ function Filter<T extends string>({
 }
 
 // ─── Page ───────────────────────────────────────────────────────────────────
-export function Dashboard() {
+export function Cases() {
   const { t, locale } = useI18n();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
@@ -639,6 +745,13 @@ export function Dashboard() {
   // cached, never polled alongside the packages.
   const { data: profiles = [] } = useGetProfilesQuery();
   const [now] = useState(() => Date.now());
+  // What each tab holds. Over the **whole** register and never over the
+  // summary's period: the list this strip narrows is not narrowed by a period,
+  // so a count taken over one would describe a different set of rows than the
+  // tab opens. Same endpoint, a second cache entry, one call.
+  const { data: overview } = useGetPackagesOverviewQuery(
+    toOverviewRequest(WHOLE_REGISTER_PERIOD, now),
+  );
   const [density, setDensity] = useState<Density>('comfortable');
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -667,7 +780,7 @@ export function Dashboard() {
 
   const onSelect = (p: VerificationPackage) => {
     setSelected(p.id);
-    navigate(paths.package(p.id));
+    navigate(paths.case(p.id));
   };
 
   const narrowed = isNarrowed(query);
@@ -696,16 +809,16 @@ export function Dashboard() {
             inspector's work — so it sits beside the page action and not on it,
             and keeps the register's one blue action to itself. */}
         <ImportRegistryButton />
-        <Button onClick={() => navigate(paths.new)}>
+        <Button onClick={() => navigate(paths.intake)}>
           <PlusIcon />{' '}
-          <span className='hidden sm:inline'>{t('action.new')}</span>
+          <span className='hidden sm:inline'>{t('action.intake')}</span>
         </Button>
       </HeaderActions>
 
       {/* ── Page heading ── the register names itself and states its purpose. */}
       <SurfaceHeading
-        title={t('page.register.title')}
-        subtitle={t('page.register.subtitle')}
+        title={t('page.cases.title')}
+        subtitle={t('page.cases.subtitle')}
       />
 
       <SurfaceBody>
@@ -714,6 +827,16 @@ export function Dashboard() {
             submission the office has taken in and the strip is about which of
             them this page lists. It scrolls away with the summary it heads. */}
         <RegisterSummary period={period} onPeriod={askPeriod} now={now} />
+
+        {/* ── Slice tabs ── the register's six views, over the strip that
+            searches within whichever one is open. */}
+        <div className='flex shrink-0 items-center border-b border-rule px-4 py-1.5 md:px-6'>
+          <SliceTabs
+            active={sliceOf(query)}
+            counts={overview ? sliceCounts(overview) : null}
+            onPick={slice => ask({ ...sliceFilters(slice), page: 1 })}
+          />
+        </div>
 
         {/* ── Filter / control strip ── */}
         <div className='flex shrink-0 flex-col gap-3 border-b border-rule px-4 py-2.5 md:flex-row md:items-center md:justify-between md:px-6'>

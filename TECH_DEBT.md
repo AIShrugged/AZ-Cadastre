@@ -236,6 +236,24 @@ happens, the `/registry` proxies in `apps/web/vite.config.ts` and
 `apps/web/nginx.conf` and this entry go together — remove one and the rest are a
 lie.
 
+**A second crossing now uses the same road.** The operator's archive search
+(`apps/web/src/entities/archive-record`) posts to the register's
+`POST /api/addresses/lookup` through the same `/registry` proxies. It is not the
+same debt as the import above and it must not be filed away with it: the lookup
+**is** in `@cadastre/api-contracts` — `AddressesApi`, request and response — so
+nothing about it is restated in the client and the response is parsed through
+the contract's own Zod schema. What is missing is a door: `libs/api-gateway`
+publishes the verification area only, so there is no `/api` route the browser
+can reach a published contract through, and the client goes round the gateway to
+call it. It is also a **read**, which is the half of the exposure above that
+does not let a stranger write to the archive.
+
+The fix is a gateway route over `AddressesApi` and not a fourth proxy: one
+`GET`-free controller in `libs/api-gateway` and the client's own origin
+(`/api`), after which this paragraph and the `registryBase` default go together
+with the import's. Until then the search screen shares the port-mapping exposure
+named above — a reader of the archive is a reader of somebody's property record.
+
 ## 11. The supporting-documents thresholds are ours, not the customer's
 
 **Not done.** The branch that decides which supporting documents a case needs

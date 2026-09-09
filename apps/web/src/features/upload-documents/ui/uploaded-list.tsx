@@ -19,7 +19,7 @@ export function UploadedList() {
     <div>
       <div className='flex items-center justify-between gap-3'>
         <h3 className='register-label flex items-center gap-2'>
-          {t('new.uploaded')}
+          {t('upload.uploaded')}
           <span data-mono className='tabular-nums text-muted-foreground'>
             {files.length}
           </span>
@@ -30,7 +30,7 @@ export function UploadedList() {
           onClick={() => dispatch(clearDocuments())}
           className='text-muted-foreground hover:text-foreground'
         >
-          {t('new.clear')}
+          {t('upload.clear')}
         </Button>
       </div>
       <ul className='mt-1 divide-y divide-rule border-t border-rule'>

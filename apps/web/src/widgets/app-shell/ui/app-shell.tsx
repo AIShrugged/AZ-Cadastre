@@ -1,13 +1,27 @@
 /**
  * The register cover + workspace frame. A fixed left sidebar carries the
- * AZ-Cadastre mark, the workspace navigation, and the inspector's identity; it
- * collapses to a hairline icon rail (the toggle lives in the app bar, on the
- * border rail, and on ⌘/Ctrl-B). Below a single global app bar — identical on
- * every route: sidebar trigger left, locale + appearance right, plus a slot a
- * route can drop one action into — the inset holds the active surface. Every
- * future surface (Verification Details, Profiles…) inherits this frame.
+ * AZ-Cadastre mark, the workspace navigation, and the archive register's live
+ * state; it collapses to a hairline icon rail (the toggle lives in the app bar,
+ * on the border rail, and on ⌘/Ctrl-B). Below a single global app bar —
+ * identical on every route: sidebar trigger left, locale + appearance right,
+ * plus a slot a route can drop one action into — the inset holds the active
+ * surface. Every surface inherits this frame.
+ *
+ * **The navigation is in two groups because the work is.** `Workspace` is what
+ * an operator does today, in the order they do it: look the property up in the
+ * archive, take a packet in, work the register of cases. `Later` is one item and
+ * it is not work — it states what the system will grow into, which is a promise
+ * to be kept visible rather than hidden until it is met.
+ *
+ * There is no account card and no sign-in. The product has no accounts on
+ * purpose (ADR-0016): one user, the inspector, and nothing to read a name off.
  */
-import { FileStackIcon, FolderCogIcon, PlusIcon } from 'lucide-react';
+import {
+  FileStackIcon,
+  InboxIcon,
+  SearchIcon,
+  WorkflowIcon,
+} from 'lucide-react';
 import { useState } from 'react';
 import {
   Outlet,
@@ -15,8 +29,8 @@ import {
   useLocation,
   useNavigate,
 } from 'react-router-dom';
-import { toast } from 'sonner';
 
+import { stepsToCome } from '@/entities/roadmap';
 import { paths } from '@/shared/config';
 import { useI18n } from '@/shared/i18n';
 import { cn } from '@/shared/lib/cn';
@@ -37,6 +51,7 @@ import {
   SidebarTrigger,
 } from '@/shared/ui/sidebar';
 import { SurfaceMasthead } from '@/shared/ui/surface';
+import { ArchiveStatus } from '@/widgets/archive-status';
 
 import { HeaderSlotContext } from './header-slot';
 import { LocaleSwitch } from './locale-switch';
@@ -65,8 +80,10 @@ function Wordmark() {
         </svg>
       </div>
       <div className='flex min-w-0 flex-col group-data-[collapsible=icon]:hidden'>
-        <span className='text-[0.9375rem] font-semibold leading-tight tracking-tight text-sidebar-foreground'>
-          AZ<span className='text-primary'>·</span>Cadastre
+        {/* The office the workspace belongs to, then the article it works
+            under — the mockup's own two lines, in the reader's language. */}
+        <span className='truncate text-[0.9375rem] font-semibold leading-tight tracking-tight text-sidebar-foreground'>
+          {t('brand')}
         </span>
         <span className='truncate text-[0.6875rem] leading-tight text-muted-foreground'>
           {t('authority')}
@@ -76,52 +93,52 @@ function Wordmark() {
   );
 }
 
-type NavItem = { key: string; icon: typeof FileStackIcon; to?: string };
+type NavItem = {
+  key: string;
+  icon: typeof FileStackIcon;
+  to: string;
+  /** Drawn beside the item — today only on `Later`, where it says how many
+   *  steps are still to come. A count nobody can act on yet is still a count
+   *  somebody asked for. */
+  badge?: number;
+};
+
+/** One heading and the items under it. Two groups, because the work is two. */
+type NavGroup = { key: string; items: NavItem[] };
 
 /**
  * Whether a nav destination owns the route on screen. A surface that addresses
- * its own subject in the path — one profile, one package — must not drop the
- * item that led there out of its active state. The register is exempt from the
- * prefix test: it lives at "/" and would otherwise claim every route.
+ * its own subject in the path — one case — must not drop the item that led
+ * there out of its active state. Archive search is exempt from the prefix test:
+ * it lives at "/" and would otherwise claim every route.
  */
 function isUnder(pathname: string, to: string): boolean {
   return pathname === to || (to !== '/' && pathname.startsWith(`${to}/`));
 }
 
-const NAV: NavItem[] = [
-  { key: 'nav.register', icon: FileStackIcon, to: paths.register },
-  { key: 'nav.new', icon: PlusIcon, to: paths.new },
-  { key: 'nav.profiles', icon: FolderCogIcon, to: paths.profiles },
+const NAV: NavGroup[] = [
+  {
+    key: 'nav.workspace',
+    items: [
+      { key: 'nav.intake', icon: InboxIcon, to: paths.intake },
+      { key: 'nav.search', icon: SearchIcon, to: paths.search },
+      { key: 'nav.cases', icon: FileStackIcon, to: paths.cases },
+    ],
+  },
+  {
+    key: 'nav.later',
+    items: [
+      {
+        key: 'nav.process',
+        icon: WorkflowIcon,
+        to: paths.process,
+        // Counted off the roadmap itself, so the badge cannot outlive the list:
+        // a step that goes live drops out of both by being edited once.
+        badge: stepsToCome(),
+      },
+    ],
+  },
 ];
-
-function InspectorCard() {
-  const { t } = useI18n();
-  return (
-    <div
-      className={cn(
-        // Bare avatar + identity, no boxed border — mirrors the header wordmark
-        // so the ink AR square sits flush under the blue logo mark above it.
-        'flex items-center gap-2.5',
-        'group-data-[collapsible=icon]:justify-center',
-      )}
-    >
-      <div
-        className='grid size-8 shrink-0 place-items-center rounded-lg bg-foreground text-[0.75rem] font-semibold text-background'
-        aria-hidden
-      >
-        AR
-      </div>
-      <div className='flex min-w-0 flex-col leading-tight group-data-[collapsible=icon]:hidden'>
-        <span className='truncate text-[0.8125rem] font-medium text-sidebar-foreground'>
-          Aynur Rəsulova
-        </span>
-        <span className='text-[0.6875rem] text-muted-foreground'>
-          {t('role.inspector')} · ID <span data-mono>4471</span>
-        </span>
-      </div>
-    </div>
-  );
-}
 
 /**
  * Global app bar — identical on every route. Sidebar trigger on the left;
@@ -162,45 +179,56 @@ export function AppShell() {
         </SidebarHeader>
 
         <SidebarContent className='px-1 py-2 group-data-[collapsible=icon]:px-1.5'>
-          <SidebarGroup className='gap-1 group-data-[collapsible=icon]:p-0'>
-            <SidebarGroupLabel className='register-label px-2 text-muted-foreground'>
-              {t('nav.workspace')}
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu className='gap-0.5 group-data-[collapsible=icon]:items-center'>
-                {NAV.map(item => (
-                  <SidebarMenuItem key={item.key}>
-                    <SidebarMenuButton
-                      isActive={item.to ? isUnder(pathname, item.to) : false}
-                      tooltip={t(item.key)}
-                      onClick={() =>
-                        item.to
-                          ? navigate(item.to)
-                          : toast(t(item.key), { description: t('toast.new') })
-                      }
-                      className={cn(
-                        'relative h-9 gap-2.5 rounded-md px-3 text-[0.875rem] text-sidebar-foreground/80',
-                        'before:absolute before:top-2 before:bottom-2 before:left-0 before:w-[3px] before:rounded-full before:bg-transparent',
-                        'hover:bg-sidebar-accent data-active:bg-sidebar-accent data-active:font-medium data-active:text-sidebar-foreground data-active:before:bg-primary',
-                        // Collapsed: the icon centers in the rail; drop the leading
-                        // rule so the active marker never sits lopsided beside it.
-                        'group-data-[collapsible=icon]:before:hidden',
-                      )}
-                    >
-                      <item.icon className='size-4 opacity-70' />
-                      <span>{t(item.key)}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+          {NAV.map(group => (
+            <SidebarGroup
+              key={group.key}
+              className='gap-1 group-data-[collapsible=icon]:p-0'
+            >
+              <SidebarGroupLabel className='register-label px-2 text-muted-foreground'>
+                {t(group.key)}
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu className='gap-0.5 group-data-[collapsible=icon]:items-center'>
+                  {group.items.map(item => (
+                    <SidebarMenuItem key={item.key}>
+                      <SidebarMenuButton
+                        isActive={isUnder(pathname, item.to)}
+                        tooltip={t(item.key)}
+                        onClick={() => navigate(item.to)}
+                        className={cn(
+                          'relative h-9 gap-2.5 rounded-md px-3 text-[0.875rem] text-sidebar-foreground/80',
+                          'before:absolute before:top-2 before:bottom-2 before:left-0 before:w-[3px] before:rounded-full before:bg-transparent',
+                          'hover:bg-sidebar-accent data-active:bg-sidebar-accent data-active:font-medium data-active:text-sidebar-foreground data-active:before:bg-primary',
+                          // Collapsed: the icon centers in the rail; drop the leading
+                          // rule so the active marker never sits lopsided beside it.
+                          'group-data-[collapsible=icon]:before:hidden',
+                        )}
+                      >
+                        <item.icon className='size-4 opacity-70' />
+                        <span className='flex-1 truncate text-left'>
+                          {t(item.key)}
+                        </span>
+                        {item.badge !== undefined && (
+                          <span
+                            data-mono
+                            className='rounded-full bg-sidebar-accent px-1.5 text-[0.6875rem] text-muted-foreground tabular-nums group-data-[collapsible=icon]:hidden'
+                          >
+                            {item.badge}
+                          </span>
+                        )}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          ))}
         </SidebarContent>
 
         {/* Footer band — mirrors the h-16 masthead so its top rule aligns with
             the main column's pagination rule, bookending the shell top ⇄ bottom. */}
         <SidebarFooter className='h-16 shrink-0 justify-center gap-0 border-t border-sidebar-border px-2 py-0 group-data-[collapsible=icon]:px-0'>
-          <InspectorCard />
+          <ArchiveStatus />
         </SidebarFooter>
 
         <SidebarRail />

@@ -28,10 +28,10 @@ export function Dropzone({
       </span>
       <div className='space-y-1'>
         <p className='text-base font-medium text-foreground'>
-          {t('new.dropzone.title')}
+          {t('upload.dropzone.title')}
         </p>
         <p className='text-[0.8125rem] text-muted-foreground'>
-          {t('new.dropzone.body', { max: MAX_MB })}
+          {t('upload.dropzone.body', { max: MAX_MB })}
         </p>
       </div>
       <Button
@@ -43,7 +43,7 @@ export function Dropzone({
           onBrowse();
         }}
       >
-        {t('new.dropzone.browse')}
+        {t('upload.dropzone.browse')}
       </Button>
     </div>
   );

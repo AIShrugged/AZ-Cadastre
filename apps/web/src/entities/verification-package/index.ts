@@ -36,6 +36,24 @@ export {
 
 export { REPORT_KEY, REPORT_TONE } from './model/report-outcome';
 
+export type { PacketLine, PacketReading } from './model/packet-reading';
+export {
+  needsAGlance,
+  PACKET_LINES,
+  PACKET_LINE_KEY,
+  readPacket,
+  READ_WELL_ENOUGH,
+} from './model/packet-reading';
+
+export type { CaseSlice } from './model/case-slice';
+export {
+  CASE_SLICES,
+  sliceCounts,
+  sliceFilters,
+  SLICE_KEY,
+  sliceOf,
+} from './model/case-slice';
+
 export type { OverviewPeriod } from './model/overview-period';
 export {
   coversWholeRegister,

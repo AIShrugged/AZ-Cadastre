@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  addressConfidence,
   addressesAgree,
   addressKey,
   normaliseAddress,
@@ -114,5 +115,70 @@ describe('addressesAgree', () => {
 
   it('is not an agreement when the two strings share nothing', () => {
     expect(addressesAgree('', '')).toBe(false);
+  });
+});
+
+/*
+ * The graded form, for the search that offers records rather than resolving to
+ * one. Every pair `addressesAgree` accepts is 1 here: a search that offered
+ * what the lookup refuses to act on would be a second, looser copy of the rule
+ * (ADR-0009).
+ */
+describe('addressConfidence', () => {
+  it('is certain about a pair the rule itself accepts', () => {
+    expect(
+      addressConfidence(
+        'Suraxanı r., Zığ qəs., H.Əliyev küç. 12',
+        'Bakı şəhəri, Suraxanı rayonu, Zığ qəsəbəsi, H.Əliyev küçəsi, ev 12',
+      ),
+    ).toBe(1);
+  });
+
+  it('is certain across the scripts, as the rule is', () => {
+    expect(
+      addressConfidence(
+        'Гусар шящяри, Щ.З.Таьыйев кцчяси',
+        'Qusar şəhəri, H.Z.Tağıyev küçəsi',
+      ),
+    ).toBe(1);
+  });
+
+  // A street name typed without its diacritics, which is most of what an
+  // operator types.
+  it('grades a street spelled without its diacritics as nearly the same street', () => {
+    expect(
+      addressConfidence(
+        'Zığ qəsəbəsi, Aliyev kucesi',
+        'Bakı şəhəri, Suraxanı rayonu, Zığ qəsəbəsi, H.Əliyev küçəsi, ev 12',
+      ),
+    ).toBeGreaterThan(0.85);
+  });
+
+  /*
+   * The same street, another house. Worth showing — the number is the easiest
+   * thing on the form to get wrong, and the archive may hold the neighbour
+   * under the same case — and never worth reading as the same place: 12 is not
+   * a misspelling of 14.
+   */
+  it('never lets a different house number read as a probable match', () => {
+    expect(
+      addressConfidence(
+        'Zığ qəsəbəsi, H.Əliyev küçəsi, ev 14',
+        'Bakı şəhəri, Suraxanı rayonu, Zığ qəsəbəsi, H.Əliyev küçəsi, ev 12',
+      ),
+    ).toBeLessThanOrEqual(0.5);
+  });
+
+  it('says next to nothing about another street in another district', () => {
+    expect(
+      addressConfidence(
+        'Bakı şəhəri, Nizami rayonu, Yeni küçə, ev 1',
+        'Bakı şəhəri, Suraxanı rayonu, Zığ qəsəbəsi, H.Əliyev küçəsi, ev 12',
+      ),
+    ).toBeLessThan(0.3);
+  });
+
+  it('is not a weak match when the two strings share nothing', () => {
+    expect(addressConfidence('', '')).toBe(0);
   });
 });

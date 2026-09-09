@@ -5,6 +5,7 @@
  * held against each other (ADR-0009).
  */
 export {
+  addressConfidence,
   addressKey,
   addressesAgree,
   normaliseAddress,
@@ -12,13 +13,15 @@ export {
   type ParsedAddress,
 } from './address.js';
 export { areasAgree, parseArea } from './area.js';
-export { namesAgree } from './name.js';
-export { referencesAgree } from './reference.js';
+export { nameConfidence, namesAgree } from './name.js';
+export { referenceConfidence, referencesAgree } from './reference.js';
 export {
   digitsOf,
   fold,
   fromLegacyCyrillic,
   isCyrillic,
+  SAME_WORD,
+  similarity,
   stripInitials,
   tokenise,
 } from './text.js';

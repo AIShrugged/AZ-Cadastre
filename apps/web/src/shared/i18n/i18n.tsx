@@ -471,6 +471,48 @@ const en: Dict = {
   'error.PACKAGE_MUST_GAIN_A_FILE': 'Choose at least one file to add',
   'error.PACKAGE_NOT_FOUND': 'This package is no longer in the register',
   'error.DUPLICATE_STORAGE_KEY': 'That file is already in the package',
+  // ─── Approving the archive search (ADR-0016) ───────────────────────────────
+  // The one write on the detail page a person makes rather than the engine.
+  // Nothing in this block names an author, because there is none to name.
+  'approve.title': 'Approval of the archive search',
+  'approve.note':
+    'What the register answered is above. What it means for this application is yours to say — approving records that conclusion, over the answers as they stand now.',
+  'approve.no_author':
+    'This system keeps no accounts, so an approval carries no name — only what was concluded and when. It is recorded as the office\u2019s, not as anybody\u2019s in particular.',
+  'approve.summary_label': 'Conclusion for the application',
+  'approve.summary_hint':
+    'What the archive search means for this application as a whole — not for one lookup, which already says what it found. Required: an approval that records only that it happened records nothing.',
+  'approve.summary_placeholder':
+    'The record does not contradict the submission; the missing original does not bear on the right claimed…',
+  'approve.comment_label': 'Remark (optional)',
+  'approve.comment_hint':
+    'A reservation, or why this was signed for despite something. Leave it empty when you have none — an empty remark is better than a filled-in one that says nothing.',
+  'approve.comment_placeholder': 'A reservation, if you have one…',
+  'approve.left': '{n} characters left',
+  'approve.over': '{n} characters over',
+  'approve.action': 'Approve the search',
+  'approve.sending': 'Recording…',
+  'approve.done': 'The archive search is approved',
+  'approve.failed': 'The approval could not be recorded — please try again',
+  'approve.given': 'Approved',
+  'approve.remark': 'Remark',
+  'approve.covered': 'Signed over these answers',
+  'approve.now': 'now',
+  'approve.gone': 'no longer asked',
+  'approve.spent_since': 'stopped counting {d}',
+  'approve.spent_title': 'Earlier approvals ({n})',
+  'approve.spent_note':
+    'The archive was searched again after these were signed, so they stopped counting. They are kept rather than removed: what was signed for, and over which answers, is part of the record.',
+  'approve.unsettled':
+    'A run is under way, so the register may still answer differently. The search can be approved once it finishes.',
+  'approve.not_asked':
+    'The register was asked nothing about this submission — its profile asks it nothing, or no sheet stated an address to ask about. There is no archive search to approve.',
+  'error.ARCHIVE_SEARCH_NOT_SETTLED':
+    'A run is under way — the search can be approved once it finishes',
+  'error.ARCHIVE_SEARCH_NOT_ASKED':
+    'The register was asked nothing about this submission',
+  'error.ARCHIVE_SEARCH_ALREADY_APPROVED':
+    'This archive search has already been approved — reload to see it',
 };
 
 const ru: Dict = {
@@ -907,6 +949,45 @@ const ru: Dict = {
   'error.PACKAGE_MUST_GAIN_A_FILE': 'Выберите хотя бы один файл',
   'error.PACKAGE_NOT_FOUND': 'Этого пакета больше нет в реестре',
   'error.DUPLICATE_STORAGE_KEY': 'Этот файл уже есть в пакете',
+  // ─── Утверждение архивного поиска (ADR-0016) ───────────────────────────────
+  'approve.title': 'Утверждение результатов архивного поиска',
+  'approve.note':
+    'Выше — что ответил реестр. Что это значит для заявления, решает человек: утверждение записывает этот вывод по тем ответам, которые есть сейчас.',
+  'approve.no_author':
+    'Учётных записей в системе нет, поэтому у утверждения нет имени — только вывод и время. Оно записано как решение управления, а не конкретного человека.',
+  'approve.summary_label': 'Вывод по заявлению',
+  'approve.summary_hint':
+    'Что архивный поиск значит для заявления целиком — не по отдельной проверке, каждая из них уже сказала, что нашла. Обязательно: утверждение, которое фиксирует только сам факт, не фиксирует ничего.',
+  'approve.summary_placeholder':
+    'Запись реестра не противоречит поданным документам; отсутствие подлинника не влияет на заявленное право…',
+  'approve.comment_label': 'Комментарий (необязательно)',
+  'approve.comment_hint':
+    'Оговорка или причина, по которой утверждено несмотря на замечание. Оставьте пустым, если её нет: пустой комментарий лучше формального.',
+  'approve.comment_placeholder': 'Оговорка, если она есть…',
+  'approve.left': 'осталось {n} символов',
+  'approve.over': 'на {n} символов больше',
+  'approve.action': 'Утвердить поиск',
+  'approve.sending': 'Записываем…',
+  'approve.done': 'Архивный поиск утверждён',
+  'approve.failed': 'Не удалось записать утверждение — попробуйте ещё раз',
+  'approve.given': 'Утверждено',
+  'approve.remark': 'Комментарий',
+  'approve.covered': 'Утверждено по этим ответам',
+  'approve.now': 'сейчас',
+  'approve.gone': 'больше не запрашивается',
+  'approve.spent_since': 'перестало действовать {d}',
+  'approve.spent_title': 'Прежние утверждения ({n})',
+  'approve.spent_note':
+    'После них архив опрашивали заново, поэтому они перестали действовать. Их не удаляют: что именно утвердили и по каким ответам — часть записи.',
+  'approve.unsettled':
+    'Идёт проверка, реестр ещё может ответить иначе. Утвердить поиск можно, когда она закончится.',
+  'approve.not_asked':
+    'Реестр по этому заявлению ни о чём не спрашивали — профиль не задаёт ему вопросов либо адрес не удалось прочитать ни на одном листе. Утверждать нечего.',
+  'error.ARCHIVE_SEARCH_NOT_SETTLED':
+    'Идёт проверка — утвердить поиск можно, когда она закончится',
+  'error.ARCHIVE_SEARCH_NOT_ASKED': 'Реестр по этому заявлению не опрашивали',
+  'error.ARCHIVE_SEARCH_ALREADY_APPROVED':
+    'Этот архивный поиск уже утверждён — обновите страницу',
 };
 
 const az: Dict = {
@@ -1345,6 +1426,46 @@ const az: Dict = {
   'error.PACKAGE_MUST_GAIN_A_FILE': 'Ən azı bir fayl seçin',
   'error.PACKAGE_NOT_FOUND': 'Bu paket artıq reyestrdə yoxdur',
   'error.DUPLICATE_STORAGE_KEY': 'Bu fayl artıq paketdədir',
+  // ─── Arxiv axtarışının təsdiqi (ADR-0016) ──────────────────────────────────
+  'approve.title': 'Arxiv axtarışının təsdiqi',
+  'approve.note':
+    'Yuxarıda reyestrin cavabı var. Bunun bu ərizə üçün nə demək olduğunu insan deyir: təsdiq həmin nəticəni indiki cavablar üzrə qeyd edir.',
+  'approve.no_author':
+    'Sistemdə hesablar yoxdur, ona görə təsdiqin adı yoxdur — yalnız nəticə və vaxt. O, idarənin qərarı kimi yazılır, konkret şəxsin deyil.',
+  'approve.summary_label': 'Ərizə üzrə nəticə',
+  'approve.summary_hint':
+    'Arxiv axtarışının bütöv ərizə üçün nə demək olduğu — ayrı-ayrı yoxlamalar üçün deyil, onların hər biri artıq nə tapdığını deyib. Mütləqdir: yalnız faktı qeyd edən təsdiq heç nə qeyd etmir.',
+  'approve.summary_placeholder':
+    'Reyestrin qeydi təqdim olunan sənədlərə zidd deyil; əslin olmaması iddia edilən hüquqa təsir etmir…',
+  'approve.comment_label': 'Qeyd (məcburi deyil)',
+  'approve.comment_hint':
+    'Bir çəkinmə və ya nəyəsə baxmayaraq niyə təsdiqləndiyi. Yoxdursa, boş buraxın: boş qeyd formal qeyddən yaxşıdır.',
+  'approve.comment_placeholder': 'Çəkinməniz varsa, yazın…',
+  'approve.left': '{n} simvol qalıb',
+  'approve.over': '{n} simvol artıqdır',
+  'approve.action': 'Axtarışı təsdiqlə',
+  'approve.sending': 'Yazılır…',
+  'approve.done': 'Arxiv axtarışı təsdiqləndi',
+  'approve.failed': 'Təsdiq yazılmadı — yenidən cəhd edin',
+  'approve.given': 'Təsdiqlənib',
+  'approve.remark': 'Qeyd',
+  'approve.covered': 'Bu cavablar üzrə imzalanıb',
+  'approve.now': 'indi',
+  'approve.gone': 'artıq soruşulmur',
+  'approve.spent_since': '{d} tarixindən qüvvədən düşüb',
+  'approve.spent_title': 'Əvvəlki təsdiqlər ({n})',
+  'approve.spent_note':
+    'Onlardan sonra arxiv yenidən soruşulub, ona görə qüvvədən düşüblər. Silinmirlər: nəyin və hansı cavablar üzrə təsdiqləndiyi qeydin bir hissəsidir.',
+  'approve.unsettled':
+    'Yoxlama gedir, reyestr hələ başqa cavab verə bilər. Axtarışı yoxlama bitəndən sonra təsdiqləmək olar.',
+  'approve.not_asked':
+    'Bu təqdimat üzrə reyestrdən heç nə soruşulmayıb — profil ona sual vermir, yaxud heç bir vərəqdə ünvan oxunmayıb. Təsdiqləyəcək arxiv axtarışı yoxdur.',
+  'error.ARCHIVE_SEARCH_NOT_SETTLED':
+    'Yoxlama gedir — axtarışı bitəndən sonra təsdiqləmək olar',
+  'error.ARCHIVE_SEARCH_NOT_ASKED':
+    'Bu təqdimat üzrə reyestrdən heç nə soruşulmayıb',
+  'error.ARCHIVE_SEARCH_ALREADY_APPROVED':
+    'Bu arxiv axtarışı artıq təsdiqlənib — səhifəni yeniləyin',
 };
 
 const DICTS: Record<Locale, Dict> = { en, ru, az };

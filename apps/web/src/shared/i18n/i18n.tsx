@@ -552,28 +552,56 @@ const en: Dict = {
     'Ask the archive register what it holds about a property — before the packet is taken in.',
   'search.field.address': 'Address',
   'search.field.address_hint':
-    'The register finds a record by address. It is the only key it can search by.',
+    'Searched by. A record answers to every spelling its office ever wrote down, so an old address finds it too.',
   'search.field.address_placeholder': 'Address or village',
   'search.field.name': 'Applicant name',
   'search.field.name_hint':
-    'Not searched by — held against the owner the record names.',
+    'Searched by. A name transliterated differently still finds the record; how far apart they are is in the confidence.',
   'search.field.name_placeholder': 'Surname, name, patronymic',
-  'search.field.parcel': 'Parcel / registry no.',
+  'search.field.parcel': 'Parcel / cadastral no.',
   'search.field.parcel_hint':
-    'Not searched by — held against the cadastral number the record names.',
+    'Searched by, as far as it is known. Half a number is a question the register can answer.',
   'search.field.parcel_placeholder': 'Parcel, registry, certificate',
+  'search.any_criterion':
+    'Any one of the three finds records; together they narrow the search rather than widen it.',
   'search.note':
     'The register states what its own fonds hold and passes judgement on no application. Its coverage is partial and historical.',
   'search.submit': 'Search the archive',
   'search.searching': 'Searching…',
+  // ── The bar the operator sets, in the contract's own four bands ────────────
+  'search.threshold.label': 'Show no weaker than',
+  'search.band.high': 'High',
+  'search.band.probable': 'Probable',
+  'search.band.possible': 'Possible',
+  'search.band.weak': 'Weak',
+  // ── What came back ────────────────────────────────────────────────────────
+  // Label and figure rather than a sentence with a count in it: three
+  // languages, and no grammatical number for a plural nobody reads at this
+  // size.
+  'search.matched': 'Matches: {n}',
+  'search.considered': 'Records compared: {n}.',
+  'search.at_threshold': 'Offered from {band} ({value}) up.',
+  'search.sources': 'Sources that answered',
+  'search.panel.matches': 'Records the archive offers',
+  'search.silent_about':
+    'The source keeps no column for: {fields}. Silence, counted neither for nor against.',
+  'search.disputed': 'Sources differ',
+  'search.panel.disagreements': 'Where the sources differ',
+  'search.disagreements.note':
+    'Two registers answer for the same property and record it differently. The register quotes both and settles neither — somebody who can open the folder does that.',
+  'search.more':
+    'Showing the surest {shown} of {n}. Narrow the question to reach the rest.',
   'search.idle.title': 'Nothing asked yet',
   'search.idle.body':
-    'Enter an address and the register will say whether it holds a record under it.',
+    'Enter whatever you have — an address, a name, a parcel number — and the register will offer the records that might be it.',
+  'search.none.title': 'The archive offers nothing here',
+  'search.none.body':
+    'Nothing the register compared reaches the level asked for. Its coverage is partial and historical, so this says nothing about the property — lower the level, or search by less of what you know.',
   'search.error.title': 'The archive did not answer',
   'search.error.body':
     'The register could not be reached. Try the search again.',
   'search.footer':
-    'One source answers today — the archive register. About what it does not hold, it says nothing.',
+    'The archive is several registers, kept by different offices over thirty years. About what none of them holds, it says nothing.',
   'archive.found': 'Record found',
   'archive.found_note': 'The register holds a record under this address.',
   'archive.not_found': 'No record',
@@ -1194,28 +1222,51 @@ const ru: Dict = {
     'Спросите архивный реестр, что он хранит об объекте, — ещё до того, как пакет принят.',
   'search.field.address': 'Адрес',
   'search.field.address_hint':
-    'Реестр находит запись по адресу. Это единственный ключ, по которому он умеет искать.',
+    'По нему ищут. Запись отвечает на любое написание, какое когда-либо завела её контора, — старый адрес тоже находит её.',
   'search.field.address_placeholder': 'Адрес или село',
   'search.field.name': 'ФИО заявителя',
   'search.field.name_hint':
-    'По нему не ищут — его сверяют с владельцем в найденной записи.',
+    'По нему ищут. Иначе переданная латиницей фамилия всё равно найдёт запись; насколько они расходятся — видно в степени совпадения.',
   'search.field.name_placeholder': 'Фамилия, имя, отчество',
-  'search.field.parcel': 'Участок / номер реестра',
+  'search.field.parcel': 'Участок / кадастровый номер',
   'search.field.parcel_hint':
-    'По нему не ищут — его сверяют с кадастровым номером записи.',
+    'По нему ищут — настолько, насколько он известен. Половина номера тоже вопрос, на который реестр отвечает.',
   'search.field.parcel_placeholder': 'Участок, реестр, свидетельство',
+  'search.any_criterion':
+    'Достаточно любого из трёх; вместе они не расширяют поиск, а сужают его.',
   'search.note':
     'Реестр сообщает, что хранится в его собственных фондах, и не судит ни о каком заявлении. Его охват неполный и исторический.',
   'search.submit': 'Искать в архиве',
   'search.searching': 'Ищем…',
+  'search.threshold.label': 'Показывать не ниже',
+  'search.band.high': 'Высокая',
+  'search.band.probable': 'Вероятная',
+  'search.band.possible': 'Возможная',
+  'search.band.weak': 'Слабая',
+  'search.matched': 'Совпадений: {n}',
+  'search.considered': 'Сравнено записей: {n}.',
+  'search.at_threshold': 'Показываются от «{band}» ({value}) и выше.',
+  'search.sources': 'Ответившие источники',
+  'search.panel.matches': 'Записи, которые предлагает архив',
+  'search.silent_about':
+    'У источника нет колонки: {fields}. Это молчание — оно не считается ни за, ни против.',
+  'search.disputed': 'Источники расходятся',
+  'search.panel.disagreements': 'Где источники расходятся',
+  'search.disagreements.note':
+    'Два реестра отвечают об одном объекте и записывают его по-разному. Реестр приводит оба и не решает спор — решает тот, кто может открыть папку.',
+  'search.more':
+    'Показаны самые уверенные {shown} из {n}. Уточните запрос, чтобы дойти до остальных.',
   'search.idle.title': 'Запрос ещё не отправлен',
   'search.idle.body':
-    'Введите адрес — реестр ответит, есть ли у него запись по нему.',
+    'Введите то, что есть, — адрес, фамилию, номер участка, — и реестр предложит записи, которые могут подойти.',
+  'search.none.title': 'Архив здесь ничего не предлагает',
+  'search.none.body':
+    'Ничто из сравнённого не дотягивает до выбранного уровня. Охват реестра неполный и исторический, поэтому об объекте это не говорит ничего: снизьте уровень или ищите по меньшему числу полей.',
   'search.error.title': 'Архив не ответил',
   'search.error.body':
     'Обратиться к реестру не удалось. Попробуйте поиск ещё раз.',
   'search.footer':
-    'Сегодня отвечает один источник — архивный реестр. О том, чего у него нет, он не говорит ничего.',
+    'Архив — это несколько реестров, которые тридцать лет вели разные конторы. О том, чего нет ни в одном из них, он не говорит ничего.',
   'archive.found': 'Запись найдена',
   'archive.found_note': 'Реестр хранит запись по этому адресу.',
   'archive.not_found': 'Записи нет',
@@ -1832,28 +1883,51 @@ const az: Dict = {
     'Paket qəbul edilməzdən əvvəl arxiv reyestrindən obyekt haqqında nə saxladığını soruşun.',
   'search.field.address': 'Ünvan',
   'search.field.address_hint':
-    'Reyestr qeydi ünvana görə tapır. Bu, onun axtara bildiyi yeganə açardır.',
+    'Buna görə axtarılır. Qeyd, onu yazan idarənin işlətdiyi hər yazılışa cavab verir — köhnə ünvan da onu tapır.',
   'search.field.address_placeholder': 'Ünvan və ya kənd',
   'search.field.name': 'Ərizəçinin adı',
   'search.field.name_hint':
-    'Buna görə axtarılmır — tapılan qeyddəki sahibkarla tutuşdurulur.',
+    'Buna görə axtarılır. Fərqli transliterasiya olunmuş ad da qeydi tapır; nə qədər fərqləndiyi uyğunluq dərəcəsində görünür.',
   'search.field.name_placeholder': 'Soyad, ad, ata adı',
-  'search.field.parcel': 'Sahə / reyestr nömrəsi',
+  'search.field.parcel': 'Sahə / kadastr nömrəsi',
   'search.field.parcel_hint':
-    'Buna görə axtarılmır — qeydin kadastr nömrəsi ilə tutuşdurulur.',
+    'Buna görə axtarılır — nə qədər məlumdursa. Nömrənin yarısı da reyestrin cavab verə biləcəyi sualdır.',
   'search.field.parcel_placeholder': 'Sahə, reyestr, şəhadətnamə',
+  'search.any_criterion':
+    'Üçündən biri kifayətdir; birlikdə axtarışı genişləndirmir, daraldırlar.',
   'search.note':
     'Reyestr yalnız öz fondlarında nə saxladığını bildirir və heç bir müraciət haqqında hökm vermir. Onun əhatəsi qismən və tarixidir.',
   'search.submit': 'Arxivdə axtar',
   'search.searching': 'Axtarılır…',
+  'search.threshold.label': 'Ən azı bu səviyyədə',
+  'search.band.high': 'Yüksək',
+  'search.band.probable': 'Ehtimallı',
+  'search.band.possible': 'Mümkün',
+  'search.band.weak': 'Zəif',
+  'search.matched': 'Uyğunluqlar: {n}',
+  'search.considered': 'Müqayisə edilən qeydlər: {n}.',
+  'search.at_threshold': '«{band}» ({value}) və yuxarı göstərilir.',
+  'search.sources': 'Cavab verən mənbələr',
+  'search.panel.matches': 'Arxivin təklif etdiyi qeydlər',
+  'search.silent_about':
+    'Mənbədə bunun üçün sütun yoxdur: {fields}. Bu sükutdur — nə lehinə, nə də əleyhinə sayılır.',
+  'search.disputed': 'Mənbələr fərqlənir',
+  'search.panel.disagreements': 'Mənbələrin fərqləndiyi yerlər',
+  'search.disagreements.note':
+    'İki reyestr eyni obyekt haqqında cavab verir və onu fərqli qeyd edir. Reyestr hər ikisini gətirir və mübahisəni həll etmir — bunu qovluğu aça bilən adam edir.',
+  'search.more':
+    'Ən əmin {shown} qeyd {n} qeyddən göstərilir. Qalanına çatmaq üçün sorğunu dəqiqləşdirin.',
   'search.idle.title': 'Hələ sorğu göndərilməyib',
   'search.idle.body':
-    'Ünvanı daxil edin — reyestr ona aid qeydin olub-olmadığını bildirəcək.',
+    'Nəyiniz varsa yazın — ünvan, soyad, sahə nömrəsi — reyestr uyğun ola biləcək qeydləri təklif edəcək.',
+  'search.none.title': 'Arxiv burada heç nə təklif etmir',
+  'search.none.body':
+    'Müqayisə edilənlərin heç biri seçilmiş səviyyəyə çatmır. Reyestrin əhatəsi qismən və tarixi olduğundan bu, obyekt haqqında heç nə demir — səviyyəni endirin və ya daha az sahə üzrə axtarın.',
   'search.error.title': 'Arxiv cavab vermədi',
   'search.error.body':
     'Reyestrə müraciət alınmadı. Axtarışı yenidən cəhd edin.',
   'search.footer':
-    'Bu gün bir mənbə cavab verir — arxiv reyestri. Saxlamadığı barədə isə heç nə demir.',
+    'Arxiv — otuz il ərzində müxtəlif idarələrin apardığı bir neçə reyestrdir. Heç birində olmayan barədə isə heç nə demir.',
   'archive.found': 'Qeyd tapıldı',
   'archive.found_note': 'Reyestr bu ünvan altında qeyd saxlayır.',
   'archive.not_found': 'Qeyd yoxdur',

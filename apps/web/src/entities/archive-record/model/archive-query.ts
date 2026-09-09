@@ -1,55 +1,94 @@
 /**
  * What an operator asks the archive register, and how that question reaches it.
  *
- * The register looks a property up **by address** and by nothing else: a name
- * and a parcel number are things it holds the found record *against*
- * (`AddressLookupRequest.attributes`), not things it can find one by. So the
- * three boxes on the search screen are not three search keys — the address
- * finds the record, the other two are checked against it — and this module is
- * where that asymmetry is stated once instead of being re-derived on screen.
+ * **Three keys, and any one of them is enough.** Until COMM-56 the register
+ * could only find a property by address, and a name or a parcel number were
+ * things it held the found record *against* — so the three boxes on the search
+ * screen were one search key and two checks. The archive search (`ArchiveSearchApi`)
+ * ended that: each of the three is a way in, several together narrow rather
+ * than widen, and the only question the register refuses is one that names none
+ * of them. That is what `isAskable` now says, and it is the whole reason this
+ * module was rewritten rather than extended.
+ *
+ * The threshold travels with the question because it *is* part of the question:
+ * how much doubt is worth reading through depends on why somebody is searching,
+ * and the register does not know why (ADR-0009). It is carried as the number
+ * the contract takes; which words that number is offered in is the screen's
+ * business (`model/match.ts`).
  *
  * The question deliberately does **not** live in the address bar, unlike the
- * register's own. The lookup is a POST because the address is somebody's
- * property and "has no business in a URL, a query string or an access log"
- * (`AddressesController`); putting it in ours would put it in exactly those
- * three places the moment the page is reloaded or the link is pasted.
+ * register's own. The search is a POST because a name and an address are
+ * somebody's property and have "no business in a URL, a query string or an
+ * access log" (`ArchiveSearchController`); putting it in ours would put it in
+ * exactly those three places the moment the page is reloaded or the link is
+ * pasted.
  */
-import type { AddressLookupRequest } from '@cadastre/api-contracts/registry';
+import {
+  DEFAULT_SEARCH_THRESHOLD,
+  SEARCH_DEFAULT_LIMIT,
+  type ArchiveSearchRequest,
+} from '@cadastre/api-contracts/registry';
 
 export type ArchiveQuery = {
-  /** Applicant name, held against the record's `ownerName`. */
+  /** Applicant or owner name, searched by and graded against `ownerName`. */
   name: string;
-  /** What the register searches by. Nothing is asked without it. */
+  /** The address as the operator has it, in whatever spelling. */
   address: string;
-  /** Parcel / cadastral number, held against the record's `cadastralNumber`. */
+  /** Parcel / cadastral number, as far as it is known — half of one finds a
+   *  record too, which is the point of grading rather than matching. */
   parcel: string;
+  /** How sure the register must be before it offers a record at all, 0…1. */
+  threshold: number;
 };
 
-export const BLANK_QUERY: ArchiveQuery = { name: '', address: '', parcel: '' };
+export const BLANK_QUERY: ArchiveQuery = {
+  name: '',
+  address: '',
+  parcel: '',
+  // The contract's own default and not a number chosen here: a screen with its
+  // own idea of "sure enough" would answer a different question than the one
+  // the register documents (`DEFAULT_SEARCH_THRESHOLD`).
+  threshold: DEFAULT_SEARCH_THRESHOLD,
+};
 
 /**
- * Whether there is anything to ask. Only the address decides: the register
- * refuses a lookup without one, and asking with a name alone would come back a
- * refusal the operator can do nothing about.
+ * Whether there is anything to ask.
+ *
+ * One non-empty criterion, any of the three. A search naming none of them is a
+ * request for the whole archive, and the archive is not a list — the register
+ * refuses it, so the form does not send it.
  */
 export function isAskable(query: ArchiveQuery): boolean {
-  return query.address.trim() !== '';
+  return (
+    query.address.trim() !== '' ||
+    query.name.trim() !== '' ||
+    query.parcel.trim() !== ''
+  );
 }
 
 /**
  * The question as the register takes it.
  *
- * `documents` is left empty on purpose: the register does not volunteer a
- * holdings list, and which papers matter is a profile's rule about a submission
- * — this screen is looking a property up, not verifying one.
+ * A box left blank is left **out** of the request rather than sent as an empty
+ * string: an empty criterion the register accepted would be a criterion every
+ * record fails, and the contract refuses one anyway. The request is also the
+ * cache key, so two searches that differ only in whitespace are one call.
  */
-export function toLookupRequest(query: ArchiveQuery): AddressLookupRequest {
-  const attributes: AddressLookupRequest['attributes'] = [];
-  const name = query.name.trim();
-  const parcel = query.parcel.trim();
-  if (name !== '') attributes.push({ name: 'ownerName', value: name });
-  if (parcel !== '')
-    attributes.push({ name: 'cadastralNumber', value: parcel });
+export function toSearchRequest(query: ArchiveQuery): ArchiveSearchRequest {
+  const address = query.address.trim();
+  const ownerName = query.name.trim();
+  const cadastralNumber = query.parcel.trim();
 
-  return { address: query.address.trim(), attributes, documents: [] };
+  const request: ArchiveSearchRequest = {
+    threshold: query.threshold,
+    // Stated rather than left to the default, so the answer can be read
+    // against what was asked for without knowing the register's own number.
+    limit: SEARCH_DEFAULT_LIMIT,
+  };
+
+  if (address !== '') request.address = address;
+  if (ownerName !== '') request.ownerName = ownerName;
+  if (cadastralNumber !== '') request.cadastralNumber = cadastralNumber;
+
+  return request;
 }

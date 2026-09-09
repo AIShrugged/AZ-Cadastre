@@ -36,6 +36,11 @@ RUN npm install -g pnpm
 # compiled in the `build/` copied below.
 RUN pnpm install --frozen-lockfile --prod --ignore-scripts --filter @cadastre/registry-stub...
 
+# Exactly the packages `@cadastre/registry-stub...` builds, and no more: the
+# filter compiles the register's dependency closure, so a `build/` this stage
+# names that is not in that closure does not exist to copy. @cadastre/shared
+# was in this list and is not in the closure — the register extends nothing
+# from the kernel — and the COPY failed on a directory the builder never made.
 COPY --from=builder /app/libs/matching-engine/build ./libs/matching-engine/build
 COPY --from=builder /app/libs/logger/build ./libs/logger/build
 COPY --from=builder /app/libs/api-contracts/build ./libs/api-contracts/build

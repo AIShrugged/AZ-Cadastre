@@ -80,6 +80,41 @@ describe('FieldExtractorAdapter', () => {
     }
   });
 
+  /*
+   * The stand-in is the whole of what an offline run reads, so a key the
+   * profile gained and it did not is a field that reads as absent on every
+   * mocked package — a hole in the demo that looks like a fault in the paper.
+   */
+  it('has an answer for every key the two drawings gained from the contract', async () => {
+    for (const type of ['land_plot_plan', 'sketch_project']) {
+      const spec = VerificationProfile.CADASTRE.specFor(
+        DocumentType.create(type),
+      );
+
+      const fields = await extract(spec.schema, spec.type);
+
+      expect(fields.map(field => field.key.value)).toEqual(
+        spec.schema.specs.map(field => field.key.value),
+      );
+    }
+  });
+
+  // The plan states one parcel, and the two figures the contract asks for are
+  // the same parcel measured twice. A stand-in that disagreed with itself would
+  // be a demonstration package with a fault nobody put in it.
+  it("answers the plan-scheme's two areas with the same parcel", async () => {
+    const plan = VerificationProfile.CADASTRE.specFor(
+      DocumentType.create('land_plot_plan'),
+    );
+
+    const fields = await extract(plan.schema, plan.type);
+    const valueOf = (key: string) =>
+      fields.find(field => field.key.value === key)?.value.value;
+
+    expect(valueOf('plot_area')).toBe(valueOf('actual_area'));
+    expect(valueOf('registry_no')).not.toBe(valueOf('cadastral_number'));
+  });
+
   it('gives the same answer twice, because the mock has nothing random in it', async () => {
     const schema = VerificationProfile.CADASTRE.schemaFor(IDENTITY_CARD);
 

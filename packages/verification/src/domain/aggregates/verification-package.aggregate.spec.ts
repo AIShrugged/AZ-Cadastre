@@ -3108,6 +3108,83 @@ describe('VerificationPackage', () => {
       ).toBeUndefined();
     });
 
+    /*
+     * The keys the two drawings gained from the acceptance contract go through
+     * the same gate as the old ones: a value is carried only where a check says
+     * two papers print the same value. None of the new keys is in a check —
+     * deliberately, since nothing in the profile says the plan's issuing office
+     * and the certificate's are one office — so none of them is carried, and an
+     * inspector reading a blank is reading a blank the package left.
+     */
+    it('carries none of the new fields, because no check maps them onto another paper', () => {
+      const built = aSubmission([
+        [
+          'archive_certificate',
+          [read('issuing_authority', 'Bakı Şəhər Arxivi')],
+        ],
+        ['land_plot_plan', [read('plan_scale', '1:500', 0.9, 2)]],
+      ]);
+
+      built.verification.gatherFromThePackage();
+
+      expect(
+        fieldOn(
+          built.verification,
+          built.typed('land_plot_plan'),
+          'issuing_authority',
+        ),
+      ).toBeUndefined();
+    });
+
+    // The plain case for the new keys, and the one the report has to keep
+    // saying: the paper does not print it, nothing else in the package prints
+    // it, and the field stays empty rather than being filled in from the
+    // nearest plausible neighbour.
+    it('leaves a new field no paper of the package states empty', () => {
+      const built = aSubmission([
+        ['land_plot_plan', [read('property_address', ADDRESS_ON_THE_PLAN)]],
+        ['sketch_project', [read('project_name', 'Fərdi yaşayış evi', 0.9, 2)]],
+      ]);
+
+      built.verification.gatherFromThePackage();
+
+      for (const key of ['easements', 'turning_points', 'qr_code']) {
+        expect(
+          fieldOn(built.verification, built.typed('land_plot_plan'), key),
+        ).toBeUndefined();
+      }
+      for (const key of ['built_up_area', 'datum_level', 'span_dimensions']) {
+        expect(
+          fieldOn(built.verification, built.typed('sketch_project'), key),
+        ).toBeUndefined();
+      }
+    });
+
+    /*
+     * The mechanic the contract's new keys must not disturb. The sketch design
+     * now declares nineteen fields instead of seven, and the address is still
+     * the one of them a check maps onto the plan-scheme — so it is still the
+     * one, and the only one, that arrives from it.
+     */
+    it('still carries the address onto a sketch design of nineteen fields', () => {
+      const built = aSubmission();
+
+      built.verification.gatherFromThePackage();
+
+      const sketch = built.typed('sketch_project');
+      const carried = built.verification
+        .documentWith(sketch.id)
+        .fields.filter(
+          field => field.origin === FieldOrigin.TAKEN_FROM_ANOTHER_DOCUMENT,
+        );
+
+      expect(carried.map(field => field.key.value)).toEqual([
+        'property_address',
+      ]);
+      expect(carried[0]?.value.value).toBe(ADDRESS_ON_THE_PLAN);
+      expect(carried[0]?.takenFrom?.documentType.value).toBe('land_plot_plan');
+    });
+
     it('never overwrites what the paper itself yielded', () => {
       const own = 'Zığ qəsəbəsi, Əliyev küçəsi 99';
       const built = aSubmission([

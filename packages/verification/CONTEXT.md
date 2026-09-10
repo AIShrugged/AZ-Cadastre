@@ -24,8 +24,12 @@ The recognized category of a Document (e.g. Passport, Unknown). Assigned by clas
 _Avoid_: category, kind
 
 **Extracted Field**:
-A single structured value pulled from a Document: value + confidence + page reference.
+A single structured value the pipeline holds against a Document: value + confidence + where it came from. Where it came from is its Field Origin, and it decides what the page reference means — a value read off this Document cites a sheet of it, and one carried in from elsewhere in the package cites none.
 _Avoid_: attribute, property
+
+**Field Origin**:
+Where an Extracted Field's value came from, in one word: read off this Document, taken from another paper of the same Verification Package, or read here and confirmed by the archive register (ADR-0023). Three states and not a flag, because they are not degrees of one thing — a reading is evidence about this paper, a value carried over is evidence about the package, and a confirmation is evidence from outside it. Only a reading answers for the Document it hangs on: a carried-over value is never a side of a Cross-document Check, never what the register is asked about, and never a low-confidence finding, because the reading behind it is already reported against the paper it was made on. Which papers print one value is the Verification Profile's cross-checks and nothing else, and where they do not speak with one voice the field stays empty rather than being guessed at.
+_Avoid_: implicit, inferred, source, derived value
 
 **Document Catalogue**:
 A reference list of Document Types that no Verification Profile asks for, but that arrive in the envelopes anyway. Its contents are the statute, not observation (ADR-0022): every ground for state registration Article 8 of the Law enumerates, every ground the Decree No. 439 list names, the papers of the application the profile does not ask for, and the registry's own service sheets. Grouped, because whoever classifies is shown fifty keys at once. Matching one names an out-of-profile Document in the Verification Report instead of leaving it a generic "other documents"; it never places the Document, answers a requirement or carries fields (ADR-0012).

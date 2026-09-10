@@ -23,6 +23,7 @@ import {
   ChevronRightIcon,
   ClipboardListIcon,
   CornerDownRightIcon,
+  EyeOffIcon,
   FileTextIcon,
   ImageIcon,
   MinusIcon,
@@ -34,6 +35,7 @@ import { useState, type ComponentProps, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import {
+  attestationLines,
   documentsExpected,
   fieldsReadHere,
   groundName,
@@ -58,6 +60,7 @@ import {
   useGetPackageQuery,
   useGetProfilesQuery,
   type Disposition,
+  type MarkStanding,
   type SupportingSet,
 } from '@/entities/verification-package';
 import { ApproveArchiveSearch } from '@/features/approve-archive-search';
@@ -79,6 +82,7 @@ import type {
   CrossCheckDto,
   CrossCheckVerdict,
   DeclaredAtIntakeDto,
+  DocumentAttestationDto,
   DocumentDto,
   FieldDto,
   FieldSourceDto,
@@ -830,6 +834,115 @@ function Sheets({ doc, file }: { doc: DocumentDto; file: SourceFileDto }) {
   );
 }
 
+// ─── The seal and the hand that signed ───────────────────────────────────────
+// Drawn on every placed document and in every state, which is the whole point:
+// before this the surface only ever spoke about a mark when one the profile
+// wanted was missing, so "sealed", "not sealed" and "no sheet of this was ever
+// read" all reached the inspector as the same thing — nothing (COMM-77).
+//
+// It sits directly under the document's own title rather than below the field
+// register, because it is a statement about the paper and not one of the values
+// read off it, and because presence has to be as findable as a shortfall. Two
+// short lines is what that costs on every entry, and it is worth it.
+//
+// A glyph and a sentence, never colour alone — the same rule the rest of the
+// surface marks state by.
+const MARK_ICON: Record<MarkStanding, typeof CheckIcon> = {
+  carried: CheckIcon,
+  short: TriangleAlertIcon,
+  bare: MinusIcon,
+  unread: EyeOffIcon,
+};
+
+const MARK_INK: Record<MarkStanding, string> = {
+  carried: 'text-ok-ink',
+  // The clay the whole surface doubts in, and deliberately not the red a
+  // failure is drawn in: the report already files this same observation as a
+  // finding in the list above, and one thing seen once should not be alarmed
+  // about twice.
+  short: 'text-incomplete-ink',
+  bare: 'text-muted-foreground/60',
+  unread: 'text-muted-foreground',
+};
+
+function Attestation({
+  attestation,
+}: {
+  attestation: DocumentAttestationDto | null;
+}) {
+  const { t } = useI18n();
+  const lines = attestationLines(attestation);
+
+  if (lines.length === 0) return null;
+
+  return (
+    <ul className='mt-2.5 flex flex-col gap-1'>
+      {lines.map(line => {
+        const Icon = MARK_ICON[line.standing];
+        const unread = line.standing === 'unread';
+
+        return (
+          <li
+            key={line.kind}
+            title={unread ? t('attest.unread_why') : undefined}
+            className={cn(
+              'flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[0.8125rem] leading-snug',
+              // Nothing was looked at, so the line is drawn as a gap in the
+              // record and not as a reading of the paper: a dashed rule down
+              // its side and the sentence set apart in italic. If this ever
+              // reads like "the mark is missing", the screen is handing an
+              // inspector a guess in place of an observation.
+              unread && 'border-l-2 border-dashed border-rule pl-2.5',
+            )}
+          >
+            <Icon
+              aria-hidden
+              className={cn(
+                'size-3.5 shrink-0 translate-y-0.5',
+                MARK_INK[line.standing],
+              )}
+              strokeWidth={line.standing === 'carried' ? 3 : 2}
+            />
+            <span className='shrink-0 text-muted-foreground'>
+              {t(line.label)}
+            </span>
+            <span
+              className={cn(
+                'min-w-0',
+                unread ? 'italic text-muted-foreground' : 'text-foreground',
+              )}
+            >
+              {t(line.key)}
+            </span>
+            {/* What the seal actually says, when it could be read — the
+                difference between "this paper is sealed" and "this paper is
+                sealed by the committee that may seal it". */}
+            {line.legends.length > 0 && (
+              <span
+                data-mono
+                title={t('attest.legend')}
+                className='min-w-0 break-words text-[0.75rem] text-muted-foreground'
+              >
+                “{line.legends.join(' · ')}”
+              </span>
+            )}
+            {/* Read off sheets the engine itself doubts, so the figure goes
+                beside the sentence — an uncertain reading must not be set down
+                as a fact (PRD §4.6). Bare: the "needs review" chip is the
+                worklist's own word, counted per field in the heading above, and
+                a second one here would inflate a count it is not part of. */}
+            {line.confidence !== null && line.confidence < CONFIDENCE_FLOOR && (
+              <span className='ml-auto'>
+                <Confidence value={line.confidence} bare />
+              </span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 function DocumentEntry({
   doc,
   file,
@@ -919,6 +1032,8 @@ function DocumentEntry({
             </span>
           )}
         </header>
+
+        <Attestation attestation={doc.attestation} />
 
         {fieldless ? (
           <p className='mt-2 max-w-[65ch] text-[0.8125rem] leading-relaxed text-muted-foreground'>

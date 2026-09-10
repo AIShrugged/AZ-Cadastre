@@ -20,6 +20,9 @@ export { STAGES } from './model/pipeline';
 
 export { fieldsReadHere, isCarriedOver } from './model/field-origin';
 
+export type { MarkKind, MarkLine, MarkStanding } from './model/attestation';
+export { attestationLines, markLine, MARK_KINDS } from './model/attestation';
+
 export type {
   Declaration,
   DeclaredDraft,

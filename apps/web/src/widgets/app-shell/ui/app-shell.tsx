@@ -7,21 +7,14 @@
  * plus a slot a route can drop one action into — the inset holds the active
  * surface. Every surface inherits this frame.
  *
- * **The navigation is in two groups because the work is.** `Workspace` is what
- * an operator does today, in the order they do it: look the property up in the
- * archive, take a packet in, work the register of cases. `Later` is one item and
- * it is not work — it states what the system will grow into, which is a promise
- * to be kept visible rather than hidden until it is met.
+ * **The navigation is one group, because the work is one.** `Workspace` is what
+ * an operator does, in the order they do it: look the property up in the
+ * archive, take a packet in, work the register of cases.
  *
  * There is no account card and no sign-in. The product has no accounts on
  * purpose (ADR-0016): one user, the inspector, and nothing to read a name off.
  */
-import {
-  FileStackIcon,
-  InboxIcon,
-  SearchIcon,
-  WorkflowIcon,
-} from 'lucide-react';
+import { FileStackIcon, InboxIcon, SearchIcon } from 'lucide-react';
 import { useState } from 'react';
 import {
   Outlet,
@@ -30,7 +23,6 @@ import {
   useNavigate,
 } from 'react-router-dom';
 
-import { stepsToCome } from '@/entities/roadmap';
 import { paths } from '@/shared/config';
 import { useI18n } from '@/shared/i18n';
 import { cn } from '@/shared/lib/cn';
@@ -97,13 +89,9 @@ type NavItem = {
   key: string;
   icon: typeof FileStackIcon;
   to: string;
-  /** Drawn beside the item — today only on `Later`, where it says how many
-   *  steps are still to come. A count nobody can act on yet is still a count
-   *  somebody asked for. */
-  badge?: number;
 };
 
-/** One heading and the items under it. Two groups, because the work is two. */
+/** One heading and the items under it. */
 type NavGroup = { key: string; items: NavItem[] };
 
 /**
@@ -123,19 +111,6 @@ const NAV: NavGroup[] = [
       { key: 'nav.intake', icon: InboxIcon, to: paths.intake },
       { key: 'nav.search', icon: SearchIcon, to: paths.search },
       { key: 'nav.cases', icon: FileStackIcon, to: paths.cases },
-    ],
-  },
-  {
-    key: 'nav.later',
-    items: [
-      {
-        key: 'nav.process',
-        icon: WorkflowIcon,
-        to: paths.process,
-        // Counted off the roadmap itself, so the badge cannot outlive the list:
-        // a step that goes live drops out of both by being edited once.
-        badge: stepsToCome(),
-      },
     ],
   },
 ];
@@ -208,14 +183,6 @@ export function AppShell() {
                         <span className='flex-1 truncate text-left'>
                           {t(item.key)}
                         </span>
-                        {item.badge !== undefined && (
-                          <span
-                            data-mono
-                            className='rounded-full bg-sidebar-accent px-1.5 text-[0.6875rem] text-muted-foreground tabular-nums group-data-[collapsible=icon]:hidden'
-                          >
-                            {item.badge}
-                          </span>
-                        )}
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))}

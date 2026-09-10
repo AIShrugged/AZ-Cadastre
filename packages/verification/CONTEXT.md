@@ -28,7 +28,7 @@ A single structured value pulled from a Document: value + confidence + page refe
 _Avoid_: attribute, property
 
 **Document Catalogue**:
-A reference list of Document Types that no Verification Profile asks for, but that arrive in the envelopes anyway: the registrar's routing sheet, a courier waybill, a covering letter. Matching one names an out-of-profile Document in the Verification Report instead of leaving it a generic "extra document"; it never places the Document, answers a requirement or carries fields (ADR-0012).
+A reference list of Document Types that no Verification Profile asks for, but that arrive in the envelopes anyway. Its contents are the statute, not observation (ADR-0022): every ground for state registration Article 8 of the Law enumerates, every ground the Decree No. 439 list names, the papers of the application the profile does not ask for, and the registry's own service sheets. Grouped, because whoever classifies is shown fifty keys at once. Matching one names an out-of-profile Document in the Verification Report instead of leaving it a generic "other documents"; it never places the Document, answers a requirement or carries fields (ADR-0012).
 _Avoid_: extra types, known documents, secondary profile
 
 **Particulars**:

@@ -45,12 +45,21 @@ const MAX_TAIL_PER_PAGE = 320;
 // The list is the document catalogue's own (ADR-0012): the stage that has to
 // see these sheets apart and the stage that names them read from one place, so
 // a paper added to the catalogue cannot end up known to only one of them.
-const ALSO_EXPECTED = DocumentCatalogue.KNOWN.entries.map(entry =>
-  [
-    entry.description,
-    `Usually headed: ${entry.hints.map(hint => `"${hint}"`).join(', ')}.`,
-  ].join(' '),
-);
+//
+// Headings only, grouped, and no descriptions — where the classifier has to
+// tell one of these papers from its neighbour and needs every word of the
+// entry, this stage only has to notice that a heading started. Since the
+// catalogue became the statutory list of grounds (ADR-0022) the full entries
+// run to some fourteen thousand characters, which is worth paying once per
+// document and not once per file for a question they do not answer.
+const ALSO_EXPECTED = DocumentCatalogue.KNOWN.groups.flatMap(group => [
+  `${group.title}:`,
+  ...group.entries.map(
+    entry =>
+      `- ${entry.type.value}: ${entry.hints.map(hint => `"${hint}"`).join(', ')}`,
+  ),
+  '',
+]);
 
 const AnswerSchema = z.object({
   documents: z
@@ -178,10 +187,10 @@ export class OpenRouterSegmenterAdapter extends DocumentSegmenter {
       '',
       'Also commonly present, and each a document of its own — do not run them',
       'together with their neighbours just because the profile does not ask for',
-      'them:',
+      'them. Listed by the headings they carry, grouped by what kind of paper',
+      'they are:',
       '',
-      ...ALSO_EXPECTED.map(description => `- ${description}`),
-      '',
+      ...ALSO_EXPECTED,
       'Two documents of the SAME kind can sit back to back — two separate',
       'licences, or two extracts from two different orders. Start a new one',
       'whenever the record itself changes, not only when the kind does.',

@@ -4,7 +4,7 @@ import {
   DocumentClassifier,
   type ClassificationRequest,
 } from '../../application/ports/outbound/index.js';
-import { looksLike } from '../../domain/services/index.js';
+import { enclosesHeading, headingMatch } from '../../domain/services/index.js';
 import {
   Classification,
   Confidence,
@@ -17,24 +17,37 @@ const UNPLACED_CONFIDENCE = 0.3;
 @Injectable()
 export class DocumentClassifierAdapter extends DocumentClassifier {
   async classify(request: ClassificationRequest): Promise<Classification> {
-    const found = looksLike(request.text.value, request.candidates);
-
-    if (found)
-      return Classification.of(found.type, Confidence.of(MATCHED_CONFIDENCE));
-
+    const catalogue = DocumentCatalogue.KNOWN;
+    const found = headingMatch(request.text.value, request.candidates);
     // The profile is asked first and the catalogue only afterwards: a heading
     // the profile knows is the answer even when a catalogued one appears
     // earlier on the sheet, because only the profile's own types answer a
     // requirement (ADR-0012).
-    const catalogued = looksLike(
-      request.text.value,
-      DocumentCatalogue.KNOWN.entries,
-    );
+    //
+    // With one exception, and it is not that rule loosened but that rule read
+    // literally. A catalogued heading that CONTAINS the profile's is not a
+    // second reading of the sheet, it is the same words read short: the profile
+    // is headed "паспорт" for an identity card and the catalogue "технический
+    // паспорт" for a building's, and without this every technical passport is
+    // answered `identity_card` — a seven-letter match beating an exact one
+    // (ADR-0022). Two headings that merely both appear still go to the profile.
+    const swallowed =
+      found !== null &&
+      enclosesHeading(request.text.value, found, catalogue.entries);
+
+    if (found && !swallowed) {
+      return Classification.of(
+        found.spec.type,
+        Confidence.of(MATCHED_CONFIDENCE),
+      );
+    }
+
+    const catalogued = headingMatch(request.text.value, catalogue.entries);
 
     if (catalogued) {
       return Classification.outOfProfile(
         Confidence.of(MATCHED_CONFIDENCE),
-        catalogued.type,
+        catalogued.spec.type,
       );
     }
 

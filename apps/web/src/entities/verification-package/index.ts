@@ -5,7 +5,8 @@
  * could work out which set, the question the register puts to the server, the governing
  * Profile policy (read live from the engine, never copied), what the office
  * declares at the counter and what the engine makes of it, the pipeline stage
- * count, the live package API, and the entity's read-only UI marks.
+ * count, which of a document's fields are its own reading, the live package
+ * API, and the entity's read-only UI marks.
  */
 export type { ProfileDto } from './model/profile';
 export {
@@ -16,6 +17,8 @@ export {
 } from './model/profile';
 
 export { STAGES } from './model/pipeline';
+
+export { fieldsReadHere, isCarriedOver } from './model/field-origin';
 
 export type {
   Declaration,

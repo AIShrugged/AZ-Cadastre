@@ -22,6 +22,7 @@ import {
   CheckIcon,
   ChevronRightIcon,
   ClipboardListIcon,
+  CornerDownRightIcon,
   FileTextIcon,
   ImageIcon,
   MinusIcon,
@@ -34,9 +35,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import {
   documentsExpected,
+  fieldsReadHere,
   groundName,
   HOLDING_KEY,
   HOLDING_TONE,
+  isCarriedOver,
   ISSUE_KIND_KEY,
   missingTypes,
   OUTCOME_NOTE,
@@ -78,6 +81,7 @@ import type {
   DeclaredAtIntakeDto,
   DocumentDto,
   FieldDto,
+  FieldSourceDto,
   IssueDto,
   IssueKind,
   PackageDetailDto,
@@ -108,7 +112,7 @@ function workspaceFromHash(hash: string): WorkspaceView {
 }
 
 // ─── Pipeline, read down the rail ─────────────────────────────────────────────
-// Vertical, because the seven stage names are long in all three languages and a
+// Vertical, because the nine stage names are long in all three languages and a
 // horizontal run of them either wraps, truncates, or scrolls sideways. Read
 // downward it is one narrow column: marker, stage, its score.
 function StageMarker({ status, n }: { status: StageStatus; n: number }) {
@@ -264,7 +268,13 @@ function isAside(doc: DocumentDto): boolean {
 /** Whether this document holds anything the inspector should actually look at:
  *  a reading below the floor, or a type the classifier could not place. Its
  *  answer decides both the segment a document falls in and whether the entry
- *  opens with its fields showing. */
+ *  opens with its fields showing.
+ *
+ *  Only what was read off this paper counts. A value carried in from another
+ *  document of the package may well sit under the floor — it is the source's
+ *  reading, discounted — but the doubt is about the sheet it was read on, and
+ *  it is already reported there (ADR-0023). Counting it here would send the
+ *  inspector to a paper with nothing on it to look at. */
 function needsReview(doc: DocumentDto): boolean {
   if (doc.type === null || doc.type === 'unknown') return true;
   if (isAside(doc)) return false;
@@ -273,7 +283,7 @@ function needsReview(doc: DocumentDto): boolean {
     doc.classificationConfidence < CONFIDENCE_FLOOR
   )
     return true;
-  return doc.fields.some(f => f.confidence < CONFIDENCE_FLOOR);
+  return fieldsReadHere(doc.fields).some(f => f.confidence < CONFIDENCE_FLOOR);
 }
 
 function inSegment(doc: DocumentDto, segment: DocSegment): boolean {
@@ -352,14 +362,27 @@ function stageStatuses(
   stages[3] = extractDone ? 'done' : 'current';
   stages[4] = crossDone ? 'done' : extractDone ? 'current' : 'pending';
   stages[5] = registryDone ? 'done' : crossDone ? 'current' : 'pending';
+  // Gathering starts once the register has answered, and nothing in the
+  // response says when it ends: a run that carried nothing over looks exactly
+  // like a run that has not reached the stage. What says it is over is the
+  // report, and the branch above already answers "done" to everything once that
+  // has landed (ADR-0023).
+  stages[6] = registryDone ? 'current' : 'pending';
   return stages;
 }
 
 // ─── Confidence ────────────────────────────────────────────────────────────────
 // A machine-read value: tabular mono, and below the 80% threshold it flags for
 // review in the clay "incomplete" ink (PRD §4.6). Above the floor it stays a
-// quiet figure in its own column — provenance travels with every field, but a
-// reading the engine is sure of must not shout down the value it produced.
+// quiet figure in its own column — a reading the engine is sure of must not
+// shout down the value it produced.
+//
+// How well a value was read and where it came from are two statements, and
+// since ADR-0023 the field carries both: this column answers the first, and the
+// marks beside the value answer the second. A value carried over from another
+// paper of the package is the source's reading discounted, so it can arrive
+// under the floor with nothing on this sheet to check — which is why the row
+// showing it drops the "needs review" chip and keeps the figure.
 const CONFIDENCE_FLOOR = 0.8;
 
 // Zero is not "certainly wrong", it is "nobody scored this": neither the route
@@ -603,14 +626,71 @@ function isHandwritten(value: string, sourceText: string): boolean {
   });
 }
 
+/**
+ * Where a value the document never printed was actually read.
+ *
+ * A line of its own under the value rather than a chip beside it, and this is
+ * the trade the row makes: the mark has to name the source document, and a
+ * document type is a full sentence in all three languages — as a chip it would
+ * either wrap into a block or push the value out of its column on a phone. So
+ * the badge row keeps the marks that are one word and this takes the line
+ * below, where the inspector gets the answer to "where is this from" without
+ * leaving the screen.
+ *
+ * It is a link, and it points at the source document's own row for the field —
+ * never at a sheet of the document it is shown under, which has none: opening
+ * the wrong paper is worse than opening none (ADR-0023). The sheet in it is the
+ * source's own, which is why it is read off `takenFrom` and not off the field.
+ */
+function TakenFrom({
+  source,
+  onJump,
+}: {
+  source: FieldSourceDto;
+  onJump: Jump;
+}) {
+  const { t } = useI18n();
+  const anchor = `#field-${source.documentId}-${source.fieldName}`;
+
+  return (
+    <a
+      href={anchor}
+      onClick={onJump(source.documentId, anchor)}
+      title={t('detail.taken_from_go')}
+      className='-mx-1 mt-1 flex flex-wrap items-baseline gap-x-1.5 rounded-sm px-1 py-0.5 text-[0.6875rem] leading-snug text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
+    >
+      <CornerDownRightIcon
+        aria-hidden
+        className='size-3 shrink-0 translate-y-0.5'
+      />
+      <span className='min-w-0'>
+        {t('detail.taken_from', {
+          doc: translateOr(
+            t,
+            `doctype.${source.documentType}`,
+            source.documentType,
+          ),
+        })}
+      </span>
+      <span className='min-w-0 text-muted-foreground/70'>
+        {translateOr(t, `field.${source.fieldName}`, source.fieldName)}
+        {' · '}
+        {t('detail.page_single', { n: source.pageNumber })}
+      </span>
+    </a>
+  );
+}
+
 function Fields({
   fields,
   docId,
   sourceText,
+  onJump,
 }: {
   fields: FieldDto[];
   docId: string;
   sourceText: string;
+  onJump: Jump;
 }) {
   const { t } = useI18n();
   return (
@@ -644,8 +724,28 @@ function Fields({
                 {t('detail.handwritten')}
               </span>
             )}
+            {/* The register agreed with this reading, and that is the one mark
+                on the page that is a reason not to look rather than a reason
+                to. It is set in the same green tick the archive panel already
+                uses for an attribute that agrees, at the weight of the mark
+                beside it: an inspector must not read "confirmed" as a warning
+                (ADR-0023). */}
+            {f.origin === 'ConfirmedByRegistry' && (
+              <span
+                title={t('detail.confirmed_why')}
+                className='ml-2 inline-flex items-center gap-1 align-middle rounded-sm bg-ok/12 px-1.5 py-0.5 text-[0.625rem] font-medium leading-none text-ok-ink'
+              >
+                <CheckIcon className='size-2.5 shrink-0' strokeWidth={3} />
+                {t('detail.confirmed')}
+              </span>
+            )}
+            {f.takenFrom && <TakenFrom source={f.takenFrom} onJump={onJump} />}
           </dd>
-          <Confidence value={f.confidence} />
+          {/* A carried-over reading keeps its figure and loses the chip: "needs
+              review" is the worklist's own word for a sheet that wants a second
+              look, and the report deliberately files no finding against this
+              one — the line under the value says where to look instead. */}
+          <Confidence value={f.confidence} bare={isCarriedOver(f)} />
         </div>
       ))}
     </dl>
@@ -733,9 +833,11 @@ function Sheets({ doc, file }: { doc: DocumentDto; file: SourceFileDto }) {
 function DocumentEntry({
   doc,
   file,
+  onJump,
 }: {
   doc: DocumentDto;
   file: SourceFileDto;
+  onJump: Jump;
 }) {
   const { t } = useI18n();
   // Two different answers that both leave a document without fields, and they
@@ -748,7 +850,9 @@ function DocumentEntry({
   // Either way there are no fields to show, so a one-line preview off the
   // document's own sheets tells the inspector roughly what is there.
   const snippet = fieldless ? text.replace(/\s+/g, ' ').slice(0, 160) : '';
-  const flagged = doc.fields.filter(
+  // The same rule the segments count by: only a reading made on this paper is
+  // work on this paper (ADR-0023).
+  const flagged = fieldsReadHere(doc.fields).filter(
     f => f.confidence < CONFIDENCE_FLOOR,
   ).length;
   // A confidence the engine is sure of is a figure nobody reads. It is kept
@@ -829,7 +933,12 @@ function DocumentEntry({
           </p>
         ) : (
           doc.fields.length > 0 && (
-            <Fields fields={doc.fields} docId={doc.id} sourceText={text} />
+            <Fields
+              fields={doc.fields}
+              docId={doc.id}
+              sourceText={text}
+              onJump={onJump}
+            />
           )
         )}
 
@@ -857,9 +966,11 @@ function DocumentEntry({
 function AsideGroup({
   docs,
   file,
+  onJump,
 }: {
   docs: DocumentDto[];
   file: SourceFileDto;
+  onJump: Jump;
 }) {
   const { t } = useI18n();
   if (docs.length === 0) return null;
@@ -882,7 +993,7 @@ function AsideGroup({
       </summary>
       <div className='divide-y divide-rule border-t border-rule'>
         {docs.map(doc => (
-          <DocumentEntry key={doc.id} doc={doc} file={file} />
+          <DocumentEntry key={doc.id} doc={doc} file={file} onJump={onJump} />
         ))}
       </div>
     </details>
@@ -898,10 +1009,12 @@ function FileGroup({
   file,
   failed,
   segment,
+  onJump,
 }: {
   file: SourceFileDto;
   failed: boolean;
   segment: DocSegment;
+  onJump: Jump;
 }) {
   const { t } = useI18n();
   const Icon = file.contentType.startsWith('image/') ? ImageIcon : FileTextIcon;
@@ -956,9 +1069,14 @@ function FileGroup({
         ) : (
           <div className='divide-y divide-rule'>
             {listed.map(doc => (
-              <DocumentEntry key={doc.id} doc={doc} file={file} />
+              <DocumentEntry
+                key={doc.id}
+                doc={doc}
+                file={file}
+                onJump={onJump}
+              />
             ))}
-            <AsideGroup docs={asides} file={file} />
+            <AsideGroup docs={asides} file={file} onJump={onJump} />
           </div>
         )
       ) : (
@@ -2793,6 +2911,7 @@ export function VerificationDetails() {
                         file={file}
                         failed={view.disposition === 'failed'}
                         segment={segment}
+                        onJump={jump}
                       />
                     ))}
                   </div>

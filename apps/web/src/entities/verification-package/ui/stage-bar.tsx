@@ -1,7 +1,8 @@
 /**
- * Stage bar — a segmented read of the eight-stage pipeline (OCR → Document
+ * Stage bar — a segmented read of the nine-stage pipeline (OCR → Document
  * detection → Classification → Field extraction → Cross-document check →
- * Archive register → Completeness → Report). One square cell per stage:
+ * Archive register → Gathering from the package → Completeness → Report). One
+ * square cell per stage:
  * completed cells in ink, the running cell in registry indigo, pending cells as
  * hairline. It shows real pipeline state, not a decorative meter — segmented
  * pill cells, never a single ring.

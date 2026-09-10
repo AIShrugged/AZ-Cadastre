@@ -11,6 +11,7 @@ import { PackageStanding } from '../../../domain/value-objects/index.js';
 import type {
   CrossCheckView,
   DocumentView,
+  FieldView,
   PackageDetailView,
   PackagesOverviewView,
   PackageSummaryView,
@@ -59,6 +60,18 @@ function aSummaryView(
   };
 }
 
+function aFieldView(overrides: Partial<FieldView> = {}): FieldView {
+  return {
+    name: 'first_name',
+    value: 'ELCHIN',
+    confidence: 0.92,
+    pageNumber: 1,
+    origin: 'ReadOnThisDocument',
+    takenFrom: null,
+    ...overrides,
+  };
+}
+
 function aDocumentView(overrides: Partial<DocumentView> = {}): DocumentView {
   return {
     id: anId(),
@@ -67,7 +80,7 @@ function aDocumentView(overrides: Partial<DocumentView> = {}): DocumentView {
     type: 'passport',
     classificationConfidence: 0.94,
     fields: [
-      { name: 'first_name', value: 'ELCHIN', confidence: 0.92, pageNumber: 1 },
+      aFieldView({ name: 'first_name', value: 'ELCHIN', confidence: 0.92 }),
     ],
     ...overrides,
   };
@@ -597,7 +610,7 @@ describe('toDetailDto', () => {
     expect(dto.files[0]?.documents[0]?.fields).toEqual([]);
   });
 
-  it('renders each extracted field with its key, value, confidence and page', () => {
+  it('renders each extracted field with its key, value, confidence, page and origin', () => {
     const dto = toDetailDto(
       aDetailView({
         files: [
@@ -605,12 +618,12 @@ describe('toDetailDto', () => {
             documents: [
               aDocumentView({
                 fields: [
-                  {
+                  aFieldView({
                     name: 'passport_no',
                     value: 'AZE1234567',
                     confidence: 0.88,
                     pageNumber: 2,
-                  },
+                  }),
                 ],
               }),
             ],
@@ -625,6 +638,57 @@ describe('toDetailDto', () => {
         value: 'AZE1234567',
         confidence: 0.88,
         pageNumber: 2,
+        origin: 'ReadOnThisDocument',
+        takenFrom: null,
+      },
+    ]);
+  });
+
+  // A value carried over from another paper of the package: no sheet of this
+  // document states it, and the source rides in `takenFrom` instead (ADR-0023).
+  it('renders a carried-over field with no page of its own and the paper it came from', () => {
+    const source = anId();
+    const dto = toDetailDto(
+      aDetailView({
+        files: [
+          aFileView({
+            documents: [
+              aDocumentView({
+                fields: [
+                  aFieldView({
+                    name: 'property_address',
+                    value: 'Bakı, Azadlıq prospekti 12',
+                    confidence: 0.81,
+                    pageNumber: null,
+                    origin: 'TakenFromAnotherDocument',
+                    takenFrom: {
+                      documentId: source,
+                      documentType: 'land_plot_plan',
+                      fieldName: 'property_address',
+                      pageNumber: 3,
+                    },
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    );
+
+    expect(dto.files[0]?.documents[0]?.fields).toEqual([
+      {
+        name: 'property_address',
+        value: 'Bakı, Azadlıq prospekti 12',
+        confidence: 0.81,
+        pageNumber: null,
+        origin: 'TakenFromAnotherDocument',
+        takenFrom: {
+          documentId: source,
+          documentType: 'land_plot_plan',
+          fieldName: 'property_address',
+          pageNumber: 3,
+        },
       },
     ]);
   });

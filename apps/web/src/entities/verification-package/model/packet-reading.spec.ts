@@ -19,6 +19,11 @@ const field = (name: string, value: string, confidence: number) => ({
   value,
   confidence,
   pageNumber: 1,
+  // Read off the document it hangs on, which is what every reading these specs
+  // build is. Where a value came from is the case sheet's business, not this
+  // module's — it picks between readings by confidence and nothing else.
+  origin: 'ReadOnThisDocument' as const,
+  takenFrom: null,
 });
 
 const document = (id: string, fields: DocumentDto['fields']): DocumentDto => ({

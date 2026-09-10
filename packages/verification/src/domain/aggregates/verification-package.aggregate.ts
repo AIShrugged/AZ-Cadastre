@@ -1,8 +1,8 @@
 import { AggregateRoot } from '@cadastre/shared';
 
 import {
+  ExtractedField,
   type Document,
-  type ExtractedField,
   type Page,
   type SourceFile,
 } from '../entities/index.js';
@@ -11,7 +11,9 @@ import {
   ArchiveSearchApproved,
   CrossCheckMade,
   DocumentClassified,
+  FieldsConfirmedByRegistry,
   FieldsExtracted,
+  FieldsGathered,
   FilesAdded,
   PackageSubmitted,
   PageRecognised,
@@ -46,7 +48,12 @@ import {
   SourceFileNotInPackageException,
   SourceFileNotSplitException,
 } from '../exceptions/index.js';
-import { attestationIn, heightInMetres, yearIn } from '../services/index.js';
+import {
+  attestationIn,
+  heightInMetres,
+  looksLikeTheSameValue,
+  yearIn,
+} from '../services/index.js';
 import {
   ApprovedCheck,
   ArchiveSearchApproval,
@@ -67,6 +74,7 @@ import {
   type CrossCheckSpec,
   type DocumentId,
   type DocumentType,
+  type FieldKey,
   type FieldRef,
   type OcrResult,
   type PageId,
@@ -320,6 +328,16 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     return spec.references.flatMap(reference => this.valuesOf(reference));
   }
 
+  /*
+   * Every reading of one of the profile's field references the package holds.
+   *
+   * Readings and not values: a field carried over from another paper of this
+   * package is not this paper stating anything, and letting one in here would
+   * put it on both sides of every rule that reads this — a cross-check would
+   * compare a value with its own source and always agree, and the register
+   * would be asked about an address no sheet of the document it is filed
+   * against prints.
+   */
   private valuesOf(reference: FieldRef): readonly CheckedValue[] {
     return this.#documents.flatMap(document => {
       const classification = document.classification;
@@ -327,18 +345,20 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       if (!classification?.isPlaced) return [];
       if (!classification.type.equals(reference.type)) return [];
 
-      return document.fields
-        .filter(field => field.key.equals(reference.key))
-        .map(field =>
-          CheckedValue.of({
-            documentId: document.id,
-            documentType: classification.type,
-            fieldKey: field.key,
-            value: field.value,
-            foundOn: field.foundOn,
-            confidence: field.confidence,
-          }),
-        );
+      return document.fieldsReadHere.flatMap(field =>
+        field.key.equals(reference.key) && field.foundOn
+          ? [
+              CheckedValue.of({
+                documentId: document.id,
+                documentType: classification.type,
+                fieldKey: field.key,
+                value: field.value,
+                foundOn: field.foundOn,
+                confidence: field.confidence,
+              }),
+            ]
+          : [],
+      );
     });
   }
 
@@ -408,9 +428,12 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       if (!classification?.isPlaced) return [];
       if (!classification.type.equals(type)) return [];
 
-      const [field] = document.fields;
+      // Read off this paper, for the reason `valuesOf` takes only readings:
+      // the anchor is what says the package carries this document, and a value
+      // carried in from elsewhere says nothing of the kind.
+      const field = document.fieldsReadHere.find(one => one.foundOn !== null);
 
-      if (!field) return [];
+      if (!field?.foundOn) return [];
 
       return [
         CheckedValue.of({
@@ -733,6 +756,206 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     this.apply(new FieldsExtracted(this.id, documentId, fields.length));
   }
 
+  /*
+   * Lay the archive register's agreement onto the readings it agreed with.
+   *
+   * The register is asked about attributes of the property — the owner of
+   * record, the cadastral number, the surveyed area — and the answer has until
+   * now lived only on the check. But the answer is *about* a field somebody
+   * read off a paper, and an inspector reading that field has no way to see
+   * that a source outside the envelope holds the same thing. That is a fact
+   * worth having beside the value and not two screens away.
+   *
+   * Only agreement is recorded. A record that says something else is already
+   * `RegistryMismatch` and a register that says nothing is silence — neither
+   * needs a second way of being said, and marking a field "differs" would put
+   * the same finding in the report twice under two names (ADR-0023).
+   */
+  confirmAgainstTheRecord(): readonly {
+    readonly documentId: DocumentId;
+    readonly fieldKey: FieldKey;
+  }[] {
+    this.guardUnderWay();
+
+    const agreed = this.#registryChecks.flatMap(check =>
+      check.attributes
+        .filter(attribute => attribute.agrees)
+        .map(attribute => attribute.submitted),
+    );
+    const confirmed: { documentId: DocumentId; fieldKey: FieldKey }[] = [];
+
+    for (const document of this.#documents) {
+      const keys = agreed
+        .filter(value => value.isFrom(document.id))
+        .map(value => value.fieldKey)
+        .filter(key =>
+          document.fieldsReadHere.some(field => field.key.equals(key)),
+        );
+
+      if (keys.length === 0) continue;
+
+      this.replaceDocument(document.withConfirmed(keys));
+      confirmed.push(
+        ...keys.map(fieldKey => ({ documentId: document.id, fieldKey })),
+      );
+    }
+
+    if (confirmed.length > 0) {
+      this.apply(new FieldsConfirmedByRegistry(this.id, confirmed.length));
+    }
+
+    return confirmed;
+  }
+
+  /*
+   * Close the fields a paper did not yield with the value another paper of the
+   * package states.
+   *
+   * The address of the property is printed on five of this profile's papers. If
+   * the sketch design's line went unread, the engine used to leave the field
+   * absent — while the same address stood legibly on the plan-scheme, read, and
+   * sitting in the same envelope. The inspector saw a blank where the system
+   * had the answer.
+   *
+   * What counts as "the same value on another paper" is the profile's
+   * cross-checks and nothing else: they already say which [document type,
+   * field] pairs print one value, and they already say what agreeing means. A
+   * second list of the same thing beside the first is how the two come to
+   * disagree. A check that composes several fields of one paper is not such a
+   * map and is refused — `CrossCheckSpec.isOneValueAcrossPapers` is where that
+   * is decided.
+   *
+   * Nothing is chosen between: where the papers that state the value do not
+   * speak with one voice, the field stays empty. That case is `FieldMismatch`,
+   * the report already says it, and replacing a disagreement with a guess would
+   * make the report read better than the package is (ADR-0023).
+   */
+  gatherFromThePackage(): readonly {
+    readonly documentId: DocumentId;
+    readonly documentType: DocumentType;
+    readonly field: ExtractedField;
+  }[] {
+    this.guardUnderWay();
+
+    const gathered: {
+      documentId: DocumentId;
+      documentType: DocumentType;
+      field: ExtractedField;
+    }[] = [];
+
+    for (const document of this.#documents) {
+      const classification = document.classification;
+
+      if (!classification?.isPlaced) continue;
+
+      const type = classification.type;
+      const carried = this.#profile.schemaFor(type).specs.flatMap(spec => {
+        // Anything already here answers the field, whatever its origin: a
+        // reading is what the paper says, and a value gathered by an earlier
+        // run is not gathered twice.
+        if (document.fields.some(field => field.key.equals(spec.key))) {
+          return [];
+        }
+
+        const read = this.statedElsewhere(document.id, type, spec.key);
+
+        return read ? [ExtractedField.takenFrom(spec.key, read)] : [];
+      });
+
+      if (carried.length === 0) continue;
+
+      this.replaceDocument(document.withGathered(carried));
+      gathered.push(
+        ...carried.map(field => ({
+          documentId: document.id,
+          documentType: type,
+          field,
+        })),
+      );
+    }
+
+    if (gathered.length > 0) {
+      this.apply(new FieldsGathered(this.id, gathered.length));
+    }
+
+    return gathered;
+  }
+
+  /*
+   * The reading elsewhere in the package that may close this field, or none.
+   *
+   * Which source, where there are several, is decided and not stumbled on: the
+   * surest reading first, and where two were read equally well the order the
+   * profile names the papers in — that order is already an ordering by trust
+   * (the plan-scheme was written by the office that surveyed the parcel; the
+   * application is filled in by hand), and it is the same one a registry
+   * check's subject is walked in.
+   */
+  private statedElsewhere(
+    documentId: DocumentId,
+    type: DocumentType,
+    key: FieldKey,
+  ): CheckedValue | null {
+    for (const spec of this.#profile.crossChecks) {
+      if (!spec.isOneValueAcrossPapers) continue;
+      if (!spec.wants(type, key)) continue;
+
+      const candidates = spec.references.flatMap((reference, order) =>
+        this.valuesOf(reference)
+          .filter(value => !value.isFrom(documentId))
+          .map(value => ({ value, order })),
+      );
+
+      if (candidates.length === 0) continue;
+      if (
+        !this.agreesWithItselfOn(
+          spec,
+          candidates.map(one => one.value),
+        )
+      ) {
+        continue;
+      }
+
+      const [best] = [...candidates].sort(
+        (left, right) =>
+          right.value.confidence.value - left.value.confidence.value ||
+          left.order - right.order,
+      );
+
+      if (best) return best.value;
+    }
+
+    return null;
+  }
+
+  /*
+   * Whether the papers that state this value say one thing.
+   *
+   * The cross-check's own verdict answers it wherever there is one: that is the
+   * profile's `agreesWhen` as the reader applied it, and re-deciding it here
+   * would be a second opinion nobody asked for. There is none when only one
+   * paper states the value — a check needs two documents to be a check — and
+   * then the engine's own rule decides, unanimously: a single reading agrees
+   * with itself, and several that do not read alike are a disagreement this
+   * must not resolve.
+   */
+  private agreesWithItselfOn(
+    spec: CrossCheckSpec,
+    candidates: readonly CheckedValue[],
+  ): boolean {
+    const made = this.#crossChecks.find(check => check.key.equals(spec.key));
+
+    if (made) return made.verdict.agrees;
+
+    const [first, ...rest] = candidates;
+
+    if (!first) return false;
+
+    return rest.every(other =>
+      looksLikeTheSameValue(first.value.value, other.value.value),
+    );
+  }
+
   // A run ends by reporting, so finishing compiles one: there is no state in
   // which a package is done and the inspector has nothing to read.
   complete(): void {
@@ -1030,18 +1253,29 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
             ]
           : [];
 
-      const fields = document.fields
-        .filter(field => field.isBelow(Confidence.FLOOR))
-        .map(field =>
-          ValidationIssue.lowConfidenceField(
-            document.id,
-            document.sourceFileId,
-            type,
-            field.key,
-            field.foundOn,
-            field.confidence,
-          ),
-        );
+      /*
+       * Only what was read off this paper. A finding here says a reading was
+       * doubtful and sends the inspector to the sheet it was made on; a value
+       * carried over from another document of the package was not read here at
+       * all, and the reading behind it is already reported against the document
+       * it was made on. Filing it twice would put an inspector in front of a
+       * paper on which there is nothing to look at, under the same heading as
+       * the papers where there is.
+       */
+      const fields = document.fieldsReadHere.flatMap(field =>
+        field.foundOn && field.isBelow(Confidence.FLOOR)
+          ? [
+              ValidationIssue.lowConfidenceField(
+                document.id,
+                document.sourceFileId,
+                type,
+                field.key,
+                field.foundOn,
+                field.confidence,
+              ),
+            ]
+          : [],
+      );
 
       return [...placement, ...fields];
     });

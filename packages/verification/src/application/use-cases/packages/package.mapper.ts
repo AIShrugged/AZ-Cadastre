@@ -6,6 +6,7 @@ import type {
   CrossCheckDto,
   DeclaredAtIntakeDto,
   DocumentDto,
+  FieldDto,
   FindingCountDto,
   FindingTallyDto,
   ListPackagesRequest,
@@ -301,6 +302,10 @@ function toDocumentDto(view: DocumentView): DocumentDto {
       value: field.value,
       confidence: field.confidence,
       pageNumber: field.pageNumber,
+      // Only ever written through the domain's own enumeration, so the stored
+      // string is one the contract names.
+      origin: field.origin as FieldDto['origin'],
+      takenFrom: field.takenFrom,
     })),
   };
 }

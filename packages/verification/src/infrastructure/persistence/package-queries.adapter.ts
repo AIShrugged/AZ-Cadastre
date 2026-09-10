@@ -9,6 +9,7 @@ import {
 import type {
   ArchiveSearchApprovalView,
   CrossCheckView,
+  FieldView,
   FindingCountView,
   FindingsOverviewView,
   FindingTallyView,
@@ -233,6 +234,13 @@ type IssueRow = {
   readonly confidence: number | null;
 };
 
+type FieldRow = {
+  readonly sourceDocumentId: string | null;
+  readonly sourceDocumentType: string | null;
+  readonly sourceFieldName: string | null;
+  readonly sourcePageNumber: number | null;
+};
+
 type CrossCheckRow = {
   readonly key: string;
   readonly verdict: string;
@@ -416,6 +424,14 @@ export class PackageQueriesAdapter extends PackageQueries {
                     value: true,
                     confidence: true,
                     pageNumber: true,
+                    // Where the value came from, and — where that is another
+                    // paper of this package — which one and which sheet of it
+                    // (ADR-0023).
+                    origin: true,
+                    sourceDocumentId: true,
+                    sourceDocumentType: true,
+                    sourceFieldName: true,
+                    sourcePageNumber: true,
                   },
                 },
               },
@@ -464,6 +480,8 @@ export class PackageQueriesAdapter extends PackageQueries {
             value: field.value,
             confidence: field.confidence,
             pageNumber: field.pageNumber,
+            origin: field.origin,
+            takenFrom: PackageQueriesAdapter.toFieldSource(field),
           })),
         })),
       })),
@@ -883,6 +901,32 @@ export class PackageQueriesAdapter extends PackageQueries {
           confidence: attribute.confidence,
         },
       })),
+    };
+  }
+
+  /*
+   * Where a carried-over value was read, or none.
+   *
+   * All four columns or none: a source naming a document but no sheet of it
+   * could not send an inspector to a paper, which is the whole worth of
+   * publishing it. A half-written row reads as no source rather than as one
+   * with a hole in it (ADR-0023).
+   */
+  private static toFieldSource(field: FieldRow): FieldView['takenFrom'] {
+    if (
+      field.sourceDocumentId === null ||
+      field.sourceDocumentType === null ||
+      field.sourceFieldName === null ||
+      field.sourcePageNumber === null
+    ) {
+      return null;
+    }
+
+    return {
+      documentId: field.sourceDocumentId,
+      documentType: field.sourceDocumentType,
+      fieldName: field.sourceFieldName,
+      pageNumber: field.sourcePageNumber,
     };
   }
 

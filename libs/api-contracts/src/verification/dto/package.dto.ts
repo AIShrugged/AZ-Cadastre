@@ -4,6 +4,7 @@ import {
   ArchiveHoldingSchema,
   CrossCheckVerdictSchema,
   DocumentContentTypeSchema,
+  FieldOriginSchema,
   IssueKindSchema,
   PackageStandingSchema,
   PackageStatusSchema,
@@ -152,12 +153,43 @@ export const PageDtoSchema = z.object({
 });
 export type PageDto = z.infer<typeof PageDtoSchema>;
 
+/**
+ * The reading a carried-over value was copied from.
+ *
+ * Its own object and not four columns beside the field's own, because the sheet
+ * in it belongs to a **different** document: a client turns `FieldDto.pageNumber`
+ * into a page of the document the field hangs on, and a foreign number there
+ * would open the wrong paper. Reading this one means having read `documentId`
+ * first, which is the point (ADR-0023).
+ */
+export const FieldSourceDtoSchema = z.object({
+  // The document of this package the value was read off. It is in this same
+  // detail response, under one of the source files.
+  documentId: z.string(),
+  documentType: z.string(),
+  fieldName: z.string(),
+  // The sheet of THAT document's containing file, 1-based.
+  pageNumber: z.number().int().positive(),
+});
+export type FieldSourceDto = z.infer<typeof FieldSourceDtoSchema>;
+
 export const FieldDtoSchema = z.object({
   name: z.string(),
   value: z.string(),
-  // 0..1.
+  // 0..1. A value carried over from another paper is the reading it came from,
+  // discounted: it can never be surer than that reading, and it is deliberately
+  // a little less sure, because the package being consistent about a value is
+  // not this paper stating it.
   confidence: z.number(),
-  pageNumber: z.number().int().positive(),
+  // The sheet of this document's containing file the value is printed on.
+  // Null exactly when `origin` is `TakenFromAnotherDocument` — this document has
+  // no sheet that states it, and `takenFrom` names the one that does.
+  pageNumber: z.number().int().positive().nullable(),
+  // Where the value came from. Every field published before this existed was
+  // `ReadOnThisDocument`, which is what it still says.
+  origin: FieldOriginSchema,
+  // Set only on `TakenFromAnotherDocument`, and always set there.
+  takenFrom: FieldSourceDtoSchema.nullable(),
 });
 export type FieldDto = z.infer<typeof FieldDtoSchema>;
 

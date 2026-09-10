@@ -35,7 +35,10 @@ model Document {
   /// added to it never needs a migration.
   knownAs String?
 
-  extractedFields         ExtractedField[]
+  extractedFields         ExtractedField[] @relation("ReadOff")
+  /// Fields of *other* documents whose value was carried over from this one
+  /// (ADR-0023). Named, because a document is on both ends of that relation.
+  gatheredFrom            ExtractedField[] @relation("GatheredFrom")
   validationIssues        ValidationIssue[]
   crossCheckValues        CrossCheckValue[]
   registryChecks          RegistryCheck[]

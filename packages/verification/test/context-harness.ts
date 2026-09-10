@@ -9,6 +9,7 @@ import { LoggerModule } from '@cadastre/logger';
 
 import {
   ArchiveRegistryPort,
+  FieldExtractor,
   ObjectStorage,
   OcrProvider,
   PdfSplitter,
@@ -31,7 +32,10 @@ import {
   StorageKey,
   type PackageId,
 } from '../src/domain/value-objects/index.js';
-import { ArchiveRegistryAdapter } from '../src/infrastructure/adapters/index.js';
+import {
+  ArchiveRegistryAdapter,
+  FieldExtractorAdapter,
+} from '../src/infrastructure/adapters/index.js';
 import type { VerificationModuleOptions } from '../src/verification.module-defs.js';
 import { VerificationModule } from '../src/verification.module.js';
 
@@ -120,6 +124,10 @@ function textFor(key: string): string {
     return 'ARXİV ARAYIŞI\nArayış No: ARX-2025-0417\nMülkiyyətçi: ELÇİN ƏLİYEV';
   if (key.includes('plan'))
     return 'TORPAQ SAHƏSİNİN PLAN-SXEMİ\nKadastr nömrəsi: AZ-CAD-1024-311\nSahə: 642 m²';
+  // The one paper of the profile that describes the building rather than the
+  // parcel, and one of the five the profile says print the same address.
+  if (key.includes('eskiz'))
+    return 'ESKİZ LAYİHƏSİ\nLayihə: Fərdi yaşayış evi\nLayihəçi: "AzMemarLayihə" MMC';
   // The title the archive is asked to produce the original of, which is the
   // one a Decree 439 ground stands or falls on (ADR-0010).
   if (key.includes('serencam'))
@@ -142,6 +150,10 @@ export type Overrides = {
   readonly splitter?: PdfSplitter;
   readonly storage?: InMemoryObjectStorage;
   readonly registry?: ArchiveRegistryPort;
+  // The offline extractor answers every field of every schema, which is a
+  // package with no gaps in it. A spec about what happens to a field a paper
+  // did **not** yield therefore has to bring a reader that leaves one.
+  readonly extractor?: FieldExtractor;
 };
 
 /**
@@ -263,6 +275,8 @@ export async function startContext(
     .useValue(overrides.ocr ?? new InstantOcr())
     .overrideProvider(ArchiveRegistryPort)
     .useValue(overrides.registry ?? new ArchiveRegistryAdapter())
+    .overrideProvider(FieldExtractor)
+    .useValue(overrides.extractor ?? new FieldExtractorAdapter())
     .compile();
 
   await module.init();

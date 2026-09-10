@@ -256,11 +256,24 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
           value: field.value,
           confidence: field.confidence,
           pageNumber: field.pageNumber,
+          origin: field.origin,
+          sourceDocumentId: field.sourceDocumentId,
+          sourceDocumentType: field.sourceDocumentType,
+          sourceFieldName: field.sourceFieldName,
+          sourcePageNumber: field.sourcePageNumber,
         },
+        // Every column, the source ones included: a field that was carried over
+        // on one run and read on the next has to lose its source, or the row
+        // would cite a paper the value no longer came from.
         update: {
           value: field.value,
           confidence: field.confidence,
           pageNumber: field.pageNumber,
+          origin: field.origin,
+          sourceDocumentId: field.sourceDocumentId,
+          sourceDocumentType: field.sourceDocumentType,
+          sourceFieldName: field.sourceFieldName,
+          sourcePageNumber: field.sourcePageNumber,
         },
       });
     }

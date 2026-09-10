@@ -20,6 +20,7 @@ export { InvalidCrossCheckVerdictException } from './invalid-cross-check-verdict
 export { InvalidDeclaredYearException } from './invalid-declared-year.exception.js';
 export { InvalidDocumentTypeException } from './invalid-document-type.exception.js';
 export { InvalidFieldKeyException } from './invalid-field-key.exception.js';
+export { InvalidFieldOriginException } from './invalid-field-origin.exception.js';
 export { InvalidFieldValueException } from './invalid-field-value.exception.js';
 export { InvalidFileSizeException } from './invalid-file-size.exception.js';
 export { InvalidFilenameException } from './invalid-filename.exception.js';

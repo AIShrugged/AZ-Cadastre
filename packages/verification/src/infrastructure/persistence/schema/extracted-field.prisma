@@ -2,10 +2,20 @@
 // from a document, per the field schema its detected type declares in the
 // active profile. Each field records where it came from and how sure we are.
 
+/// Where a field's value came from (ADR-0023). An enum and not a boolean:
+/// the three are not degrees of one thing — a reading is evidence about this
+/// paper, a value carried over is evidence about the package, and a
+/// confirmation is evidence from outside it.
+enum FieldOrigin {
+  ReadOnThisDocument // read off this document, cited to a sheet of it
+  TakenFromAnotherDocument // the same value another paper of the package states
+  ConfirmedByRegistry // read here, and matched by the archive register's record
+}
+
 model ExtractedField {
   id         String   @id @default(uuid()) @db.Uuid
   documentId String   @db.Uuid
-  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  document   Document @relation("ReadOff", fields: [documentId], references: [id], onDelete: Cascade)
 
   /// Profile-defined field key (ADR-0002), e.g. "first_name" | "passport_number"
   /// | "expiration_date". Kept as a string so a new profile needs no migration.
@@ -14,14 +24,38 @@ model ExtractedField {
   value      String // extracted value, as text; validation parses it (dates, etc.)
   confidence Float // extraction/OCR confidence for this field (0..1)
 
-  // Page the value was found on. Navigable to the Page row via the
-  // (documentId, pageNumber) unique key — no separate FK needed.
-  pageNumber Int
+  // Page of THIS document the value was found on. Navigable to the Page row via
+  // the (documentId, pageNumber) unique key — no separate FK needed.
+  //
+  // Null exactly when the value was not read off this document, which is what
+  // `origin = TakenFromAnotherDocument` says. Null and not the source's sheet:
+  // a client turns this into a page of the document the row hangs on, and a
+  // foreign number here would open the wrong paper (ADR-0023).
+  pageNumber Int?
+
+  origin FieldOrigin @default(ReadOnThisDocument)
+
+  /// The reading a carried-over value was copied from: the document of this
+  /// package, its type, its field and the sheet of THAT document the value is
+  /// printed on. All four null on a value read here.
+  ///
+  /// Cascade and not SetNull: a carried-over value is nothing but a pointer at
+  /// the reading that justifies it, and one whose source is gone would be a
+  /// value the package no longer states.
+  sourceDocumentId   String?   @db.Uuid
+  sourceDocument     Document? @relation("GatheredFrom", fields: [sourceDocumentId], references: [id], onDelete: Cascade)
+  sourceDocumentType String?
+  sourceFieldName    String?
+  sourcePageNumber   Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // One value per field per document → extraction is an idempotent upsert.
   @@unique([documentId, name])
+  // Not for a query — nothing looks a field up by its source — but for the
+  // cascade: deleting a document has to find the carried-over values that point
+  // at it, and an unindexed foreign key makes that a scan of the table.
+  @@index([sourceDocumentId])
   @@map("extracted_fields")
 }

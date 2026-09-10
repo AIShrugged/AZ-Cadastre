@@ -61,8 +61,10 @@ import {
   DocumentType,
   FailureReason,
   FieldKey,
+  FieldOrigin,
   FieldValue,
   Filename,
+  IssueKind,
   OcrResult,
   PackageId,
   PackageStatus,
@@ -2913,6 +2915,686 @@ describe('VerificationPackage', () => {
     verification.recordRegistryCheck(anArchiveAnswer(verification));
     verification.complete();
   }
+
+  /*
+   * The stage that closes a field one paper did not yield with the value
+   * another paper of the same envelope states, and the one that lays the
+   * archive register's agreement onto the reading it agreed with (ADR-0023).
+   */
+  describe('when a field is closed from elsewhere in the package', () => {
+    const ADDRESS = VerificationProfile.CADASTRE.crossChecks.find(
+      spec => spec.key.value === 'property_address',
+    )!;
+    const IDENTITY = VerificationProfile.CADASTRE.crossChecks.find(
+      spec => spec.key.value === 'applicant_identity',
+    )!;
+    const OF_RECORD = VerificationProfile.CADASTRE.registryChecks[0]!;
+
+    const ADDRESS_ON_THE_PLAN = 'Zığ qəsəbəsi, Əliyev küçəsi 12';
+
+    function read(
+      key: string,
+      value: string,
+      confidence = 0.9,
+      page = 1,
+    ): ExtractedField {
+      return ExtractedField.of(
+        FieldKey.create(key),
+        FieldValue.create(value),
+        Confidence.of(confidence),
+        PageNumber.of(page),
+      );
+    }
+
+    /*
+     * A submission whose sketch design yielded a project name and no address,
+     * while the plan-scheme — which the profile believes first — prints the
+     * address legibly. This is the case the customer named: the answer is in
+     * the envelope and the inspector was shown a blank.
+     */
+    function aSubmission(
+      states: readonly (readonly [string, readonly ExtractedField[]])[] = [
+        ['land_plot_plan', [read('property_address', ADDRESS_ON_THE_PLAN)]],
+        ['sketch_project', [read('project_name', 'Fərdi yaşayış evi', 0.9, 2)]],
+      ],
+    ) {
+      const built = aSegmentedPackage(states.length);
+
+      for (const [index, [type, fields]] of states.entries()) {
+        const document = built.documents[index]!;
+
+        built.verification.classify(document.id, aClassification(type));
+        if (fields.length > 0) {
+          built.verification.recordExtractedFields(document.id, fields);
+        }
+      }
+      built.verification.commit();
+
+      return {
+        ...built,
+        typed: (type: string) =>
+          built.documents[states.findIndex(([key]) => key === type)]!,
+      };
+    }
+
+    function fieldOn(
+      verification: VerificationPackage,
+      document: Document,
+      key: string,
+    ): ExtractedField | undefined {
+      return verification
+        .documentWith(document.id)
+        .fields.find(field => field.key.value === key);
+    }
+
+    function anAgreement(
+      verification: VerificationPackage,
+      verdict = CrossCheckVerdict.MATCH,
+    ): CrossCheck {
+      return CrossCheck.of({
+        key: ADDRESS.key,
+        verdict,
+        confidence: Confidence.of(0.9),
+        note: 'compared in a test',
+        values: verification.valuesFor(ADDRESS),
+      });
+    }
+
+    it('closes the field with the value another paper of the package states', () => {
+      const built = aSubmission();
+
+      built.verification.gatherFromThePackage();
+
+      expect(
+        fieldOn(
+          built.verification,
+          built.typed('sketch_project'),
+          'property_address',
+        )?.value.value,
+      ).toBe(ADDRESS_ON_THE_PLAN);
+    });
+
+    it('marks it as a value this paper did not yield, and names the paper that did', () => {
+      const built = aSubmission();
+
+      built.verification.gatherFromThePackage();
+
+      const field = fieldOn(
+        built.verification,
+        built.typed('sketch_project'),
+        'property_address',
+      );
+      expect(field?.origin).toBe(FieldOrigin.TAKEN_FROM_ANOTHER_DOCUMENT);
+      expect(field?.wasReadHere).toBe(false);
+      expect(
+        field?.takenFrom?.documentId.equals(built.typed('land_plot_plan').id),
+      ).toBe(true);
+      expect(field?.takenFrom?.documentType.value).toBe('land_plot_plan');
+      expect(field?.takenFrom?.fieldKey.value).toBe('property_address');
+    });
+
+    /*
+     * The sheet the value is printed on belongs to the paper that prints it,
+     * and this document has none. A number here would send an inspector to a
+     * page of the wrong document — worse than sending them nowhere (ADR-0023).
+     */
+    it('gives it no sheet of this document, and the source keeps its own', () => {
+      const built = aSubmission();
+
+      built.verification.gatherFromThePackage();
+
+      const field = fieldOn(
+        built.verification,
+        built.typed('sketch_project'),
+        'property_address',
+      );
+      expect(field?.foundOn).toBeNull();
+      expect(field?.takenFrom?.foundOn.value).toBe(1);
+    });
+
+    it('never makes it surer than the reading it was copied from', () => {
+      const built = aSubmission([
+        [
+          'land_plot_plan',
+          [read('property_address', ADDRESS_ON_THE_PLAN, 0.6)],
+        ],
+        ['sketch_project', [read('project_name', 'Fərdi yaşayış evi', 0.9, 2)]],
+      ]);
+
+      built.verification.gatherFromThePackage();
+
+      expect(
+        fieldOn(
+          built.verification,
+          built.typed('sketch_project'),
+          'property_address',
+        )?.confidence.value,
+      ).toBeLessThan(0.6);
+    });
+
+    it('leaves a field the package says nothing about elsewhere empty', () => {
+      const built = aSubmission();
+
+      built.verification.gatherFromThePackage();
+
+      expect(
+        fieldOn(
+          built.verification,
+          built.typed('sketch_project'),
+          'total_area',
+        ),
+      ).toBeUndefined();
+    });
+
+    /*
+     * A field outside every cross-check has no map saying another paper prints
+     * the same value — matching two keys that happen to be spelled alike would
+     * be a rule nobody wrote.
+     */
+    it('leaves a field no cross-check maps onto another paper empty', () => {
+      const built = aSubmission([
+        ['land_plot_plan', [read('plan_date', '12.03.2019')]],
+        ['sketch_project', [read('project_name', 'Fərdi yaşayış evi', 0.9, 2)]],
+      ]);
+
+      built.verification.gatherFromThePackage();
+
+      expect(
+        fieldOn(
+          built.verification,
+          built.typed('sketch_project'),
+          'approval_date',
+        ),
+      ).toBeUndefined();
+    });
+
+    it('never overwrites what the paper itself yielded', () => {
+      const own = 'Zığ qəsəbəsi, Əliyev küçəsi 99';
+      const built = aSubmission([
+        ['land_plot_plan', [read('property_address', ADDRESS_ON_THE_PLAN)]],
+        ['sketch_project', [read('property_address', own, 0.5, 2)]],
+      ]);
+
+      built.verification.gatherFromThePackage();
+
+      const field = fieldOn(
+        built.verification,
+        built.typed('sketch_project'),
+        'property_address',
+      );
+      expect(field?.value.value).toBe(own);
+      expect(field?.origin).toBe(FieldOrigin.READ_ON_THIS_DOCUMENT);
+    });
+
+    /*
+     * `applicant_identity` names the surname *and* the given name on the
+     * identity card against the one full name on the application. Nothing there
+     * is the same value as anything else, and carrying the application's full
+     * name into the card's surname would invent a reading out of a rule that
+     * never said the two were equal.
+     */
+    it('carries nothing across a check that composes several fields of one paper', () => {
+      const built = aSubmission([
+        ['application', [read('applicant_name', 'Əliyeva Rübabə Kavı qızı')]],
+        ['identity_card', [read('document_no', 'AZE1234567', 0.9, 2)]],
+      ]);
+
+      built.verification.gatherFromThePackage();
+
+      expect(IDENTITY.isOneValueAcrossPapers).toBe(false);
+      expect(
+        fieldOn(built.verification, built.typed('identity_card'), 'last_name'),
+      ).toBeUndefined();
+      expect(
+        fieldOn(built.verification, built.typed('identity_card'), 'first_name'),
+      ).toBeUndefined();
+    });
+
+    it('carries a value across a check that does name one value per paper', () => {
+      expect(ADDRESS.isOneValueAcrossPapers).toBe(true);
+    });
+
+    /*
+     * Two papers printing two different addresses is `FieldMismatch`, which the
+     * report already states. Choosing one of them would replace a disagreement
+     * with a guess and make the report read better than the package is.
+     */
+    it('closes nothing when the papers that print the value do not agree', () => {
+      const built = aSubmission([
+        ['land_plot_plan', [read('property_address', ADDRESS_ON_THE_PLAN)]],
+        [
+          'application',
+          [read('property_address', 'Xətai rayonu, Neftçilər 4', 0.9, 2)],
+        ],
+        ['sketch_project', [read('project_name', 'Fərdi yaşayış evi', 0.9, 3)]],
+      ]);
+      built.verification.recordCrossCheck(
+        anAgreement(built.verification, CrossCheckVerdict.MISMATCH),
+      );
+
+      built.verification.gatherFromThePackage();
+
+      expect(
+        fieldOn(
+          built.verification,
+          built.typed('sketch_project'),
+          'property_address',
+        ),
+      ).toBeUndefined();
+    });
+
+    // No check was made — two papers state it and the stage never ran — so the
+    // engine's own rule decides, and it has to be unanimous.
+    it('closes nothing when no check was made and the readings do not read alike', () => {
+      const built = aSubmission([
+        ['land_plot_plan', [read('property_address', ADDRESS_ON_THE_PLAN)]],
+        [
+          'application',
+          [read('property_address', 'Xətai rayonu, Neftçilər 4', 0.9, 2)],
+        ],
+        ['sketch_project', [read('project_name', 'Fərdi yaşayış evi', 0.9, 3)]],
+      ]);
+
+      built.verification.gatherFromThePackage();
+
+      expect(
+        fieldOn(
+          built.verification,
+          built.typed('sketch_project'),
+          'property_address',
+        ),
+      ).toBeUndefined();
+    });
+
+    /*
+     * Which source, where there are several, is decided and not stumbled on:
+     * the surest reading first. Here the archive certificate was read better
+     * than the plan-scheme, though the profile names the plan first.
+     */
+    it('copies the surest of the readings that state it', () => {
+      const built = aSubmission([
+        [
+          'land_plot_plan',
+          [read('property_address', ADDRESS_ON_THE_PLAN, 0.6)],
+        ],
+        [
+          'archive_certificate',
+          [read('property_address', ADDRESS_ON_THE_PLAN, 0.95, 2)],
+        ],
+        ['sketch_project', [read('project_name', 'Fərdi yaşayış evi', 0.9, 3)]],
+      ]);
+
+      built.verification.gatherFromThePackage();
+
+      expect(
+        fieldOn(
+          built.verification,
+          built.typed('sketch_project'),
+          'property_address',
+        )?.takenFrom?.documentType.value,
+      ).toBe('archive_certificate');
+    });
+
+    // Read equally well, so the profile's own order of trust decides — the same
+    // order a registry check's subject is walked in (ADR-0010).
+    it('falls back on the order the profile names the papers in', () => {
+      const built = aSubmission([
+        [
+          'archive_certificate',
+          [read('property_address', ADDRESS_ON_THE_PLAN)],
+        ],
+        [
+          'land_plot_plan',
+          [read('property_address', ADDRESS_ON_THE_PLAN, 0.9, 2)],
+        ],
+        ['sketch_project', [read('project_name', 'Fərdi yaşayış evi', 0.9, 3)]],
+      ]);
+
+      built.verification.gatherFromThePackage();
+
+      expect(
+        fieldOn(
+          built.verification,
+          built.typed('sketch_project'),
+          'property_address',
+        )?.takenFrom?.documentType.value,
+      ).toBe('land_plot_plan');
+    });
+
+    /*
+     * The whole point of marking it. A carried-over value on both sides of a
+     * check would compare a value with its own source, agree every time, and
+     * turn a report that says the papers disagree into one that says they do
+     * not.
+     */
+    it('does not let a carried-over value stand as a paper the check compares', () => {
+      const built = aSubmission([
+        ['land_plot_plan', [read('property_address', ADDRESS_ON_THE_PLAN)]],
+        [
+          'application',
+          [read('property_address', ADDRESS_ON_THE_PLAN, 0.9, 2)],
+        ],
+        ['sketch_project', [read('project_name', 'Fərdi yaşayış evi', 0.9, 3)]],
+      ]);
+      built.verification.recordCrossCheck(anAgreement(built.verification));
+
+      built.verification.gatherFromThePackage();
+
+      expect(
+        built.verification
+          .valuesFor(ADDRESS)
+          .map(value => value.documentType.value),
+      ).toEqual(['application', 'land_plot_plan']);
+    });
+
+    it('does not turn a disagreement into an agreement by closing a third paper', () => {
+      const built = aSubmission([
+        ['land_plot_plan', [read('property_address', ADDRESS_ON_THE_PLAN)]],
+        [
+          'application',
+          [read('property_address', 'Xətai rayonu, Neftçilər 4', 0.9, 2)],
+        ],
+        [
+          'archive_certificate',
+          [read('property_address', ADDRESS_ON_THE_PLAN, 0.9, 3)],
+        ],
+        ['sketch_project', [read('project_name', 'Fərdi yaşayış evi', 0.9, 4)]],
+      ]);
+      built.verification.recordCrossCheck(
+        anAgreement(built.verification, CrossCheckVerdict.MISMATCH),
+      );
+
+      built.verification.gatherFromThePackage();
+
+      expect(built.verification.crossChecks[0]?.verdict).toBe(
+        CrossCheckVerdict.MISMATCH,
+      );
+      expect(built.verification.valuesFor(ADDRESS)).toHaveLength(3);
+    });
+
+    // The register is asked what one of the package's papers states. A value no
+    // paper of the profile's subject list prints is not the package stating an
+    // address, however sure the engine is that the envelope holds one.
+    it('does not offer a carried-over value to the archive register', () => {
+      const built = aSubmission([
+        [
+          'archive_certificate',
+          [read('property_address', ADDRESS_ON_THE_PLAN)],
+        ],
+        ['sketch_project', [read('project_name', 'Fərdi yaşayış evi', 0.9, 2)]],
+      ]);
+
+      built.verification.gatherFromThePackage();
+
+      expect(
+        fieldOn(
+          built.verification,
+          built.typed('sketch_project'),
+          'property_address',
+        )?.origin,
+      ).toBe(FieldOrigin.TAKEN_FROM_ANOTHER_DOCUMENT);
+      expect(built.verification.askedOf(OF_RECORD)).toBeNull();
+    });
+
+    /*
+     * A finding here says a reading was doubtful and sends the inspector to the
+     * sheet it was made on. A carried-over value was read on another paper
+     * entirely, and that reading is already reported against the document it
+     * was made on — filing it twice would put the inspector in front of a page
+     * with nothing on it to look at.
+     */
+    it('files no low-confidence finding against a value it did not read', () => {
+      const built = aSubmission([
+        [
+          'land_plot_plan',
+          [read('property_address', ADDRESS_ON_THE_PLAN, 0.85)],
+        ],
+        ['sketch_project', [read('project_name', 'Fərdi yaşayış evi', 0.9, 2)]],
+      ]);
+      const sketch = built.typed('sketch_project');
+
+      built.verification.gatherFromThePackage();
+      built.verification.complete();
+
+      const carried = fieldOn(built.verification, sketch, 'property_address')!;
+      expect(carried.isBelow(Confidence.FLOOR)).toBe(true);
+      expect(
+        built.verification.report?.issues.filter(
+          issue =>
+            issue.kind.equals(IssueKind.LOW_CONFIDENCE) &&
+            issue.documentId?.equals(sketch.id) === true &&
+            issue.fieldKey?.value === 'property_address',
+        ),
+      ).toEqual([]);
+    });
+
+    it('leaves the extraction stage still owing a document it only carried values into', () => {
+      const built = aSubmission([
+        ['land_plot_plan', [read('property_address', ADDRESS_ON_THE_PLAN)]],
+        ['sketch_project', []],
+      ]);
+
+      built.verification.gatherFromThePackage();
+
+      expect(
+        built.verification.documentWith(built.typed('sketch_project').id)
+          .hasFields,
+      ).toBe(false);
+    });
+
+    it('says what it closed', () => {
+      const built = aSubmission();
+      built.verification.commit();
+
+      built.verification.gatherFromThePackage();
+
+      expect(typesOf(built.verification)).toEqual([
+        'verification.FieldsGathered',
+      ]);
+    });
+
+    it('says nothing when there was nothing to close', () => {
+      const built = aSubmission([
+        ['land_plot_plan', [read('property_address', ADDRESS_ON_THE_PLAN)]],
+      ]);
+      built.verification.commit();
+
+      built.verification.gatherFromThePackage();
+
+      expect(typesOf(built.verification)).toEqual([]);
+    });
+
+    it('closes nothing twice, so a second pass is a no-op', () => {
+      const built = aSubmission();
+
+      built.verification.gatherFromThePackage();
+      const second = built.verification.gatherFromThePackage();
+
+      expect(second).toEqual([]);
+    });
+  });
+
+  describe('when the archive register agrees with a reading', () => {
+    const SPEC = VerificationProfile.CADASTRE.registryChecks[0]!;
+
+    const ADDRESS = 'Zığ qəsəbəsi, Əliyev küçəsi 12';
+
+    function valued(key: string, value: string, page = 1): ExtractedField {
+      return ExtractedField.of(
+        FieldKey.create(key),
+        FieldValue.create(value),
+        Confidence.of(0.95),
+        PageNumber.of(page),
+      );
+    }
+
+    // The plan-scheme the address and the parcel are read off, and the
+    // certificate the owner of record is read off: the three attributes the
+    // profile asks the register about.
+    function aPackageOfRecord() {
+      const built = aSegmentedPackage(2);
+      const [plan, certificate] = built.documents as [Document, Document];
+
+      built.verification.classify(plan.id, aClassification('land_plot_plan'));
+      built.verification.classify(
+        certificate.id,
+        aClassification('archive_certificate'),
+      );
+      built.verification.recordExtractedFields(plan.id, [
+        valued('property_address', ADDRESS),
+        valued('cadastral_number', '40-12-345-67'),
+        valued('plot_area', '600 m²'),
+      ]);
+      built.verification.recordExtractedFields(certificate.id, [
+        valued('owner_name', 'Əliyeva Rübabə', 2),
+      ]);
+      built.verification.commit();
+
+      return { ...built, plan, certificate };
+    }
+
+    function answered(
+      verification: VerificationPackage,
+      attributes: readonly RegistryAttribute[],
+    ): void {
+      verification.recordRegistryCheck(
+        RegistryCheck.of({
+          key: SPEC.key,
+          outcome: RegistryOutcome.CONFIRMED,
+          confidence: Confidence.of(0.95),
+          note: 'Register 1-12345 holds this address.',
+          asked: verification.askedOf(SPEC)!,
+          reference: null,
+          attributes,
+        }),
+      );
+    }
+
+    function attribute(
+      verification: VerificationPackage,
+      name: string,
+      agrees: boolean,
+      recorded: string | null,
+    ): RegistryAttribute {
+      return RegistryAttribute.of({
+        name,
+        agrees,
+        submitted: verification
+          .statedFor(SPEC)
+          .find(stated => stated.name === name)!.value,
+        recorded,
+      });
+    }
+
+    function originOf(
+      verification: VerificationPackage,
+      document: Document,
+      key: string,
+    ) {
+      return verification
+        .documentWith(document.id)
+        .fields.find(field => field.key.value === key)?.origin;
+    }
+
+    it('marks the reading the register held the same record of', () => {
+      const built = aPackageOfRecord();
+      answered(built.verification, [
+        attribute(built.verification, 'ownerName', true, 'Əliyeva Rübabə'),
+      ]);
+
+      built.verification.confirmAgainstTheRecord();
+
+      expect(
+        originOf(built.verification, built.certificate, 'owner_name'),
+      ).toBe(FieldOrigin.CONFIRMED_BY_REGISTRY);
+    });
+
+    it('leaves the value and the confidence exactly as they were read', () => {
+      const built = aPackageOfRecord();
+      answered(built.verification, [
+        attribute(built.verification, 'ownerName', true, 'Əliyeva Rübabə'),
+      ]);
+
+      built.verification.confirmAgainstTheRecord();
+
+      const field = built.verification
+        .documentWith(built.certificate.id)
+        .fields.find(one => one.key.value === 'owner_name');
+      expect(field?.value.value).toBe('Əliyeva Rübabə');
+      expect(field?.confidence.value).toBe(0.95);
+      expect(field?.foundOn?.value).toBe(2);
+    });
+
+    /*
+     * A record that says something else is `RegistryMismatch`, which the report
+     * already states. A second way of saying it on the field would put one
+     * finding in front of the inspector twice under two names (ADR-0023).
+     */
+    it('marks nothing where the record says something else', () => {
+      const built = aPackageOfRecord();
+      answered(built.verification, [
+        attribute(built.verification, 'ownerName', false, 'Quliyev Rəşad'),
+      ]);
+
+      built.verification.confirmAgainstTheRecord();
+
+      expect(
+        originOf(built.verification, built.certificate, 'owner_name'),
+      ).toBe(FieldOrigin.READ_ON_THIS_DOCUMENT);
+    });
+
+    // Silence is a column that area's register never kept, not a disagreement
+    // and not an agreement (ADR-0009).
+    it('marks nothing where the register kept no column for it', () => {
+      const built = aPackageOfRecord();
+      answered(built.verification, [
+        attribute(built.verification, 'cadastralNumber', false, null),
+      ]);
+
+      built.verification.confirmAgainstTheRecord();
+
+      expect(originOf(built.verification, built.plan, 'cadastral_number')).toBe(
+        FieldOrigin.READ_ON_THIS_DOCUMENT,
+      );
+    });
+
+    it('leaves the fields the register was never asked about alone', () => {
+      const built = aPackageOfRecord();
+      answered(built.verification, [
+        attribute(built.verification, 'ownerName', true, 'Əliyeva Rübabə'),
+      ]);
+
+      built.verification.confirmAgainstTheRecord();
+
+      expect(originOf(built.verification, built.plan, 'plot_area')).toBe(
+        FieldOrigin.READ_ON_THIS_DOCUMENT,
+      );
+    });
+
+    it('says what it confirmed', () => {
+      const built = aPackageOfRecord();
+      answered(built.verification, [
+        attribute(built.verification, 'ownerName', true, 'Əliyeva Rübabə'),
+      ]);
+      built.verification.commit();
+
+      built.verification.confirmAgainstTheRecord();
+
+      expect(typesOf(built.verification)).toEqual([
+        'verification.FieldsConfirmedByRegistry',
+      ]);
+    });
+
+    it('says nothing when the register agreed with nothing', () => {
+      const built = aPackageOfRecord();
+      answered(built.verification, []);
+      built.verification.commit();
+
+      built.verification.confirmAgainstTheRecord();
+
+      expect(typesOf(built.verification)).toEqual([]);
+    });
+  });
 
   describe('where it stands', () => {
     it('waits to be picked up while nothing has read it', () => {

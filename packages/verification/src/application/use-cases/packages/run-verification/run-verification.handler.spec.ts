@@ -823,7 +823,7 @@ describe('RunVerificationHandler', () => {
               field.key,
               field.value,
               Confidence.of(field.key.value === 'last_name' ? 0.4 : 0.9),
-              field.foundOn,
+              field.foundOn!,
             ),
           );
         }
@@ -1107,6 +1107,121 @@ describe('RunVerificationHandler', () => {
       expect(stored.registryChecks).toEqual([]);
       expect(stored.status.value).toBe('Completed');
       expect(stored.report).not.toBeNull();
+    });
+  });
+  /*
+   * The one stage that works on the assembled envelope rather than on one
+   * document: what a paper did not yield, closed with what another paper of the
+   * same package states (ADR-0023).
+   */
+  describe('closing a field from elsewhere in the package', () => {
+    const ADDRESS = 'Zığ qəsəbəsi, Əliyev küçəsi 12';
+
+    // The plan-scheme on sheet 1 and the sketch design on sheet 2 — two of the
+    // five papers this profile says print one address.
+    class PlanThenSketch extends DocumentClassifier {
+      #placed = 0;
+
+      override async classify(): Promise<Classification> {
+        this.#placed += 1;
+
+        return Classification.of(
+          DocumentType.create(
+            this.#placed === 1 ? 'land_plot_plan' : 'sketch_project',
+          ),
+          Confidence.of(0.9),
+        );
+      }
+    }
+
+    /**
+     * The address read legibly off the plan-scheme, and nothing read off the
+     * sketch design's address line — the case the customer described, where the
+     * answer is in the envelope and the inspector is shown a blank.
+     */
+    class AnAddressOnThePlanOnly extends FieldExtractor {
+      override async extract(
+        request: ExtractionRequest,
+      ): Promise<readonly ExtractedField[]> {
+        if (request.spec.type.value !== 'land_plot_plan') return [];
+
+        return [
+          ExtractedField.of(
+            FieldKey.create('property_address'),
+            FieldValue.create(ADDRESS),
+            Confidence.of(0.9),
+            PageNumber.first(),
+          ),
+        ];
+      }
+    }
+
+    function aSubmission(
+      extractor: FieldExtractor = new AnAddressOnThePlanOnly(),
+    ) {
+      return pipelineOver(
+        aPackageOf(aFile('submission.pdf', ContentType.PDF)),
+        new RenderingSplitter(2),
+        new RecordingOcr(),
+        new SegmenterCuttingAt([2]),
+        new PlanThenSketch(),
+        extractor,
+      );
+    }
+
+    async function sketchAfter(packages: InMemoryPackages) {
+      const stored = await storedPackage(packages);
+
+      return stored.documents.find(
+        document => document.classification?.type.value === 'sketch_project',
+      );
+    }
+
+    it('closes the field the sketch design did not yield with what the plan states', async () => {
+      const { run, packages } = aSubmission();
+
+      await run();
+
+      const field = (await sketchAfter(packages))?.fields.find(
+        one => one.key.value === 'property_address',
+      );
+      expect(field?.value.value).toBe(ADDRESS);
+      expect(field?.wasReadHere).toBe(false);
+      expect(field?.takenFrom?.documentType.value).toBe('land_plot_plan');
+      expect(field?.foundOn).toBeNull();
+    });
+
+    it('leaves a package whose papers said nothing to close alone', async () => {
+      const { run, packages } = aSubmission(new NoFields());
+
+      await run();
+
+      expect((await sketchAfter(packages))?.fields).toEqual([]);
+    });
+
+    /*
+     * The stage runs after the checks, so a value it carried over can never
+     * have been one of the sides a check weighed — whatever a later reader does
+     * to the rules.
+     */
+    it('never offers a value it carried over to a cross-check', async () => {
+      const crossChecker = new RecordingCrossChecker();
+      const { run } = pipelineOver(
+        aPackageOf(aFile('submission.pdf', ContentType.PDF)),
+        new RenderingSplitter(2),
+        new RecordingOcr(),
+        new SegmenterCuttingAt([2]),
+        new PlanThenSketch(),
+        new AnAddressOnThePlanOnly(),
+        crossChecker,
+      );
+
+      await run();
+
+      const asked = crossChecker.asked.find(
+        request => request.spec.key.value === 'property_address',
+      );
+      expect(asked).toBeUndefined();
     });
   });
 });

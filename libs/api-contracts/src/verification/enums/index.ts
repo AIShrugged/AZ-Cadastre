@@ -10,6 +10,7 @@ export {
   CrossCheckVerdictSchema,
   type CrossCheckVerdict,
 } from './cross-check-verdict.enum.js';
+export { FieldOriginSchema, type FieldOrigin } from './field-origin.enum.js';
 export { IssueKindSchema, type IssueKind } from './issue-kind.enum.js';
 export {
   PackageStandingSchema,

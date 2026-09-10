@@ -67,8 +67,12 @@ export {
   PACKET_LINES,
   PACKET_LINE_KEY,
   readPacket,
+  readWellEnough,
   READ_WELL_ENOUGH,
 } from './model/packet-reading';
+
+export type { CaseState } from './model/case-state';
+export { caseState, drawsOutcome, hasFindings } from './model/case-state';
 
 export type { CaseSlice } from './model/case-slice';
 export {

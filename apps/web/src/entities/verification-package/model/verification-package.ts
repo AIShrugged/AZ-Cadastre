@@ -23,6 +23,7 @@ import type {
   PackageStanding,
   PackageStatus,
   ReportStatus,
+  StatedValueDto,
 } from '@cadastre/api-contracts/verification';
 
 export type Disposition =
@@ -46,6 +47,21 @@ export type VerificationPackage = {
    */
   reportStatus: ReportStatus | null;
   disposition: Disposition;
+  /**
+   * Who the submission is for and which property it concerns, as the pipeline
+   * read them **off the package's own papers** — not as anything declared at
+   * the counter, which is a separate source the contract keeps apart.
+   *
+   * Null where no document of this package states it yet: the run has not
+   * reached the paper, or read nothing off it. Never an empty string and never
+   * a placeholder — a row that cannot name the case says so, and the register
+   * draws that silence the way it draws every other unknown cell.
+   *
+   * Each carries the confidence its reading was made with, because a value read
+   * badly must not be shown as a fact (`readWellEnough`).
+   */
+  applicant: StatedValueDto | null;
+  address: StatedValueDto | null;
   /** ISO timestamp the package was submitted. */
   submittedAt: string;
   /** ISO timestamp of the last pipeline event (drives "updated Xm ago"). */
@@ -126,6 +142,11 @@ export function toViewPackage(dto: PackageDto): VerificationPackage {
     standing: dto.standing,
     reportStatus: dto.reportStatus,
     disposition,
+    // Passed through as the wire states them, nulls and all: what names the
+    // case is the engine's reading, and a mapper that filled a gap here would
+    // be inventing the one thing the row is read by.
+    applicant: dto.applicantName,
+    address: dto.propertyAddress,
     submittedAt: dto.createdAt,
     updatedAt: dto.updatedAt,
     // Grows live as the register polls: detection finds the documents, then

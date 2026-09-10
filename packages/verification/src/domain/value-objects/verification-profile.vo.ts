@@ -250,6 +250,30 @@ export class CrossCheckSpec {
     return this.#references;
   }
 
+  /*
+   * Whether this check is one value printed on several papers, rather than
+   * several fields of one paper judged together.
+   *
+   * The difference decides whether a value may be carried from one of these
+   * papers to another. `property_address` names one address on five documents,
+   * so a document that did not yield it can be closed with what the others
+   * print. `applicant_identity` names the surname *and* the given name on the
+   * identity card against the one full name on the application: nothing there
+   * is the same value as anything else, and carrying the application's full
+   * name into the card's surname field would invent a reading off a rule that
+   * never said the two were equal.
+   *
+   * A document type naming more than one field is what tells them apart, and it
+   * is read off the declaration rather than listed anywhere: a profile that adds
+   * a composite check gets the right answer without anybody remembering to add
+   * it to a second list.
+   */
+  get isOneValueAcrossPapers(): boolean {
+    const types = this.#references.map(reference => reference.type.value);
+
+    return new Set(types).size === types.length;
+  }
+
   wants(type: DocumentType, key: FieldKey): boolean {
     return this.#references.some(reference => reference.matches(type, key));
   }

@@ -179,7 +179,19 @@ export type FieldView = {
   name: string;
   value: string;
   confidence: number;
-  pageNumber: number;
+  // The sheet of THIS document the value is printed on. Null exactly when the
+  // value was not read off this document — see `origin` (ADR-0023).
+  pageNumber: number | null;
+  // One of the domain's `FieldOrigin` members.
+  origin: string;
+  // Where a carried-over value was read: the document of this package, its
+  // type, its field and the sheet of THAT document. Null on a value read here.
+  takenFrom: {
+    documentId: string;
+    documentType: string;
+    fieldName: string;
+    pageNumber: number;
+  } | null;
 };
 
 export type DocumentView = {

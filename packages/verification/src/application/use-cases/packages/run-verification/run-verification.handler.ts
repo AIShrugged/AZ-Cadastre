@@ -155,6 +155,26 @@ export class RunVerificationHandler implements ICommandHandler<
         );
       }
 
+      // The register has answered, so what it agreed with can be marked on the
+      // readings themselves rather than living only on the check.
+      await this.despite('confirm', { packageId }, () =>
+        this.confirm(packageId),
+      );
+
+      /*
+       * Last of the reading stages, and deliberately after the two that compare
+       * things.
+       *
+       * It is the only stage that works on the assembled package rather than on
+       * one document: a field left empty here is closed with what another paper
+       * of the same envelope states, which cannot be asked until every paper has
+       * been read. It runs after the cross-checks and the register for a second
+       * reason — a value carried over must never be one of the sides a check
+       * weighs, and a stage that runs when every check is already made cannot
+       * be, whatever a later reader does to the rules (ADR-0023).
+       */
+      await this.despite('gather', { packageId }, () => this.gather(packageId));
+
       // Completing is what compiles the report, so a run that read almost
       // nothing still ends with one.
       await this.change(packageId, verification => verification.complete());
@@ -500,6 +520,62 @@ export class RunVerificationHandler implements ICommandHandler<
 
     verification.recordExtractedFields(documentId, fields);
     await this.packages.save(verification);
+  }
+
+  /*
+   * What the archive register agreed with, laid onto the readings it agreed
+   * with.
+   *
+   * A pass of its own and not a tail of `askRegister`, because it is about the
+   * whole package: one field can be an attribute of more than one check, and a
+   * run that re-asked only some of them would otherwise leave the rest marked
+   * off answers it no longer holds.
+   */
+  private async confirm(packageId: PackageId): Promise<void> {
+    const verification = await this.load(packageId);
+    const confirmed = verification.confirmAgainstTheRecord();
+
+    if (confirmed.length === 0) return;
+
+    await this.packages.save(verification);
+
+    this.logger.log('Readings confirmed by the register', {
+      packageId: packageId.value,
+      // The keys and the papers, never the values: they are read off
+      // somebody's papers (ADR-0008).
+      fields: confirmed.map(one => ({
+        documentId: one.documentId.value,
+        field: one.fieldKey.value,
+      })),
+    });
+  }
+
+  /*
+   * Fields no paper yielded, closed with what another paper of the package
+   * states — and marked as exactly that.
+   */
+  private async gather(packageId: PackageId): Promise<void> {
+    const verification = await this.load(packageId);
+    const startedAt = Date.now();
+    const gathered = verification.gatherFromThePackage();
+
+    if (gathered.length === 0) return;
+
+    await this.packages.save(verification);
+
+    this.logger.log('Fields closed from elsewhere in the package', {
+      packageId: packageId.value,
+      gathered: gathered.length,
+      // Where each came from and how sure it is left, never the value itself
+      // (ADR-0008).
+      fields: gathered.map(one => ({
+        documentId: one.documentId.value,
+        of: `${one.documentType.value}.${one.field.key.value}`,
+        from: one.field.takenFrom?.cited ?? null,
+        confidence: round(one.field.confidence.value),
+      })),
+      durationMs: Date.now() - startedAt,
+    });
   }
 
   // A value is only as good as the reading it came from, and a check is only as

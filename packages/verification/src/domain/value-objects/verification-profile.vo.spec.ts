@@ -355,6 +355,32 @@ describe('VerificationProfile', () => {
 
       expect(new Set(keys).size).toBe(keys.length);
     });
+
+    /*
+     * Which checks are a map of one value onto several papers, and which
+     * compose several fields of one paper into one judgement. Only the first
+     * kind can carry a value from one of its papers to another (ADR-0023).
+     */
+    describe('as a map of where the same value is printed', () => {
+      it('says the address is one value on five papers', () => {
+        expect(
+          CADASTRE.checkFor(CrossCheckKey.create('property_address'))
+            .isOneValueAcrossPapers,
+        ).toBe(true);
+      });
+
+      /*
+       * The identity card prints a surname and a given name in two fields and
+       * the application prints one full name: nothing there is the same value
+       * as anything else, so nothing may be carried between them.
+       */
+      it('says the applicant check is not, because one paper names two fields', () => {
+        expect(
+          CADASTRE.checkFor(CrossCheckKey.create('applicant_identity'))
+            .isOneValueAcrossPapers,
+        ).toBe(false);
+      });
+    });
   });
 
   /*

@@ -34,6 +34,7 @@ import {
 import {
   VerificationPackageMapper,
   type DocumentRow,
+  type FieldRow,
   type PackageRow,
   type PageRow,
   type SourceFileRow,
@@ -80,8 +81,23 @@ function aDocumentRow(overrides: Partial<DocumentRow> = {}): DocumentRow {
     classificationConfidence: 0.94,
     knownAs: null,
     extractedFields: [
-      { name: 'first_name', value: 'ELCHIN', confidence: 0.92, pageNumber: 1 },
+      aFieldRow({ name: 'first_name', value: 'ELCHIN', confidence: 0.92 }),
     ],
+    ...overrides,
+  };
+}
+
+function aFieldRow(overrides: Partial<FieldRow> = {}): FieldRow {
+  return {
+    name: 'first_name',
+    value: 'ELCHIN',
+    confidence: 0.92,
+    pageNumber: 1,
+    origin: 'ReadOnThisDocument',
+    sourceDocumentId: null,
+    sourceDocumentType: null,
+    sourceFieldName: null,
+    sourcePageNumber: null,
     ...overrides,
   };
 }
@@ -554,12 +570,12 @@ describe('VerificationPackageMapper', () => {
             type: 'application',
             classificationConfidence: 0.7,
             extractedFields: [
-              {
+              aFieldRow({
                 name: 'applicant_name',
                 value: 'ELCHIN',
                 confidence: 0.8,
                 pageNumber: 2,
-              },
+              }),
             ],
           }),
         ],
@@ -584,6 +600,86 @@ describe('VerificationPackageMapper', () => {
           fields: extractedFields.map(field => ({ ...field })),
         })),
       );
+    });
+
+    /*
+     * A value closed from elsewhere in the package and a reading the archive
+     * register agreed with: the two origins that did not exist before, both of
+     * which have to survive a trip through the database or an inspector is told
+     * a carried-over value was read off the paper it hangs on (ADR-0023).
+     */
+    it('gives back where a value came from, and the paper and sheet it was read on', () => {
+      const source = anId();
+      const original = aPackageRow({
+        documents: [
+          aDocumentRow({
+            type: 'sketch_project',
+            extractedFields: [
+              aFieldRow({
+                name: 'property_address',
+                value: 'Zığ qəsəbəsi, Əliyev küçəsi 12',
+                confidence: 0.81,
+                pageNumber: null,
+                origin: 'TakenFromAnotherDocument',
+                sourceDocumentId: source,
+                sourceDocumentType: 'land_plot_plan',
+                sourceFieldName: 'property_address',
+                sourcePageNumber: 3,
+              }),
+              aFieldRow({
+                name: 'project_name',
+                value: 'Fərdi yaşayış evi',
+                confidence: 0.9,
+                origin: 'ConfirmedByRegistry',
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const written = VerificationPackageMapper.toRow(
+        VerificationPackageMapper.toDomain(original),
+      );
+
+      expect(written.documents[0]?.fields).toEqual(
+        original.documents[0]?.extractedFields.map(field => ({ ...field })),
+      );
+    });
+
+    /*
+     * All four source columns or none. A row naming a document but no sheet of
+     * it could not send an inspector to a paper, so it is read as no source
+     * rather than as one with a hole in it — and the value still stands.
+     */
+    it('reads a half-written source as no source at all', () => {
+      const original = aPackageRow({
+        documents: [
+          aDocumentRow({
+            extractedFields: [
+              aFieldRow({
+                origin: 'TakenFromAnotherDocument',
+                pageNumber: null,
+                sourceDocumentId: anId(),
+                sourceDocumentType: 'land_plot_plan',
+                sourceFieldName: null,
+                sourcePageNumber: null,
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const written = VerificationPackageMapper.toRow(
+        VerificationPackageMapper.toDomain(original),
+      );
+
+      expect(written.documents[0]?.fields[0]).toMatchObject({
+        origin: 'TakenFromAnotherDocument',
+        sourceDocumentId: null,
+        sourceDocumentType: null,
+        sourceFieldName: null,
+        sourcePageNumber: null,
+      });
     });
 
     it('writes the pages in reading order even when they were read back shuffled', () => {

@@ -16,7 +16,9 @@ import {
 
 import {
   DocumentClassified,
+  FieldsConfirmedByRegistry,
   FieldsExtracted,
+  FieldsGathered,
   PackageSubmitted,
   PageRecognised,
   SourceFileSegmented,
@@ -51,6 +53,8 @@ describe('the events a verification package applies', () => {
         Classification.unplaced(Confidence.none()),
       ),
       new FieldsExtracted(packageId, documentId, 5),
+      new FieldsConfirmedByRegistry(packageId, 1),
+      new FieldsGathered(packageId, 2),
       new VerificationCompleted(packageId),
       new VerificationFailed(
         packageId,
@@ -66,6 +70,8 @@ describe('the events a verification package applies', () => {
       'verification.SourceFileSegmented',
       'verification.DocumentClassified',
       'verification.FieldsExtracted',
+      'verification.FieldsConfirmedByRegistry',
+      'verification.FieldsGathered',
       'verification.VerificationCompleted',
       'verification.VerificationFailed',
     ]);

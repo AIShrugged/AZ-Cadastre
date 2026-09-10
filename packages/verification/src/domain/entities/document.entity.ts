@@ -6,6 +6,7 @@ import {
 import type {
   Classification,
   DocumentId,
+  FieldKey,
   PageRange,
   SourceFileId,
 } from '../value-objects/index.js';
@@ -57,8 +58,24 @@ export class Document {
     return this.classification !== null;
   }
 
+  /*
+   * Whether anything was read off this document.
+   *
+   * Read off *this* document and not merely held against it: a value carried
+   * over from another paper of the package is not this one having been read,
+   * and counting it would tell the extraction stage a document it never opened
+   * is done with. That is not a nicety — it is what stops a re-run skipping the
+   * only document whose fields are all borrowed.
+   */
   get hasFields(): boolean {
-    return this.#fields.length > 0;
+    return this.#fields.some(field => field.wasReadHere);
+  }
+
+  // Only what was read off this document. What every rule that asks what a
+  // paper states reads, so that a carried-over value can never answer for the
+  // paper it was carried to.
+  get fieldsReadHere(): readonly ExtractedField[] {
+    return this.#fields.filter(field => field.wasReadHere);
   }
 
   isFrom(sourceFileId: SourceFileId): boolean {
@@ -85,6 +102,33 @@ export class Document {
     }
 
     return this.with({ fields });
+  }
+
+  /*
+   * The document with values carried over from elsewhere in the package added
+   * to what was read off it.
+   *
+   * Added and never substituted for a reading: the fields already here are what
+   * this paper says, and the gathering stage only closes the ones it did not.
+   */
+  withGathered(fields: readonly ExtractedField[]): Document {
+    if (fields.length === 0) return this;
+
+    return this.with({ fields: [...this.#fields, ...fields] });
+  }
+
+  // The same document with the archive register's agreement recorded on the
+  // fields it agreed with, named by the keys the register was asked about.
+  withConfirmed(keys: readonly FieldKey[]): Document {
+    if (keys.length === 0) return this;
+
+    return this.with({
+      fields: this.#fields.map(field =>
+        keys.some(key => key.equals(field.key))
+          ? field.confirmedByRegistry()
+          : field,
+      ),
+    });
   }
 
   private with(changes: {

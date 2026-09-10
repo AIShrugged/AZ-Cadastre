@@ -18,6 +18,7 @@ export {
 export { DocumentType } from './document-type.vo.js';
 export { FailureReason } from './failure-reason.vo.js';
 export { FieldKey, FieldValue } from './field.vo.js';
+export { FieldOrigin, FieldSource } from './field-origin.vo.js';
 export { FieldSchema, FieldSpec } from './field-schema.vo.js';
 export { FileSize } from './file-size.vo.js';
 export { Filename } from './filename.vo.js';

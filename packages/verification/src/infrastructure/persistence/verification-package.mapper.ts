@@ -21,6 +21,8 @@ import {
   DocumentId,
   DocumentType,
   FieldKey,
+  FieldOrigin,
+  FieldSource,
   FieldValue,
   Filename,
   IssueKind,
@@ -48,6 +50,7 @@ import {
 import {
   ArchiveHolding as ArchiveHoldingColumn,
   CrossCheckVerdict as CrossCheckVerdictColumn,
+  FieldOrigin as FieldOriginColumn,
   IssueKind as IssueKindColumn,
   RegistryOutcome as RegistryOutcomeColumn,
   ReportStatus as ReportStatusColumn,
@@ -193,7 +196,13 @@ export type FieldRow = {
   readonly name: string;
   readonly value: string;
   readonly confidence: number;
-  readonly pageNumber: number;
+  // Null exactly when the value was not read off this document (ADR-0023).
+  readonly pageNumber: number | null;
+  readonly origin: string;
+  readonly sourceDocumentId: string | null;
+  readonly sourceDocumentType: string | null;
+  readonly sourceFieldName: string | null;
+  readonly sourcePageNumber: number | null;
 };
 
 export type PackageWrite = {
@@ -336,7 +345,13 @@ export type FieldWrite = {
   readonly name: string;
   readonly value: string;
   readonly confidence: number;
-  readonly pageNumber: number;
+  // Null exactly when the value was not read off this document (ADR-0023).
+  readonly pageNumber: number | null;
+  readonly origin: FieldOriginColumn;
+  readonly sourceDocumentId: string | null;
+  readonly sourceDocumentType: string | null;
+  readonly sourceFieldName: string | null;
+  readonly sourcePageNumber: number | null;
 };
 
 export class VerificationPackageMapper {
@@ -411,7 +426,12 @@ export class VerificationPackageMapper {
           name: field.key.value,
           value: field.value.value,
           confidence: field.confidence.value,
-          pageNumber: field.foundOn.value,
+          pageNumber: field.foundOn?.value ?? null,
+          origin: VerificationPackageMapper.fieldOriginColumn(field.origin),
+          sourceDocumentId: field.takenFrom?.documentId.value ?? null,
+          sourceDocumentType: field.takenFrom?.documentType.value ?? null,
+          sourceFieldName: field.takenFrom?.fieldKey.value ?? null,
+          sourcePageNumber: field.takenFrom?.foundOn.value ?? null,
         })),
       })),
       crossChecks: aggregate.crossChecks.map(check => ({
@@ -698,13 +718,43 @@ export class VerificationPackageMapper {
       ),
       classification: VerificationPackageMapper.classificationToDomain(row),
       fields: row.extractedFields.map(field =>
-        ExtractedField.of(
-          FieldKey.create(field.name),
-          FieldValue.create(field.value),
-          Confidence.of(field.confidence),
-          PageNumber.of(field.pageNumber),
-        ),
+        ExtractedField.restore({
+          key: FieldKey.create(field.name),
+          value: FieldValue.create(field.value),
+          confidence: Confidence.of(field.confidence),
+          foundOn:
+            field.pageNumber === null ? null : PageNumber.of(field.pageNumber),
+          origin: FieldOrigin.of(field.origin),
+          takenFrom: VerificationPackageMapper.sourceToDomain(field),
+        }),
       ),
+    });
+  }
+
+  /*
+   * Where a carried-over value was read, or none.
+   *
+   * All four columns or none of them: a row that names a source document but no
+   * sheet of it could not tell an inspector which paper to open, which is the
+   * whole worth of the record. A row half written is read as no source rather
+   * than as a source with a hole in it — the value itself still stands, and it
+   * is still marked as one this document did not yield.
+   */
+  private static sourceToDomain(field: FieldRow): FieldSource | null {
+    if (
+      field.sourceDocumentId === null ||
+      field.sourceDocumentType === null ||
+      field.sourceFieldName === null ||
+      field.sourcePageNumber === null
+    ) {
+      return null;
+    }
+
+    return FieldSource.of({
+      documentId: DocumentId.of(field.sourceDocumentId),
+      documentType: DocumentType.create(field.sourceDocumentType),
+      fieldKey: FieldKey.create(field.sourceFieldName),
+      foundOn: PageNumber.of(field.sourcePageNumber),
     });
   }
 
@@ -801,6 +851,18 @@ export class VerificationPackageMapper {
 
     if (!column) {
       throw new RangeError(`No registry outcome column for ${outcome.value}`);
+    }
+
+    return column;
+  }
+
+  private static fieldOriginColumn(origin: FieldOrigin): FieldOriginColumn {
+    const column = Object.values(FieldOriginColumn).find(
+      candidate => candidate === origin.value,
+    );
+
+    if (!column) {
+      throw new RangeError(`No field origin column for ${origin.value}`);
     }
 
     return column;

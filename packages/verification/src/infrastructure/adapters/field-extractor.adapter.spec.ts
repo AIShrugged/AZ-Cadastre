@@ -163,6 +163,6 @@ describe('FieldExtractorAdapter', () => {
     expect(fields.map(field => field.confidence.value)).toEqual([
       0.92, 0.92, 0.92, 0.92, 0.92,
     ]);
-    expect(fields.every(field => field.foundOn.value === 1)).toBe(true);
+    expect(fields.every(field => field.foundOn?.value === 1)).toBe(true);
   });
 });

@@ -254,8 +254,9 @@ const SEGMENT_KEY: Record<DocSegment, string> = {
   other: 'detail.seg.other',
 };
 
-/** A document the profile has nothing to say about: read, placed, and not asked
- *  for. It is evidence of what was in the envelope, never a shortfall. */
+/** A paper the catalogue could not name: read, placed, and not one of the
+ *  grounds the law lists. It is evidence of what was in the envelope, never a
+ *  shortfall. */
 function isAside(doc: DocumentDto): boolean {
   return doc.type === 'out_of_profile';
 }
@@ -738,8 +739,8 @@ function DocumentEntry({
 }) {
   const { t } = useI18n();
   // Two different answers that both leave a document without fields, and they
-  // must not read alike: "we could not tell what this is" against "we could,
-  // and this profile does not ask for it".
+  // must not read alike: "we could not tell what this is" against "we read it,
+  // and the statutory list does not name it".
   const unclassified = doc.type === 'unknown';
   const outOfProfile = doc.type === 'out_of_profile';
   const fieldless = unclassified || outOfProfile;

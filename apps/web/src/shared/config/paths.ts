@@ -5,8 +5,6 @@
  *
  * The map is the operator's day, in the order they move through it: look the
  * property up in the archive, take a packet in, work the register of cases.
- * `Further steps` is the one that is not work yet — it says what the system
- * will grow into, and it sits under its own heading for that reason.
  */
 export const paths = {
   /**
@@ -20,6 +18,4 @@ export const paths = {
   cases: '/cases',
   /** One case, addressable so it can be linked to and returned to. */
   case: (id: string) => `/cases/${encodeURIComponent(id)}`,
-  /** What the system does not do yet, stated rather than implied. */
-  process: '/process',
 };

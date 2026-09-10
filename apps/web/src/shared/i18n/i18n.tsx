@@ -530,11 +530,9 @@ const en: Dict = {
     'This archive search has already been approved — reload to see it',
 
   // ── The workspace shell ────────────────────────────────────────────────────
-  'nav.later': 'Later',
   'nav.intake': 'Case pre-check',
   'nav.search': 'Archive search',
   'nav.cases': 'Cases',
-  'nav.process': 'Further steps',
   'archive.data': 'Archive data',
   'archive.reach.asking': 'Asking the archive…',
   'archive.reach.answering': 'The archive is answering',
@@ -741,42 +739,6 @@ const en: Dict = {
   'slice.incomplete': 'Incomplete',
   'slice.clean': 'Clean',
   'slice.error': 'Error',
-
-  // ── Further steps ──────────────────────────────────────────────────────────
-  'page.process.title': 'Further steps',
-  'page.process.subtitle':
-    'What the system does today, and what it will grow into. Nothing here is a demonstration of a check nobody has built.',
-  'roadmap.stage': 'Stage {n}',
-  'roadmap.needs': 'Waiting on',
-  'roadmap.live': 'Live',
-  'roadmap.partial': 'Partly',
-  'roadmap.planned': 'Planned',
-  'roadmap.stage.archive': 'Digital archive and the case register',
-  'roadmap.stage.intake': 'Automated intake and verification',
-  'roadmap.stage.consistency': 'Consistency and field work',
-  'roadmap.stage.decision': 'Decision, issuance and the applicant',
-  'roadmap.step.archive_search':
-    'Ask the archive whether the property is already registered',
-  'roadmap.step.case_intake': 'Take a packet in and pre-check it in one pass',
-  'roadmap.step.case_register':
-    'Follow every application through the register of cases',
-  'roadmap.step.read_packet':
-    'Read the packet into its documents and their fields',
-  'roadmap.step.legal_ground':
-    'The legal ground decides which supporting documents the case needs',
-  'roadmap.step.identity':
-    'Check the applicant against the population register',
-  'roadmap.step.cadastre_lookup':
-    'Pull the parcel and the technical passport for the property',
-  'roadmap.step.cross_checks':
-    'Hold the documents of one case against each other',
-  'roadmap.step.archive_approval':
-    'A person signs off what the archive answered, with their conclusion',
-  'roadmap.step.field_survey':
-    'Schedule a field survey and capture its measurements on site',
-  'roadmap.step.decision': 'Assisted decision and determination of rights',
-  'roadmap.step.certificate': 'E-signature and issuance of the certificate',
-  'roadmap.step.portal': 'A self-service account for the applicant',
 };
 
 const ru: Dict = {
@@ -1266,11 +1228,9 @@ const ru: Dict = {
     'Этот архивный поиск уже утверждён — обновите страницу',
 
   // ── Оболочка рабочего места ────────────────────────────────────────────────
-  'nav.later': 'Позже',
   'nav.intake': 'Приёмка заявления',
   'nav.search': 'Поиск по архиву',
   'nav.cases': 'Дела',
-  'nav.process': 'Дальнейшие шаги',
   'archive.data': 'Архивные данные',
   'archive.reach.asking': 'Запрашиваем архив…',
   'archive.reach.answering': 'Архив отвечает',
@@ -1458,39 +1418,6 @@ const ru: Dict = {
   'slice.incomplete': 'Неполные',
   'slice.clean': 'Без замечаний',
   'slice.error': 'Сбой',
-
-  // ── Дальнейшие шаги ────────────────────────────────────────────────────────
-  'page.process.title': 'Дальнейшие шаги',
-  'page.process.subtitle':
-    'Что система делает сегодня и во что вырастет. Ничего здесь не является демонстрацией непостроенной проверки.',
-  'roadmap.stage': 'Этап {n}',
-  'roadmap.needs': 'Ожидает',
-  'roadmap.live': 'Работает',
-  'roadmap.partial': 'Частично',
-  'roadmap.planned': 'Запланировано',
-  'roadmap.stage.archive': 'Цифровой архив и реестр дел',
-  'roadmap.stage.intake': 'Автоматическая приёмка и проверка',
-  'roadmap.stage.consistency': 'Сверка и полевые работы',
-  'roadmap.stage.decision': 'Решение, выдача и заявитель',
-  'roadmap.step.archive_search':
-    'Спросить архив, зарегистрирован ли объект ранее',
-  'roadmap.step.case_intake': 'Принять пакет и проверить его за один проход',
-  'roadmap.step.case_register': 'Вести каждое заявление в реестре дел',
-  'roadmap.step.read_packet':
-    'Прочитать пакет: документы внутри файлов и их поля',
-  'roadmap.step.legal_ground':
-    'Правовое основание определяет, какой комплект нужен делу',
-  'roadmap.step.identity': 'Сверить заявителя с реестром населения',
-  'roadmap.step.cadastre_lookup':
-    'Получить участок и технический паспорт по объекту',
-  'roadmap.step.cross_checks': 'Сверить документы одного дела между собой',
-  'roadmap.step.archive_approval':
-    'Человек утверждает ответ архива и свой вывод по нему',
-  'roadmap.step.field_survey':
-    'Назначить выезд и зафиксировать замеры на месте',
-  'roadmap.step.decision': 'Решение с подсказками и определение прав',
-  'roadmap.step.certificate': 'Электронная подпись и выдача свидетельства',
-  'roadmap.step.portal': 'Личный кабинет заявителя',
 };
 
 const az: Dict = {
@@ -1980,11 +1907,9 @@ const az: Dict = {
     'Bu arxiv axtarışı artıq təsdiqlənib — səhifəni yeniləyin',
 
   // ── İş sahəsinin çərçivəsi ─────────────────────────────────────────────────
-  'nav.later': 'Sonra',
   'nav.intake': 'Ərizənin qəbulu',
   'nav.search': 'Arxiv axtarışı',
   'nav.cases': 'İşlər',
-  'nav.process': 'Növbəti addımlar',
   'archive.data': 'Arxiv məlumatları',
   'archive.reach.asking': 'Arxivdən soruşulur…',
   'archive.reach.answering': 'Arxiv cavab verir',
@@ -2173,39 +2098,6 @@ const az: Dict = {
   'slice.incomplete': 'Natamam',
   'slice.clean': 'Qeydsiz',
   'slice.error': 'Nasazlıq',
-
-  // ── Növbəti addımlar ───────────────────────────────────────────────────────
-  'page.process.title': 'Növbəti addımlar',
-  'page.process.subtitle':
-    'Sistem bu gün nə edir və nəyə çevriləcək. Burada qurulmamış yoxlamanın nümayişi yoxdur.',
-  'roadmap.stage': '{n}-ci mərhələ',
-  'roadmap.needs': 'Gözləyir',
-  'roadmap.live': 'İşləyir',
-  'roadmap.partial': 'Qismən',
-  'roadmap.planned': 'Planlaşdırılıb',
-  'roadmap.stage.archive': 'Rəqəmsal arxiv və işlər reyestri',
-  'roadmap.stage.intake': 'Avtomatik qəbul və yoxlama',
-  'roadmap.stage.consistency': 'Uyğunluq və sahə işləri',
-  'roadmap.stage.decision': 'Qərar, sənədin verilməsi və ərizəçi',
-  'roadmap.step.archive_search':
-    'Obyektin əvvəllər qeydiyyata alınıb-alınmadığını arxivdən soruşmaq',
-  'roadmap.step.case_intake': 'Paketi qəbul edib bir keçiddə yoxlamaq',
-  'roadmap.step.case_register': 'Hər müraciəti işlər reyestrində aparmaq',
-  'roadmap.step.read_packet':
-    'Paketi oxumaq: fayllardakı sənədlər və onların sahələri',
-  'roadmap.step.legal_ground':
-    'Hüquqi əsas işin hansı sənəd dəstini tələb etdiyini müəyyən edir',
-  'roadmap.step.identity': 'Ərizəçini əhali reyestri ilə tutuşdurmaq',
-  'roadmap.step.cadastre_lookup':
-    'Obyekt üzrə sahəni və texniki pasportu almaq',
-  'roadmap.step.cross_checks': 'Bir işin sənədlərini bir-biri ilə tutuşdurmaq',
-  'roadmap.step.archive_approval':
-    'İnsan arxivin cavabını və öz nəticəsini təsdiqləyir',
-  'roadmap.step.field_survey':
-    'Sahə baxışını təyin etmək və ölçüləri yerində qeyd etmək',
-  'roadmap.step.decision': 'İpucları ilə qərar və hüquqların müəyyən edilməsi',
-  'roadmap.step.certificate': 'Elektron imza və şəhadətnamənin verilməsi',
-  'roadmap.step.portal': 'Ərizəçi üçün şəxsi kabinet',
 };
 
 const DICTS: Record<Locale, Dict> = { en, ru, az };

@@ -12,6 +12,7 @@ export {
 } from './cross-check-verdict.enum.js';
 export { FieldOriginSchema, type FieldOrigin } from './field-origin.enum.js';
 export { IssueKindSchema, type IssueKind } from './issue-kind.enum.js';
+export { MarkStateSchema, type MarkState } from './mark-state.enum.js';
 export {
   PackageStandingSchema,
   type PackageStanding,

@@ -5,7 +5,9 @@ import type {
   CheckedValueDto,
   CrossCheckDto,
   DeclaredAtIntakeDto,
+  DocumentAttestationDto,
   DocumentDto,
+  DocumentMarkDto,
   FieldDto,
   FindingCountDto,
   FindingTallyDto,
@@ -31,6 +33,7 @@ import type {
   CheckedValueView,
   CrossCheckView,
   DeclaredAtIntakeView,
+  DocumentMarkView,
   DocumentView,
   FindingTallyView,
   PackageDetailView,
@@ -297,6 +300,10 @@ function toDocumentDto(view: DocumentView): DocumentDto {
     lastPage: view.lastPage,
     type: view.type,
     classificationConfidence: view.classificationConfidence,
+    // What the sheets said about the seal and the signature, beside what the
+    // profile expects of a paper of this type. Null on a document no type of
+    // the profile is under.
+    attestation: toAttestationDto(view.attestation),
     fields: view.fields.map(field => ({
       name: field.name,
       value: field.value,
@@ -307,5 +314,24 @@ function toDocumentDto(view: DocumentView): DocumentDto {
       origin: field.origin as FieldDto['origin'],
       takenFrom: field.takenFrom,
     })),
+  };
+}
+
+function toAttestationDto(
+  view: DocumentView['attestation'],
+): DocumentAttestationDto | null {
+  if (view === null) return null;
+
+  return { stamp: toMarkDto(view.stamp), signature: toMarkDto(view.signature) };
+}
+
+function toMarkDto(view: DocumentMarkView): DocumentMarkDto {
+  return {
+    expected: view.expected,
+    // Only ever decided by the domain's own enumeration, so the string is one
+    // the contract names.
+    state: view.state as DocumentMarkDto['state'],
+    legends: [...view.legends],
+    confidence: view.confidence,
   };
 }

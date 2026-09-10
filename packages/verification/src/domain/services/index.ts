@@ -2,8 +2,9 @@
  * Rules that belong to no single aggregate: what makes two values off two
  * papers the same value, whether a quotation is really on the page it claims,
  * which type a text looks like by the profile's own headings, how a set of
- * document starts becomes ranges that tile a file, and what height and what
- * year a paper states.
+ * document starts becomes ranges that tile a file, what height and what year a
+ * paper states, and what a document's sheets say about the seal and the
+ * signature an office attests it with.
  *
  * They live here, not in `infrastructure/`, because they decide domain
  * questions and import nothing but domain vocabulary. The offline adapters
@@ -16,6 +17,15 @@ export {
   LATEST_YEAR,
   yearIn,
 } from './building-measures.service.js';
+export {
+  attestationOf,
+  MARK_STATES,
+  type DocumentAttestation,
+  type MarkExpectations,
+  type MarkObservation,
+  type MarkState,
+  type SheetReading,
+} from './document-attestation.service.js';
 export {
   enclosesHeading,
   headingMatch,

@@ -194,12 +194,41 @@ export type FieldView = {
   } | null;
 };
 
+/**
+ * One of the two marks an office attests a paper with, as the run saw it: what
+ * the profile expects of a paper of this type, and what the sheets actually
+ * say. The two are stated apart because they are independent — a seal on a
+ * paper nobody asked to be sealed is still a seal.
+ */
+export type DocumentMarkView = {
+  expected: boolean;
+  // One of the domain's `MarkState` members: Present | Illegible | Absent |
+  // Unread. `Unread` is the answer on a document no sheet of which was read,
+  // and it is not `Absent`: nothing was looked at.
+  state: string;
+  // The legends read off the seals, in reading order. Empty for a signature and
+  // on any state but `Present`.
+  legends: readonly string[];
+  // 0..1, never above the least confident sheet of the document. Null on
+  // `Unread`.
+  confidence: number | null;
+};
+
+export type DocumentAttestationView = {
+  stamp: DocumentMarkView;
+  signature: DocumentMarkView;
+};
+
 export type DocumentView = {
   id: string;
   firstPage: number;
   lastPage: number;
   type: string | null;
   classificationConfidence: number | null;
+  // What the sheets say about the seal and the signature. Null until the
+  // document is placed under a type of the profile: without a type there is no
+  // specification, and so no answer about what was expected of the paper.
+  attestation: DocumentAttestationView | null;
   fields: readonly FieldView[];
 };
 

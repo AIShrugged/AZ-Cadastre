@@ -4,6 +4,8 @@ export type {
   CheckedValueView,
   CrossCheckView,
   DeclaredAtIntakeView,
+  DocumentAttestationView,
+  DocumentMarkView,
   DocumentView,
   FieldView,
   IssueView,

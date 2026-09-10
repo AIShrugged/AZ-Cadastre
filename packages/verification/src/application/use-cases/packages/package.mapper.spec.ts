@@ -79,6 +79,20 @@ function aDocumentView(overrides: Partial<DocumentView> = {}): DocumentView {
     lastPage: 1,
     type: 'passport',
     classificationConfidence: 0.94,
+    attestation: {
+      stamp: {
+        expected: false,
+        state: 'Absent',
+        legends: [],
+        confidence: 0.91,
+      },
+      signature: {
+        expected: false,
+        state: 'Present',
+        legends: [],
+        confidence: 0.91,
+      },
+    },
     fields: [
       aFieldView({ name: 'first_name', value: 'ELCHIN', confidence: 0.92 }),
     ],

@@ -37,10 +37,16 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   attestationLines,
   documentsExpected,
+  ENTRIES_SHOWN,
+  entriesOf,
+  fieldAnchor,
+  fieldRowId,
   fieldsReadHere,
+  foldFields,
   groundName,
   HOLDING_KEY,
   HOLDING_TONE,
+  holdsHash,
   isCarriedOver,
   ISSUE_KIND_KEY,
   missingTypes,
@@ -654,7 +660,7 @@ function TakenFrom({
   onJump: Jump;
 }) {
   const { t } = useI18n();
-  const anchor = `#field-${source.documentId}-${source.fieldName}`;
+  const anchor = fieldAnchor(source.documentId, source.fieldName);
 
   return (
     <a
@@ -685,6 +691,187 @@ function TakenFrom({
   );
 }
 
+/**
+ * The marks a reading carries beside its value.
+ *
+ * One element rather than two loose chips, because where they sit depends on
+ * what they sit after: beside a figure they belong on its line, and under a
+ * value the contract asked for as a list they belong under it — a chip trailing
+ * the last entry of a boundary would read as part of the boundary.
+ */
+function Marks({
+  field,
+  sourceText,
+  stacked,
+}: {
+  field: FieldDto;
+  sourceText: string;
+  stacked: boolean;
+}) {
+  const { t } = useI18n();
+  const handwritten = isHandwritten(field.value, sourceText);
+  const confirmed = field.origin === 'ConfirmedByRegistry';
+
+  if (!handwritten && !confirmed) return null;
+
+  return (
+    <span
+      className={cn(
+        'inline-flex flex-wrap items-center gap-2 align-middle',
+        stacked ? 'mt-1' : 'ml-2',
+      )}
+    >
+      {handwritten && (
+        <span className='inline-flex rounded-sm bg-accent-2-tint px-1.5 py-0.5 text-[0.625rem] font-medium leading-none text-accent-2-ink'>
+          {t('detail.handwritten')}
+        </span>
+      )}
+      {/* The register agreed with this reading, and that is the one mark on the
+          page that is a reason not to look rather than a reason to. It is set
+          in the same green tick the archive panel already uses for an attribute
+          that agrees, at the weight of the mark beside it: an inspector must
+          not read "confirmed" as a warning (ADR-0023). */}
+      {confirmed && (
+        <span
+          title={t('detail.confirmed_why')}
+          className='inline-flex items-center gap-1 rounded-sm bg-ok/12 px-1.5 py-0.5 text-[0.625rem] font-medium leading-none text-ok-ink'
+        >
+          <CheckIcon className='size-2.5 shrink-0' strokeWidth={3} />
+          {t('detail.confirmed')}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/**
+ * A value the contract asks for as a list, set as the lines it actually is.
+ *
+ * The boundary's turning points, the schedule of drawings, what the set is
+ * composed of: the engine reads each as one field with its entries separated by
+ * semicolons (COMM-78), and run together in a column sized for a cadastral
+ * number they wrap into a paragraph. An inspector checking twelve turning
+ * points against the sheet has to be able to run a finger down them, so the
+ * separator becomes a line break and the row states the first few — the rest on
+ * asking, since the whole of a twelve-point boundary under every other row is
+ * the wall the card is trying not to be.
+ */
+function Enumerated({
+  entries,
+  uncertain,
+}: {
+  entries: readonly string[];
+  uncertain: boolean;
+}) {
+  const { t } = useI18n();
+  const [whole, setWhole] = useState(false);
+  const rest = entries.length - ENTRIES_SHOWN;
+
+  return (
+    <ul
+      className={cn(
+        'space-y-0.5 text-[0.875rem] leading-snug',
+        uncertain ? 'text-incomplete-ink' : 'text-foreground',
+      )}
+    >
+      {(whole ? entries : entries.slice(0, ENTRIES_SHOWN)).map((entry, at) => (
+        <li key={`${at}-${entry}`} className='flex gap-2'>
+          <span
+            aria-hidden
+            className='mt-[0.55em] size-1 shrink-0 rounded-full bg-current opacity-40'
+          />
+          <span data-mono className='min-w-0 break-words'>
+            {entry}
+          </span>
+        </li>
+      ))}
+      {rest > 0 && !whole && (
+        <li>
+          <button
+            type='button'
+            onClick={() => setWhole(true)}
+            className='-mx-1 rounded-sm px-1 py-0.5 text-[0.75rem] text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
+          >
+            {t('detail.contents_rest', { n: rest })}
+          </button>
+        </li>
+      )}
+    </ul>
+  );
+}
+
+function Field({
+  field,
+  docId,
+  sourceText,
+  folded,
+  onJump,
+}: {
+  field: FieldDto;
+  docId: string;
+  sourceText: string;
+  folded: boolean;
+  onJump: Jump;
+}) {
+  const { t } = useI18n();
+  const entries = entriesOf(field.value);
+  const uncertain = field.confidence < CONFIDENCE_FLOOR;
+
+  return (
+    <div
+      // The worklist's landing point. `target:` washes the row in the
+      // register's own selection tint so a jump from the finding arrives on
+      // a row the eye can find, and the wash fades rather than sticking.
+      id={fieldRowId(docId, field.name)}
+      className={cn(
+        'grid scroll-mt-16 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1 border-b border-rule py-2.5 transition-colors duration-500 target:bg-accent @md:grid-cols-[minmax(8rem,15rem)_minmax(0,1fr)_auto] @md:gap-x-6 @md:gap-y-0',
+        // A folded row keeps its place in the document and answers to its own
+        // fragment: `:target` outranks `hidden`, so the one row a finding names
+        // opens itself as the hash lands and before the browser scrolls to it.
+        // Folding it in React instead would hide it from the browser at the
+        // moment of the jump, and the finding would land near its evidence.
+        folded && 'hidden target:grid',
+      )}
+    >
+      <dt className='col-span-2 text-[0.8125rem] leading-snug text-muted-foreground @md:col-span-1'>
+        {translateOr(t, `field.${field.name}`, field.name)}
+      </dt>
+      <dd className='min-w-0'>
+        {entries.length > 0 ? (
+          <Enumerated entries={entries} uncertain={uncertain} />
+        ) : (
+          <span
+            data-mono
+            className={cn(
+              'break-words whitespace-pre-line text-[0.875rem] leading-snug',
+              uncertain ? 'text-incomplete-ink' : 'text-foreground',
+            )}
+          >
+            {/* A field the paper does not carry keeps its row and says so. It
+                is an answer the inspector needs — there was nothing there and
+                nowhere to take it from — and a row that vanished would read as
+                a field nobody asked for. */}
+            {field.value || '—'}
+          </span>
+        )}
+        <Marks
+          field={field}
+          sourceText={sourceText}
+          stacked={entries.length > 0}
+        />
+        {field.takenFrom && (
+          <TakenFrom source={field.takenFrom} onJump={onJump} />
+        )}
+      </dd>
+      {/* A carried-over reading keeps its figure and loses the chip: "needs
+          review" is the worklist's own word for a sheet that wants a second
+          look, and the report deliberately files no finding against this
+          one — the line under the value says where to look instead. */}
+      <Confidence value={field.confidence} bare={isCarriedOver(field)} />
+    </div>
+  );
+}
+
 function Fields({
   fields,
   docId,
@@ -697,62 +884,79 @@ function Fields({
   onJump: Jump;
 }) {
   const { t } = useI18n();
+  const { shown, folded } = foldFields(fields);
+  const [whole, setWhole] = useState(() =>
+    holdsHash(folded, docId, window.location.hash),
+  );
+  // What the fold is keeping back that the inspector was sent here for. The
+  // same rule the heading counts by: only a reading made on this paper is work
+  // on this paper (ADR-0023).
+  const flagged = fieldsReadHere(folded).filter(
+    field => field.confidence < CONFIDENCE_FLOOR,
+  ).length;
+
   return (
-    <dl className='mt-3 border-t border-rule'>
-      {fields.map(f => (
-        <div
-          key={f.name}
-          // The worklist's landing point. `target:` washes the row in the
-          // register's own selection tint so a jump from the finding arrives on
-          // a row the eye can find, and the wash fades rather than sticking.
-          id={`field-${docId}-${f.name}`}
-          className='grid scroll-mt-16 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1 border-b border-rule py-2.5 transition-colors duration-500 target:bg-accent sm:grid-cols-[minmax(8rem,15rem)_minmax(0,1fr)_auto] sm:gap-x-6 sm:gap-y-0'
+    <>
+      {/* A container and not the viewport: how much room a row has is decided
+          by the rail beside the register and by the sheets column beside the
+          card, not by how wide the window is. At 1280 those two take enough
+          that a three-column row leaves the value about a hundred pixels — a
+          registry number set one digit per line — while the same window at
+          1440 has room to spare. The row asks the card. */}
+      <dl className='@container mt-3 border-t border-rule'>
+        {shown.map(field => (
+          <Field
+            key={field.name}
+            field={field}
+            docId={docId}
+            sourceText={sourceText}
+            folded={false}
+            onJump={onJump}
+          />
+        ))}
+        {folded.map(field => (
+          <Field
+            key={field.name}
+            field={field}
+            docId={docId}
+            sourceText={sourceText}
+            folded={!whole}
+            onJump={onJump}
+          />
+        ))}
+      </dl>
+      {folded.length > 0 && (
+        <button
+          type='button'
+          aria-expanded={whole}
+          onClick={() => setWhole(open => !open)}
+          className='-mx-1 mt-2 flex items-center gap-1.5 rounded-sm px-1 py-0.5 text-[0.75rem] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
         >
-          <dt className='col-span-2 text-[0.8125rem] leading-snug text-muted-foreground sm:col-span-1'>
-            {translateOr(t, `field.${f.name}`, f.name)}
-          </dt>
-          <dd className='min-w-0'>
+          <ChevronRightIcon
+            aria-hidden
+            className={cn(
+              'size-3.5 shrink-0 transition-transform',
+              whole && 'rotate-90',
+            )}
+          />
+          {whole
+            ? t('detail.fields_fold')
+            : t('detail.fields_more', { n: folded.length })}
+          {/* A fold that swallowed the doubtful readings would answer the
+              heading's count with rows nobody can see, so it says how many of
+              them are down there. */}
+          {!whole && flagged > 0 && (
             <span
               data-mono
-              className={cn(
-                'break-words whitespace-pre-line text-[0.875rem] leading-snug',
-                f.confidence < CONFIDENCE_FLOOR
-                  ? 'text-incomplete-ink'
-                  : 'text-foreground',
-              )}
+              title={t('detail.fields_more_review', { n: flagged })}
+              className='rounded-full bg-incomplete/12 px-1.5 py-0.5 text-[0.6875rem] font-medium tabular-nums text-incomplete-ink'
             >
-              {f.value || '—'}
+              {flagged}
             </span>
-            {isHandwritten(f.value, sourceText) && (
-              <span className='ml-2 inline-flex align-middle rounded-sm bg-accent-2-tint px-1.5 py-0.5 text-[0.625rem] font-medium leading-none text-accent-2-ink'>
-                {t('detail.handwritten')}
-              </span>
-            )}
-            {/* The register agreed with this reading, and that is the one mark
-                on the page that is a reason not to look rather than a reason
-                to. It is set in the same green tick the archive panel already
-                uses for an attribute that agrees, at the weight of the mark
-                beside it: an inspector must not read "confirmed" as a warning
-                (ADR-0023). */}
-            {f.origin === 'ConfirmedByRegistry' && (
-              <span
-                title={t('detail.confirmed_why')}
-                className='ml-2 inline-flex items-center gap-1 align-middle rounded-sm bg-ok/12 px-1.5 py-0.5 text-[0.625rem] font-medium leading-none text-ok-ink'
-              >
-                <CheckIcon className='size-2.5 shrink-0' strokeWidth={3} />
-                {t('detail.confirmed')}
-              </span>
-            )}
-            {f.takenFrom && <TakenFrom source={f.takenFrom} onJump={onJump} />}
-          </dd>
-          {/* A carried-over reading keeps its figure and loses the chip: "needs
-              review" is the worklist's own word for a sheet that wants a second
-              look, and the report deliberately files no finding against this
-              one — the line under the value says where to look instead. */}
-          <Confidence value={f.confidence} bare={isCarriedOver(f)} />
-        </div>
-      ))}
-    </dl>
+          )}
+        </button>
+      )}
+    </>
   );
 }
 
@@ -1576,7 +1780,7 @@ function findingOf(
   // land on — it is the one finding with nowhere to go.
   const anchor = document
     ? issue.fieldName
-      ? `#field-${document.id}-${issue.fieldName}`
+      ? fieldAnchor(document.id, issue.fieldName)
       : `#doc-${document.id}`
     : null;
 
@@ -2052,7 +2256,7 @@ function SupportingSetEntry({
   // jump into the sheet rather than a sentence about it.
   const anchor = document
     ? issue.fieldName
-      ? `#field-${document.id}-${issue.fieldName}`
+      ? fieldAnchor(document.id, issue.fieldName)
       : `#doc-${document.id}`
     : null;
 
@@ -2189,7 +2393,7 @@ function CheckedValueRow({
 }) {
   const { t } = useI18n();
   const anchor = value.documentId
-    ? `#field-${value.documentId}-${value.fieldName}`
+    ? fieldAnchor(value.documentId, value.fieldName)
     : null;
 
   const body = (
@@ -2351,7 +2555,7 @@ function RegistryAttributeRow({
   const { t } = useI18n();
   const submitted = attribute.submitted;
   const anchor = submitted.documentId
-    ? `#field-${submitted.documentId}-${submitted.fieldName}`
+    ? fieldAnchor(submitted.documentId, submitted.fieldName)
     : null;
 
   const body = (

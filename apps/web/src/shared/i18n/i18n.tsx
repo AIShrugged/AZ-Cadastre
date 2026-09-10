@@ -447,6 +447,9 @@ const en: Dict = {
   'detail.required_found': '{n} of {total}',
   'detail.sheets': 'Sheets',
   'detail.contents_rest': '{n} more',
+  'detail.fields_more': '{n} more fields',
+  'detail.fields_fold': 'Collapse',
+  'detail.fields_more_review': 'Of these, {n} want a second look',
   'field.document_no': 'Document number',
   'field.expiry_date': 'Expiration date',
   'field.applicant_document_no': 'Applicant document number',
@@ -462,7 +465,7 @@ const en: Dict = {
   // taught it prints the raw key at the reader.
   'field.building_height': 'Building height',
   'field.issuing_authority': 'Issuing authority',
-  'field.plot_area': 'Plot area',
+  'field.plot_area': 'Plot area per document',
   'field.plan_date': 'Plan date',
   'field.order_no': 'Order number',
   'field.receipt_no': 'Receipt number',
@@ -477,6 +480,38 @@ const en: Dict = {
   'field.applicant_name': 'Applicant name',
   'field.owner_name': 'Owner name',
   'field.issue_date': 'Issue date',
+  // ── The acceptance contract's own list (COMM-78) ────────────────────────────
+  // The plan-scheme and the sketch design are read off item by item now, and
+  // twenty-two of those items had no word here. A key without one is printed at
+  // the inspector raw and identically in all three languages, so this list is
+  // what stands between the card and a column headed `principal_turning_points`.
+  //
+  // Column headings and not the contract's sentences: the contract names two
+  // values in one item where the engine reads two keys, and the pair has to be
+  // told apart by the heading — the area the paper states against the one the
+  // surveyor measured, the register's entry number against the parcel's.
+  'field.land_category': 'Land category',
+  'field.ownership_type': 'Ownership type',
+  'field.right_type': 'Type of right',
+  'field.registry_no': 'Registry record no.',
+  'field.actual_area': 'Actual area surveyed',
+  'field.easements': 'Easements',
+  'field.turning_points': 'Turning point coordinates',
+  'field.plan_basis': 'Basis for the plan',
+  'field.plan_scale': 'Plan scale',
+  'field.qr_code': 'QR code',
+  'field.designer_tax_id': 'Designer’s taxpayer no.',
+  'field.designer_director': 'Designer’s director',
+  'field.chief_architect': 'Chief architect',
+  'field.client_name': 'Client',
+  'field.drawing_schedule': 'Drawing schedule',
+  'field.sheet_count': 'Sheets stated',
+  'field.project_composition': 'Composition of the set',
+  'field.built_up_area': 'Built-up area',
+  'field.building_volume': 'Building volume',
+  'field.datum_level': '±0.000 datum',
+  'field.span_dimensions': 'Span dimensions',
+  'field.project_scale': 'Drawing scale',
   // ── Archive register import (ADR-0011) ─────────────────────────────────────
   'reg.import.action': 'Load register file',
   'reg.import.title': 'Load archive register records',
@@ -1271,6 +1306,9 @@ const ru: Dict = {
   'detail.required_found': '{n} из {total}',
   'detail.sheets': 'Листы',
   'detail.contents_rest': 'ещё {n}',
+  'detail.fields_more': 'Ещё {n} полей',
+  'detail.fields_fold': 'Свернуть',
+  'detail.fields_more_review': 'Из них {n} требуют проверки',
   'field.document_no': 'Номер документа',
   'field.expiry_date': 'Срок действия',
   'field.applicant_document_no': 'Номер документа заявителя',
@@ -1283,7 +1321,7 @@ const ru: Dict = {
   'field.approval_date': 'Дата утверждения',
   'field.building_height': 'Высота здания',
   'field.issuing_authority': 'Выдавший орган',
-  'field.plot_area': 'Площадь участка',
+  'field.plot_area': 'Площадь по документу',
   'field.plan_date': 'Дата плана',
   'field.order_no': 'Номер распоряжения',
   'field.receipt_no': 'Номер квитанции',
@@ -1298,6 +1336,38 @@ const ru: Dict = {
   'field.applicant_name': 'ФИО заявителя',
   'field.owner_name': 'ФИО владельца',
   'field.issue_date': 'Дата выдачи',
+  // ── The acceptance contract's own list (COMM-78) ────────────────────────────
+  // The plan-scheme and the sketch design are read off item by item now, and
+  // twenty-two of those items had no word here. A key without one is printed at
+  // the inspector raw and identically in all three languages, so this list is
+  // what stands between the card and a column headed `principal_turning_points`.
+  //
+  // Column headings and not the contract's sentences: the contract names two
+  // values in one item where the engine reads two keys, and the pair has to be
+  // told apart by the heading — the area the paper states against the one the
+  // surveyor measured, the register's entry number against the parcel's.
+  'field.land_category': 'Категория земель',
+  'field.ownership_type': 'Вид собственности',
+  'field.right_type': 'Вид права',
+  'field.registry_no': 'Реестровый номер',
+  'field.actual_area': 'Фактическая площадь',
+  'field.easements': 'Сервитуты',
+  'field.turning_points': 'Координаты поворотных точек',
+  'field.plan_basis': 'Основание составления плана',
+  'field.plan_scale': 'Масштаб плана',
+  'field.qr_code': 'QR-код',
+  'field.designer_tax_id': 'ИНН проектной организации',
+  'field.designer_director': 'Директор проектной организации',
+  'field.chief_architect': 'Главный архитектор проекта',
+  'field.client_name': 'Заказчик',
+  'field.drawing_schedule': 'Ведомость чертежей',
+  'field.sheet_count': 'Количество листов',
+  'field.project_composition': 'Состав проекта',
+  'field.built_up_area': 'Площадь застройки',
+  'field.building_volume': 'Строительный объём',
+  'field.datum_level': 'Отметка ±0.000',
+  'field.span_dimensions': 'Размеры пролётов',
+  'field.project_scale': 'Масштаб чертежей',
   // ── Загрузка реестра (ADR-0011) ────────────────────────────────────────────
   'reg.import.action': 'Загрузить файл реестра',
   'reg.import.title': 'Загрузка записей архивного реестра',
@@ -2059,6 +2129,9 @@ const az: Dict = {
   'detail.required_found': '{total} sənəddən {n}',
   'detail.sheets': 'Vərəqlər',
   'detail.contents_rest': 'daha {n}',
+  'detail.fields_more': 'Daha {n} sahə',
+  'detail.fields_fold': 'Yığ',
+  'detail.fields_more_review': 'Onlardan {n} yoxlanılmalıdır',
   'field.document_no': 'Sənəd nömrəsi',
   'field.expiry_date': 'Etibarlılıq müddəti',
   'field.applicant_document_no': 'Ərizəçinin sənəd nömrəsi',
@@ -2071,7 +2144,7 @@ const az: Dict = {
   'field.approval_date': 'Təsdiq tarixi',
   'field.building_height': 'Binanın hündürlüyü',
   'field.issuing_authority': 'Verən orqan',
-  'field.plot_area': 'Torpaq sahəsinin ölçüsü',
+  'field.plot_area': 'Sənəd üzrə sahə',
   'field.plan_date': 'Planın tarixi',
   'field.order_no': 'Sərəncamın nömrəsi',
   'field.receipt_no': 'Qəbzin nömrəsi',
@@ -2086,6 +2159,38 @@ const az: Dict = {
   'field.applicant_name': 'Ərizəçinin adı',
   'field.owner_name': 'Sahibin adı',
   'field.issue_date': 'Verilmə tarixi',
+  // ── The acceptance contract's own list (COMM-78) ────────────────────────────
+  // The plan-scheme and the sketch design are read off item by item now, and
+  // twenty-two of those items had no word here. A key without one is printed at
+  // the inspector raw and identically in all three languages, so this list is
+  // what stands between the card and a column headed `principal_turning_points`.
+  //
+  // Column headings and not the contract's sentences: the contract names two
+  // values in one item where the engine reads two keys, and the pair has to be
+  // told apart by the heading — the area the paper states against the one the
+  // surveyor measured, the register's entry number against the parcel's.
+  'field.land_category': 'Torpağın kateqoriyası',
+  'field.ownership_type': 'Mülkiyyət növü',
+  'field.right_type': 'Hüququn növü',
+  'field.registry_no': 'Reyestr nömrəsi',
+  'field.actual_area': 'Faktiki sahə',
+  'field.easements': 'Servitutlar',
+  'field.turning_points': 'Döngə nöqtələrinin koordinatları',
+  'field.plan_basis': 'Planın tərtibinə əsas',
+  'field.plan_scale': 'Planın miqyası',
+  'field.qr_code': 'QR kod',
+  'field.designer_tax_id': 'Layihə təşkilatının VÖEN-i',
+  'field.designer_director': 'Layihə təşkilatının direktoru',
+  'field.chief_architect': 'Layihənin baş memarı',
+  'field.client_name': 'Sifarişçi',
+  'field.drawing_schedule': 'Cizgilər cədvəli',
+  'field.sheet_count': 'Vərəq sayı',
+  'field.project_composition': 'Layihənin tərkibi',
+  'field.built_up_area': 'Tikinti sahəsi',
+  'field.building_volume': 'Tikinti həcmi',
+  'field.datum_level': '±0.000 səviyyəsi',
+  'field.span_dimensions': 'Aşırım ölçüləri',
+  'field.project_scale': 'Cizgilərin miqyası',
   // ── Reyestrin yüklənməsi (ADR-0011) ────────────────────────────────────────
   'reg.import.action': 'Reyestr faylını yüklə',
   'reg.import.title': 'Arxiv reyestrinin qeydlərinin yüklənməsi',

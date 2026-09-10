@@ -92,6 +92,11 @@ services:
         condition: service_healthy
       registry:
         condition: service_healthy
+      # Схема раньше кода, всегда. Иначе стенд поднимается на образе, который
+      # знает про колонку, которой в базе ещё нет, и падает на первом запросе —
+      # так и случилось после COMM-57 (`declaredLegalBasis does not exist`).
+      migrate:
+        condition: service_completed_successfully
 
   # The stand-in for the archive register. Not a bounded context and not part of
   # the monolith: it stands in for a system outside this one, so it is reached
@@ -146,15 +151,23 @@ services:
   #   docker compose run --rm migrate status     # report, apply nothing
   #
   # `migrate deploy` applies what is pending, never prompts and never resets, so
-  # re-running it is harmless. `profiles` is what keeps it out of `up`: it is a
-  # job that exits, not a service, and it is run before the services are
-  # started rather than by them — two containers booting into the same database
-  # would race, and a stand rolled back by pulling the previous tag would
-  # migrate itself forward on the way there.
+  # re-running it is harmless — и поэтому задача входит в обычный `up`, а не
+  # прячется за профилем: забыть её оказалось слишком легко. Гонки двух
+  # накатов нет, потому что мигратор здесь один и бэкенд ждёт именно его
+  # завершения, а не поднимается параллельно.
+  #
+  # ВНИМАНИЕ при откате: `:latest` у мигратора накатит миграции вперёд даже
+  # тогда, когда сервисы откатывают назад. Откатываясь, ставь всем четырём
+  # образам один и тот же тег коммита, а не `latest`.
+  #
+  # Отдельные прогоны по-прежнему доступны:
+  #   docker compose run --rm migrate core       # cadastre-db only
+  #   docker compose run --rm migrate registry   # cadastre-registry only
+  #   docker compose run --rm migrate status     # report, apply nothing
   migrate:
     image: ekalkutin/cadastre-migrator:latest
-    profiles:
-      - migrate
+    # Задача, а не служба: отработала и вышла. Перезапускать её нельзя.
+    restart: 'no'
     environment:
       # One variable per database, and no bare DATABASE_URL: the two histories
       # are separate on purpose (ADR-0010), and a single unnamed URL is how the

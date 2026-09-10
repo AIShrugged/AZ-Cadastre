@@ -73,9 +73,23 @@ export type PacketReading = {
   readonly fieldName: string | null;
 };
 
+/**
+ * Whether a value was read surely enough to be shown as what the paper says.
+ *
+ * Takes the confidence and not the reading, because the same question is asked
+ * of two different shapes of the same fact: the packet readings this module
+ * assembles from a package's documents, and the `StatedValueDto` the register's
+ * list endpoint already publishes per row. One threshold, asked in one place —
+ * two copies is how a row and its case sheet come to disagree about which
+ * reading is worth a second look.
+ */
+export function readWellEnough(confidence: number): boolean {
+  return confidence >= READ_WELL_ENOUGH;
+}
+
 /** Whether this reading is one to look at rather than one to accept. */
 export function needsAGlance(reading: PacketReading): boolean {
-  return reading.field !== null && reading.field.confidence < READ_WELL_ENOUGH;
+  return reading.field !== null && !readWellEnough(reading.field.confidence);
 }
 
 /**

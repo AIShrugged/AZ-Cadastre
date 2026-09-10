@@ -10,10 +10,29 @@
  *
  * **Two filters, because there are two questions.** Where a submission stands is
  * what has to happen to it next; what the run found is what the report holds
- * against the papers. They are shown in two columns and narrowed by two
- * controls, and neither is ever folded into the other: a submission can be
- * finished and still carry findings, and one control over both could only ever
- * answer one of them.
+ * against the papers. They are narrowed by two controls, and neither is ever
+ * folded into the other: a submission can be finished and still carry findings,
+ * and one control over both could only ever answer one of them.
+ *
+ * **One column, because it is one thing to look at.** The two questions used to
+ * be three columns — what was found, what it came to, what happens next — and
+ * most of the time two of them said the same thing: `ShortOfDocuments` is what
+ * `IncompletePackage` means for the queue, and `NeedsInspector` is what
+ * `IssuesFound` means for it. They are now one cell (`case-state.ts`): the
+ * standing leads, the findings are counted under it, and the outcome's own word
+ * is drawn whenever it is news — which a repetition of the standing is not.
+ *
+ * It **is** drawn, repetition and all, while the outcome filter is narrowing
+ * the register, which is why the table is told about that filter at all. A row
+ * narrowed to a word it never shows is a row the inspector cannot check; a word
+ * nobody is looking for is a word that only crowds the cell. Both are true, and
+ * they are true at different moments.
+ *
+ * **The row names the case.** A profile and the first block of a uuid are the
+ * row's furniture, not its subject — an inspector reads a register looking for
+ * a person and an address. Both are the pipeline's reading of the package's own
+ * papers, so both carry the confidence they were read with and neither is ever
+ * passed off as a fact the office was told.
  *
  * The question lives in the address bar, so a narrowed register can be linked to
  * and returned to — the same reason a case has an address of its own.
@@ -54,7 +73,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import {
   CASE_SLICES,
+  caseState,
   documentsExpected,
+  drawsOutcome,
+  hasFindings,
   isNarrowed,
   OutcomeMark,
   packageRef,
@@ -62,6 +84,7 @@ import {
   parseOverviewPeriod,
   parseRegisterQuery,
   profileName,
+  readWellEnough,
   registerQueryParams,
   REPORT_KEY,
   REPORT_TONE,
@@ -81,6 +104,7 @@ import {
   WHOLE_REGISTER_PERIOD,
   withOverviewPeriod,
   type CaseSlice,
+  type CaseState,
   type OverviewPeriod,
   type ProfileDto,
   type RegisterQuery,
@@ -127,6 +151,7 @@ import { RegisterSummary } from '@/widgets/register-summary';
 import {
   PackageStandingSchema,
   ReportStatusSchema,
+  type StatedValueDto,
 } from '@cadastre/api-contracts/verification';
 
 type Density = 'comfortable' | 'compact';
@@ -147,55 +172,120 @@ const OUTCOMES = ReportStatusSchema.options;
 // finished putting.
 const TYPING_SETTLES_MS = 300;
 
-// ─── Outcome cell ───────────────────────────────────────────────────────────
-// What the run made of the papers. Separate from the standing column on
-// purpose: this says what was found, that one says what happens next, and a
-// finished submission can carry findings.
-function Outcome({ p }: { p: VerificationPackage }) {
+// ─── What the case is called ────────────────────────────────────────────────
+// One value the papers state about the package, as the row says it: the
+// reading, and — only where the engine was unsure of it — the figure it was
+// read with.
+//
+// A sure confidence is a number nobody reads, so it is not drawn. An unsure one
+// is, because the whole point of showing a reading in a register is that a value
+// read badly is a value somebody has to check against the sheet before citing
+// it. The figure and not the colour carries that, which is the same rule every
+// other mark on this surface is drawn by.
+function Stated({ value }: { value: StatedValueDto | null }) {
   const { t } = useI18n();
-  if (p.reportStatus === null) {
-    // No run has reported on this one yet. Drawn as silence rather than as "no
-    // issues": a package nothing has read is not a package nothing was found in.
+  if (value === null) {
     return <span className='text-muted-foreground/60'>—</span>;
   }
+  const percent = Math.round(value.confidence * 100);
   return (
-    <OutcomeMark
-      tone={REPORT_TONE[p.reportStatus]}
-      label={t(REPORT_KEY[p.reportStatus])}
-    />
+    <span className='flex min-w-0 items-baseline gap-1.5'>
+      <span className='truncate' title={value.value}>
+        {value.value}
+      </span>
+      {!readWellEnough(value.confidence) && (
+        <span
+          data-mono
+          title={t('intake.read.glance', { p: percent })}
+          className='shrink-0 text-[0.6875rem] text-incomplete-ink'
+        >
+          {percent}%
+        </span>
+      )}
+    </span>
   );
 }
 
-// ─── Remarks cell ───────────────────────────────────────────────────────────
-// The findings behind the outcome, in the two groups the report keeps them in
-// and never added into one number: a shortfall somebody has to resolve, and a
-// reading the engine was unsure of. A column of its own because it is what the
-// inspector counts their day by — and, until a run has reported, silence rather
-// than a zero, which would read as "nothing was found" in a package nothing has
-// read.
-function Remarks({ p }: { p: VerificationPackage }) {
-  const { t } = useI18n();
-  if (p.reportStatus === null) {
+// ─── Applicant / Address cell ───────────────────────────────────────────────
+// Who the submission is for, over which property it concerns — the two things a
+// person names a case by, and the two the row could not say while it led with a
+// profile key and a fragment of a uuid.
+//
+// Null means no document of this package states it yet: the run has not reached
+// the paper, or read nothing off it. Drawn as the same silence every other
+// unknown cell of this table draws, and as one dash rather than two where the
+// package names neither — two dashes stacked report nothing twice.
+function Named({ p }: { p: VerificationPackage }) {
+  if (p.applicant === null && p.address === null) {
     return <span className='text-muted-foreground/60'>—</span>;
   }
-  if (p.issues === 0 && p.lowConfidence === 0) {
-    return (
-      <span className='text-[0.75rem] text-muted-foreground'>
-        {t('findings.none')}
-      </span>
-    );
-  }
   return (
-    <span className='flex flex-col gap-0.5 text-[0.75rem] leading-tight text-muted-foreground'>
-      {p.issues > 0 && (
-        <span className='font-medium text-issues-ink'>
-          {p.issues === 1
-            ? t('findings.issue_one')
-            : t('findings.issues', { n: p.issues })}
-        </span>
+    <span className='flex max-w-[20rem] flex-col gap-0.5 leading-tight'>
+      <span className='text-[0.8125rem] text-foreground'>
+        <Stated value={p.applicant} />
+      </span>
+      <span className='text-[0.75rem] text-muted-foreground'>
+        <Stated value={p.address} />
+      </span>
+    </span>
+  );
+}
+
+// ─── Report line ────────────────────────────────────────────────────────────
+// What the run made of the papers, and the findings it counted — the second
+// half of the merged state cell, and the half the outcome filter narrows by.
+//
+// Three different pieces of news, told apart (`case-state.ts`): an outcome with
+// its findings; a run under way, whose stage bar above this already reports the
+// wait; and a package nothing has read, drawn as silence rather than as "no
+// issues".
+//
+// The counts stay in the two groups the report keeps them in and are never
+// added into one number: a shortfall somebody has to resolve and a reading the
+// engine was unsure of are different work. They are drawn whether or not the
+// outcome's own word is: a figure is what the inspector counts their day by,
+// and it is never the repetition. A run that found neither is fully said by the
+// words above it, so nothing is appended.
+function Report({
+  p,
+  state,
+  narrowedByOutcome,
+}: {
+  p: VerificationPackage;
+  state: CaseState;
+  narrowedByOutcome: boolean;
+}) {
+  const { t } = useI18n();
+  if (state.kind === 'reading') return null;
+  if (state.kind === 'unread') {
+    return <span className='text-[0.75rem] text-muted-foreground/60'>—</span>;
+  }
+  const word = drawsOutcome(p.standing, state.outcome, narrowedByOutcome);
+  if (!word && !hasFindings(state)) return null;
+  return (
+    <span className='flex flex-wrap items-center gap-x-2 gap-y-1'>
+      {word && (
+        <OutcomeMark
+          tone={REPORT_TONE[state.outcome]}
+          label={t(REPORT_KEY[state.outcome])}
+        />
       )}
-      {p.lowConfidence > 0 && (
-        <span>{t('findings.low', { n: p.lowConfidence })}</span>
+      {hasFindings(state) && (
+        <span className='flex items-center gap-x-1.5 text-[0.75rem] leading-tight text-muted-foreground'>
+          {state.issues > 0 && (
+            <span className='font-medium text-issues-ink'>
+              {state.issues === 1
+                ? t('findings.issue_one')
+                : t('findings.issues', { n: state.issues })}
+            </span>
+          )}
+          {state.issues > 0 && state.lowConfidence > 0 && (
+            <span aria-hidden>·</span>
+          )}
+          {state.lowConfidence > 0 && (
+            <span>{t('findings.low', { n: state.lowConfidence })}</span>
+          )}
+        </span>
       )}
     </span>
   );
@@ -259,15 +349,31 @@ function Submitted({
   );
 }
 
-// ─── Standing cell ──────────────────────────────────────────────────────────
-// The word first, then how far the run has got where one is under way. The word
-// is always drawn, even mid-run: it is what the standing filter narrows by, and
-// a row narrowed to a word it never shows is a row the inspector cannot check.
-function Standing({ p }: { p: VerificationPackage }) {
+// ─── State cell ─────────────────────────────────────────────────────────────
+// What is with the case, in one column: where it stands, how far a run under
+// way has got, and what the last one made of the papers.
+//
+// The standing leads because it is what has to happen next, and it is always
+// drawn — mid-run included: it is what the standing filter narrows by. The
+// report line under it is what the outcome filter narrows by, and it is drawn
+// whenever there is one. Between them the cell says every word either control
+// can be set to, which is what lets a narrowed row be checked by eye.
+function State({
+  p,
+  narrowedByOutcome,
+}: {
+  p: VerificationPackage;
+  narrowedByOutcome: boolean;
+}) {
   return (
     <span className='flex flex-col items-start gap-1.5'>
       <StandingMark standing={p.standing} />
       {p.stage !== undefined && <StageBar stage={p.stage} />}
+      <Report
+        p={p}
+        state={caseState(p)}
+        narrowedByOutcome={narrowedByOutcome}
+      />
     </span>
   );
 }
@@ -281,6 +387,7 @@ function RegisterTable({
   onSelect,
   locale,
   now,
+  narrowedByOutcome,
 }: {
   rows: VerificationPackage[];
   profiles: readonly ProfileDto[];
@@ -289,6 +396,8 @@ function RegisterTable({
   onSelect: (p: VerificationPackage) => void;
   locale: Locale;
   now: number;
+  /** Whether the outcome filter is narrowing the register — see `State`. */
+  narrowedByOutcome: boolean;
 }) {
   const { t } = useI18n();
   const pad = density === 'compact' ? 'py-2.5' : 'py-4';
@@ -297,19 +406,20 @@ function RegisterTable({
     <Table className='border-separate border-spacing-0'>
       <TableHeader>
         <TableRow className='border-0 hover:bg-transparent'>
-          {/* The mockup's six columns. No Profile column of its own: the entry
-              leads with the profile's name, and the same string twice in one row
-              is a column that reports nothing. Remarks, Outcome and Standing are
-              three columns and not one — what was found, what it came to, and
-              what happens next are three questions, and the last two are also
-              the two filters. */}
+          {/* Five columns. No Profile column of its own: the entry leads with
+              the profile's name, and the same string twice in one row is a
+              column that reports nothing. Remarks, Outcome and Standing were
+              three of these and are now one — what the run found, what it came
+              to and what happens next are one thing to look at, and the cell
+              still says the words both filters narrow by. The case it belongs
+              to comes second, because that is what an inspector reads a
+              register for. */}
           {[
             'col.case',
+            'col.applicant',
             'col.documents',
-            'col.remarks',
-            'col.outcome',
+            'col.state',
             'col.submitted',
-            'col.standing',
           ].map((c, i, all) => (
             <TableHead
               key={c}
@@ -369,6 +479,11 @@ function RegisterTable({
                 </div>
               </TableCell>
               <TableCell
+                className={cn('border-b border-rule px-4 align-middle', pad)}
+              >
+                <Named p={p} />
+              </TableCell>
+              <TableCell
                 className={cn(
                   'border-b border-rule px-4 align-middle tabular-nums',
                   pad,
@@ -382,17 +497,7 @@ function RegisterTable({
               <TableCell
                 className={cn('border-b border-rule px-4 align-middle', pad)}
               >
-                <Remarks p={p} />
-              </TableCell>
-              <TableCell
-                className={cn('border-b border-rule px-4 align-middle', pad)}
-              >
-                <Outcome p={p} />
-              </TableCell>
-              <TableCell
-                className={cn('border-b border-rule px-4 align-middle', pad)}
-              >
-                <Submitted p={p} locale={locale} now={now} />
+                <State p={p} narrowedByOutcome={narrowedByOutcome} />
               </TableCell>
               <TableCell
                 className={cn(
@@ -401,7 +506,7 @@ function RegisterTable({
                 )}
               >
                 <div className='flex items-center justify-between gap-3'>
-                  <Standing p={p} />
+                  <Submitted p={p} locale={locale} now={now} />
                   <ChevronRightIcon className='size-4 shrink-0 text-muted-foreground/0 transition-colors group-hover:text-muted-foreground group-focus-visible:text-muted-foreground' />
                 </div>
               </TableCell>
@@ -414,16 +519,22 @@ function RegisterTable({
 }
 
 // ─── Mobile entry list ──────────────────────────────────────────────────────
+// The same row, stacked: what the entry is over what it is called, the standing
+// opposite it, then the run's progress and everything the desktop row says on
+// one wrapping line. Same cells, same silences — an entry that reads one way on
+// a phone and another on a desk is two registers.
 function RegisterEntries({
   rows,
   profiles,
   onSelect,
   locale,
+  narrowedByOutcome,
 }: {
   rows: VerificationPackage[];
   profiles: readonly ProfileDto[];
   onSelect: (p: VerificationPackage) => void;
   locale: Locale;
+  narrowedByOutcome: boolean;
 }) {
   const { t } = useI18n();
   return (
@@ -448,6 +559,7 @@ function RegisterEntries({
               </div>
               <StandingMark standing={p.standing} className='shrink-0' />
             </div>
+            <Named p={p} />
             {p.stage !== undefined && <StageBar stage={p.stage} />}
             <div className='flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[0.75rem] text-muted-foreground'>
               <span>
@@ -459,8 +571,11 @@ function RegisterEntries({
                 </span>
               </span>
               <span data-mono>{formatDate(p.submittedAt, locale)}</span>
-              <Outcome p={p} />
-              <Remarks p={p} />
+              <Report
+                p={p}
+                state={caseState(p)}
+                narrowedByOutcome={narrowedByOutcome}
+              />
             </div>
           </button>
         </li>
@@ -470,6 +585,11 @@ function RegisterEntries({
 }
 
 // ─── Loading state ──────────────────────────────────────────────────────────
+// One bar per column of the table it stands in for, in the table's own order —
+// a skeleton with a different number of cells than the rows that replace it is
+// a layout that jumps the moment the answer lands. The two-line blocks are the
+// two columns that stack a pair of lines; the state bar is the one drawn on a
+// phone too, because the mobile entry shows the standing and hides the rest.
 function RegisterSkeleton({ density }: { density: Density }) {
   const pad = density === 'compact' ? 'py-3' : 'py-[18px]';
   return (
@@ -490,11 +610,13 @@ function RegisterSkeleton({ density }: { density: Density }) {
             <Skeleton className='h-3.5 w-32' />
             <Skeleton className='h-3 w-44' />
           </div>
-          <Skeleton className='hidden h-3 w-24 md:block' />
-          <Skeleton className='hidden h-3 w-8 md:block' />
-          <Skeleton className='hidden h-3 w-20 md:block' />
-          <Skeleton className='hidden h-3 w-20 md:block' />
+          <div className='hidden flex-1 flex-col gap-1.5 md:flex'>
+            <Skeleton className='h-3.5 w-36' />
+            <Skeleton className='h-3 w-52' />
+          </div>
+          <Skeleton className='hidden h-3 w-10 md:block' />
           <Skeleton className='h-4 w-28' />
+          <Skeleton className='hidden h-3 w-20 md:block' />
         </div>
       ))}
     </div>
@@ -928,6 +1050,7 @@ export function Cases() {
                 onSelect={onSelect}
                 locale={locale}
                 now={now}
+                narrowedByOutcome={query.reportStatus !== null}
               />
             </div>
             <div className='flex-1 md:hidden'>
@@ -936,6 +1059,7 @@ export function Cases() {
                 profiles={profiles}
                 onSelect={onSelect}
                 locale={locale}
+                narrowedByOutcome={query.reportStatus !== null}
               />
             </div>
           </div>

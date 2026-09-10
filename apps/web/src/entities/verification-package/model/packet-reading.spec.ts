@@ -11,6 +11,7 @@ import {
   PACKET_LINES,
   READ_WELL_ENOUGH,
   readPacket,
+  readWellEnough,
 } from './packet-reading';
 
 const field = (name: string, value: string, confidence: number) => ({
@@ -124,5 +125,27 @@ describe('what the packet turned out to say', () => {
     expect(needsAGlance(unsure!)).toBe(true);
     // Nothing read is not something read badly: there is no sheet to glance at.
     expect(needsAGlance(unread!)).toBe(false);
+  });
+
+  // The register's rows ask the same question of the `StatedValueDto` the list
+  // endpoint publishes, so the threshold is asked in one place and not copied
+  // into the table. Two copies is how a row and its case sheet come to disagree
+  // about which reading is worth a second look.
+  it('answers the threshold for a bare confidence too', () => {
+    expect(readWellEnough(0.99)).toBe(true);
+    expect(readWellEnough(READ_WELL_ENOUGH)).toBe(true);
+    expect(readWellEnough(READ_WELL_ENOUGH - 0.01)).toBe(false);
+    expect(readWellEnough(0)).toBe(false);
+  });
+
+  it('agrees with the glance it is asked through', () => {
+    const [unsure] = readPacket(
+      detail([
+        document('d1', [field('applicant_name', 'A', READ_WELL_ENOUGH - 0.01)]),
+      ]),
+    );
+    expect(needsAGlance(unsure!)).toBe(
+      !readWellEnough(unsure!.field!.confidence),
+    );
   });
 });

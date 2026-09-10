@@ -143,10 +143,83 @@ const en: Dict = {
   'doctype.application': 'Application',
   'doctype.identity_card': 'Identity document',
   'doctype.unknown': 'Unknown type',
-  'doctype.out_of_profile': 'Not required by this profile',
-  // The document catalogue (ADR-0012): papers no profile asks for that the
-  // envelopes carry anyway. A key the dictionary has no word for falls back to
-  // the key itself, so the catalogue may grow ahead of this list.
+  // The one answer left for a paper the statutory list does not name. The key
+  // stays `out_of_profile` — every package already verified carries it — but
+  // what the inspector reads is that the paper is not on the list, not that
+  // this profile happens not to ask for it (ADR-0022).
+  'doctype.out_of_profile': 'Other documents',
+  // ── The document catalogue (ADR-0022) ──────────────────────────────────────
+  // Every ground the law lets a right rest on, and not only the papers the
+  // envelopes happened to carry: Article 8 of the State Register law, Decree
+  // No. 439, the papers an application brings with it, and the registrar's own
+  // service sheets. The names are the checklist's, shortened to what a table row
+  // can hold — the legal wording in full is the classifier's business and stays
+  // with the catalogue entry. A key the dictionary has no word for falls back to
+  // the key itself (`translateOr`), so the catalogue may grow ahead of this list.
+  // Grounds under Article 8 of the State Register law.
+  'doctype.state_property_disposal_act':
+    'Act on disposal of state or municipal immovable property',
+  'doctype.auction_results_protocol': 'Auction results protocol',
+  'doctype.notarised_property_contract':
+    'Notarised contract on immovable property',
+  'doctype.inheritance_certificate': 'Certificate of the right of inheritance',
+  'doctype.spousal_share_certificate':
+    'Certificate of ownership of a spousal share',
+  'doctype.enforcement_sale_certificate':
+    'Certificate on property under enforcement proceedings',
+  'doctype.immovable_property_certificate': 'Immovable property certificate',
+  'doctype.court_decision': 'Court decision in legal force',
+  'doctype.registration_certificate': 'Registration certificate',
+  'doctype.property_right_certificate':
+    'Certificate of a right over immovable property',
+  'doctype.housing_cooperative_allocation_decision':
+    'Housing cooperative allocation decision',
+  'doctype.garden_plot_allocation_document': 'Garden plot allocation document',
+  'doctype.operation_acceptance_act': 'Act of acceptance into operation',
+  'doctype.construction_permit_decision': 'Construction permit decision',
+  'doctype.architectural_planning_section':
+    'Architectural and planning section of the design',
+  'doctype.operation_permit': 'Operation permit',
+  'doctype.construction_completion_notice': 'Construction completion notice',
+  'doctype.disaster_replacement_housing_list':
+    'List of recipients of replacement housing',
+  'doctype.state_housing_allocation_order': 'State housing allocation order',
+  'doctype.privatisation_contract': 'Privatisation contract',
+  'doctype.privatisation_consent_statement': 'Consent to privatisation',
+  'doctype.housing_office_certificate':
+    'Housing maintenance office certificate (form No. 2)',
+  // Grounds under Decree No. 439 — rights that predate the register.
+  'doctype.soviet_land_record': 'Soviet-era land record',
+  'doctype.land_right_state_act': 'State act on a right over land',
+  'doctype.temporary_land_use_certificate': 'Certificate of temporary land use',
+  'doctype.land_allocation_decision': 'Land allocation decision',
+  'doctype.notarised_building_right_contract':
+    'Notarised contract on the right to build',
+  'doctype.notarised_land_allocation_contract':
+    'Notarised contract allotting a plot for a dwelling',
+  'doctype.dwelling_transfer_decision':
+    'Decision transferring a dwelling into ownership',
+  'doctype.notarised_spousal_division_contract':
+    'Notarised contract dividing a dwelling between spouses',
+  'doctype.house_inventory_valuation_passport':
+    'House inventory and valuation passport',
+  'doctype.household_book_extract': 'Household book extract',
+  'doctype.kolkhoz_allocation_decision': "Kolkhoz members' allocation decision",
+  'doctype.sovkhoz_allocation_order': "Sovkhoz head's allocation order",
+  'doctype.bound_land_book_extract': 'Bound land book extract',
+  'doctype.cooperative_land_allocation_decision':
+    'Land allocation decision for a cooperative',
+  'doctype.homestead_land_allocation_decision':
+    'Homestead land allocation decision',
+  'doctype.apartment_demolition_decision': 'Apartment demolition decision',
+  // Papers the application itself carries.
+  'doctype.power_of_attorney': 'Power of attorney',
+  'doctype.legal_entity_register_extract':
+    'Extract from the register of legal entities',
+  'doctype.technical_passport': 'Technical passport',
+  'doctype.state_register_extract':
+    'Extract from the State Register of Immovable Property',
+  // The registrar's own service sheets.
   'doctype.registrar_routing_sheet': 'Registrar routing sheet',
   'doctype.expert_review_sheet': 'Examination sheet',
   'doctype.designer_licence': "Designer's licence",
@@ -158,7 +231,8 @@ const en: Dict = {
   'detail.splitting': 'Splitting into pages…',
   'detail.pages_read': '{n} of {total} pages read',
   'detail.unclassified': 'Not classified — no matching document type.',
-  'detail.out_of_profile': 'Read, and not a document this profile asks for.',
+  'detail.out_of_profile':
+    'Read, and not one of the documents the statutory list names.',
   'detail.ocr_done': 'Text recognized',
   'detail.ocr_failed': 'OCR failed',
   'detail.view_text': 'View recognized text',
@@ -243,7 +317,7 @@ const en: Dict = {
   'detail.f.unread_sheet_sub': 'Sheet could not be read',
   'detail.f.unread_file_sub': 'Not read into documents',
   'detail.f.low_sub': 'Below the confidence threshold',
-  'detail.f.extra_sub': 'Not a type this profile asks for',
+  'detail.f.extra_sub': 'Not named by the statutory list of documents',
   'detail.f.extra_named_sub': '{type} — not a type this profile asks for',
   'detail.f.duplicate_sub': 'A second {type}',
   'detail.f.mismatch_sub': 'Does not agree across documents',
@@ -334,8 +408,8 @@ const en: Dict = {
   'detail.seg.review': 'To review',
   'detail.seg.all': 'All',
   'detail.seg.other': 'Other',
-  'detail.other_group': '{n} documents outside the profile',
-  'detail.other_group_one': '1 document outside the profile',
+  'detail.other_group': '{n} other documents',
+  'detail.other_group_one': '1 other document',
   'detail.other_show': 'Show',
   'detail.empty_filter': 'Nothing in this view.',
   'detail.process_done': 'Verification complete',
@@ -858,7 +932,93 @@ const ru: Dict = {
   'doctype.application': 'Заявление',
   'doctype.identity_card': 'Документ, удостоверяющий личность',
   'doctype.unknown': 'Неизвестный тип',
-  'doctype.out_of_profile': 'Не требуется этим профилем',
+  // Единственный ответ, оставшийся для бумаги, которую законный перечень не
+  // называет. Ключ остаётся `out_of_profile` — он лежит в базе у всех уже
+  // проверенных пакетов, — но инспектор читает, что бумаги нет в перечне, а не
+  // что её не спрашивает этот профиль (ADR-0022).
+  'doctype.out_of_profile': 'Прочие документы',
+  // ── Справочник документов (ADR-0022) ───────────────────────────────────────
+  // Весь законный перечень оснований, а не только бумаги, попадавшиеся в
+  // конвертах: статья 8 Закона о государственном реестре, Указ № 439, бумаги
+  // самого заявления и служебные листы регистратора. Названия — из чек-листа,
+  // укороченные до того, что помещается в строку таблицы; полная юридическая
+  // формулировка — дело классификатора и лежит в записи справочника. Ключ, для
+  // которого здесь слова нет, показывается сам собой (`translateOr`), так что
+  // справочник может расти быстрее этого списка.
+  // Основания по статье 8 Закона о государственном реестре.
+  'doctype.state_property_disposal_act':
+    'Акт об отчуждении государственного или муниципального имущества',
+  'doctype.auction_results_protocol': 'Протокол о результатах аукциона',
+  'doctype.notarised_property_contract':
+    'Нотариально удостоверенный договор в отношении недвижимости',
+  'doctype.inheritance_certificate': 'Свидетельство о праве на наследство',
+  'doctype.spousal_share_certificate':
+    'Свидетельство о праве собственности на долю в общем имуществе супругов',
+  'doctype.enforcement_sale_certificate':
+    'Свидетельство об имуществе в связи с принудительным исполнением',
+  'doctype.immovable_property_certificate': 'Сертификат недвижимого имущества',
+  'doctype.court_decision': 'Решение суда, вступившее в законную силу',
+  'doctype.registration_certificate': 'Регистрационное удостоверение',
+  'doctype.property_right_certificate':
+    'Свидетельство (акт) о праве на недвижимое имущество',
+  'doctype.housing_cooperative_allocation_decision':
+    'Решение общего собрания членов ЖСК о предоставлении помещения',
+  'doctype.garden_plot_allocation_document': 'Документ на садовый участок',
+  'doctype.operation_acceptance_act': 'Акт приёмки в эксплуатацию',
+  'doctype.construction_permit_decision':
+    'Решение о разрешении на строительство',
+  'doctype.architectural_planning_section':
+    'Архитектурно-планировочный раздел проекта',
+  'doctype.operation_permit': 'Разрешение на эксплуатацию',
+  'doctype.construction_completion_notice':
+    'Уведомление о завершении строительства',
+  'doctype.disaster_replacement_housing_list':
+    'Список лиц, получивших жильё взамен разрушенного',
+  'doctype.state_housing_allocation_order':
+    'Ордер на жильё из государственного фонда',
+  'doctype.privatisation_contract': 'Договор о приватизации',
+  'doctype.privatisation_consent_statement':
+    'Заявление о согласии на приватизацию',
+  'doctype.housing_office_certificate': 'Справка ЖЭО (форма № 2)',
+  // Основания по Указу № 439 — права, возникшие до реестра.
+  'doctype.soviet_land_record':
+    'Земельная запись исполкома местного совета (БТИ)',
+  'doctype.land_right_state_act':
+    'Государственный акт на право на земельный участок',
+  'doctype.temporary_land_use_certificate':
+    'Свидетельство о праве временного пользования землёй',
+  'doctype.land_allocation_decision': 'Решение об отводе земельных участков',
+  'doctype.notarised_building_right_contract':
+    'Нотариально удостоверенный договор о праве застройки',
+  'doctype.notarised_land_allocation_contract':
+    'Нотариальный договор об отводе участка под жилой дом',
+  'doctype.dwelling_transfer_decision':
+    'Решение о передаче жилья в собственность',
+  'doctype.notarised_spousal_division_contract':
+    'Нотариальный договор о разделе жилого дома между супругами',
+  'doctype.house_inventory_valuation_passport':
+    'Паспорт инвентаризации и оценки дома',
+  'doctype.household_book_extract': 'Выписка из похозяйственной книги',
+  'doctype.kolkhoz_allocation_decision':
+    'Решение общего собрания членов колхоза об отводе участка',
+  'doctype.sovkhoz_allocation_order':
+    'Приказ руководителя совхоза об отводе участка',
+  'doctype.bound_land_book_extract':
+    'Выписка из прошнурованной земельной книги',
+  'doctype.cooperative_land_allocation_decision':
+    'Решение об отводе участка кооперативу',
+  'doctype.homestead_land_allocation_decision':
+    'Решение об отводе приусадебного участка',
+  'doctype.apartment_demolition_decision':
+    'Решение о сносе квартир и строительстве индивидуального дома',
+  // Бумаги самого заявления.
+  'doctype.power_of_attorney': 'Доверенность',
+  'doctype.legal_entity_register_extract':
+    'Выписка из государственного реестра юридических лиц',
+  'doctype.technical_passport': 'Технический паспорт',
+  'doctype.state_register_extract':
+    'Выписка из государственного реестра недвижимого имущества',
+  // Служебные бумаги регистратора.
   'doctype.registrar_routing_sheet': 'Служебный обходной лист',
   'doctype.expert_review_sheet': 'Лист экспертизы',
   'doctype.designer_licence': 'Лицензия проектировщика',
@@ -870,7 +1030,8 @@ const ru: Dict = {
   'detail.splitting': 'Разбивка на страницы…',
   'detail.pages_read': 'распознано {n} из {total} страниц',
   'detail.unclassified': 'Не классифицировано — тип документа не распознан.',
-  'detail.out_of_profile': 'Прочитан; профиль такого документа не требует.',
+  'detail.out_of_profile':
+    'Прочитан; в законном перечне документов такой бумаги нет.',
   'detail.ocr_done': 'Текст распознан',
   'detail.ocr_failed': 'Ошибка OCR',
   'detail.view_text': 'Показать распознанный текст',
@@ -955,7 +1116,7 @@ const ru: Dict = {
   'detail.f.unread_sheet_sub': 'Лист не распознан',
   'detail.f.unread_file_sub': 'Не разобран на документы',
   'detail.f.low_sub': 'Ниже порога уверенности',
-  'detail.f.extra_sub': 'Профиль такого типа не требует',
+  'detail.f.extra_sub': 'Не входит в законный перечень документов',
   'detail.f.extra_named_sub': '{type} — профиль такого типа не требует',
   'detail.f.duplicate_sub': 'Второй документ: {type}',
   'detail.f.mismatch_sub': 'Документы расходятся',
@@ -1043,8 +1204,8 @@ const ru: Dict = {
   'detail.seg.review': 'К проверке',
   'detail.seg.all': 'Все',
   'detail.seg.other': 'Прочее',
-  'detail.other_group': '{n} документов вне профиля',
-  'detail.other_group_one': '1 документ вне профиля',
+  'detail.other_group': '{n} прочих документов',
+  'detail.other_group_one': '1 прочий документ',
   'detail.other_show': 'Показать',
   'detail.empty_filter': 'В этом виде ничего нет.',
   'detail.process_done': 'Проверка завершена',
@@ -1538,7 +1699,90 @@ const az: Dict = {
   'doctype.application': 'Ərizə',
   'doctype.identity_card': 'Şəxsiyyəti təsdiq edən sənəd',
   'doctype.unknown': 'Naməlum növ',
-  'doctype.out_of_profile': 'Bu profil tələb etmir',
+  // Qanuni siyahının adını çəkmədiyi sənəd üçün qalan yeganə cavab. Açar
+  // `out_of_profile` olaraq qalır — artıq yoxlanılmış bütün paketlərdə odur —
+  // lakin müfəttiş sənədin siyahıda olmadığını oxuyur, bu profilin onu tələb
+  // etmədiyini yox (ADR-0022).
+  'doctype.out_of_profile': 'Digər sənədlər',
+  // ── Sənəd kataloqu (ADR-0022) ──────────────────────────────────────────────
+  // Yalnız zərflərdə rast gəlinən kağızlar deyil, hüququn əsaslana bildiyi bütün
+  // qanuni siyahı: Dövlət reyestri haqqında Qanunun 8-ci maddəsi, 439 nömrəli
+  // Fərman, ərizənin öz sənədləri və qeydiyyatçının xidməti vərəqləri. Adlar
+  // çeklistdəndir, cədvəl sətrinə sığacaq qədər qısaldılıb — tam hüquqi ifadə
+  // təsnifatçının işidir və kataloq qeydində qalır. Lüğətdə qarşılığı olmayan
+  // açar özü kimi göstərilir (`translateOr`), ona görə kataloq bu siyahıdan
+  // qabaqda böyüyə bilər.
+  // Dövlət reyestri haqqında Qanunun 8-ci maddəsi üzrə əsaslar.
+  'doctype.state_property_disposal_act':
+    'Dövlət və ya bələdiyyə əmlakının özgəninkiləşdirilməsinə dair akt',
+  'doctype.auction_results_protocol': 'Hərracın nəticələri haqqında protokol',
+  'doctype.notarised_property_contract':
+    'Daşınmaz əmlak barəsində notariat qaydasında təsdiq edilmiş müqavilə',
+  'doctype.inheritance_certificate': 'Vərəsəlik hüququ haqqında şəhadətnamə',
+  'doctype.spousal_share_certificate':
+    'Ər-arvadın ümumi əmlakındakı paya mülkiyyət hüququ haqqında şəhadətnamə',
+  'doctype.enforcement_sale_certificate':
+    'İcra sənədlərinin məcburi icrası ilə əlaqədar əmlak barədə şəhadətnamə',
+  'doctype.immovable_property_certificate': 'Daşınmaz əmlak sertifikatı',
+  'doctype.court_decision': 'Qanuni qüvvəyə minmiş məhkəmə qərarı',
+  'doctype.registration_certificate': 'Qeydiyyat vəsiqəsi',
+  'doctype.property_right_certificate':
+    'Daşınmaz əmlak üzərində hüquqları təsdiq edən şəhadətnamə',
+  'doctype.housing_cooperative_allocation_decision':
+    'Mənzil-tikinti kooperativi üzvlərinin ümumi yığıncağının qərarı',
+  'doctype.garden_plot_allocation_document': 'Bağ sahəsinə dair sənəd',
+  'doctype.operation_acceptance_act': 'İstismara qəbul aktı',
+  'doctype.construction_permit_decision': 'Tikintiyə icazə barədə qərar',
+  'doctype.architectural_planning_section':
+    'Layihənin memarlıq-planlaşdırma bölməsi',
+  'doctype.operation_permit': 'İstismara icazə',
+  'doctype.construction_completion_notice':
+    'Tikintinin başa çatması barədə məlumat',
+  'doctype.disaster_replacement_housing_list':
+    'Əvəzində ev verilən şəxslərin siyahısı',
+  'doctype.state_housing_allocation_order':
+    'Dövlət mənzil fondundan yaşayış sahəsinin verilməsinə dair order',
+  'doctype.privatisation_contract': 'Özəlləşdirmə barədə müqavilə',
+  'doctype.privatisation_consent_statement':
+    'Özəlləşdirməyə razılıq barədə ərizə',
+  'doctype.housing_office_certificate':
+    'Mənzil istismar təşkilatının arayışı (2 №-li forma)',
+  // 439 nömrəli Fərman üzrə əsaslar — reyestrdən əvvəlki hüquqlar.
+  'doctype.soviet_land_record': 'Torpaq qeydləri',
+  'doctype.land_right_state_act': 'Torpaq sahəsinə dair dövlət aktı',
+  'doctype.temporary_land_use_certificate':
+    'Torpaqdan müvəqqəti istifadə hüququna dair şəhadətnamə',
+  'doctype.land_allocation_decision':
+    'Torpaq sahələrinin ayrılması barədə qərar',
+  'doctype.notarised_building_right_contract':
+    'Tikinti hüququ barədə notariat qaydasında təsdiq edilmiş müqavilə',
+  'doctype.notarised_land_allocation_contract':
+    'Yaşayış evi üçün torpaq sahəsinin verilməsi müqaviləsi',
+  'doctype.dwelling_transfer_decision':
+    'Mənzilin şəxsin mülkiyyətinə verilməsi barədə qərar',
+  'doctype.notarised_spousal_division_contract':
+    'Ər-arvad arasında yaşayış evinin bölünməsi haqqında müqavilə',
+  'doctype.house_inventory_valuation_passport':
+    'Evlərin inventarizasiya və qiymətləndirilməsinə aid pasport',
+  'doctype.household_book_extract': 'Təsərrüfatbaşına kitabından çıxarış',
+  'doctype.kolkhoz_allocation_decision':
+    'Kolxoz üzvlərinin ümumi yığıncağının qərarı',
+  'doctype.sovkhoz_allocation_order': 'Sovxoz rəhbərinin əmri',
+  'doctype.bound_land_book_extract': 'Qaytanlanmış torpaq kitabından çıxarış',
+  'doctype.cooperative_land_allocation_decision':
+    'Kooperativə torpaq sahəsinin ayrılması barədə qərar',
+  'doctype.homestead_land_allocation_decision':
+    'Həyətyanı torpaq sahəsinin ayrılması barədə qərar',
+  'doctype.apartment_demolition_decision':
+    'Mənzillərin sökülərək fərdi yaşayış evinin inşası barədə qərar',
+  // Ərizənin özünün gətirdiyi sənədlər.
+  'doctype.power_of_attorney': 'Etibarnamə',
+  'doctype.legal_entity_register_extract':
+    'Hüquqi şəxslərin dövlət reyestrindən çıxarış',
+  'doctype.technical_passport': 'Texniki pasport',
+  'doctype.state_register_extract':
+    'Daşınmaz əmlakın dövlət reyestrindən çıxarış',
+  // Qeydiyyatçının xidməti sənədləri.
   'doctype.registrar_routing_sheet': 'Dövriyyə vərəqi',
   'doctype.expert_review_sheet': 'Ekspertiza vərəqi',
   'doctype.designer_licence': 'Layihəçinin lisenziyası',
@@ -1550,7 +1794,8 @@ const az: Dict = {
   'detail.splitting': 'Səhifələrə bölünür…',
   'detail.pages_read': '{total} səhifədən {n}-i oxundu',
   'detail.unclassified': 'Təsnif edilmədi — uyğun sənəd növü tapılmadı.',
-  'detail.out_of_profile': 'Oxundu; bu profil belə sənəd tələb etmir.',
+  'detail.out_of_profile':
+    'Oxundu; qanuni sənəd siyahısında belə sənəd yoxdur.',
   'detail.ocr_done': 'Mətn tanındı',
   'detail.ocr_failed': 'OCR uğursuz oldu',
   'detail.view_text': 'Tanınan mətni göstər',
@@ -1634,7 +1879,7 @@ const az: Dict = {
   'detail.f.unread_sheet_sub': 'Vərəq oxuna bilmədi',
   'detail.f.unread_file_sub': 'Sənədlərə ayrılmadı',
   'detail.f.low_sub': 'Etibar həddindən aşağı',
-  'detail.f.extra_sub': 'Bu profilin tələb etdiyi növ deyil',
+  'detail.f.extra_sub': 'Qanuni sənəd siyahısında adı çəkilmir',
   'detail.f.extra_named_sub': '{type} — bu profilin tələb etdiyi növ deyil',
   'detail.f.duplicate_sub': 'İkinci {type}',
   'detail.f.mismatch_sub': 'Sənədlər arasında uyğun gəlmir',
@@ -1721,8 +1966,8 @@ const az: Dict = {
   'detail.seg.review': 'Yoxlamalı',
   'detail.seg.all': 'Hamısı',
   'detail.seg.other': 'Digər',
-  'detail.other_group': 'Profildən kənar {n} sənəd',
-  'detail.other_group_one': 'Profildən kənar 1 sənəd',
+  'detail.other_group': 'Digər {n} sənəd',
+  'detail.other_group_one': '1 digər sənəd',
   'detail.other_show': 'Göstər',
   'detail.empty_filter': 'Bu görünüşdə heç nə yoxdur.',
   'detail.process_done': 'Yoxlama tamamlandı',
@@ -2100,7 +2345,14 @@ const az: Dict = {
   'slice.error': 'Nasazlıq',
 };
 
-const DICTS: Record<Locale, Dict> = { en, ru, az };
+/**
+ * The three dictionaries, by locale.
+ *
+ * Exported for one reader only — the parity spec beside this file, which is
+ * what makes "every string in all three languages" a rule the build enforces
+ * rather than a habit. Screens read words through `useI18n`, never from here.
+ */
+export const DICTS: Record<Locale, Dict> = { en, ru, az };
 
 type I18nValue = {
   locale: Locale;

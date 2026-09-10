@@ -17,7 +17,6 @@ import {
   Confidence,
   FieldValue,
   PageNumber,
-  type DocumentTypeSpec,
 } from '../../../domain/value-objects/index.js';
 import {
   VERIFICATION_OPTIONS,
@@ -26,6 +25,7 @@ import {
 import { MissingOpenRouterApiKeyException } from '../../exceptions/index.js';
 
 import { answerOf } from './answered.js';
+import { extractionInstructions } from './extractor-prompt.js';
 import { confidenceFromLogprobs } from './logprob-confidence.js';
 import { telemetryOf } from './telemetry.js';
 
@@ -117,7 +117,7 @@ export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
       logprobs: true,
       response_format: { type: 'json_object' },
       messages: [
-        { role: 'system', content: this.instructions(request.spec) },
+        { role: 'system', content: extractionInstructions(request.spec) },
         { role: 'user', content: await this.evidenceParts(request) },
       ],
     });
@@ -250,58 +250,6 @@ export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
 
       return null;
     }
-  }
-
-  private instructions(spec: DocumentTypeSpec): string {
-    const schema = spec.schema.specs
-      .map(field => `- ${field.key.value}: ${field.label}`)
-      .join('\n');
-
-    return [
-      'You read structured values off one scanned document submitted to the',
-      'Azerbaijani real estate registration authority. The applicant handed it',
-      'in over the counter; an inspector is checking the values you return',
-      'against the sheets themselves.',
-      '',
-      `The document is a ${spec.type.value}. ${spec.description}`,
-      '',
-      'You are given each of its sheets twice: as a transcription and as the',
-      'scan the transcription was made from. Where they disagree, the scan is',
-      'the document and the transcription is one reading of it. Transcription',
-      'marks: [hw: ...] handwritten, [stamp: ...] a stamp, <?text> a doubtful',
-      'reading, [blank page] an empty sheet.',
-      '',
-      'Its text is usually Azerbaijani (Latin or Cyrillic script), sometimes',
-      'Russian or English.',
-      '',
-      'Return JSON. For each key below give an object, or null when the document',
-      'does not carry that value. Use ONLY these keys:',
-      schema,
-      '',
-      'Shape: {"fields":{"<key>":{"value":"<as printed>","sheet":<the sheet',
-      'number you read it on>,"evidence":"<a short literal quote from that',
-      'sheet\'s transcription containing the value>","confidence":<0..1>}}}',
-      '',
-      'Rules:',
-      '- Transcribe values exactly as printed, in their own script. Do not',
-      '  translate, transliterate or expand names and addresses.',
-      '- Give a name in its base form. Azerbaijani prints names in oblique cases',
-      '  on forms — "Əliyeva Rübabə Kavı qızına" is the same name as "Əliyeva',
-      '  Rübabə Kavı qızı"; return the base form, without the case ending.',
-      '- Write every date as DD.MM.YYYY, whatever form it appears in. Never',
-      '  adjust a year to make it look plausible: copy the year that is printed.',
-      '- A surname printed in capitals stays in capitals.',
-      '- Give the value alone, without its printed label.',
-      "- `evidence` must be text that actually appears in that sheet's",
-      '  transcription. If you read the value off the scan and the transcription',
-      '  does not contain it, give the nearest text that does appear, or an',
-      '  empty string — never invent a quote.',
-      '- `confidence` is your own: how sure you are of this value, on this',
-      '  document. Say 0.3 when you are guessing at faint handwriting.',
-      '- Never infer, compute or invent a value that is not on the document.',
-      '  A null is worth more to the inspector than a plausible guess: they',
-      '  check the ones we return.',
-    ].join('\n');
   }
 
   private parse(

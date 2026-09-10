@@ -29,7 +29,11 @@ type Declaration = {
   // that adding one is answering the question rather than forgetting it.
   readonly expectsStamp: boolean;
   readonly expectsSignature: boolean;
-  readonly fields: readonly (readonly [string, string])[];
+  // [field key, English label, and an optional note for whoever reads the
+  // value off the paper]. The note is the sentence the label has no room for —
+  // which of two figures printed together is meant, or where on the sheet the
+  // value is written — and it reaches the extraction stage and nothing else.
+  readonly fields: readonly (readonly [string, string, string?])[];
 };
 
 // A rule that spans documents: values printed on different papers of the same
@@ -661,7 +665,9 @@ export class DocumentTypeSpec {
       declaration.description,
       [...declaration.hints],
       FieldSchema.of(
-        declaration.fields.map(([key, label]) => FieldSpec.of(key, label)),
+        declaration.fields.map(([key, label, note]) =>
+          FieldSpec.of(key, label, note ?? null),
+        ),
       ),
       declaration.required,
       declaration.expectsStamp,
@@ -734,12 +740,84 @@ export class VerificationProfile {
         // so (ADR-0012).
         expectsStamp: true,
         expectsSignature: true,
+        // The eleven items the acceptance contract asks of a plan-scheme, in
+        // the order it numbers them. Sixteen keys and not eleven: four of its
+        // items name two values apiece — the ownership and the right, the
+        // documentary area and the surveyed one, the date and the scale, the
+        // issuing office and the QR code — and each of those is a value of its
+        // own or it cannot be read. The parcel's cadastral number is no item of
+        // the contract at all; it was here first, the cross-check and the
+        // registry check are asked under it, and it stays beside the address it
+        // identifies.
         fields: [
           ['property_address', 'Property address'],
           ['cadastral_number', 'Cadastral number'],
-          ['plot_area', 'Plot area'],
-          ['owner_name', 'Owner name'],
+          ['owner_name', 'Rightholder'],
+          ['land_category', 'Land category (designated purpose)'],
+          [
+            'ownership_type',
+            'Ownership type',
+            'the form of ownership the parcel is held in — private, state, ' +
+              'municipal — and not the right exercised over it.',
+          ],
+          [
+            'right_type',
+            'Type of right',
+            'the right itself — ownership, use, lease — as the plan names it.',
+          ],
+          [
+            'registry_no',
+            'Registry record number',
+            'the number of the register entry this plan was drawn from. It is ' +
+              'not the cadastral number of the parcel: where the sheet prints ' +
+              'both, they are two different values.',
+          ],
+          [
+            'plot_area',
+            'Plot area per the document',
+            'the area the document states for the parcel. Where the sheet ' +
+              'prints a documentary area and an actual one side by side, this ' +
+              'is the documentary figure.',
+          ],
+          [
+            'actual_area',
+            'Actual plot area',
+            'the surveyed area as measured on the ground, where the sheet ' +
+              'prints it apart from the documentary one. Never repeat the ' +
+              'documentary figure here: a sheet that states one area states ' +
+              'one area.',
+          ],
+          [
+            'easements',
+            'Easements',
+            'the encumbrances the plan records over the parcel. A plan that ' +
+              'prints "none" states none, and that is a value; a plan that ' +
+              'says nothing at all carries no value.',
+          ],
+          [
+            'turning_points',
+            'Principal turning points (X, Y) and the distances between them',
+            'every principal turning point the plan lists, in the order it ' +
+              'lists them, each with its X and Y and the distance to the ' +
+              'next. Give them as one value, the points separated by ' +
+              'semicolons. Do not compute a distance the plan does not print.',
+          ],
+          ['plan_basis', 'Basis for drawing up the plan'],
           ['plan_date', 'Plan date'],
+          ['plan_scale', 'Scale of the plan'],
+          [
+            'issuing_authority',
+            'Issuing authority',
+            'the territorial office that issued the plan.',
+          ],
+          [
+            'qr_code',
+            'QR code',
+            'only the text the sheet prints for the code — the link or the ' +
+              'reference under or beside it. Never read the picture of the ' +
+              'code itself: a decoded guess is a value nobody can check ' +
+              'against the paper.',
+          ],
         ],
       },
       {
@@ -806,16 +884,97 @@ export class VerificationProfile {
         // seals the title block of what it puts its name to.
         expectsStamp: true,
         expectsSignature: true,
+        // The twelve items the acceptance contract asks of a sketch design, in
+        // the order it numbers them, several of which name two or three values
+        // apiece. Its thirteenth item — the architect's and the director's
+        // signature and the seal on every page — is not among them and is not a
+        // field: it is the attestation of the paper, declared above as
+        // `expectsStamp` / `expectsSignature` and reported as what was actually
+        // seen (ADR-0012). The approval date is the other way round — no item
+        // of the contract, and read off this paper since before there was one.
         fields: [
-          ['project_name', 'Project name'],
-          ['designer_name', 'Design organisation'],
+          [
+            'designer_name',
+            'Design organisation',
+            'the name of the organisation that produced the design.',
+          ],
+          [
+            'designer_tax_id',
+            'Taxpayer number of the design organisation',
+            'the VÖEN / ИНН of the design organisation, usually printed with ' +
+              'its name in the title block.',
+          ],
+          ['designer_director', 'Director of the design organisation'],
+          ['chief_architect', 'Chief architect of the design'],
+          ['client_name', 'Client'],
           ['property_address', 'Property address'],
+          ['project_name', 'Name of the object'],
+          [
+            'drawing_schedule',
+            'Drawing schedule',
+            'the schedule of drawings as the set lists it — the sheet marks ' +
+              'and what each sheet holds. Give it as one value, the entries ' +
+              'separated by semicolons.',
+          ],
+          [
+            'sheet_count',
+            'Number of sheets',
+            'the number of sheets the set states for itself. Do not count the ' +
+              'sheets you were given: a set may be handed in incomplete, and ' +
+              'the figure the inspector needs is the one the paper claims.',
+          ],
+          [
+            'project_composition',
+            'Composition of the set',
+            'which drawings the set is composed of — location plan, site ' +
+              'plan, floor plans, roof plan, section, elevations — as it ' +
+              'names them, separated by semicolons.',
+          ],
+          [
+            'built_up_area',
+            'Built-up area',
+            'the footprint of the building, from the technical and economic ' +
+              'indicators. Not the total area and not the area of the parcel.',
+          ],
           ['total_area', 'Total area'],
-          ['storeys', 'Storeys'],
+          [
+            'building_volume',
+            'Building volume',
+            'the building volume of the technical and economic indicators — ' +
+              'a volume in m³, never an area.',
+          ],
+          [
+            'storeys',
+            'Storeys',
+            'the number of storeys. Where the set does not state a figure, it ' +
+              'is the number of floor plans the drawing set contains — the ' +
+              'contract reads the storeys off them.',
+          ],
+          [
+            'datum_level',
+            'Definition of the ±0.000 datum',
+            'how the set defines ±0.000 — the floor level of the first ' +
+              'storey — as the sheet words it, with the absolute mark where ' +
+              'one is given.',
+          ],
           // Read for its own sake and for the branch: which supporting
           // documents this case needs is decided on how tall the building is,
           // and the sketch design is the only paper of this profile that says.
-          ['building_height', 'Building height'],
+          [
+            'building_height',
+            'Building height',
+            'the height marked on the section from the ±0.000 datum to the ' +
+              'underside of the covering of the top storey (UPCC 80.1). Not ' +
+              'the ridge, not the parapet and not the absolute mark: where ' +
+              'several heights are marked, this is the one meant.',
+          ],
+          [
+            'span_dimensions',
+            'Span dimensions',
+            'the axis spacings dimensioned on the floor plans, as printed, ' +
+              'separated by semicolons.',
+          ],
+          ['project_scale', 'Scale of the drawings'],
           ['approval_date', 'Approval date'],
         ],
       },

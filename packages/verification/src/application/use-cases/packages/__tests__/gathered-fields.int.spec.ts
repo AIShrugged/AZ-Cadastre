@@ -183,4 +183,34 @@ describe('a field one paper did not yield and another states', () => {
     // act / assert
     expect(fieldOn('sketch_project', 'total_area')).toBeUndefined();
   });
+
+  /*
+   * The same answer for the keys the two drawings gained from the acceptance
+   * contract, and the whole way out through the read model: a paper that does
+   * not print an easement, a set of turning points or a QR reference yields no
+   * value, and the client is shown nothing rather than a blank string that
+   * reads as a value somebody wrote down.
+   */
+  it('leaves a field the contract added and the paper did not yield absent', () => {
+    // act / assert
+    for (const name of ['easements', 'turning_points', 'qr_code']) {
+      expect(fieldOn('land_plot_plan', name)).toBeUndefined();
+    }
+    for (const name of ['built_up_area', 'datum_level', 'sheet_count']) {
+      expect(fieldOn('sketch_project', name)).toBeUndefined();
+    }
+  });
+
+  // The gathering stage carries what a check maps and nothing else. The sketch
+  // design gained twelve keys and none of them is in a check, so the address
+  // is still the only value that arrives from another paper.
+  it('carries the address and nothing the contract added', () => {
+    // act
+    const carried = (documentOf('sketch_project')?.fields ?? []).filter(
+      field => field.origin === 'TakenFromAnotherDocument',
+    );
+
+    // assert
+    expect(carried.map(field => field.name)).toEqual(['property_address']);
+  });
 });

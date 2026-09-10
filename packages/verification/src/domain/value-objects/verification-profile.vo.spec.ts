@@ -266,6 +266,218 @@ describe('VerificationProfile', () => {
       ).toBe(true);
     });
 
+    /*
+     * The acceptance contract the customer attached to COMM-67 numbers what a
+     * plan-scheme and a sketch design must yield. These two lists are that
+     * contract, key by key: a key that leaves the schema leaves the contract
+     * unanswered, and the test says which one rather than a count.
+     */
+    describe('against the acceptance contract', () => {
+      const PLAN_SCHEME = [
+        'property_address',
+        'cadastral_number',
+        'owner_name',
+        'land_category',
+        'ownership_type',
+        'right_type',
+        'registry_no',
+        'plot_area',
+        'actual_area',
+        'easements',
+        'turning_points',
+        'plan_basis',
+        'plan_date',
+        'plan_scale',
+        'issuing_authority',
+        'qr_code',
+      ];
+
+      const SKETCH_DESIGN = [
+        'designer_name',
+        'designer_tax_id',
+        'designer_director',
+        'chief_architect',
+        'client_name',
+        'property_address',
+        'project_name',
+        'drawing_schedule',
+        'sheet_count',
+        'project_composition',
+        'built_up_area',
+        'total_area',
+        'building_volume',
+        'storeys',
+        'datum_level',
+        'building_height',
+        'span_dimensions',
+        'project_scale',
+        'approval_date',
+      ];
+
+      const keysOf = (type: string) =>
+        VerificationProfile.CADASTRE.schemaFor(
+          DocumentType.create(type),
+        ).specs.map(spec => spec.key.value);
+
+      it('asks the plan-scheme for every value the contract names', () => {
+        expect(keysOf('land_plot_plan')).toEqual(PLAN_SCHEME);
+      });
+
+      it('asks the sketch design for every value the contract names', () => {
+        expect(keysOf('sketch_project')).toEqual(SKETCH_DESIGN);
+      });
+
+      /*
+       * The contract's thirteenth item of a sketch design — the architect's and
+       * the director's signature and the seal on every page — is not a value
+       * read off the paper but the attestation of it, and the profile already
+       * asks for it as `expectsStamp` / `expectsSignature` (ADR-0012). A text
+       * field saying "signed" would be the engine reporting a check as a
+       * reading.
+       */
+      it('does not read the attestation of the sketch design as a field of it', () => {
+        const sketch = VerificationProfile.CADASTRE.specFor(
+          DocumentType.create('sketch_project'),
+        );
+
+        for (const key of ['signature', 'seal', 'stamp', 'attestation']) {
+          expect(sketch.schema.declares(FieldKey.create(key))).toBe(false);
+        }
+        expect(sketch.expectsStamp).toBe(true);
+        expect(sketch.expectsSignature).toBe(true);
+      });
+
+      /*
+       * The contract asks a plan-scheme for the area the document states and
+       * the area the ground actually measures. `plot_area` is the documentary
+       * one and stays it: it is what `plot_area` cross-check holds against the
+       * order that allotted the parcel, and moving the surveyed figure into
+       * that key would set the check to compare the plan with itself.
+       */
+      it('keeps the documentary area the one the order is held against', () => {
+        const check = VerificationProfile.CADASTRE.checkFor(
+          CrossCheckKey.create('plot_area'),
+        );
+
+        expect(
+          check.references.map(
+            reference => `${reference.type.value}.${reference.key.value}`,
+          ),
+        ).toEqual(['land_plot_plan.plot_area', 'disposal_order.plot_area']);
+        expect(
+          check.wants(
+            DocumentType.create('land_plot_plan'),
+            FieldKey.create('actual_area'),
+          ),
+        ).toBe(false);
+      });
+
+      /*
+       * The registry number of the entry the plan was drawn from is a second
+       * number and not a second name for the first: the cadastral number is the
+       * parcel's and is what the registry check and the case's particulars are
+       * asked under.
+       */
+      it('asks for the registry entry apart from the parcel it describes', () => {
+        const schema = VerificationProfile.CADASTRE.schemaFor(
+          DocumentType.create('land_plot_plan'),
+        );
+
+        expect(schema.declares(FieldKey.create('registry_no'))).toBe(true);
+        expect(schema.declares(FieldKey.create('cadastral_number'))).toBe(true);
+      });
+
+      it('labels every field of both types in English, for the reader of the value', () => {
+        for (const type of ['land_plot_plan', 'sketch_project']) {
+          for (const spec of VerificationProfile.CADASTRE.schemaFor(
+            DocumentType.create(type),
+          ).specs) {
+            expect(spec.label.length).toBeGreaterThan(0);
+          }
+        }
+      });
+
+      it('declares each key of a type once, so nothing is asked for twice', () => {
+        for (const spec of VerificationProfile.CADASTRE.specs) {
+          const keys = spec.schema.specs.map(field => field.key.value);
+
+          expect(new Set(keys).size).toBe(keys.length);
+        }
+      });
+
+      /*
+       * Extending the schemas is adding keys and never renaming them: every one
+       * of these is stored against documents already verified, and is named by
+       * a cross-check, a registry check or the row that says what the case is.
+       */
+      it('keeps every key the stored packages and the checks were written on', () => {
+        expect(keysOf('land_plot_plan')).toEqual(
+          expect.arrayContaining([
+            'property_address',
+            'cadastral_number',
+            'plot_area',
+            'owner_name',
+            'plan_date',
+          ]),
+        );
+        expect(keysOf('sketch_project')).toEqual(
+          expect.arrayContaining([
+            'project_name',
+            'designer_name',
+            'property_address',
+            'total_area',
+            'storeys',
+            'building_height',
+            'approval_date',
+          ]),
+        );
+      });
+
+      /*
+       * A note is what the label has no room for — which of two figures printed
+       * together is meant. Only the extraction stage is shown them, so an empty
+       * one is a note that says nothing to the only reader it has.
+       */
+      it('says something in every note it declares', () => {
+        for (const spec of VerificationProfile.CADASTRE.specs) {
+          for (const field of spec.schema.specs) {
+            if (field.note === null) continue;
+
+            expect(field.note.trim().length).toBeGreaterThan(0);
+          }
+        }
+      });
+
+      it('says which of the two areas of a plan-scheme each key means', () => {
+        const schema = VerificationProfile.CADASTRE.schemaFor(
+          DocumentType.create('land_plot_plan'),
+        );
+        const noteOn = (key: string) =>
+          schema.specs.find(spec => spec.key.value === key)?.note;
+
+        expect(noteOn('plot_area')).toMatch(/documentary/i);
+        expect(noteOn('actual_area')).toMatch(/surveyed/i);
+      });
+
+      /*
+       * The contract does not add a key for either of these; it says what to
+       * measure. The height decides which supporting documents the case needs
+       * (ADR-0013), so a reader measuring to the ridge instead of the underside
+       * of the top covering would branch the case wrongly and silently.
+       */
+      it('says what the sketch design branches on and where it is counted from', () => {
+        const schema = VerificationProfile.CADASTRE.schemaFor(
+          DocumentType.create('sketch_project'),
+        );
+        const noteOn = (key: string) =>
+          schema.specs.find(spec => spec.key.value === key)?.note;
+
+        expect(noteOn('building_height')).toMatch(/±0\.000/);
+        expect(noteOn('building_height')).toMatch(/UPCC 80\.1/);
+        expect(noteOn('storeys')).toMatch(/floor plans/i);
+      });
+    });
+
     it('has the papers that name the same property agree on the key that ties them together', () => {
       const plan = VerificationProfile.CADASTRE.schemaFor(
         DocumentType.create('land_plot_plan'),

@@ -335,6 +335,32 @@ const en: Dict = {
   'detail.declared_note':
     'Typed at the counter, from what the applicant said. Not a reading: it has no confidence and it is never merged with what the engine read off the papers.',
   'detail.f.attestation_sub': 'No stamp or signature was read on it',
+  // ── Seal and signature, as the sheets showed them (COMM-77) ───────────────
+  // Drawn on every placed document, present or missing: an inspector acts on
+  // the difference between "sealed", "not sealed" and "nobody read the sheet",
+  // and until this the last two both showed as nothing at all.
+  'attest.stamp': 'Stamp',
+  'attest.stamp.present': 'Stamped',
+  'attest.stamp.present_unasked': 'Stamped — this profile asks for no stamp',
+  'attest.stamp.illegible': 'Stamped, but the legend could not be read',
+  'attest.stamp.illegible_unasked':
+    'Stamped, legend unreadable — no stamp was asked for',
+  'attest.stamp.absent': 'No stamp on the sheets that were read',
+  'attest.stamp.absent_unasked': 'No stamp, and this profile asks for none',
+  'attest.stamp.unread':
+    'No sheet was read — nothing can be said about a stamp',
+  'attest.signature': 'Signature',
+  'attest.signature.present': 'Signed',
+  'attest.signature.present_unasked':
+    'Signed — this profile asks for no signature',
+  'attest.signature.absent': 'No signature on the sheets that were read',
+  'attest.signature.absent_unasked':
+    'No signature, and this profile asks for none',
+  'attest.signature.unread':
+    'No sheet was read — nothing can be said about a signature',
+  'attest.legend': 'Read off the seal',
+  'attest.unread_why':
+    'The sheets were never read, so nothing was looked at. This is not a statement that the mark is missing.',
   'supporting.lead':
     'Papers the applicant has to bring beyond the package. None of them was ever in the envelope, so nothing here is counted against the submission and nothing here is a fault.',
   'supporting.bring': 'The applicant must bring a set of supporting documents.',
@@ -1142,6 +1168,26 @@ const ru: Dict = {
   'detail.declared_note':
     'Записано на приёме со слов заявителя. Это не прочитанное: уверенности у него нет, и с тем, что движок прочитал в документах, оно не смешивается.',
   'detail.f.attestation_sub': 'Печать или подпись на нём не прочитаны',
+  // ── Печать и подпись, как их увидели на листах (COMM-77) ──────────────────
+  'attest.stamp': 'Печать',
+  'attest.stamp.present': 'Печать есть',
+  'attest.stamp.present_unasked': 'Печать есть — профиль её не требует',
+  'attest.stamp.illegible': 'Печать есть, но легенда не читается',
+  'attest.stamp.illegible_unasked':
+    'Печать есть, легенда не читается — профиль печати не требует',
+  'attest.stamp.absent': 'На прочитанных листах печати нет',
+  'attest.stamp.absent_unasked': 'Печати нет, и профиль её не требует',
+  'attest.stamp.unread': 'Ни один лист не прочитан — о печати сказать нечего',
+  'attest.signature': 'Подпись',
+  'attest.signature.present': 'Подпись есть',
+  'attest.signature.present_unasked': 'Подпись есть — профиль её не требует',
+  'attest.signature.absent': 'На прочитанных листах подписи нет',
+  'attest.signature.absent_unasked': 'Подписи нет, и профиль её не требует',
+  'attest.signature.unread':
+    'Ни один лист не прочитан — о подписи сказать нечего',
+  'attest.legend': 'Прочитано на печати',
+  'attest.unread_why':
+    'Листы не прочитаны, смотреть было не на что. Это не утверждение, что пометки нет.',
   'supporting.lead':
     'Документы, которые заявитель должен принести дополнительно к пакету. Ни одного из них в пакете не было и быть не могло, поэтому ничто здесь не засчитывается пакету в минус и нарушением не является.',
   'supporting.bring':
@@ -1910,6 +1956,27 @@ const az: Dict = {
   'detail.declared_note':
     'Qəbulda ərizəçinin sözündən yazılıb. Bu, oxunmuş dəyər deyil: onun etibarlılıq dərəcəsi yoxdur və mühərrikin sənədlərdən oxuduqları ilə birləşdirilmir.',
   'detail.f.attestation_sub': 'Üzərində möhür və ya imza oxunmadı',
+  // ── Möhür və imza — vərəqlərdə göründüyü kimi (COMM-77) ───────────────────
+  'attest.stamp': 'Möhür',
+  'attest.stamp.present': 'Möhür var',
+  'attest.stamp.present_unasked': 'Möhür var — profil onu tələb etmir',
+  'attest.stamp.illegible': 'Möhür var, lakin üzərindəki yazı oxunmur',
+  'attest.stamp.illegible_unasked':
+    'Möhür var, yazısı oxunmur — profil möhür tələb etmir',
+  'attest.stamp.absent': 'Oxunmuş vərəqlərdə möhür yoxdur',
+  'attest.stamp.absent_unasked': 'Möhür yoxdur, profil də onu tələb etmir',
+  'attest.stamp.unread':
+    'Heç bir vərəq oxunmayıb — möhür barədə deyiləsi bir şey yoxdur',
+  'attest.signature': 'İmza',
+  'attest.signature.present': 'İmza var',
+  'attest.signature.present_unasked': 'İmza var — profil onu tələb etmir',
+  'attest.signature.absent': 'Oxunmuş vərəqlərdə imza yoxdur',
+  'attest.signature.absent_unasked': 'İmza yoxdur, profil də onu tələb etmir',
+  'attest.signature.unread':
+    'Heç bir vərəq oxunmayıb — imza barədə deyiləsi bir şey yoxdur',
+  'attest.legend': 'Möhürdən oxundu',
+  'attest.unread_why':
+    'Vərəqlər oxunmayıb, baxılası bir şey olmayıb. Bu, nişanın olmaması demək deyil.',
   'supporting.lead':
     'Ərizəçinin paketdən əlavə gətirməli olduğu sənədlər. Onların heç biri paketdə olmayıb və olmalı da deyildi, ona görə buradakı heç nə təqdimata qarşı sayılmır və qüsur deyil.',
   'supporting.bring': 'Ərizəçi təsdiqedici sənəd dəstini gətirməlidir.',

@@ -169,6 +169,83 @@ describe('DocumentClassifierAdapter', () => {
     expect(classification.knownAs).toBeNull();
   });
 
+  // The whole of the customer's complaint: a title document read perfectly well
+  // and reported as nothing but "not what the profile asks for" (ADR-0022).
+  it('names a ground under Article 8 instead of leaving it unnamed', async () => {
+    const classification = await classify(
+      ['HƏRRACIN NƏTİCƏLƏRİ HAQQINDA PROTOKOL', 'Lot No: 114'].join('\n'),
+    );
+
+    expect(classification.type.value).toBe('out_of_profile');
+    expect(classification.knownAs?.value).toBe('auction_results_protocol');
+  });
+
+  it('names a ground under the Decree No. 439 list', async () => {
+    const classification = await classify(
+      ['TƏSƏRRÜFATBAŞINA KİTABINDAN ÇIXARIŞ', 'Kənd Soveti: Xırdalan'].join(
+        '\n',
+      ),
+    );
+
+    expect(classification.knownAs?.value).toBe('household_book_extract');
+  });
+
+  it('names a Soviet-era ground written in Cyrillic and in Russian', async () => {
+    const classification = await classify(
+      ['РЕШЕНИЕ ОБ ОТВОДЕ ЗЕМЕЛЬНЫХ УЧАСТКОВ', 'Исполком: Хырдалан'].join('\n'),
+    );
+
+    expect(classification.knownAs?.value).toBe('land_allocation_decision');
+  });
+
+  it('names a paper of the application the profile does not ask for', async () => {
+    const classification = await classify(
+      ['ETİBARNAMƏ', 'Notarius: B. Həsənova'].join('\n'),
+    );
+
+    expect(classification.knownAs?.value).toBe('power_of_attorney');
+  });
+
+  // A profile heading contained INSIDE a catalogued one is the same words read
+  // short, not a rival reading: the profile is headed "паспорт" for an identity
+  // card and the catalogue "технический паспорт" for a building's, and a
+  // profile-first ask answered every technical passport with `identity_card`
+  // (ADR-0022). Guards that regression.
+  it('reads a technical passport as a technical passport and not as an identity card', async () => {
+    const classification = await classify(
+      ['ТЕХНИЧЕСКИЙ ПАСПОРТ', 'Год постройки: 1998'].join('\n'),
+    );
+
+    expect(classification.type.value).toBe('out_of_profile');
+    expect(classification.knownAs?.value).toBe('technical_passport');
+  });
+
+  it('still reads an identity card as one when nothing encloses its heading', async () => {
+    const classification = await classify('ПАСПОРТ\nФамилия: АЛИЕВ');
+
+    expect(classification.type.value).toBe('identity_card');
+  });
+
+  it('reads a consent to privatise as one and not as the application', async () => {
+    const classification = await classify(
+      'MƏNZİLİ ÖZƏLLƏŞDİRMƏYƏ RAZILIQ BARƏDƏ ƏRİZƏ',
+    );
+
+    expect(classification.knownAs?.value).toBe(
+      'privatisation_consent_statement',
+    );
+  });
+
+  // "Прочие документы": the catalogue is the statutory list, not everything on
+  // paper, and what it has no name for is reported as it always was.
+  it('leaves a paper outside the statutory list unnamed', async () => {
+    const classification = await classify(
+      ['MÜHƏNDİSLƏRİN BAXIŞ AKTI', 'Komissiya: 3 nəfər'].join('\n'),
+    );
+
+    expect(classification.knownAs).toBeNull();
+  });
+
   it('is sure of a heading hit and unsure of a miss', async () => {
     const placed = await classify(IDENTITY_TEXT);
     const unplaced = await classify('nothing recognisable here');

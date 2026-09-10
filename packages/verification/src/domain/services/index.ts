@@ -16,7 +16,12 @@ export {
   LATEST_YEAR,
   yearIn,
 } from './building-measures.service.js';
-export { looksLike } from './document-hints.service.js';
+export {
+  enclosesHeading,
+  headingMatch,
+  looksLike,
+  type HeadingMatch,
+} from './document-hints.service.js';
 export { tileIntoRanges } from './page-tiling.service.js';
 export {
   suggestProfile,

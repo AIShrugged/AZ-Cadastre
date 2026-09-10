@@ -6,6 +6,7 @@ import {
   DocumentContentTypeSchema,
   FieldOriginSchema,
   IssueKindSchema,
+  MarkStateSchema,
   PackageStandingSchema,
   PackageStatusSchema,
   RegistryOutcomeSchema,
@@ -193,6 +194,39 @@ export const FieldDtoSchema = z.object({
 });
 export type FieldDto = z.infer<typeof FieldDtoSchema>;
 
+/**
+ * One of the two marks an office attests a paper with, as the run saw it.
+ *
+ * What was expected and what was seen are stated apart because they are
+ * independent facts: a paper the profile asks nothing of still carries whatever
+ * it carries, and a seal found on one nobody asked to be sealed is worth
+ * showing. A client that wants "is this a shortfall?" reads both — `expected`
+ * and a `state` of `Absent` or `Illegible` — which is the same rule the report
+ * files its findings by, and the same reading (COMM-76).
+ */
+export const DocumentMarkDtoSchema = z.object({
+  // Whether the profile expects this mark on a paper of this document's type.
+  expected: z.boolean(),
+  state: MarkStateSchema,
+  // The legends read off the seals, in reading order. Empty for a signature,
+  // which is no text at all, and empty on any state but `Present` — a seal
+  // nobody could read contributes no legend.
+  legends: z.array(z.string()),
+  // 0..1, and never above the least confident sheet of the document: a mark is
+  // only as certain as the reading of the paper it was looked for on. Null on
+  // `Unread`.
+  confidence: z.number().nullable(),
+});
+export type DocumentMarkDto = z.infer<typeof DocumentMarkDtoSchema>;
+
+export const DocumentAttestationDtoSchema = z.object({
+  stamp: DocumentMarkDtoSchema,
+  signature: DocumentMarkDtoSchema,
+});
+export type DocumentAttestationDto = z.infer<
+  typeof DocumentAttestationDtoSchema
+>;
+
 export const DocumentDtoSchema = z.object({
   id: z.string(),
   // The sheets of the containing file this document occupies, 1-based and
@@ -202,6 +236,12 @@ export const DocumentDtoSchema = z.object({
   type: z.string().nullable(),
   // 0..1, null until the document is classified.
   classificationConfidence: z.number().nullable(),
+  // What the sheets say about the seal and the signature. Null until the
+  // document is placed under a type the profile names — without a type there is
+  // no specification, and so no answer about what the paper was expected to
+  // carry. Present on every placed document, including the ones no mark is
+  // expected of.
+  attestation: DocumentAttestationDtoSchema.nullable(),
   fields: z.array(FieldDtoSchema),
 });
 export type DocumentDto = z.infer<typeof DocumentDtoSchema>;

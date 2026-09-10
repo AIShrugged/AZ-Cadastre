@@ -9,6 +9,7 @@ import {
 import type {
   ArchiveSearchApprovalView,
   CrossCheckView,
+  DocumentAttestationView,
   FieldView,
   FindingCountView,
   FindingsOverviewView,
@@ -21,6 +22,10 @@ import type {
   StatedValueView,
   TallyView,
 } from '../../application/read-models/index.js';
+import {
+  attestationOf,
+  type MarkExpectations,
+} from '../../domain/services/index.js';
 import {
   DocumentType,
   IssueKind,
@@ -475,6 +480,16 @@ export class PackageQueriesAdapter extends PackageQueries {
           lastPage: document.lastPage,
           type: document.type,
           classificationConfidence: document.classificationConfidence,
+          // Worked out here from the sheets this query already holds, by the
+          // domain's own rule. Nothing about a seal is stored on the document,
+          // so there is no row that can fall out of step with the transcription
+          // it was read from — and no second reading of the marks anywhere
+          // (COMM-76).
+          attestation: PackageQueriesAdapter.attestationOf(
+            row.profileKey,
+            document,
+            file.pages,
+          ),
           fields: document.extractedFields.map(field => ({
             name: field.name,
             value: field.value,
@@ -1063,6 +1078,74 @@ export class PackageQueriesAdapter extends PackageQueries {
       propertyAddress: stated(spec.propertyAddress),
       cadastralNumber: stated(spec.cadastralNumber),
     };
+  }
+
+  /**
+   * What the document's sheets say about the seal and the signature, and what
+   * the profile expects of a paper of its type.
+   *
+   * Read out of the stored transcription every time rather than written down
+   * when the run made it: the marks are already in the OCR this query selects,
+   * and the rule that reads them is the one the report files its findings by
+   * (`attestationOf`). A column would be a second copy of an answer the text
+   * already holds, and the first migration that changed the rule would leave
+   * the two disagreeing about the same paper.
+   *
+   * Null on anything the profile has not placed — an unread document and one
+   * read as a paper the profile does not ask for. Without a type there is no
+   * specification, and so nothing to say about what the paper was expected to
+   * carry.
+   */
+  private static attestationOf(
+    profileKey: string,
+    document: {
+      readonly type: string | null;
+      readonly firstPage: number;
+      readonly lastPage: number;
+    },
+    pages: readonly {
+      readonly pageNumber: number;
+      readonly ocr: {
+        readonly text: string;
+        readonly confidence: number;
+      } | null;
+    }[],
+  ): DocumentAttestationView | null {
+    if (document.type === null) return null;
+
+    const type = DocumentType.create(document.type);
+    if (!type.isKnown) return null;
+
+    return attestationOf(
+      pages
+        .filter(
+          page =>
+            page.pageNumber >= document.firstPage &&
+            page.pageNumber <= document.lastPage,
+        )
+        .map(page => ({
+          text: page.ocr?.text ?? '',
+          confidence: page.ocr?.confidence ?? 0,
+        })),
+      PackageQueriesAdapter.marksExpectedOf(profileKey, type),
+    );
+  }
+
+  // A profile this build no longer ships expects nothing of the paper, the same
+  // way a type the active profile says nothing about does
+  // (`DocumentTypeSpec.unrecognised`). What was seen on the sheets is reported
+  // either way: the observation does not depend on anyone having asked for it.
+  private static marksExpectedOf(
+    profileKey: string,
+    type: DocumentType,
+  ): MarkExpectations {
+    const profile = VerificationProfile.all.find(
+      candidate => candidate.key === profileKey,
+    );
+
+    return profile
+      ? profile.specFor(type)
+      : { expectsStamp: false, expectsSignature: false };
   }
 
   private static particularsSpecFor(profileKey: string): ParticularsSpec {

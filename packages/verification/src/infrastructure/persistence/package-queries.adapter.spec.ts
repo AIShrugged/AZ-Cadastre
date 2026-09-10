@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type {
+  DocumentAttestationView,
   PackagesOverviewView,
   PackageSummaryView,
 } from '../../application/read-models/index.js';
@@ -194,6 +195,73 @@ const ALL_TIME = { from: null, to: null } as const;
 
 async function overviewOf(grouped: GroupedRows): Promise<PackagesOverviewView> {
   return overviewOver(grouped).adapter.overview(ALL_TIME);
+}
+
+// ─── what the detail says about the marks on a paper ─────────────────────────
+
+const FILE_ID = '0190a1b2-c3d4-7e5f-8a9b-000000000010';
+const DOCUMENT_ID = '0190a1b2-c3d4-7e5f-8a9b-000000000011';
+
+/** One sheet as the register selects it: what was read off it, or nothing at
+ *  all where the reader never got to it. */
+function aSheet(
+  pageNumber: number,
+  text: string | null,
+  confidence = 0.9,
+): Row {
+  return {
+    pageNumber,
+    imageStorageKey: `pkg/page_00${pageNumber}.png`,
+    ocr: text === null ? null : { text, confidence },
+  };
+}
+
+function aPlacedDocument(
+  type: string | null,
+  firstPage = 1,
+  lastPage = 1,
+): Row {
+  return {
+    id: DOCUMENT_ID,
+    firstPage,
+    lastPage,
+    type,
+    classificationConfidence: type === null ? null : 0.94,
+    extractedFields: [],
+  };
+}
+
+/** The one row `findDetail` reads, with a single file holding the sheets and
+ *  the documents a spec is about. */
+function aDetailRow(
+  documents: readonly Row[],
+  pages: readonly Row[],
+  profileKey = 'cadastre',
+): Row {
+  return {
+    ...aRow([], { profileKey }),
+    crossChecks: [],
+    archiveSearchApprovals: [],
+    sourceFiles: [
+      {
+        id: FILE_ID,
+        originalFilename: 'submission.pdf',
+        contentType: 'application/pdf',
+        pages,
+        documents,
+      },
+    ],
+  };
+}
+
+async function attestationsOf(
+  row: Row,
+): Promise<readonly (DocumentAttestationView | null)[]> {
+  const detail = await adapterOver([row]).findDetail(PackageId.of(PACKAGE_ID));
+
+  return (detail?.files[0]?.documents ?? []).map(
+    document => document.attestation,
+  );
 }
 
 describe('PackageQueriesAdapter', () => {
@@ -512,6 +580,120 @@ describe('PackageQueriesAdapter', () => {
 
       expect(signed?.archiveSearchApproved).toBe(true);
       expect(spent?.archiveSearchApproved).toBe(false);
+    });
+  });
+
+  /*
+   * What the sheets say about the seal and the signature, worked out here from
+   * the transcription the query already holds. The rule is the domain's own
+   * (`attestationOf`) and is not restated: what a spec here is about is that
+   * the right sheets and the right expectation reach it (COMM-76).
+   */
+  describe('what the detail says about the marks on a paper', () => {
+    it('shows the seal an office pressed, and not only the one it did not', async () => {
+      const [attestation] = await attestationsOf(
+        aDetailRow(
+          [aPlacedDocument('archive_certificate')],
+          [
+            aSheet(
+              1,
+              'ARXİV ARAYIŞI\n[stamp: BAKI ŞƏHƏR DÖVLƏT ARXİVİ]\n[signature]',
+            ),
+          ],
+        ),
+      );
+
+      expect(attestation?.stamp).toEqual({
+        expected: true,
+        state: 'Present',
+        legends: ['BAKI ŞƏHƏR DÖVLƏT ARXİVİ'],
+        confidence: 0.9,
+      });
+      expect(attestation?.signature.state).toBe('Present');
+    });
+
+    // The file's sheets, narrowed to the document's own: a seal on the paper
+    // that follows is not this paper's seal.
+    it('reads only the sheets the document occupies', async () => {
+      const attestations = await attestationsOf(
+        aDetailRow(
+          [
+            { ...aPlacedDocument('archive_certificate', 1, 1) },
+            {
+              ...aPlacedDocument('disposal_order', 2, 2),
+              id: '0190a1b2-c3d4-7e5f-8a9b-000000000012',
+            },
+          ],
+          [
+            aSheet(1, 'ARXİV ARAYIŞI'),
+            aSheet(2, 'SƏRƏNCAM\n[stamp: İCRA HAKİMİYYƏTİ]\n[signature]'),
+          ],
+        ),
+      );
+
+      expect(attestations[0]?.stamp.state).toBe('Absent');
+      expect(attestations[1]?.stamp.legends).toEqual(['İCRA HAKİMİYYƏTİ']);
+    });
+
+    // Without a type there is no specification, and so no answer about what the
+    // paper was expected to carry.
+    it('says nothing about a document the profile has not placed', async () => {
+      const unclassified = await attestationsOf(
+        aDetailRow([aPlacedDocument(null)], [aSheet(1, 'ARXİV ARAYIŞI')]),
+      );
+      const extra = await attestationsOf(
+        aDetailRow(
+          [aPlacedDocument('out_of_profile')],
+          [aSheet(1, 'QAİMƏ\n[stamp: KURYER]')],
+        ),
+      );
+
+      expect(unclassified[0]).toBeNull();
+      expect(extra[0]).toBeNull();
+    });
+
+    // Expectation and observation are independent: a receipt no office seals
+    // still answers about what is printed on it.
+    it('answers for a paper the profile expects no mark of', async () => {
+      const [attestation] = await attestationsOf(
+        aDetailRow(
+          [aPlacedDocument('payment_receipt')],
+          [aSheet(1, 'ÖDƏNİŞ QƏBZİ\nQəbz No: QB-2025-88301')],
+        ),
+      );
+
+      expect(attestation?.stamp.expected).toBe(false);
+      expect(attestation?.signature.expected).toBe(false);
+      expect(attestation?.stamp.state).toBe('Absent');
+    });
+
+    it('says the marks were never looked at on a sheet nobody read', async () => {
+      const [attestation] = await attestationsOf(
+        aDetailRow([aPlacedDocument('archive_certificate')], [aSheet(1, null)]),
+      );
+
+      expect(attestation?.stamp).toEqual({
+        expected: true,
+        state: 'Unread',
+        legends: [],
+        confidence: null,
+      });
+    });
+
+    // A profile this build no longer ships expects nothing of the paper — and
+    // the register is a read surface, so a stored key nobody recognises must
+    // not take the detail down over it.
+    it('still says what was seen under a profile the build no longer ships', async () => {
+      const [attestation] = await attestationsOf(
+        aDetailRow(
+          [aPlacedDocument('archive_certificate')],
+          [aSheet(1, 'ARXİV ARAYIŞI\n[stamp: ARXİV]')],
+          'retired-profile',
+        ),
+      );
+
+      expect(attestation?.stamp.expected).toBe(false);
+      expect(attestation?.stamp.state).toBe('Present');
     });
   });
 

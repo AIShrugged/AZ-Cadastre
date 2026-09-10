@@ -32,6 +32,9 @@ const document = (id: string, fields: DocumentDto['fields']): DocumentDto => ({
   lastPage: 1,
   type: 'application',
   classificationConfidence: 0.99,
+  // What the sheets said about the seal and the signature. Nothing this module
+  // reads: it picks between readings of a field by confidence and nothing else.
+  attestation: null,
   fields,
 });
 

@@ -49,10 +49,11 @@ import {
   SourceFileNotSplitException,
 } from '../exceptions/index.js';
 import {
-  attestationIn,
+  attestationOf,
   heightInMetres,
   looksLikeTheSameValue,
   yearIn,
+  type DocumentAttestation,
 } from '../services/index.js';
 import {
   ApprovedCheck,
@@ -74,6 +75,7 @@ import {
   type CrossCheckSpec,
   type DocumentId,
   type DocumentType,
+  type DocumentTypeSpec,
   type FieldKey,
   type FieldRef,
   type OcrResult,
@@ -1301,20 +1303,18 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       const spec = this.#profile.specFor(classification.type);
       if (!spec.expectsStamp && !spec.expectsSignature) return [];
 
-      const sheets = this.sheetsOf(document.id);
-      // Nothing on the paper was read, so there is nothing to have seen a seal
-      // in. The sheets are already reported as unread, and saying a mark is
-      // absent from a page nobody read would be a claim about the reading
-      // dressed up as a claim about the document.
-      if (!sheets.some(sheet => sheet.ocr?.isLegible === true)) return [];
-
-      const confidence = VerificationPackage.leastConfidentOf(sheets);
-      const marks = attestationIn(this.textOf(document.id).value);
+      const attestation = this.marksOn(document, spec);
+      // The figure both marks carry, and null only where neither was looked at
+      // — a state no branch below files anything on.
+      const confidence = Confidence.of(attestation.stamp.confidence ?? 0);
       const type = classification.type;
       const findings: ValidationIssue[] = [];
 
+      // `Unread` falls through both: nothing on the paper was read, so there
+      // was nothing to have seen a seal in, and the sheets are already reported
+      // as unread on their own account.
       if (spec.expectsStamp) {
-        if (marks.stamps.length === 0) {
+        if (attestation.stamp.state === 'Absent') {
           findings.push(
             ValidationIssue.unstampedDocument(
               document.id,
@@ -1324,7 +1324,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
               confidence,
             ),
           );
-        } else if (marks.stamps.every(legend => legend === '')) {
+        } else if (attestation.stamp.state === 'Illegible') {
           findings.push(
             ValidationIssue.illegibleStamp(
               document.id,
@@ -1337,7 +1337,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
         }
       }
 
-      if (spec.expectsSignature && !marks.isSigned) {
+      if (spec.expectsSignature && attestation.signature.state === 'Absent') {
         findings.push(
           ValidationIssue.unsignedDocument(
             document.id,
@@ -1353,15 +1353,26 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     });
   }
 
-  // A mark is only as certain as the reading of the sheets it was looked for
-  // on, and a sheet that was never read supports nothing at all — which is
-  // unassessed and not "probably fine" (docs/process-overview.md §5).
-  private static leastConfidentOf(sheets: readonly Page[]): Confidence {
-    return sheets.reduce<Confidence>((lowest, sheet) => {
-      const own = sheet.ocr?.confidence ?? Confidence.none();
-
-      return own.value < lowest.value ? own : lowest;
-    }, Confidence.of(1));
+  /*
+   * What the document's sheets say about the seal and the signature, held
+   * against what its type is expected to carry.
+   *
+   * The answer is not the report's alone — an inspector is shown the marks that
+   * are there as well as the ones that are not — so the rule lives in a domain
+   * service the detail query reads too, and the report never decides it here
+   * (COMM-76).
+   */
+  private marksOn(
+    document: Document,
+    spec: DocumentTypeSpec,
+  ): DocumentAttestation {
+    return attestationOf(
+      this.sheetsOf(document.id).map(sheet => ({
+        text: sheet.ocr?.text.value ?? '',
+        confidence: sheet.ocr?.confidence.value ?? 0,
+      })),
+      spec,
+    );
   }
 
   private guardCoverOf(file: SourceFile, documents: readonly Document[]): void {

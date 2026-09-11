@@ -1,6 +1,7 @@
+import type { FileKind } from '@/shared/lib/document-file';
 import type { DocumentContentType } from '@cadastre/api-contracts/verification';
 
-export type FileKind = 'pdf' | 'image';
+export type { FileKind };
 export type UploadStatus = 'uploading' | 'ready' | 'error';
 export type UploadErrorKind = 'format' | 'size' | 'failed';
 

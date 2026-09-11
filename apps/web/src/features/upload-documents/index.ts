@@ -42,5 +42,9 @@ export type {
   UploadErrorKind,
 } from './model/types';
 
-// Constants for the picker/input in the host surface
-export { ACCEPT, MAX_MB, MAX_BYTES } from './lib/file';
+/*
+ * What file the store takes — the extensions, the ceiling and the `accept`
+ * string — is NOT re-exported here. It is one rule for every surface that offers
+ * a picker, so it lives in `@/shared/lib/document-file` and each of them imports
+ * it from there rather than through whichever feature happened to own it first.
+ */

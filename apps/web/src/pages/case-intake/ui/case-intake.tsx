@@ -85,7 +85,6 @@ import {
   type ProfileDto,
 } from '@/entities/verification-package';
 import {
-  ACCEPT,
   attachedFiles,
   clearDocuments,
   Dropzone,
@@ -99,6 +98,7 @@ import { failureCode } from '@/shared/api';
 import { paths } from '@/shared/config';
 import { translateOr, useI18n } from '@/shared/i18n';
 import { cn } from '@/shared/lib/cn';
+import { ACCEPT } from '@/shared/lib/document-file';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/store-hooks';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';

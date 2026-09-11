@@ -32,12 +32,12 @@ import {
 import { failureCode } from '@/shared/api';
 import { translateOr, useI18n } from '@/shared/i18n';
 import { cn } from '@/shared/lib/cn';
+import { ACCEPT } from '@/shared/lib/document-file';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/store-hooks';
 import { Button } from '@/shared/ui/button';
 import type { PackageStatus } from '@cadastre/api-contracts/verification';
 
 import { attachedFiles } from '../lib/attached';
-import { ACCEPT } from '../lib/file';
 import {
   selectDocuments,
   selectReadyCount,

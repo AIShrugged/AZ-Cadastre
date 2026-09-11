@@ -437,6 +437,92 @@ describe('files added to a package over HTTP', () => {
 });
 
 /*
+ * A document sent in for one of the gaps a package publishes (COMM-80).
+ *
+ * What is asked of the edge here is that the route exists, that a caller is held
+ * to the published schema, and that the refusal a screen will actually meet —
+ * a target the package does not publish — comes back as something a client can
+ * tell apart. What the package then does with the file is the context's own
+ * integration set: nothing here uploads bytes, so no run reads anything.
+ */
+describe('a document supplied over HTTP', () => {
+  it('takes the file in and answers with the package as it now stands', async () => {
+    // arrange — a package short of every required paper but the application
+    const created = await submit(['erize-qeydiyyat.pdf']);
+    await settled(created.id);
+    const [file] = await presigned(['serencam-cixaris.pdf']);
+
+    // act
+    const { status, body } = await api.packages.supplyDocument(created.id, {
+      file: file!,
+      expectedType: 'disposal_order',
+    });
+
+    // assert — 200 and the package, like `files` above: the document has no
+    // address of its own, and it is not a document yet
+    expect(status).toBe(200);
+    expect(body.id).toBe(created.id);
+    expect(body.filesCount).toBe(2);
+  });
+
+  // The published list and the accepted call are one list, and a screen drawing
+  // its buttons off `gaps` has to be able to tell this refusal apart from a
+  // malformed body.
+  it('answers 409 with NO_SUCH_DOCUMENT_GAP for a paper it never offered', async () => {
+    // arrange — a type this profile knows nothing about, which is therefore in
+    // no gap it publishes
+    const created = await submit(['erize-qeydiyyat.pdf']);
+    await settled(created.id);
+    const [file] = await presigned(['texniki-pasport.pdf']);
+
+    // act / assert
+    const failure = await api.packages
+      .supplyDocument(created.id, {
+        file: file!,
+        expectedType: 'technical_passport',
+      })
+      .catch((error: unknown) => error as ApiError);
+
+    expect(failure).toBeInstanceOf(ApiError);
+    expect((failure as ApiError).status).toBe(409);
+    expect((failure as ApiError).body.code).toBe('NO_SUCH_DOCUMENT_GAP');
+  });
+
+  it('answers 404 with PACKAGE_NOT_FOUND for a package nobody submitted', async () => {
+    // arrange
+    const [file] = await presigned(['serencam-cixaris.pdf']);
+
+    // act / assert
+    const failure = await api.packages
+      .supplyDocument('00000000-0000-4000-8000-000000000000', {
+        file: file!,
+        expectedType: 'disposal_order',
+      })
+      .catch((error: unknown) => error as ApiError);
+
+    expect(failure).toBeInstanceOf(ApiError);
+    expect((failure as ApiError).status).toBe(404);
+    expect((failure as ApiError).body.code).toBe('PACKAGE_NOT_FOUND');
+  });
+
+  it('refuses a request that names no target at all', async () => {
+    // arrange
+    const created = await submit(['erize-qeydiyyat.pdf']);
+    await settled(created.id);
+    const [file] = await presigned(['serencam-cixaris.pdf']);
+
+    // act / assert — the published schema asks for one, so the edge answers
+    // before the context is troubled
+    const failure = await api.packages
+      .supplyDocumentRaw(created.id, { file })
+      .catch((error: unknown) => error as ApiError);
+
+    expect(failure).toBeInstanceOf(ApiError);
+    expect((failure as ApiError).status).toBe(400);
+  });
+});
+
+/*
  * The one write in the whole API a person makes rather than the engine: their
  * approval of what the archive register answered about a submission (ADR-0016).
  *

@@ -312,6 +312,7 @@ const en: Dict = {
   'detail.sec.attestation': 'Stamp or signature missing',
   'detail.sec.supporting': 'Supporting documents to bring',
   'detail.sec.declared_mismatch': 'Differs from what was declared at intake',
+  'detail.sec.wrong_supplied': 'Sent in for a gap and is a different document',
   'detail.clean':
     'No issues found — every required document is present and read above the confidence threshold.',
   'detail.clean_open_set':
@@ -1180,6 +1181,7 @@ const ru: Dict = {
   'detail.sec.attestation': 'Нет печати или подписи',
   'detail.sec.supporting': 'Какие документы нужно принести',
   'detail.sec.declared_mismatch': 'Расходится с заявленным при приёме',
+  'detail.sec.wrong_supplied': 'Дослан не тот документ',
   'detail.clean':
     'Замечаний нет — все обязательные документы присутствуют и распознаны выше порога уверенности.',
   'detail.clean_open_set':
@@ -2003,6 +2005,7 @@ const az: Dict = {
   'detail.sec.attestation': 'Möhür və ya imza yoxdur',
   'detail.sec.supporting': 'Gətirilməli təsdiqedici sənədlər',
   'detail.sec.declared_mismatch': 'Qəbulda bəyan ediləndən fərqlənir',
+  'detail.sec.wrong_supplied': 'Boşluq üçün göndərilən sənəd başqa sənəddir',
   'detail.clean':
     'Qüsur yoxdur — bütün tələb olunan sənədlər mövcuddur və etibar həddindən yuxarı oxunub.',
   'detail.clean_open_set':

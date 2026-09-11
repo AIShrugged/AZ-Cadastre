@@ -46,12 +46,14 @@ export {
   ApprovedCheckDtoSchema,
   ArchiveSearchApprovalDtoSchema,
   CheckedValueDtoSchema,
+  CONFIDENCE_FLOOR,
   CrossCheckDtoSchema,
   DECLARED_YEAR_EARLIEST,
   DECLARED_YEAR_LATEST,
   DeclaredAtIntakeDtoSchema,
   DocumentAttestationDtoSchema,
   DocumentDtoSchema,
+  DocumentGapDtoSchema,
   DocumentMarkDtoSchema,
   FieldDtoSchema,
   FieldSourceDtoSchema,
@@ -66,6 +68,7 @@ export {
   ReportDtoSchema,
   SourceFileDtoSchema,
   StatedValueDtoSchema,
+  SuppliedForDtoSchema,
   type ApprovedCheckDto,
   type ArchiveSearchApprovalDto,
   type CheckedValueDto,
@@ -73,6 +76,7 @@ export {
   type DeclaredAtIntakeDto,
   type DocumentAttestationDto,
   type DocumentDto,
+  type DocumentGapDto,
   type DocumentMarkDto,
   type FieldDto,
   type FieldSourceDto,
@@ -87,6 +91,7 @@ export {
   type ReportDto,
   type SourceFileDto,
   type StatedValueDto,
+  type SuppliedForDto,
 } from './package.dto.js';
 export {
   ArchiveTallyDtoSchema,
@@ -107,6 +112,12 @@ export {
   type PackagesOverviewResponse,
   type PipelineTallyDto,
 } from './packages-overview.dto.js';
+export {
+  SupplyDocumentRequestSchema,
+  SupplyDocumentResponseSchema,
+  type SupplyDocumentRequest,
+  type SupplyDocumentResponse,
+} from './supply-document.dto.js';
 export {
   ProfileSuggestionDtoSchema,
   SuggestProfileRequestSchema,

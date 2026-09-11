@@ -7,6 +7,7 @@ import type {
   DeclaredAtIntakeDto,
   DocumentAttestationDto,
   DocumentDto,
+  DocumentGapDto,
   DocumentMarkDto,
   FieldDto,
   FindingCountDto,
@@ -33,6 +34,7 @@ import type {
   CheckedValueView,
   CrossCheckView,
   DeclaredAtIntakeView,
+  DocumentGapView,
   DocumentMarkView,
   DocumentView,
   FindingTallyView,
@@ -172,10 +174,24 @@ export function toDetailDto(view: PackageDetailView): PackageDetailDto {
   return {
     ...toSummaryDto(view),
     files: view.files.map(toSourceFileDto),
+    // The engine's own answer, carried across as it was worked out: a caller
+    // draws these and decides none of them (COMM-80).
+    gaps: view.gaps.map(toDocumentGapDto),
     crossChecks: view.crossChecks.map(toCrossCheckDto),
     registryChecks: view.registryChecks.map(toRegistryCheckDto),
     archiveSearchApprovals: view.archiveSearchApprovals.map(toApprovalDto),
     report: view.report ? toReportDto(view.report) : null,
+  };
+}
+
+function toDocumentGapDto(view: DocumentGapView): DocumentGapDto {
+  return {
+    // Only ever worked out through the domain service's own enumeration, so
+    // the string is one the contract names.
+    reason: view.reason as DocumentGapDto['reason'],
+    expectedType: view.expectedType,
+    documentId: view.documentId,
+    sourceFileId: view.sourceFileId,
   };
 }
 
@@ -282,6 +298,8 @@ function toSourceFileDto(view: SourceFileView): SourceFileDto {
     // Only ever written through the validated presign flow, so the stored type
     // is one the contract names.
     contentType: view.contentType as SourceFileDto['contentType'],
+    // What the file was sent in to answer, where it answers anything (COMM-80).
+    suppliedFor: view.suppliedFor,
     pages: view.pages.map(page => ({
       pageNumber: page.pageNumber,
       imageUrl: page.imageUrl,
@@ -314,6 +332,11 @@ function toDocumentDto(view: DocumentView): DocumentDto {
       origin: field.origin as FieldDto['origin'],
       takenFrom: field.takenFrom,
     })),
+    // History and not a paper the case rests on: a replaced document stays in
+    // the package, and nothing the package states is worked out from it
+    // (COMM-80).
+    supersededById: view.supersededById,
+    supersededAt: view.supersededAt?.toISOString() ?? null,
   };
 }
 

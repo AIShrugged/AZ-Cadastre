@@ -3,6 +3,7 @@ import {
   DocumentNotClassifiedException,
   UnclassifiableDocumentException,
 } from '../exceptions/index.js';
+import { Supersession } from '../value-objects/index.js';
 import type {
   Classification,
   DocumentId,
@@ -22,6 +23,9 @@ export class Document {
     public readonly pages: PageRange,
     public readonly classification: Classification | null,
     fields: readonly ExtractedField[],
+    // What pushed this document out of force, and when. Null on every document
+    // an operator has not replaced, which is nearly all of them (COMM-80).
+    public readonly superseded: Supersession | null,
   ) {
     this.#fields = [...fields];
   }
@@ -31,7 +35,7 @@ export class Document {
     sourceFileId: SourceFileId,
     pages: PageRange,
   ): Document {
-    return new Document(id, sourceFileId, pages, null, []);
+    return new Document(id, sourceFileId, pages, null, [], null);
   }
 
   static restore(state: {
@@ -40,6 +44,7 @@ export class Document {
     pages: PageRange;
     classification: Classification | null;
     fields: readonly ExtractedField[];
+    superseded?: Supersession | null;
   }): Document {
     return new Document(
       state.id,
@@ -47,7 +52,48 @@ export class Document {
       state.pages,
       state.classification,
       state.fields,
+      state.superseded ?? null,
     );
+  }
+
+  /*
+   * Whether this document is what the package currently says.
+   *
+   * Everything worked out *about* the package reads only these: the report, the
+   * cross-document checks, the questions put to the register, the three values
+   * a row names the case by. A document a better scan replaced stays in the
+   * package and stays readable — a submission is evidence, not a working draft
+   * — but it no longer speaks for it (COMM-80).
+   */
+  get isInForce(): boolean {
+    return this.superseded === null;
+  }
+
+  // The same document, pushed out of force by the one that replaced it. The
+  // stamp is passed in rather than taken here so that every document a single
+  // arrival replaces carries the same instant.
+  supersededBy(by: DocumentId, at: Date): Document {
+    return this.with({ superseded: Supersession.of(by, at) });
+  }
+
+  /*
+   * The same document with the values it borrowed from `documentId` dropped.
+   *
+   * Used when that document goes out of force: a value carried over is nothing
+   * but a pointer at the reading that justifies it (ADR-0023), and a pointer at
+   * a paper the package no longer speaks for is a value the package no longer
+   * states. Dropped rather than rewritten — the next run gathers again, off the
+   * document that is now in force, and that is the only place the choice of
+   * source is made.
+   */
+  withoutValuesFrom(documentId: DocumentId): Document {
+    const kept = this.#fields.filter(
+      field => !field.takenFrom?.documentId.equals(documentId),
+    );
+
+    return kept.length === this.#fields.length
+      ? this
+      : this.with({ fields: kept });
   }
 
   get fields(): readonly ExtractedField[] {
@@ -134,6 +180,7 @@ export class Document {
   private with(changes: {
     classification?: Classification;
     fields?: readonly ExtractedField[];
+    superseded?: Supersession;
   }): Document {
     return new Document(
       this.id,
@@ -141,6 +188,7 @@ export class Document {
       this.pages,
       changes.classification ?? this.classification,
       changes.fields ?? this.#fields,
+      changes.superseded ?? this.superseded,
     );
   }
 }

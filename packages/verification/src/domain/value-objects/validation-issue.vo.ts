@@ -436,6 +436,38 @@ export class ValidationIssue {
     });
   }
 
+  /*
+   * A file sent in against a published gap that turned out to be a different
+   * paper.
+   *
+   * Filed against the file and not only against the document, because the
+   * operator's next move is to send that file again: the sheets the reader
+   * placed are what they have to look at, and `documentType` carries what was
+   * asked for rather than what turned up — the finding is about the gap that is
+   * still open (COMM-80).
+   */
+  static wrongDocumentSupplied(
+    sourceFileId: SourceFileId,
+    filename: string,
+    expected: DocumentType,
+    arrived: DocumentType | null,
+    documentId: DocumentId | null = null,
+  ): ValidationIssue {
+    const was = arrived?.isKnown
+      ? `was read as "${arrived.value}"`
+      : 'could not be placed under any type this profile expects';
+
+    return ValidationIssue.of({
+      kind: IssueKind.WRONG_DOCUMENT_SUPPLIED,
+      message:
+        `"${filename}" was sent in as the "${expected.value}" this package is ` +
+        `short of, and ${was}. The package still needs a "${expected.value}".`,
+      documentId,
+      sourceFileId,
+      documentType: expected,
+    });
+  }
+
   // A set is only as certain as the least certain reading it was chosen on. No
   // reading at all is no claim, which is null rather than a confident nothing.
   private static leastConfidentOf(

@@ -14,6 +14,22 @@ model SourceFile {
   contentType      String // application/pdf | image/jpeg | image/png
   storageKey       String @unique // object-store key handed back by the presign step
 
+  /// What this file was sent in to answer, where it was sent in for one of the
+  /// gaps the package publishes (COMM-80): the profile document type it is
+  /// supposed to turn out to be, and — when it replaces a scan the run read
+  /// badly — the document it is sent in place of.
+  ///
+  /// Both null on every file a submission was made with and on every one added
+  /// in bulk afterwards: those are the envelope, and nothing about them claims
+  /// to fill a particular hole.
+  ///
+  /// A document type key and a bare id rather than a foreign key, for the
+  /// reason an approval keeps its check keys as strings: this is the record of
+  /// what was asked for at the moment of upload, and it has to stay readable
+  /// whatever later becomes of the document it named.
+  suppliedForType     String?
+  suppliedForReplaces String? @db.Uuid
+
   pages            Page[]
   documents        Document[]
   validationIssues ValidationIssue[]

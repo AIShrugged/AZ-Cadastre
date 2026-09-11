@@ -96,6 +96,8 @@ function aDocumentView(overrides: Partial<DocumentView> = {}): DocumentView {
     fields: [
       aFieldView({ name: 'first_name', value: 'ELCHIN', confidence: 0.92 }),
     ],
+    supersededById: null,
+    supersededAt: null,
     ...overrides,
   };
 }
@@ -105,6 +107,7 @@ function aFileView(overrides: Partial<SourceFileView> = {}): SourceFileView {
     id: anId(),
     originalFilename: 'submission.pdf',
     contentType: 'application/pdf',
+    suppliedFor: null,
     pages: [
       {
         pageNumber: 1,
@@ -248,6 +251,7 @@ function aDetailView(
   return {
     ...aSummaryView(),
     files: [aFileView()],
+    gaps: [],
     crossChecks: [],
     registryChecks: [],
     archiveSearchApprovals: [],

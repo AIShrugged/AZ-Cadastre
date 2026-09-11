@@ -48,6 +48,8 @@ export {
 export { RegistryOutcome } from './registry-outcome.vo.js';
 export { ReportStatus } from './report-status.vo.js';
 export { StorageKey } from './storage-key.vo.js';
+export { Supersession } from './supersession.vo.js';
+export { SupplyTarget } from './supply-target.vo.js';
 export { ValidationIssue } from './validation-issue.vo.js';
 export {
   CrossCheckSpec,

@@ -66,6 +66,8 @@ function aSourceFileRow(overrides: Partial<SourceFileRow> = {}): SourceFileRow {
     originalFilename: 'submission.pdf',
     contentType: 'application/pdf',
     storageKey: `uploads/${anId()}/submission.pdf`,
+    suppliedForType: null,
+    suppliedForReplaces: null,
     pages: [aPageRow()],
     ...overrides,
   };
@@ -80,6 +82,8 @@ function aDocumentRow(overrides: Partial<DocumentRow> = {}): DocumentRow {
     type: 'passport',
     classificationConfidence: 0.94,
     knownAs: null,
+    supersededById: null,
+    supersededAt: null,
     extractedFields: [
       aFieldRow({ name: 'first_name', value: 'ELCHIN', confidence: 0.92 }),
     ],
@@ -423,6 +427,10 @@ describe('VerificationPackageMapper', () => {
           originalFilename: 'submission.pdf',
           contentType: 'application/pdf',
           storageKey,
+          // A file a submission is made with answers nothing in particular:
+          // only a targeted supply carries a target (COMM-80).
+          suppliedForType: null,
+          suppliedForReplaces: null,
           pages: [],
         },
       ]);
@@ -591,6 +599,8 @@ describe('VerificationPackageMapper', () => {
           originalFilename: file.originalFilename,
           contentType: file.contentType,
           storageKey: file.storageKey,
+          suppliedForType: file.suppliedForType,
+          suppliedForReplaces: file.suppliedForReplaces,
           pages: file.pages.map(page => ({ ...page })),
         })),
       );

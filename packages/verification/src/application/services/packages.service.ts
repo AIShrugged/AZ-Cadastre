@@ -12,6 +12,7 @@ import type {
   PackagesApi,
   PackagesOverviewRequest,
   PackagesOverviewResponse,
+  SupplyDocumentRequest,
 } from '@cadastre/api-contracts/verification';
 
 import {
@@ -22,6 +23,7 @@ import {
   GetPackagesOverviewQuery,
   GetPackageSummaryQuery,
   ListPackagesQuery,
+  SupplyDocumentCommand,
 } from '../use-cases/index.js';
 import {
   toDetailDto,
@@ -61,6 +63,24 @@ export class PackagesService implements PackagesApi {
   async addFiles(id: string, request: AddFilesRequest): Promise<PackageDto> {
     const packageId = await this.commands.execute(
       new AddFilesCommand(id, request.files),
+    );
+
+    return toSummaryDto(
+      await this.queries.execute(new GetPackageSummaryQuery(packageId.value)),
+    );
+  }
+
+  async supplyDocument(
+    id: string,
+    request: SupplyDocumentRequest,
+  ): Promise<PackageDto> {
+    const packageId = await this.commands.execute(
+      new SupplyDocumentCommand(
+        id,
+        request.file,
+        request.expectedType,
+        request.replacesDocumentId ?? null,
+      ),
     );
 
     return toSummaryDto(

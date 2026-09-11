@@ -36,6 +36,10 @@ const document = (id: string, fields: DocumentDto['fields']): DocumentDto => ({
   // reads: it picks between readings of a field by confidence and nothing else.
   attestation: null,
   fields,
+  // In force: this module picks between readings, and a replaced scan is not a
+  // reading the package stands on.
+  supersededById: null,
+  supersededAt: null,
 });
 
 const detail = (documents: DocumentDto[]): PackageDetailDto =>

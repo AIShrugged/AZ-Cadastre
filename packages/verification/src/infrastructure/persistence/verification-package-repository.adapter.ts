@@ -95,8 +95,19 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
         await this.writeSourceFile(tx, row.id, file);
       }
 
+      // Two passes over the documents, and the second one exists for the
+      // self-reference: a replaced document points at the document that
+      // replaced it, which is carved out of a file that arrived later and is
+      // therefore written after it. Setting the column in the first pass would
+      // name a row that is not there yet (COMM-80).
+      const stored = new Map<string, string>();
+
       for (const document of row.documents) {
-        await this.writeDocument(tx, row.id, document);
+        stored.set(document.id, await this.writeDocument(tx, row.id, document));
+      }
+
+      for (const document of row.documents) {
+        await this.writeSupersession(tx, stored, document);
       }
 
       for (const check of row.crossChecks) {
@@ -203,6 +214,11 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
         originalFilename: file.originalFilename,
         contentType: file.contentType,
         storageKey: file.storageKey,
+        // What the operator sent it in for, written once with the row: it is
+        // what was asked at the moment of upload, and nothing that happens
+        // afterwards changes what was asked (COMM-80).
+        suppliedForType: file.suppliedForType,
+        suppliedForReplaces: file.suppliedForReplaces,
       },
       update: {},
     });
@@ -216,7 +232,7 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
     tx: Prisma.TransactionClient,
     packageId: string,
     document: DocumentWrite,
-  ): Promise<void> {
+  ): Promise<string> {
     // Keyed on where the document starts in its file rather than on the id:
     // that is what a re-run of the segmentation stage identifies it by, so the
     // stage stays idempotent instead of writing a second copy.
@@ -277,6 +293,39 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
         },
       });
     }
+
+    return stored.id;
+  }
+
+  /*
+   * Which document replaced this one, and when — written after every document
+   * of the package is on file, because the row it names may be one of them.
+   *
+   * Both columns every time and not only where one is set: the aggregate is
+   * what the package is, and a write that could only ever mark a document
+   * superseded would be one that cannot say a document is in force.
+   *
+   * The stored id and not the one in hand, for the reason the pages use it: a
+   * document written by an earlier run keeps the id it was created with.
+   */
+  private async writeSupersession(
+    tx: Prisma.TransactionClient,
+    stored: ReadonlyMap<string, string>,
+    document: DocumentWrite,
+  ): Promise<void> {
+    const id = stored.get(document.id);
+
+    if (!id) return;
+
+    await tx.document.update({
+      where: { id },
+      data: {
+        supersededById: document.supersededById
+          ? (stored.get(document.supersededById) ?? null)
+          : null,
+        supersededAt: document.supersededAt,
+      },
+    });
   }
 
   // Keyed on which check this is, so a re-run replaces the answer instead of

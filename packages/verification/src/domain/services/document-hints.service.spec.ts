@@ -23,6 +23,7 @@ function aTypeHinted(key: string, ...hints: readonly string[]) {
     description: `a ${key}`,
     hints,
     required: true,
+    alwaysAccepted: false,
     expectsStamp: false,
     expectsSignature: false,
     fields: [],

@@ -24,8 +24,15 @@ this is expressed in.
 
 Every reading the pipeline reports — a transcribed sheet, a document's type, an
 extracted field — carries a confidence, and PRD §4.6 makes that number decide
-something: below `0.80` the reading goes to the inspector as a finding instead
-of into the register as a fact.
+something: below `Confidence.FLOOR` the reading goes to the inspector as a
+finding instead of into the register as a fact — and the document it was read
+off is offered to be sent in again (ADR-0024).
+
+The floor is `0.85`, raised from the PRD's `0.80` when targeted supply arrived:
+one number decides both what the report doubts and what the package offers to
+be sent again, and a second one beside it would be two "low confidences" in one
+product. Clients read it from the contract as `CONFIDENCE_FLOOR` rather than
+keeping a copy.
 
 So the number has to be real. It is taken as the **lower** of two independent
 accounts: the token logprobs the route returns, and the model's own stated

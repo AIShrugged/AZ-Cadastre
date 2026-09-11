@@ -10,6 +10,7 @@ import {
   GetPackageSummaryHandler,
   ListPackagesHandler,
   RunVerificationHandler,
+  SupplyDocumentHandler,
 } from './packages/index.js';
 import {
   ListProfilesHandler,
@@ -38,4 +39,5 @@ export const VERIFICATION_CQRS_HANDLERS: Provider[] = [
   PresignUploadHandler,
   RunVerificationHandler,
   SuggestProfileHandler,
+  SupplyDocumentHandler,
 ];

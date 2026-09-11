@@ -42,6 +42,8 @@ import {
   ReportStatus,
   SourceFileId,
   StorageKey,
+  Supersession,
+  SupplyTarget,
   ValidationIssue,
   VerificationProfile,
   VerificationReport,
@@ -165,6 +167,11 @@ export type SourceFileRow = {
   readonly originalFilename: string;
   readonly contentType: string;
   readonly storageKey: string;
+  // What this file was sent in to answer, where it was sent in for one of the
+  // package's published gaps. Both null on a file that answers nothing in
+  // particular, which is every file a submission is made with (COMM-80).
+  readonly suppliedForType: string | null;
+  readonly suppliedForReplaces: string | null;
   readonly pages: readonly PageRow[];
 };
 
@@ -176,6 +183,9 @@ export type DocumentRow = {
   readonly type: string | null;
   readonly classificationConfidence: number | null;
   readonly knownAs: string | null;
+  // What replaced this document and when, or null while it is in force.
+  readonly supersededById: string | null;
+  readonly supersededAt: Date | null;
   readonly extractedFields: readonly FieldRow[];
 };
 
@@ -314,6 +324,8 @@ export type SourceFileWrite = {
   readonly originalFilename: string;
   readonly contentType: string;
   readonly storageKey: string;
+  readonly suppliedForType: string | null;
+  readonly suppliedForReplaces: string | null;
   readonly pages: readonly PageWrite[];
 };
 
@@ -325,6 +337,8 @@ export type DocumentWrite = {
   readonly type: string | null;
   readonly classificationConfidence: number | null;
   readonly knownAs: string | null;
+  readonly supersededById: string | null;
+  readonly supersededAt: Date | null;
   readonly fields: readonly FieldWrite[];
 };
 
@@ -400,6 +414,8 @@ export class VerificationPackageMapper {
         originalFilename: file.filename.value,
         contentType: file.contentType.value,
         storageKey: file.storageKey.value,
+        suppliedForType: file.suppliedFor?.expectedType.value ?? null,
+        suppliedForReplaces: file.suppliedFor?.replaces?.value ?? null,
         pages: file.pages.map(page => ({
           id: page.id.value,
           pageNumber: page.number.value,
@@ -422,6 +438,8 @@ export class VerificationPackageMapper {
         classificationConfidence:
           document.classification?.confidence.value ?? null,
         knownAs: document.classification?.knownAs?.value ?? null,
+        supersededById: document.superseded?.by?.value ?? null,
+        supersededAt: document.superseded?.at ?? null,
         fields: document.fields.map(field => ({
           name: field.key.value,
           value: field.value.value,
@@ -705,6 +723,32 @@ export class VerificationPackageMapper {
       pages: row.pages.map(page =>
         VerificationPackageMapper.pageToDomain(page),
       ),
+      suppliedFor: VerificationPackageMapper.supplyTargetToDomain(row),
+    });
+  }
+
+  /*
+   * What the file was sent in for, or none.
+   *
+   * A target naming a type the engine keeps for itself is read as no target
+   * rather than refused: `SupplyTarget` will not hold one, and a package that
+   * could not be loaded because of a row written by an older build would be a
+   * package nobody could look at. Nothing downstream then treats the file as an
+   * answer to anything, which is the safe reading of a record that makes no
+   * sense.
+   */
+  private static supplyTargetToDomain(row: SourceFileRow): SupplyTarget | null {
+    if (row.suppliedForType === null) return null;
+
+    const expectedType = DocumentType.create(row.suppliedForType);
+
+    if (!expectedType.isKnown) return null;
+
+    return SupplyTarget.of({
+      expectedType,
+      replaces: row.suppliedForReplaces
+        ? DocumentId.of(row.suppliedForReplaces)
+        : null,
     });
   }
 
@@ -717,6 +761,16 @@ export class VerificationPackageMapper {
         PageNumber.of(row.lastPage),
       ),
       classification: VerificationPackageMapper.classificationToDomain(row),
+      // `supersededAt` is what says the document is out of force; the pointer
+      // beside it may have been cleared by a cascade and the record stands
+      // without it, which is why the two are read in this order.
+      superseded:
+        row.supersededAt === null
+          ? null
+          : Supersession.of(
+              row.supersededById ? DocumentId.of(row.supersededById) : null,
+              row.supersededAt,
+            ),
       fields: row.extractedFields.map(field =>
         ExtractedField.restore({
           key: FieldKey.create(field.name),

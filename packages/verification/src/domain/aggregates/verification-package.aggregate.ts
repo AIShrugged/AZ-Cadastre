@@ -11,6 +11,7 @@ import {
   ArchiveSearchApproved,
   CrossCheckMade,
   DocumentClassified,
+  DocumentSupplied,
   FieldsConfirmedByRegistry,
   FieldsExtracted,
   FieldsGathered,
@@ -36,6 +37,7 @@ import {
   DuplicateStorageKeyException,
   FieldNotInSchemaException,
   LegalBasisNotInProfileException,
+  NoSuchDocumentGapException,
   PackageAlreadyFinishedException,
   PackageMustGainAFileException,
   PackageMustHaveAFileException,
@@ -47,13 +49,17 @@ import {
   SourceFileMustHaveADocumentException,
   SourceFileNotInPackageException,
   SourceFileNotSplitException,
+  UntargetedSupplyException,
 } from '../exceptions/index.js';
 import {
   attestationOf,
+  gapsIn,
   heightInMetres,
   looksLikeTheSameValue,
   yearIn,
   type DocumentAttestation,
+  type DocumentGap,
+  type ReadDocument,
 } from '../services/index.js';
 import {
   ApprovedCheck,
@@ -85,6 +91,7 @@ import {
   type RegistryCheckKey,
   type RegistryCheckSpec,
   type SourceFileId,
+  type SupplyTarget,
   type SupportingDocumentsSpec,
   type VerificationProfile,
 } from '../value-objects/index.js';
@@ -252,6 +259,35 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     return this.#documents;
   }
 
+  /*
+   * The documents that speak for this package.
+   *
+   * A document a later arrival replaced stays in `documents` and stays
+   * readable, and is absent from here: what the report is compiled from, what
+   * the cross-document checks weigh, what the register is asked about and what
+   * names the case are all read off the papers in force (COMM-80). Everything
+   * that addresses a document by its id — `documentWith`, the segmentation
+   * stage, the classifier — goes on seeing all of them, because a replaced
+   * document is still a document of this package.
+   */
+  get documentsInForce(): readonly Document[] {
+    return this.#documents.filter(document => document.isInForce);
+  }
+
+  /*
+   * What this package will take a document for, and why.
+   *
+   * The server's own answer, published so a screen can draw exactly the uploads
+   * that will be accepted — `supplyDocument` refuses anything that is not on
+   * this list, so the two cannot drift apart. The rule itself is a domain
+   * service, because the read side answers the same question off rows without
+   * ever loading the aggregate, and one rule with two implementations is two
+   * rules (COMM-80).
+   */
+  get gaps(): readonly DocumentGap[] {
+    return gapsIn(this.#profile, this.#documents.map(asRead));
+  }
+
   get crossChecks(): readonly CrossCheck[] {
     return this.#crossChecks;
   }
@@ -341,7 +377,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
    * against prints.
    */
   private valuesOf(reference: FieldRef): readonly CheckedValue[] {
-    return this.#documents.flatMap(document => {
+    return this.documentsInForce.flatMap(document => {
       const classification = document.classification;
 
       if (!classification?.isPlaced) return [];
@@ -424,7 +460,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   }
 
   private anchorsOf(type: DocumentType): readonly CheckedValue[] {
-    return this.#documents.flatMap(document => {
+    return this.documentsInForce.flatMap(document => {
       const classification = document.classification;
 
       if (!classification?.isPlaced) return [];
@@ -583,7 +619,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
 
     return (
       filesRead &&
-      this.#documents.every(
+      this.documentsInForce.every(
         document =>
           document.isClassified &&
           (document.hasFields || !this.expectsFieldsOf(document)),
@@ -616,6 +652,86 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
    * (ADR-0013).
    */
   addFiles(files: readonly SourceFile[]): void {
+    this.takeIn(files);
+    this.apply(new FilesAdded(this.id, files.length));
+  }
+
+  /*
+   * One file, sent in for one of the holes this package publishes.
+   *
+   * The difference from `addFiles` is the whole point of it, and it is why this
+   * is an operation of its own rather than a target bolted onto that one: a
+   * file here answers something. It names the paper it is meant to be and, when
+   * it replaces a scan that was read badly, the document it is sent in place of
+   * — and both are checked here, against the gaps the package publishes, so
+   * that a screen drawing its buttons off that list can never offer an upload
+   * this would refuse. `addFiles` stays what it is: more of the envelope,
+   * answering nothing in particular, any number of files at once.
+   *
+   * What is *not* decided here is whether the paper really is what it was sent
+   * in as. Nothing has read it yet — that is the run's answer, and it comes out
+   * of the classification stage, where a target that was not met is refused and
+   * the report says so (`refusedSupplies`). Refusing at this point would mean
+   * reading the file inside the call that uploaded it.
+   *
+   * Everything else is `addFiles`: the package re-opens, the answers worked out
+   * across it are discarded, and the run that follows re-reads nothing it has
+   * already read (ADR-0013).
+   */
+  supplyDocument(file: SourceFile): void {
+    const target = file.suppliedFor;
+
+    // The file carries what it answers, because that is what has to survive to
+    // the run and into the database. One with no target is not a supply at all
+    // — it is `addFiles` with one file — and taking it in here would put a file
+    // in the package that nothing will ever hold to anything.
+    if (!target) throw new UntargetedSupplyException(this.id.value);
+
+    // Before anything is changed: a refusal must leave the package exactly as
+    // it was, not as one that has discarded its report over a file it declined.
+    this.guardPublishesGapFor(target);
+    this.takeIn([file]);
+
+    this.apply(
+      new DocumentSupplied(
+        this.id,
+        file.id,
+        target.expectedType,
+        target.replaces?.value ?? null,
+      ),
+    );
+  }
+
+  /*
+   * The gaps are the offer and the whole of what will be taken.
+   *
+   * A target that is not among them is one of two things, and neither may be
+   * let through: a screen offering an upload the package has no room for, or a
+   * replacement of a document that is no longer in force — sent twice, or sent
+   * against a list the operator has been looking at since before the last run.
+   */
+  private guardPublishesGapFor(target: SupplyTarget): void {
+    const replaces = target.replaces;
+    const offered = this.gaps.some(
+      gap =>
+        gap.expectedType.equals(target.expectedType) &&
+        (replaces === null
+          ? gap.documentId === null
+          : gap.documentId === replaces.value),
+    );
+
+    if (offered) return;
+
+    throw new NoSuchDocumentGapException(
+      this.id.value,
+      target.expectedType.value,
+      replaces?.value ?? null,
+    );
+  }
+
+  // What both ways in have in common: the package takes the files and re-opens,
+  // and everything that was worked out across it goes (ADR-0013).
+  private takeIn(files: readonly SourceFile[]): void {
     if (files.length === 0) {
       throw new PackageMustGainAFileException(this.id.value);
     }
@@ -637,8 +753,6 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     // The archive search went with them, so anything signed for it is spent:
     // what was approved is no longer what the package holds (ADR-0016).
     this.spendArchiveSearchApproval();
-
-    this.apply(new FilesAdded(this.id, files.length));
   }
 
   // Two files pointing at one object are one file counted twice: a package that
@@ -731,7 +845,51 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     }
 
     this.replaceDocument(document.classifiedAs(classification));
+    this.settleSupplyOf(document, classification);
     this.apply(new DocumentClassified(this.id, documentId, classification));
+  }
+
+  /*
+   * The moment a file sent in for a gap is answered, or is not.
+   *
+   * Here and not in `supplyDocument`, because this is the first point at which
+   * anything has read the paper: what was sent in is settled by what the
+   * classifier made of it and by nothing else.
+   *
+   * Answered, and the document it was sent in place of goes out of force with
+   * the stamp of what replaced it and when. It is never deleted — a submission
+   * is evidence and not a working draft, the same principle that keeps a
+   * machine reading on file once a better one exists — and every rule that says
+   * what the package states reads `documentsInForce` instead (COMM-80).
+   *
+   * Not answered, and nothing happens here at all: the replaced document stays
+   * in force, the gap stays open, and the report says what was sent and what it
+   * turned out to be (`refusedSupplies`).
+   */
+  private settleSupplyOf(
+    document: Document,
+    classification: Classification,
+  ): void {
+    const target = this.fileWith(document.sourceFileId).suppliedFor;
+    const replaces = target?.replaces;
+
+    if (!target || !replaces) return;
+    if (!classification.isPlaced) return;
+    if (!target.isAnsweredBy(classification.type)) return;
+
+    const replaced = this.#documents.find(
+      candidate => candidate.id.equals(replaces) && candidate.isInForce,
+    );
+
+    if (!replaced) return;
+
+    this.replaceDocument(replaced.supersededBy(document.id, new Date()));
+    // The values other papers had borrowed from it go with it: a carried-over
+    // value is nothing but a pointer at the reading behind it, and the next run
+    // gathers again off the paper that is now in force (ADR-0023).
+    this.#documents = this.#documents.map(candidate =>
+      candidate.withoutValuesFrom(replaced.id),
+    );
   }
 
   recordExtractedFields(
@@ -786,7 +944,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     );
     const confirmed: { documentId: DocumentId; fieldKey: FieldKey }[] = [];
 
-    for (const document of this.#documents) {
+    for (const document of this.documentsInForce) {
       const keys = agreed
         .filter(value => value.isFrom(document.id))
         .map(value => value.fieldKey)
@@ -845,7 +1003,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       field: ExtractedField;
     }[] = [];
 
-    for (const document of this.#documents) {
+    for (const document of this.documentsInForce) {
       const classification = document.classification;
 
       if (!classification?.isPlaced) continue;
@@ -996,6 +1154,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       ...this.againstTheRecord(),
       ...this.againstTheDeclaration(),
       ...this.supportingDocuments(),
+      ...this.refusedSupplies(),
     ];
 
     this.#report = VerificationReport.of(issues);
@@ -1003,7 +1162,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   }
 
   private missingDocuments(): readonly ValidationIssue[] {
-    const placed = this.#documents.flatMap(document => {
+    const placed = this.documentsInForce.flatMap(document => {
       const classification = document.classification;
 
       return classification?.isPlaced ? [classification.type] : [];
@@ -1180,7 +1339,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     // Only the documents nothing could be made of. One the classifier read and
     // placed outside the profile was not unreadable, and is reported as what it
     // is a few lines below.
-    const documents = this.#documents
+    const documents = this.documentsInForce
       .filter(document => {
         const classification = document.classification;
 
@@ -1204,7 +1363,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   private alsoInThePackage(): readonly ValidationIssue[] {
     const answered = new Set<string>();
 
-    return this.#documents.flatMap(document => {
+    return this.documentsInForce.flatMap(document => {
       const classification = document.classification;
 
       if (classification?.isOutOfProfile) {
@@ -1237,8 +1396,60 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     });
   }
 
+  /*
+   * A file sent in for a particular hole in the package that turned out to be a
+   * different paper.
+   *
+   * The alternative was silence: the file would have been taken in as one more
+   * document of the envelope, the gap it was sent for would have stayed open,
+   * and nothing anywhere would have connected the two. An operator who attached
+   * the wrong scan would see the hole still there and no reason for it.
+   *
+   * Only once the run has placed what it read. A file whose documents are not
+   * classified yet has not been refused — it has not been answered — and a file
+   * nothing could be carved out of is already in the report as a file that
+   * could not be read, which is the truer thing to say about it.
+   */
+  private refusedSupplies(): readonly ValidationIssue[] {
+    return this.#files.flatMap(file => {
+      const target = file.suppliedFor;
+
+      if (!target) return [];
+
+      const carved = this.documentsIn(file.id);
+
+      if (carved.length === 0) return [];
+      if (!carved.every(document => document.isClassified)) return [];
+
+      const answered = carved.some(document => {
+        const classification = document.classification;
+
+        return (
+          classification?.isPlaced === true &&
+          target.isAnsweredBy(classification.type)
+        );
+      });
+
+      if (answered) return [];
+
+      // The first paper the reader made of the file: the sheets an operator
+      // opens to see what they actually attached.
+      const [arrived] = carved;
+
+      return [
+        ValidationIssue.wrongDocumentSupplied(
+          file.id,
+          file.filename.value,
+          target.expectedType,
+          arrived?.classification?.type ?? null,
+          arrived?.id ?? null,
+        ),
+      ];
+    });
+  }
+
   private lowConfidence(): readonly ValidationIssue[] {
-    return this.#documents.flatMap(document => {
+    return this.documentsInForce.flatMap(document => {
       const classification = document.classification;
       const type = classification?.isPlaced ? classification.type : null;
 
@@ -1296,7 +1507,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
    * answers them one at a time.
    */
   private unattested(): readonly ValidationIssue[] {
-    return this.#documents.flatMap(document => {
+    return this.documentsInForce.flatMap(document => {
       const classification = document.classification;
       if (!classification?.isPlaced) return [];
 
@@ -1426,4 +1637,30 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       candidate.id.equals(document.id) ? document : candidate,
     );
   }
+}
+
+/**
+ * A document as the gap rule needs to see it.
+ *
+ * Only what was read off the paper itself: a value carried over from elsewhere
+ * in the package says the envelope is consistent and says nothing about this
+ * scan, so it neither answers a field the profile asked for nor doubts one
+ * (ADR-0023). That is the whole reason this mapping exists rather than the rule
+ * taking the entity — the read side answers the same question off rows, and it
+ * has to answer it the same way.
+ */
+function asRead(document: Document): ReadDocument {
+  const classification = document.classification;
+
+  return {
+    documentId: document.id.value,
+    sourceFileId: document.sourceFileId.value,
+    type: classification?.type.value ?? null,
+    classifiedAt: classification?.confidence.value ?? null,
+    readings: document.fieldsReadHere.map(field => ({
+      key: field.key.value,
+      confidence: field.confidence.value,
+    })),
+    superseded: !document.isInForce,
+  };
 }

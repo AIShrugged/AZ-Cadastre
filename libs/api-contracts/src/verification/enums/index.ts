@@ -3,6 +3,10 @@ export {
   type ArchiveHolding,
 } from './archive-holding.enum.js';
 export {
+  DocumentGapReasonSchema,
+  type DocumentGapReason,
+} from './document-gap-reason.enum.js';
+export {
   DocumentContentTypeSchema,
   type DocumentContentType,
 } from './content-type.enum.js';

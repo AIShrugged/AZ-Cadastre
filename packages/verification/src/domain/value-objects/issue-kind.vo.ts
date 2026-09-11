@@ -74,6 +74,23 @@ export class IssueKind {
   static readonly DECLARED_VALUE_MISMATCH = new IssueKind(
     'DeclaredValueMismatch',
   );
+  /*
+   * A file was sent in for a particular hole in the package and turned out to
+   * be a different paper.
+   *
+   * Not EXTRA_DOCUMENT, which is a paper that simply arrived: this one was sent
+   * in answer to something the package said it was short of, and the answer
+   * does not fit. An operator who asked to replace an unreadable technical
+   * passport and attached the payment receipt has to be told that, and told it
+   * plainly — the alternative is the file being taken in as one more document
+   * and the hole staying open with nothing said about why (COMM-80).
+   *
+   * Held against the package, unlike EXTRA_DOCUMENT: the gap it was sent for is
+   * still open, and the operator has a thing left to do.
+   */
+  static readonly WRONG_DOCUMENT_SUPPLIED = new IssueKind(
+    'WrongDocumentSupplied',
+  );
 
   private constructor(public readonly value: string) {}
 
@@ -91,6 +108,7 @@ export class IssueKind {
       IssueKind.MISSING_ATTESTATION,
       IssueKind.SUPPORTING_DOCUMENTS_REQUIRED,
       IssueKind.DECLARED_VALUE_MISMATCH,
+      IssueKind.WRONG_DOCUMENT_SUPPLIED,
     ];
   }
 

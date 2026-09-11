@@ -4,6 +4,7 @@ import {
   ArchiveHoldingSchema,
   CrossCheckVerdictSchema,
   DocumentContentTypeSchema,
+  DocumentGapReasonSchema,
   FieldOriginSchema,
   IssueKindSchema,
   MarkStateSchema,
@@ -18,6 +19,22 @@ import {
 // edge refuses a body the context would only have to refuse again.
 export const DECLARED_YEAR_EARLIEST = 1800;
 export const DECLARED_YEAR_LATEST = 2200;
+
+/**
+ * Below this the engine doubts a reading: it files a `LowConfidence` finding
+ * against it, and it offers the document to be sent in again as an
+ * `UnusableScan` gap.
+ *
+ * Published so there is one of it. A client that wants to mark a doubtful value
+ * reads this rather than keeping a figure of its own — two numbers called "low
+ * confidence" in one product is two products, and the first time they disagree
+ * a screen highlights a value the report is content with, or leaves a flagged
+ * one plain (COMM-80).
+ *
+ * It is the engine's and not a profile's: how well a scan was read is not a
+ * matter of policy.
+ */
+export const CONFIDENCE_FLOOR = 0.85;
 
 /**
  * One value the package states about itself, as the pipeline read it off the
@@ -227,6 +244,50 @@ export type DocumentAttestationDto = z.infer<
   typeof DocumentAttestationDtoSchema
 >;
 
+/**
+ * One thing this package will take a document for, and why (COMM-80).
+ *
+ * Worked out by the server and published as it stands. A client draws exactly
+ * these and decides none of them: the supply operation accepts what is on this
+ * list and refuses everything else, so a rule kept on both sides would sooner
+ * or later offer an upload the server declines, and hide one it would have
+ * taken.
+ */
+export const DocumentGapDtoSchema = z.object({
+  reason: DocumentGapReasonSchema,
+  // The profile document type a file sent in for this gap has to turn out to
+  // be — always set, and the value to send back as `expectedType`. A gap
+  // nobody could name a paper for would not be an offer.
+  expectedType: z.string(),
+  // The document that would be replaced, and the value to send back as
+  // `replacesDocumentId`. Set exactly on `UnusableScan`; null on the other two,
+  // where there is nothing in the package to replace.
+  documentId: z.string().nullable(),
+  // The file that document was carved out of, so a screen can open the scan the
+  // operator is being asked to better. Null wherever `documentId` is.
+  sourceFileId: z.string().nullable(),
+});
+export type DocumentGapDto = z.infer<typeof DocumentGapDtoSchema>;
+
+/**
+ * What a file sent in after the submission was answering (COMM-80).
+ *
+ * Null on every file a package was created with and on every one added in bulk
+ * afterwards: those are the envelope, and nothing about them claims to fill a
+ * particular hole.
+ */
+export const SuppliedForDtoSchema = z.object({
+  // The profile document type the operator said this file would turn out to be.
+  // What it actually turned out to be is the classification of the documents
+  // under this file — and where the two differ, the report carries a
+  // `WrongDocumentSupplied` finding.
+  expectedType: z.string(),
+  // The document this file was sent in place of, on a replacement. Null where
+  // it was sent in for a paper the package simply did not have.
+  replacesDocumentId: z.string().nullable(),
+});
+export type SuppliedForDto = z.infer<typeof SuppliedForDtoSchema>;
+
 export const DocumentDtoSchema = z.object({
   id: z.string(),
   // The sheets of the containing file this document occupies, 1-based and
@@ -243,6 +304,24 @@ export const DocumentDtoSchema = z.object({
   // expected of.
   attestation: DocumentAttestationDtoSchema.nullable(),
   fields: z.array(FieldDtoSchema),
+  /*
+   * The document that replaced this one, and when — null on a document in force,
+   * which is nearly all of them (COMM-80).
+   *
+   * A replaced document is never removed from the package: a submission is
+   * evidence and not a working draft, so the scan the run read badly stays here,
+   * readable, saying what replaced it and on what day. Everything the package
+   * states is worked out from the documents in force — the report, the
+   * cross-document checks, the register's questions — so a client showing this
+   * one has to show it as history and not as a paper the case rests on.
+   *
+   * `supersededById` may be null while `supersededAt` is set, where the
+   * replacing document has since gone with its file. `supersededAt` is what
+   * says the document is out of force.
+   */
+  supersededById: z.string().nullable(),
+  // ISO-8601.
+  supersededAt: z.string().nullable(),
 });
 export type DocumentDto = z.infer<typeof DocumentDtoSchema>;
 
@@ -250,6 +329,9 @@ export const SourceFileDtoSchema = z.object({
   id: z.string(),
   originalFilename: z.string(),
   contentType: DocumentContentTypeSchema,
+  // What this file was sent in to answer, where it was sent in for one of the
+  // package's gaps. Null on every file the submission was made with.
+  suppliedFor: SuppliedForDtoSchema.nullable(),
   pages: z.array(PageDtoSchema),
   // Empty until the pipeline has read the file into the documents it holds.
   documents: z.array(DocumentDtoSchema),
@@ -440,6 +522,18 @@ export type ReportDto = z.infer<typeof ReportDtoSchema>;
 
 export const PackageDetailDtoSchema = PackageDtoSchema.extend({
   files: z.array(SourceFileDtoSchema),
+  /*
+   * What this package will take a document for, and why (COMM-80).
+   *
+   * The server's answer and the whole of what `POST /packages/:id/documents`
+   * will accept. Ordered: the required papers that are not here, then the ones
+   * that are here and were read badly, then what the profile takes at any time.
+   *
+   * Present on every package, including one that is short of nothing — a
+   * profile with an always-accepted paper publishes a gap for it regardless.
+   * Empty only where a profile declares none and the package is complete.
+   */
+  gaps: z.array(DocumentGapDtoSchema),
   // Empty until the cross-document stage has run, and short of the profile's
   // full list where a check had only one document to read.
   crossChecks: z.array(CrossCheckDtoSchema),

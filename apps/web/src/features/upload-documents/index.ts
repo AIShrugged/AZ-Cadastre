@@ -4,11 +4,16 @@
  * progress, and validation. State lives in the `uploadDocuments` slice.
  *
  * One feature and not two, for a new package and an open one alike: the bytes
- * take one road to the store — `documents/presign` signs the URL, the browser
- * PUTs, and the keys are handed to whichever operation the surface is for — and
- * a second copy of that road is exactly what the contract forbids. `AddFiles`
- * is the whole panel for an open package; `Dropzone` and `UploadedList` are the
- * parts, for a surface that arranges them itself.
+ * take one road to the store — `uploadDocument` in `shared/api`, the same one
+ * every other surface that sends a file uses — and the keys are handed to
+ * whichever operation the surface is for. `AddFiles` is the whole panel for an
+ * open package; `Dropzone` and `UploadedList` are the parts, for a surface that
+ * arranges them itself.
+ *
+ * The batch and the targeted supply are two features and not one: this one is
+ * more of the envelope, answering nothing in particular, and `supply-document`
+ * sends one file in for one published gap. They are different asks, and the
+ * contract publishes them as two operations for the same reason.
  */
 
 // Public UI

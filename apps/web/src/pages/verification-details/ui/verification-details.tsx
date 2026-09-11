@@ -83,6 +83,7 @@ import {
   SurfacePage,
 } from '@/shared/ui/surface';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
+import { CONFIDENCE_FLOOR } from '@cadastre/api-contracts/verification';
 import type {
   CheckedValueDto,
   CrossCheckDto,
@@ -382,10 +383,16 @@ function stageStatuses(
 }
 
 // ─── Confidence ────────────────────────────────────────────────────────────────
-// A machine-read value: tabular mono, and below the 80% threshold it flags for
-// review in the clay "incomplete" ink (PRD §4.6). Above the floor it stays a
-// quiet figure in its own column — a reading the engine is sure of must not
+// A machine-read value: tabular mono, and below the engine's own floor it flags
+// for review in the clay "incomplete" ink (PRD §4.6). Above the floor it stays
+// a quiet figure in its own column — a reading the engine is sure of must not
 // shout down the value it produced.
+//
+// The threshold is the contract's `CONFIDENCE_FLOOR` and never a copy of it.
+// This screen used to keep its own 0.8 beside the engine's, which is two
+// numbers called "low confidence" in one product: the first time they disagreed
+// this column would highlight a value the report is content with, or leave a
+// flagged one plain (COMM-80).
 //
 // How well a value was read and where it came from are two statements, and
 // since ADR-0023 the field carries both: this column answers the first, and the
@@ -393,7 +400,6 @@ function stageStatuses(
 // paper of the package is the source's reading discounted, so it can arrive
 // under the floor with nothing on this sheet to check — which is why the row
 // showing it drops the "needs review" chip and keeps the figure.
-const CONFIDENCE_FLOOR = 0.8;
 
 // Zero is not "certainly wrong", it is "nobody scored this": neither the route
 // nor the model would say how sure it was, so the engine declines to make a
@@ -1690,6 +1696,13 @@ const SECTIONS: Record<IssueKind, { heading: string; tone: SectionTone }> = {
   DeclaredValueMismatch: {
     heading: ISSUE_KIND_KEY.DeclaredValueMismatch,
     tone: 'note',
+  },
+  // A shortfall in the package and beside the others: a file was sent in to
+  // close one of these very sections and turned out to be a different paper, so
+  // the section it was answering is still here and this says why (COMM-80).
+  WrongDocumentSupplied: {
+    heading: ISSUE_KIND_KEY.WrongDocumentSupplied,
+    tone: 'finding',
   },
   // Neither a fault nor an observation about the envelope: what the applicant
   // has to bring next, for the case this package turned out to be. Last,

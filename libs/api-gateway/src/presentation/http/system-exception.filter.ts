@@ -41,6 +41,18 @@ const DOMAIN_STATUS: Readonly<Record<string, number>> = {
   ARCHIVE_SEARCH_NOT_SETTLED: HttpStatus.CONFLICT,
   ARCHIVE_SEARCH_NOT_ASKED: HttpStatus.CONFLICT,
   ARCHIVE_SEARCH_ALREADY_APPROVED: HttpStatus.CONFLICT,
+
+  // A file sent in for something the package is not short of. A conflict and
+  // not a malformed request: the body is well formed and names a real document
+  // type — it is the package that has no room for it, either because the screen
+  // is drawing an offer the server never published or because the gap has been
+  // filled since the operator looked (COMM-80).
+  NO_SUCH_DOCUMENT_GAP: HttpStatus.CONFLICT,
+  // A target no arrival could ever satisfy: `unknown` and `out_of_profile` are
+  // what the reader answers when it cannot place a paper, not papers to ask
+  // for. That is a malformed ask, so it is refused as one.
+  INVALID_SUPPLY_TARGET: HttpStatus.BAD_REQUEST,
+  UNTARGETED_SUPPLY: HttpStatus.BAD_REQUEST,
 };
 
 const DOMAIN_DEFAULT_STATUS = HttpStatus.UNPROCESSABLE_ENTITY;

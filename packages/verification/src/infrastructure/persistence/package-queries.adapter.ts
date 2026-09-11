@@ -10,6 +10,7 @@ import type {
   ArchiveSearchApprovalView,
   CrossCheckView,
   DocumentAttestationView,
+  DocumentGapView,
   FieldView,
   FindingCountView,
   FindingsOverviewView,
@@ -24,10 +25,14 @@ import type {
 } from '../../application/read-models/index.js';
 import {
   attestationOf,
+  gapsIn,
+  type DocumentGap,
   type MarkExpectations,
+  type ReadDocument,
 } from '../../domain/services/index.js';
 import {
   DocumentType,
+  FieldOrigin,
   IssueKind,
   PackageStanding,
   PackageStatus,
@@ -185,6 +190,10 @@ const SUMMARY_COLUMNS = {
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     select: {
       type: true,
+      // What a row names the case by must come off a paper the package still
+      // stands on: a replaced scan is history, and naming the case by it would
+      // print a value the report is no longer compiled from (COMM-80).
+      supersededAt: true,
       _count: { select: { extractedFields: true } },
       // Only the values some profile names a case by. Which of them this row's
       // profile believes, and off which paper, is worked out below.
@@ -312,6 +321,7 @@ type SummaryRow = {
   readonly registryChecks: readonly { readonly outcome: string }[];
   readonly documents: readonly {
     readonly type: string | null;
+    readonly supersededAt: Date | null;
     readonly _count: { readonly extractedFields: number };
     readonly extractedFields: readonly {
       readonly name: string;
@@ -406,6 +416,10 @@ export class PackageQueriesAdapter extends PackageQueries {
             id: true,
             originalFilename: true,
             contentType: true,
+            // What the file was sent in to answer, where it was sent in for one
+            // of the package's published gaps (COMM-80).
+            suppliedForType: true,
+            suppliedForReplaces: true,
             pages: {
               orderBy: { pageNumber: 'asc' },
               select: {
@@ -422,6 +436,10 @@ export class PackageQueriesAdapter extends PackageQueries {
                 lastPage: true,
                 type: true,
                 classificationConfidence: true,
+                // Whether a later arrival has pushed this document out of
+                // force, and what did it (COMM-80).
+                supersededById: true,
+                supersededAt: true,
                 extractedFields: {
                   orderBy: { createdAt: 'asc' },
                   select: {
@@ -450,6 +468,10 @@ export class PackageQueriesAdapter extends PackageQueries {
 
     return {
       ...PackageQueriesAdapter.toSummary(row),
+      // The engine's own rule, run over the rows this query already holds: what
+      // the supply operation accepts is exactly what is published here, so the
+      // read side must not answer it a second way (COMM-80).
+      gaps: PackageQueriesAdapter.gapsOf(row.profileKey, row.sourceFiles),
       report: PackageQueriesAdapter.toReport(row.report),
       crossChecks: row.crossChecks.map(check =>
         PackageQueriesAdapter.toCrossCheck(check),
@@ -464,6 +486,12 @@ export class PackageQueriesAdapter extends PackageQueries {
         id: file.id,
         originalFilename: file.originalFilename,
         contentType: file.contentType,
+        suppliedFor: file.suppliedForType
+          ? {
+              expectedType: file.suppliedForType,
+              replacesDocumentId: file.suppliedForReplaces,
+            }
+          : null,
         pages: file.pages.map(page => ({
           pageNumber: page.pageNumber,
           imageStorageKey: page.imageStorageKey,
@@ -498,9 +526,82 @@ export class PackageQueriesAdapter extends PackageQueries {
             origin: field.origin,
             takenFrom: PackageQueriesAdapter.toFieldSource(field),
           })),
+          supersededById: document.supersededById,
+          supersededAt: document.supersededAt,
         })),
       })),
     };
+  }
+
+  /*
+   * What the package will take a document for, and why.
+   *
+   * The domain service answers it, off the documents this query has already
+   * read: the aggregate answers the same question the same way, and the supply
+   * operation refuses anything not on the list, so a rule of the read side's
+   * own would be a second offer the server does not honour (COMM-80).
+   *
+   * A profile this build no longer ships publishes no gaps rather than taking
+   * the detail view down: the register is a read surface, and a stored key
+   * nobody recognises must not make a package unopenable.
+   */
+  private static gapsOf(
+    profileKey: string,
+    files: readonly {
+      readonly id: string;
+      readonly documents: readonly {
+        readonly id: string;
+        readonly type: string | null;
+        readonly classificationConfidence: number | null;
+        readonly supersededAt: Date | null;
+        readonly extractedFields: readonly {
+          readonly name: string;
+          readonly confidence: number;
+          readonly origin: string;
+        }[];
+      }[];
+    }[],
+  ): readonly DocumentGapView[] {
+    const profile = VerificationProfile.all.find(
+      candidate => candidate.key === profileKey,
+    );
+
+    if (!profile) return [];
+
+    const documents: ReadDocument[] = files.flatMap(file =>
+      file.documents.map(document => ({
+        documentId: document.id,
+        sourceFileId: file.id,
+        type: document.type,
+        classifiedAt: document.classificationConfidence,
+        // Only what was read off the paper itself. A value carried over from
+        // elsewhere in the package says the envelope is consistent and says
+        // nothing about this scan (ADR-0023), which is the same reading the
+        // aggregate gives the rule.
+        readings: document.extractedFields
+          .filter(field => PackageQueriesAdapter.wasReadHere(field.origin))
+          .map(field => ({ key: field.name, confidence: field.confidence })),
+        superseded: document.supersededAt !== null,
+      })),
+    );
+
+    return gapsIn(profile, documents).map(
+      (gap: DocumentGap): DocumentGapView => ({
+        reason: gap.reason,
+        expectedType: gap.expectedType.value,
+        documentId: gap.documentId,
+        sourceFileId: gap.sourceFileId,
+      }),
+    );
+  }
+
+  // An origin the enumeration does not know is read as a reading, which is what
+  // every field was before origins existed: the read side must not take a
+  // package down over one unrecognised column.
+  private static wasReadHere(origin: string): boolean {
+    const known = FieldOrigin.all.find(candidate => candidate.value === origin);
+
+    return known ? known.wasReadHere : true;
   }
 
   /**
@@ -1172,6 +1273,7 @@ export class PackageQueriesAdapter extends PackageQueries {
   ): StatedValueView | null {
     for (const reference of references) {
       for (const document of row.documents) {
+        if (document.supersededAt !== null) continue;
         if (document.type !== reference.type.value) continue;
 
         const field = document.extractedFields.find(

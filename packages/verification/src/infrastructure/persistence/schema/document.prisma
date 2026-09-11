@@ -35,10 +35,29 @@ model Document {
   /// added to it never needs a migration.
   knownAs String?
 
-  extractedFields         ExtractedField[] @relation("ReadOff")
+  /// The document that replaced this one, and when it did (COMM-80).
+  ///
+  /// Null on nearly every row, which is what "in force" means. A replaced
+  /// document is never deleted: an operator sends a better scan of a paper the
+  /// run read badly, and the bad scan stays in the package, marked, saying what
+  /// replaced it and on what day — a submission is evidence and not a working
+  /// draft. Everything worked out *about* the package — the report, the
+  /// cross-document checks, the questions put to the register, the values a row
+  /// names the case by — reads only the rows where this is null.
+  ///
+  /// SetNull and not Cascade: what replaced it is a pointer for the reader, and
+  /// losing that pointer must not take the record of the replacement with it.
+  /// `supersededAt` is what says the document is out of force, so it is the one
+  /// of the two that decides anything.
+  supersededById String?    @db.Uuid
+  supersededBy   Document?  @relation("Supersedes", fields: [supersededById], references: [id], onDelete: SetNull)
+  supersedes     Document[] @relation("Supersedes")
+  supersededAt   DateTime?
+
+  extractedFields         ExtractedField[]         @relation("ReadOff")
   /// Fields of *other* documents whose value was carried over from this one
   /// (ADR-0023). Named, because a document is on both ends of that relation.
-  gatheredFrom            ExtractedField[] @relation("GatheredFrom")
+  gatheredFrom            ExtractedField[]         @relation("GatheredFrom")
   validationIssues        ValidationIssue[]
   crossCheckValues        CrossCheckValue[]
   registryChecks          RegistryCheck[]
@@ -52,5 +71,9 @@ model Document {
   // so the stage is an idempotent upsert rather than a duplicate.
   @@unique([sourceFileId, firstPage])
   @@index([packageId])
+  // Not for a query but for the cascade, the same reason the carried-over
+  // values are indexed by their source: clearing this column has to find the
+  // rows that point here.
+  @@index([supersededById])
   @@map("documents")
 }

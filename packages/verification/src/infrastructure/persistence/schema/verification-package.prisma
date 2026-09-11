@@ -46,8 +46,8 @@ model VerificationPackage {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  sourceFiles SourceFile[]
-  documents   Document[]
+  sourceFiles    SourceFile[]
+  documents      Document[]
   crossChecks    CrossCheck[]
   registryChecks RegistryCheck[]
   report         Report?

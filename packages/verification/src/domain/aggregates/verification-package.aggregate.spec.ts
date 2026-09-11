@@ -30,7 +30,9 @@ import {
   DocumentTypeNotInProfileException,
   DuplicateStorageKeyException,
   FieldNotInSchemaException,
+  InvalidSupplyTargetException,
   LegalBasisNotInProfileException,
+  NoSuchDocumentGapException,
   PackageAlreadyFinishedException,
   PackageMustGainAFileException,
   PackageMustHaveAFileException,
@@ -79,6 +81,7 @@ import {
   RegistryOutcome,
   SourceFileId,
   StorageKey,
+  SupplyTarget,
   ValidationIssue,
   VerificationProfile,
 } from '../value-objects/index.js';
@@ -3979,6 +3982,370 @@ describe('VerificationPackage', () => {
       expect(typesOf(verification)).not.toContain(
         'verification.ArchiveSearchApprovalSpent',
       );
+    });
+  });
+});
+
+/*
+ * Targeted supply: a document sent in for one of the holes the package
+ * publishes, rather than one more file in the envelope (COMM-80).
+ *
+ * What is under test here is the round trip an operator actually makes — the
+ * package says what it will take, a file is sent in for one of those, the run
+ * reads it, and the package says whether it was answered. The rule that decides
+ * the offer is under test on its own in `document-gaps.service.spec.ts`; this
+ * is about what the package does with the answer.
+ */
+describe('VerificationPackage supplied with a document', () => {
+  const READ_BADLY = Confidence.FLOOR.value - 0.2;
+
+  // A package whose one sheet was read as an application, with the whole
+  // schema read off it at `confidence`. Below the floor that is a scan the
+  // package will take again; above it there is nothing to offer.
+  function aPackageReadAs(type: string, confidence: number) {
+    const built = aSegmentedPackage(1);
+    const document = built.document;
+
+    built.verification.classify(document.id, aClassification(type));
+    built.verification.recordExtractedFields(
+      document.id,
+      VerificationProfile.CADASTRE.schemaFor(
+        DocumentType.create(type),
+      ).specs.map(spec => aField(spec.key.value, confidence)),
+    );
+    built.verification.complete();
+    built.verification.commit();
+
+    return { ...built, document };
+  }
+
+  // The file an operator attaches, with what they said it answers.
+  function sentFor(expectedType: string, replaces: DocumentId | null = null) {
+    return SourceFile.create(
+      SourceFileId.of(anId()),
+      Filename.create('again.pdf'),
+      ContentType.PDF,
+      StorageKey.create(`uploads/${anId()}.pdf`),
+      SupplyTarget.of({
+        expectedType: DocumentType.create(expectedType),
+        replaces,
+      }),
+    );
+  }
+
+  // The whole run over a file that has just arrived, as far as the answer needs
+  // it: read into one sheet, carved into one document, placed under `readAs`.
+  function readAs(
+    verification: VerificationPackage,
+    file: SourceFile,
+    type: string,
+  ): Document {
+    verification.start();
+
+    const page = aPage(1);
+    verification.splitIntoPages(file.id, [page]);
+    verification.recordRecognition(file.id, page.id, anOcrResult());
+
+    const document = aDocumentOf(file.id, PageRange.single(page.number));
+    verification.segmentIntoDocuments(file.id, [document]);
+    verification.classify(document.id, aClassification(type));
+
+    return document;
+  }
+
+  describe('what it publishes', () => {
+    it('offers every required paper of a package that carries none', () => {
+      const { verification } = aPackage();
+
+      expect(
+        verification.gaps
+          .filter(gap => gap.reason === 'MissingDocument')
+          .map(gap => gap.expectedType.value),
+      ).toEqual(REQUIRED_TYPES);
+    });
+
+    it('offers the scan it read badly, named by the document it would replace', () => {
+      const { verification, document } = aPackageReadAs(
+        'application',
+        READ_BADLY,
+      );
+
+      expect(
+        verification.gaps.filter(gap => gap.reason === 'UnusableScan'),
+      ).toEqual([
+        {
+          reason: 'UnusableScan',
+          expectedType: DocumentType.create('application'),
+          documentId: document.id.value,
+          sourceFileId: document.sourceFileId.value,
+        },
+      ]);
+    });
+
+    // The duty is paid outside this system, so a receipt may turn up late or a
+    // second one may be paid against a corrected amount: the package takes one
+    // whether or not it is short of one.
+    it('offers the payment receipt on a package that carries a good one', () => {
+      const { verification } = aPackageReadAs('payment_receipt', 0.95);
+
+      expect(
+        verification.gaps
+          .filter(gap => gap.expectedType.value === 'payment_receipt')
+          .map(gap => gap.reason),
+      ).toEqual(['AlwaysAccepted']);
+    });
+  });
+
+  describe('what it will take', () => {
+    it('takes a file sent in for a gap it publishes', () => {
+      const { verification, document } = aPackageReadAs(
+        'application',
+        READ_BADLY,
+      );
+
+      verification.supplyDocument(sentFor('application', document.id));
+
+      expect(verification.files).toHaveLength(2);
+    });
+
+    // The published list and the accepted call are one list. A screen drawing
+    // its buttons off the first must never hit a refusal from the second.
+    it('refuses a replacement of a document it never offered', () => {
+      const { verification, document } = aPackageReadAs('application', 0.95);
+
+      expect(() =>
+        verification.supplyDocument(sentFor('application', document.id)),
+      ).toThrow(NoSuchDocumentGapException);
+    });
+
+    it('refuses a paper it is short of nothing of', () => {
+      const { verification } = aPackageReadAs('application', 0.95);
+
+      expect(() => verification.supplyDocument(sentFor('application'))).toThrow(
+        NoSuchDocumentGapException,
+      );
+    });
+
+    it('leaves the package untouched when it refuses', () => {
+      const { verification } = aPackageReadAs('application', 0.95);
+
+      expect(() => verification.supplyDocument(sentFor('application'))).toThrow(
+        NoSuchDocumentGapException,
+      );
+      expect(verification.files).toHaveLength(1);
+      expect(verification.report).not.toBeNull();
+      expect(verification.status.equals(PackageStatus.COMPLETED)).toBe(true);
+    });
+
+    it('re-opens the package and discards the report, like any file that arrives', () => {
+      const { verification, document } = aPackageReadAs(
+        'application',
+        READ_BADLY,
+      );
+
+      verification.supplyDocument(sentFor('application', document.id));
+
+      expect(verification.status.equals(PackageStatus.PENDING)).toBe(true);
+      expect(verification.report).toBeNull();
+    });
+
+    it('says what the file was sent for, so the run can hold it to that', () => {
+      const { verification, document } = aPackageReadAs(
+        'application',
+        READ_BADLY,
+      );
+
+      verification.supplyDocument(sentFor('application', document.id));
+
+      expect(typesOf(verification)).toContain('verification.DocumentSupplied');
+    });
+
+    it('refuses a target no reading could ever satisfy', () => {
+      expect(() =>
+        SupplyTarget.of({ expectedType: DocumentType.OUT_OF_PROFILE }),
+      ).toThrow(InvalidSupplyTargetException);
+    });
+  });
+
+  describe('when what arrived is what was asked for', () => {
+    it('puts the replaced document out of force, saying what replaced it', () => {
+      const { verification, document } = aPackageReadAs(
+        'application',
+        READ_BADLY,
+      );
+      const file = sentFor('application', document.id);
+
+      verification.supplyDocument(file);
+      const replacement = readAs(verification, file, 'application');
+
+      const replaced = verification.documentWith(document.id);
+      expect(replaced.superseded?.by?.value).toBe(replacement.id.value);
+      expect(replaced.superseded?.at).toBeInstanceOf(Date);
+    });
+
+    // The package is evidence, not a working draft: the bad scan stays, and
+    // only stops speaking for the package.
+    it('keeps the replaced document in the package and out of what it states', () => {
+      const { verification, document } = aPackageReadAs(
+        'application',
+        READ_BADLY,
+      );
+      const file = sentFor('application', document.id);
+
+      verification.supplyDocument(file);
+      readAs(verification, file, 'application');
+
+      expect(verification.documents).toHaveLength(2);
+      expect(
+        verification.documentsInForce.map(one => one.id.value),
+      ).not.toContain(document.id.value);
+    });
+
+    it('takes the finding the supply was sent to answer out of the report', () => {
+      const { verification, document } = aPackageReadAs(
+        'application',
+        READ_BADLY,
+      );
+      const file = sentFor('application', document.id);
+
+      verification.supplyDocument(file);
+      const replacement = readAs(verification, file, 'application');
+      verification.recordExtractedFields(
+        replacement.id,
+        VerificationProfile.CADASTRE.schemaFor(
+          DocumentType.create('application'),
+        ).specs.map(spec => aField(spec.key.value, 0.95)),
+      );
+      verification.complete();
+
+      const doubted = verification.report!.issues.filter(issue =>
+        issue.kind.equals(IssueKind.LOW_CONFIDENCE),
+      );
+      expect(doubted).toEqual([]);
+    });
+
+    it('stops offering the gap it closed', () => {
+      const { verification, document } = aPackageReadAs(
+        'application',
+        READ_BADLY,
+      );
+      const file = sentFor('application', document.id);
+
+      verification.supplyDocument(file);
+      const replacement = readAs(verification, file, 'application');
+      verification.recordExtractedFields(
+        replacement.id,
+        VerificationProfile.CADASTRE.schemaFor(
+          DocumentType.create('application'),
+        ).specs.map(spec => aField(spec.key.value, 0.95)),
+      );
+
+      expect(
+        verification.gaps.filter(gap => gap.reason === 'UnusableScan'),
+      ).toEqual([]);
+    });
+
+    // Two documents of one type would otherwise be a duplicate the report
+    // states — which is the wrong thing to say about a paper sent in to replace
+    // the other one.
+    it('does not report the replacement as a second paper of its type', () => {
+      const { verification, document } = aPackageReadAs(
+        'application',
+        READ_BADLY,
+      );
+      const file = sentFor('application', document.id);
+
+      verification.supplyDocument(file);
+      const replacement = readAs(verification, file, 'application');
+      verification.recordExtractedFields(
+        replacement.id,
+        VerificationProfile.CADASTRE.schemaFor(
+          DocumentType.create('application'),
+        ).specs.map(spec => aField(spec.key.value, 0.95)),
+      );
+      verification.complete();
+
+      expect(
+        verification.report!.issues.filter(issue =>
+          issue.kind.equals(IssueKind.DUPLICATE_DOCUMENT),
+        ),
+      ).toEqual([]);
+    });
+  });
+
+  describe('when what arrived is not what was asked for', () => {
+    it('says so in the report rather than taking it in as one more file', () => {
+      const { verification, document } = aPackageReadAs(
+        'application',
+        READ_BADLY,
+      );
+      const file = sentFor('application', document.id);
+
+      verification.supplyDocument(file);
+      readAs(verification, file, 'payment_receipt');
+      verification.complete();
+
+      const [refusal] = verification.report!.issues.filter(issue =>
+        issue.kind.equals(IssueKind.WRONG_DOCUMENT_SUPPLIED),
+      );
+      expect(refusal?.sourceFileId?.value).toBe(file.id.value);
+      // What was asked for, not what turned up: the finding is about the gap
+      // that is still open.
+      expect(refusal?.documentType?.value).toBe('application');
+      expect(refusal?.message).toContain('payment_receipt');
+    });
+
+    it('leaves the document it was meant to replace in force', () => {
+      const { verification, document } = aPackageReadAs(
+        'application',
+        READ_BADLY,
+      );
+      const file = sentFor('application', document.id);
+
+      verification.supplyDocument(file);
+      readAs(verification, file, 'payment_receipt');
+
+      expect(verification.documentWith(document.id).isInForce).toBe(true);
+    });
+
+    it('goes on offering the gap it did not close', () => {
+      const { verification, document } = aPackageReadAs(
+        'application',
+        READ_BADLY,
+      );
+      const file = sentFor('application', document.id);
+
+      verification.supplyDocument(file);
+      readAs(verification, file, 'payment_receipt');
+
+      expect(
+        verification.gaps.filter(
+          gap =>
+            gap.reason === 'UnusableScan' &&
+            gap.documentId === document.id.value,
+        ),
+      ).toHaveLength(1);
+    });
+
+    // Not refused, only unanswered: nothing has read the file yet, and a report
+    // saying the wrong paper arrived would be a report about a paper nobody has
+    // looked at.
+    it('says nothing while the run has not placed what arrived', () => {
+      const { verification, document } = aPackageReadAs(
+        'application',
+        READ_BADLY,
+      );
+      const file = sentFor('application', document.id);
+
+      verification.supplyDocument(file);
+      verification.start();
+      verification.complete();
+
+      expect(
+        verification.report!.issues.filter(issue =>
+          issue.kind.equals(IssueKind.WRONG_DOCUMENT_SUPPLIED),
+        ),
+      ).toEqual([]);
     });
   });
 });

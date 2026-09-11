@@ -8,6 +8,7 @@ import type {
   PackageDto,
   PackagesOverviewRequest,
   PackagesOverviewResponse,
+  SupplyDocumentRequest,
 } from '../dto/index.js';
 
 /**
@@ -60,6 +61,42 @@ export interface PackagesApi {
    * documents carved out of them — survives (ADR-0013).
    */
   addFiles(id: string, request: AddFilesRequest): Promise<PackageDto>;
+
+  /**
+   * Sends one document in for one of the gaps `PackageDetailDto.gaps`
+   * publishes, and answers with the package as it now stands (COMM-80).
+   *
+   * The difference from `addFiles` is that this file answers something. It
+   * names the paper it is meant to be, and where it replaces a scan the run
+   * read badly it names the document it stands in for — so the package can say
+   * afterwards whether what arrived closed the gap it was sent for.
+   *
+   * Refused with `NO_SUCH_DOCUMENT_GAP` where the target is not one of the
+   * published gaps, which is what keeps the offer and the accepted call the
+   * same list; with `PACKAGE_NOT_TAKING_FILES` while a run is under way, like
+   * `addFiles`; and with `DOCUMENT_NOT_IN_PACKAGE` where the document named as
+   * replaced is not this package's.
+   *
+   * Whether the paper really is what it was sent in as is *not* answered here —
+   * nothing has read it yet. That is the run's answer: the classifier places
+   * what arrived, and where it is not the expected type the supply is refused —
+   * the gap stays open, the document it was meant to replace stays in force,
+   * and the report carries a `WrongDocumentSupplied` finding naming what was
+   * asked for and what turned up.
+   *
+   * Where it *is* the expected type and the supply replaces a document, that
+   * document goes out of force with the stamp of what replaced it and when. It
+   * is never deleted: the report is compiled from the documents in force, and
+   * the replaced one stays in the package as the record of what was sent first.
+   *
+   * Otherwise this behaves exactly like `addFiles`: the package re-opens, the
+   * answers worked out across it are discarded, and it is verified afresh with
+   * nothing re-read that was read before (ADR-0013).
+   */
+  supplyDocument(
+    id: string,
+    request: SupplyDocumentRequest,
+  ): Promise<PackageDto>;
 
   /**
    * Records a person's approval of what the archive register answered about

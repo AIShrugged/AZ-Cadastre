@@ -15,6 +15,7 @@ import {
   CreatePackageRequestSchema,
   ListPackagesRequestSchema,
   PackagesOverviewRequestSchema,
+  SupplyDocumentRequestSchema,
   type AddFilesRequest,
   type ApproveArchiveSearchRequest,
   type CreatePackageRequest,
@@ -24,6 +25,7 @@ import {
   type PackageDto,
   type PackagesOverviewRequest,
   type PackagesOverviewResponse,
+  type SupplyDocumentRequest,
 } from '@cadastre/api-contracts/verification';
 
 import { VerificationClientPort } from '../../../application/ports/index.js';
@@ -65,6 +67,29 @@ export class PackagesController {
     @Body({ schema: AddFilesRequestSchema }) body: AddFilesRequest,
   ): Promise<PackageDto> {
     return this.verification.packages.addFiles(id, body);
+  }
+
+  /*
+   * One document, sent in for one of the gaps `GET /packages/:id` publishes
+   * (COMM-80).
+   *
+   * Under `documents` and not under `files`, because the two are different
+   * asks: `POST :id/files` is more of the envelope, any number of files
+   * answering nothing in particular, and this is one file that answers
+   * something — the paper the package said it was short of, and where it is a
+   * replacement, the document it stands in for.
+   *
+   * 200 and not 201, like `files` above: what comes back is the package as it
+   * now stands. The document has no address of its own to be created at — it is
+   * not a document yet, only a file the run has still to read into one.
+   */
+  @Post(':id/documents')
+  @HttpCode(HttpStatus.OK)
+  async supplyDocument(
+    @Param('id') id: string,
+    @Body({ schema: SupplyDocumentRequestSchema }) body: SupplyDocumentRequest,
+  ): Promise<PackageDto> {
+    return this.verification.packages.supplyDocument(id, body);
   }
 
   /*

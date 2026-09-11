@@ -31,6 +31,7 @@ import {
   ProfileDtoSchema,
   ProfileSuggestionDtoSchema,
   SuggestProfileRequestSchema,
+  SupplyDocumentRequestSchema,
   type AddFilesRequest,
   type ApproveArchiveSearchRequest,
   type CreatePackageRequest,
@@ -45,6 +46,7 @@ import {
   type ProfileDto,
   type ProfileSuggestionDto,
   type SuggestProfileRequestInput,
+  type SupplyDocumentRequest,
 } from '@cadastre/api-contracts/verification';
 
 /**
@@ -213,6 +215,35 @@ export class RestClient {
       this.request(
         'POST',
         `/api/packages/${encodeURIComponent(id)}/files`,
+        z.unknown(),
+        body,
+      ),
+
+    /**
+     * One document, sent in for one of the gaps `findOne` publishes (COMM-80).
+     * A different call from `addFiles` because this file answers something: it
+     * names the paper it is meant to be, and where it replaces a scan the run
+     * read badly, the document it stands in for.
+     */
+    supplyDocument: (
+      id: string,
+      request: SupplyDocumentRequest,
+    ): Promise<ApiResponse<PackageDto>> =>
+      this.request(
+        'POST',
+        `/api/packages/${encodeURIComponent(id)}/documents`,
+        PackageDtoSchema,
+        SupplyDocumentRequestSchema.parse(request),
+      ),
+
+    /** Deliberately unvalidated, for the specs that check the API's own refusals. */
+    supplyDocumentRaw: (
+      id: string,
+      body: unknown,
+    ): Promise<ApiResponse<unknown>> =>
+      this.request(
+        'POST',
+        `/api/packages/${encodeURIComponent(id)}/documents`,
         z.unknown(),
         body,
       ),

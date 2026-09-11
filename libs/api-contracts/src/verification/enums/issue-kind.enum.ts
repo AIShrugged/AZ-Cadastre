@@ -47,5 +47,13 @@ export const IssueKindSchema = z.enum([
   // finding is filed against the reading it disagrees with, so the inspector
   // opens the sheet and settles it.
   'DeclaredValueMismatch',
+  // A file sent in for one of the gaps the package publishes turned out to be a
+  // different paper — the payment receipt attached where an unreadable sketch
+  // design was asked for. Not ExtraDocument, which is a paper that simply
+  // arrived: this one was sent in answer to something, the answer does not fit,
+  // and the gap it was sent for is still open. `documentType` carries what was
+  // asked for rather than what turned up, because the finding is about that gap
+  // (COMM-80).
+  'WrongDocumentSupplied',
 ]);
 export type IssueKind = z.infer<typeof IssueKindSchema>;

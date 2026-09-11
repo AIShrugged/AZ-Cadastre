@@ -222,6 +222,7 @@ export const ISSUE_KIND_KEY: Record<IssueKind, string> = {
   MissingAttestation: 'detail.sec.attestation',
   SupportingDocumentsRequired: 'detail.sec.supporting',
   DeclaredValueMismatch: 'detail.sec.declared_mismatch',
+  WrongDocumentSupplied: 'detail.sec.wrong_supplied',
 };
 
 export type FindingRank = {

@@ -219,6 +219,28 @@ export type DocumentAttestationView = {
   signature: DocumentMarkView;
 };
 
+/**
+ * One thing the package will take a document for, and why — the engine's own
+ * answer, carried across as it was worked out (COMM-80).
+ *
+ * The reason is one of the domain service's `GapReason` members; `documentId`
+ * and `sourceFileId` are set only on `UnusableScan`, where filling the gap
+ * replaces a document that is already here.
+ */
+export type DocumentGapView = {
+  reason: string;
+  expectedType: string;
+  documentId: string | null;
+  sourceFileId: string | null;
+};
+
+// What a file sent in after the submission was answering. Null on every file
+// the package was created with.
+export type SuppliedForView = {
+  expectedType: string;
+  replacesDocumentId: string | null;
+};
+
 export type DocumentView = {
   id: string;
   firstPage: number;
@@ -230,18 +252,33 @@ export type DocumentView = {
   // specification, and so no answer about what was expected of the paper.
   attestation: DocumentAttestationView | null;
   fields: readonly FieldView[];
+  // What replaced this document and when, or null while it is in force. A
+  // replaced document stays in the package and stays readable; nothing the
+  // package states is worked out from it (COMM-80).
+  supersededById: string | null;
+  supersededAt: Date | null;
 };
 
 export type SourceFileView = {
   id: string;
   originalFilename: string;
   contentType: string;
+  suppliedFor: SuppliedForView | null;
   pages: readonly PageView[];
   documents: readonly DocumentView[];
 };
 
 export type PackageDetailView = PackageSummaryView & {
   files: readonly SourceFileView[];
+  /*
+   * What this package will take a document for, and why.
+   *
+   * Worked out by the same domain service the aggregate answers with, off the
+   * rows this query already holds: the supply operation accepts exactly what is
+   * published here, and a second rule on the read side would be a second answer
+   * (COMM-80).
+   */
+  gaps: readonly DocumentGapView[];
   // Every check the run was able to make, agreed or not: one that agreed is
   // work the inspector does not have to redo.
   crossChecks: readonly CrossCheckView[];

@@ -33,7 +33,9 @@ export { InvalidRegistryCheckKeyException } from './invalid-registry-check-key.e
 export { InvalidRegistryOutcomeException } from './invalid-registry-outcome.exception.js';
 export { InvalidReportStatusException } from './invalid-report-status.exception.js';
 export { InvalidStorageKeyException } from './invalid-storage-key.exception.js';
+export { InvalidSupplyTargetException } from './invalid-supply-target.exception.js';
 export { LegalBasisNotInProfileException } from './legal-basis-not-in-profile.exception.js';
+export { NoSuchDocumentGapException } from './no-such-document-gap.exception.js';
 export { PackageAlreadyFinishedException } from './package-already-finished.exception.js';
 export { PackageMustGainAFileException } from './package-must-gain-a-file.exception.js';
 export { PackageMustHaveAFileException } from './package-must-have-a-file.exception.js';
@@ -51,4 +53,5 @@ export { SourceFileNotInPackageException } from './source-file-not-in-package.ex
 export { SourceFileNotSplitException } from './source-file-not-split.exception.js';
 export { UnclassifiableDocumentException } from './unclassifiable-document.exception.js';
 export { UnknownProfileException } from './unknown-profile.exception.js';
+export { UntargetedSupplyException } from './untargeted-supply.exception.js';
 export { UnsupportedContentTypeException } from './unsupported-content-type.exception.js';

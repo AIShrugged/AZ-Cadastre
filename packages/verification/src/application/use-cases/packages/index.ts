@@ -32,3 +32,7 @@ export {
   RunVerificationCommand,
   RunVerificationHandler,
 } from './run-verification/index.js';
+export {
+  SupplyDocumentCommand,
+  SupplyDocumentHandler,
+} from './supply-document/index.js';

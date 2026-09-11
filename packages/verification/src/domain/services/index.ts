@@ -27,6 +27,13 @@ export {
   type SheetReading,
 } from './document-attestation.service.js';
 export {
+  GAP_REASONS,
+  gapsIn,
+  type DocumentGap,
+  type GapReason,
+  type ReadDocument,
+} from './document-gaps.service.js';
+export {
   enclosesHeading,
   headingMatch,
   looksLike,

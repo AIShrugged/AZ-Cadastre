@@ -56,6 +56,9 @@ function aDocument(
 
   return {
     type,
+    // In force unless a spec says otherwise: a replaced scan is history, and
+    // the row must not name the case by it (COMM-80).
+    supersededAt: null,
     _count: { extractedFields: extractedFields.length },
     extractedFields,
   };
@@ -227,6 +230,8 @@ function aPlacedDocument(
     lastPage,
     type,
     classificationConfidence: type === null ? null : 0.94,
+    supersededById: null,
+    supersededAt: null,
     extractedFields: [],
   };
 }
@@ -247,6 +252,8 @@ function aDetailRow(
         id: FILE_ID,
         originalFilename: 'submission.pdf',
         contentType: 'application/pdf',
+        suppliedForType: null,
+        suppliedForReplaces: null,
         pages,
         documents,
       },

@@ -22,6 +22,21 @@ type Declaration = {
   // written in. Azerbaijani first, then Russian.
   readonly hints: readonly string[];
   readonly required: boolean;
+  /*
+   * Whether this policy takes a paper of this kind at any time, whether or not
+   * the package is short of one.
+   *
+   * Declared here rather than decided by the engine, because it is a statement
+   * about the paper and not about how well anything was read: the receipt for
+   * the state duty may be paid and sent in after the submission, or paid twice,
+   * or sent in again against a corrected amount, and none of those is a
+   * shortfall the report should be carrying. Every other type is offered only
+   * when the package is actually short of it (COMM-80).
+   *
+   * Declared on every type, like the two marks below, so that adding one is
+   * answering the question rather than forgetting it.
+   */
+  readonly alwaysAccepted: boolean;
   // Whether a paper of this kind is only itself once an office has sealed it,
   // and whether a hand has to have signed it. Stated per type and not once for
   // the profile: an applicant has no seal, and a bank terminal prints a receipt
@@ -655,6 +670,9 @@ export class DocumentTypeSpec {
     public readonly hints: readonly string[],
     public readonly schema: FieldSchema,
     public readonly isRequired: boolean,
+    // Whether the profile takes a paper of this type at any time, which is what
+    // publishes a gap for it on a package that is short of nothing (COMM-80).
+    public readonly isAlwaysAccepted: boolean,
     public readonly expectsStamp: boolean,
     public readonly expectsSignature: boolean,
   ) {}
@@ -670,6 +688,7 @@ export class DocumentTypeSpec {
         ),
       ),
       declaration.required,
+      declaration.alwaysAccepted,
       declaration.expectsStamp,
       declaration.expectsSignature,
     );
@@ -689,6 +708,8 @@ export class DocumentTypeSpec {
       [...declaration.hints],
       FieldSchema.none(),
       false,
+      // No profile asks for it, so there is no gap to offer it against either.
+      false,
       false,
       false,
     );
@@ -704,6 +725,7 @@ export class DocumentTypeSpec {
       '',
       [],
       FieldSchema.none(),
+      false,
       false,
       false,
       false,
@@ -735,6 +757,7 @@ export class VerificationProfile {
           'план-схема',
         ],
         required: true,
+        alwaysAccepted: false,
         // Drawn and issued by the cadastre office: the surveyed figures are
         // its own, and it is the office's seal and the surveyor's hand that say
         // so (ADR-0012).
@@ -833,6 +856,7 @@ export class VerificationProfile {
           'распоряжение',
         ],
         required: true,
+        alwaysAccepted: false,
         // An act of an executive authority. An extract of one is issued by
         // the same authority and attested the same way.
         expectsStamp: true,
@@ -853,6 +877,12 @@ export class VerificationProfile {
           'receipt number, the payer, an amount and the date it was paid.',
         hints: ['ödəniş qəbzi', 'qəbz', 'квитанция об оплате', 'квитанция'],
         required: true,
+        // The one paper of this profile an operator may send in whenever they
+        // have it, package complete or not: the duty is paid outside this
+        // system, at a counter or a terminal, and a slip that turns up after
+        // the submission — or a second one against a corrected amount — is an
+        // ordinary event and not a shortfall (COMM-80).
+        alwaysAccepted: true,
         // Neither mark. The duty is paid at a bank counter or a terminal and
         // the slip that comes back is printed, not sealed; requiring a stamp
         // here would report every correctly paid package as faulty (ADR-0012).
@@ -880,6 +910,7 @@ export class VerificationProfile {
           'эскизного проекта',
         ],
         required: true,
+        alwaysAccepted: false,
         // Produced and approved by a design organisation, which signs and
         // seals the title block of what it puts its name to.
         expectsStamp: true,
@@ -991,6 +1022,7 @@ export class VerificationProfile {
           'архивной справки',
         ],
         required: true,
+        alwaysAccepted: false,
         // What an archive issues over its own seal. Unsealed it states
         // nothing: the whole worth of the certificate is which office says it.
         expectsStamp: true,
@@ -1016,6 +1048,7 @@ export class VerificationProfile {
           'заявление',
         ],
         required: true,
+        alwaysAccepted: false,
         // Signed and not sealed: it is written by a natural person, who has no
         // seal to press. The signature is what makes it their application.
         expectsStamp: false,
@@ -1042,6 +1075,7 @@ export class VerificationProfile {
           'passport',
         ],
         required: true,
+        alwaysAccepted: false,
         // Neither. Its security features are printed into the card and the
         // reader marks them [photo], not [stamp]; a passport's specimen
         // signature is on a page the package need not carry (ADR-0012).

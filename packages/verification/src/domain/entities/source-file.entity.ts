@@ -14,6 +14,7 @@ import {
   type PageNumber,
   type SourceFileId,
   type StorageKey,
+  type SupplyTarget,
 } from '../value-objects/index.js';
 
 import { Page } from './page.entity.js';
@@ -27,6 +28,16 @@ export class SourceFile {
     public readonly contentType: ContentType,
     public readonly storageKey: StorageKey,
     pages: readonly Page[],
+    /*
+     * What this file was sent in to answer, or none.
+     *
+     * None on every file a submission was made with and on every one added in
+     * bulk afterwards: those are the envelope, and nothing about them claims to
+     * fill a particular hole. Set on a file the operator sent against a
+     * published gap, and then it is what the run holds the classification
+     * against (COMM-80).
+     */
+    public readonly suppliedFor: SupplyTarget | null,
   ) {
     // Copied, not adopted: `readonly` stops a caller reassigning the array, not
     // pushing into the one it still holds.
@@ -38,8 +49,19 @@ export class SourceFile {
     filename: Filename,
     contentType: ContentType,
     storageKey: StorageKey,
+    // Last and defaulted, because a file that answers nothing in particular is
+    // the ordinary one: it is how every submission and every bulk addition
+    // arrives.
+    suppliedFor: SupplyTarget | null = null,
   ): SourceFile {
-    return new SourceFile(id, filename, contentType, storageKey, []);
+    return new SourceFile(
+      id,
+      filename,
+      contentType,
+      storageKey,
+      [],
+      suppliedFor,
+    );
   }
 
   static restore(state: {
@@ -48,6 +70,7 @@ export class SourceFile {
     contentType: ContentType;
     storageKey: StorageKey;
     pages: readonly Page[];
+    suppliedFor?: SupplyTarget | null;
   }): SourceFile {
     return new SourceFile(
       state.id,
@@ -55,6 +78,7 @@ export class SourceFile {
       state.contentType,
       state.storageKey,
       SourceFile.inPageOrder(state.pages),
+      state.suppliedFor ?? null,
     );
   }
 
@@ -159,6 +183,7 @@ export class SourceFile {
       this.contentType,
       this.storageKey,
       pages,
+      this.suppliedFor,
     );
   }
 }

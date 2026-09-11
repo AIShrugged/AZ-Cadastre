@@ -5,6 +5,7 @@ export type {
   CrossCheckView,
   DeclaredAtIntakeView,
   DocumentAttestationView,
+  DocumentGapView,
   DocumentMarkView,
   DocumentView,
   FieldView,
@@ -18,6 +19,7 @@ export type {
   ReportView,
   SourceFileView,
   StatedValueView,
+  SuppliedForView,
 } from './package.read-model.js';
 export type {
   FindingCountView,

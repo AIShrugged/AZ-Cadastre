@@ -18,6 +18,30 @@ const CADASTRE_TYPES = [
   'archive_certificate',
   'application',
   'identity_card',
+  // What a provision of Article 8 asks for (ADR-0025).
+  'approved_design',
+  'operation_acceptance_act',
+  'construction_permit_decision',
+  'architectural_planning_section',
+  'operation_permit',
+  'construction_completion_notice',
+  'designer_licence',
+  // The titles to the land (Article 10.2.1).
+  'state_register_extract',
+  'land_right_state_act',
+  'soviet_land_record',
+  'land_allocation_decision',
+  'notarised_land_allocation_contract',
+  'household_book_extract',
+  'technical_passport',
+  'kolkhoz_allocation_decision',
+  'bound_land_book_extract',
+  'sovkhoz_allocation_order',
+  'homestead_land_allocation_decision',
+  'apartment_demolition_decision',
+  'registration_certificate',
+  'property_right_certificate',
+  'state_property_disposal_act',
 ];
 
 describe('VerificationProfile', () => {
@@ -77,10 +101,15 @@ describe('VerificationProfile', () => {
   });
 
   describe('what a package must carry', () => {
-    it('requires every document of the mandatory set', () => {
+    /*
+     * Two papers whatever the case: the plan of the plot and the sketch design
+     * (Articles 10.2.2 and 10.2.3). Everything else a package must carry is
+     * decided by the provision of Article 8 its case falls under (ADR-0025).
+     */
+    it('requires of every package the plan of the plot and the sketch design', () => {
       expect(
         VerificationProfile.CADASTRE.requiredTypes.map(type => type.value),
-      ).toEqual(CADASTRE_TYPES);
+      ).toEqual(['land_plot_plan', 'sketch_project']);
     });
 
     it('names only types it recognises as required', () => {
@@ -103,6 +132,30 @@ describe('VerificationProfile', () => {
       archive_certificate: { stamp: true, signature: true },
       application: { stamp: false, signature: true },
       identity_card: { stamp: false, signature: false },
+      approved_design: { stamp: true, signature: true },
+      operation_acceptance_act: { stamp: true, signature: true },
+      construction_permit_decision: { stamp: true, signature: true },
+      architectural_planning_section: { stamp: true, signature: true },
+      operation_permit: { stamp: true, signature: true },
+      // Sent by the owner, who signs and has no seal.
+      construction_completion_notice: { stamp: false, signature: true },
+      designer_licence: { stamp: true, signature: true },
+      // Printed off the register with a QR code and not sealed by hand.
+      state_register_extract: { stamp: false, signature: false },
+      land_right_state_act: { stamp: true, signature: true },
+      soviet_land_record: { stamp: true, signature: true },
+      land_allocation_decision: { stamp: true, signature: true },
+      notarised_land_allocation_contract: { stamp: true, signature: true },
+      household_book_extract: { stamp: true, signature: true },
+      technical_passport: { stamp: true, signature: true },
+      kolkhoz_allocation_decision: { stamp: true, signature: true },
+      bound_land_book_extract: { stamp: true, signature: true },
+      sovkhoz_allocation_order: { stamp: true, signature: true },
+      homestead_land_allocation_decision: { stamp: true, signature: true },
+      apartment_demolition_decision: { stamp: true, signature: true },
+      registration_certificate: { stamp: true, signature: true },
+      property_right_certificate: { stamp: true, signature: true },
+      state_property_disposal_act: { stamp: true, signature: true },
     };
 
     it('says of every type it declares whether it is sealed and signed', () => {
@@ -596,92 +649,142 @@ describe('VerificationProfile', () => {
   });
 
   /*
-   * The branch that decides which supporting documents a case needs. What is
-   * under test is the mechanism, not the numbers: the thresholds it is exercised
-   * with come from `supporting-documents.table.ts`, which says of itself that
-   * they are provisional and unconfirmed by the customer (ADR-0013).
+   * Where the policy expects each paper to come from (ADR-0025): the envelope,
+   * or a state system that confirms it. Written out so that changing a source
+   * is a change to this list and not a side effect of moving a declaration.
    */
-  describe('the supporting documents it branches into', () => {
-    const BRANCH = VerificationProfile.CADASTRE.supportingDocuments[0]!;
+  describe('where it expects each paper to come from', () => {
+    const EXPECTED: Readonly<Record<string, string>> = {
+      land_plot_plan: 'Mqs',
+      disposal_order: 'Package',
+      payment_receipt: 'Package',
+      sketch_project: 'Package',
+      archive_certificate: 'NationalArchive',
+      application: 'Package',
+      identity_card: 'Mqs',
+      approved_design: 'Package',
+      operation_acceptance_act: 'Package',
+      construction_permit_decision: 'UrbanPlanningCommittee',
+      architectural_planning_section: 'Package',
+      operation_permit: 'UrbanPlanningCommittee',
+      construction_completion_notice: 'UrbanPlanningCommittee',
+      designer_licence: 'LicencesPortal',
+      state_register_extract: 'Mqs',
+      land_right_state_act: 'NationalArchive',
+      soviet_land_record: 'NationalArchive',
+      land_allocation_decision: 'NationalArchive',
+      notarised_land_allocation_contract: 'NationalArchive',
+      household_book_extract: 'NationalArchive',
+      technical_passport: 'NationalArchive',
+      kolkhoz_allocation_decision: 'NationalArchive',
+      bound_land_book_extract: 'NationalArchive',
+      sovkhoz_allocation_order: 'NationalArchive',
+      homestead_land_allocation_decision: 'NationalArchive',
+      apartment_demolition_decision: 'NationalArchive',
+      registration_certificate: 'Package',
+      property_right_certificate: 'Package',
+      state_property_disposal_act: 'Package',
+    };
 
-    it('declares one branch, decided on the building and not on the papers', () => {
-      expect(VerificationProfile.CADASTRE.supportingDocuments).toHaveLength(1);
-      expect(BRANCH.key).toBe('building_supporting_documents');
-    });
-
-    it('reads the height off the paper that describes the building', () => {
-      expect(
-        BRANCH.height[0]?.matches(
-          DocumentType.create('sketch_project'),
-          FieldKey.create('building_height'),
-        ),
-      ).toBe(true);
-    });
-
-    // In the order the papers are believed, like a registry check's subject:
-    // the first the package states is the one read.
-    it('names more than one place the year may be printed', () => {
-      expect(BRANCH.builtIn.length).toBeGreaterThan(1);
-      expect(
-        BRANCH.builtIn[0]?.matches(
-          DocumentType.create('sketch_project'),
-          FieldKey.create('approval_date'),
-        ),
-      ).toBe(true);
-    });
-
-    it('declares only bands with keys of their own', () => {
-      const keys = BRANCH.bands.map(band => band.key);
-
-      expect(new Set(keys).size).toBe(keys.length);
-    });
-
-    it('asks for at least one paper in every band it declares', () => {
-      for (const band of BRANCH.bands) {
-        expect(band.documents.length).toBeGreaterThan(0);
+    it('says of every type it declares where it comes from', () => {
+      for (const spec of VerificationProfile.CADASTRE.specs) {
+        expect(spec.source).toBe(EXPECTED[spec.type.value]);
       }
     });
 
-    it('places a case in the band that covers it', () => {
-      expect(BRANCH.bandFor(9.4, 2025)?.key).toBe('low_rise_recent');
-      expect(BRANCH.bandFor(9.4, 2005)?.key).toBe('low_rise_legacy');
-      expect(BRANCH.bandFor(18, 2025)?.key).toBe('mid_rise');
-      expect(BRANCH.bandFor(31, 2025)?.key).toBe('high_rise');
+    it('expects nothing from outside of a type it does not recognise', () => {
+      expect(
+        VerificationProfile.CADASTRE.specFor(DocumentType.create('invoice'))
+          .source,
+      ).toBe('Package');
+    });
+  });
+
+  /*
+   * The table of provisions the profile holds a case to. The rows themselves are
+   * held to the acceptance contract in `provision.vo.spec.ts`; what is under test
+   * here is that the profile carries the table and that every paper and every
+   * line the table names is one the profile reads.
+   */
+  describe('the provisions of Article 8 it holds a case to', () => {
+    const PROVISIONS = VerificationProfile.CADASTRE.provisions!;
+
+    it('holds the table of provisions of Article 8', () => {
+      expect(PROVISIONS.key).toBe('article_8_provisions');
+      expect(PROVISIONS.rules.map(rule => rule.provision)).toEqual([
+        '8.0.9.1.1',
+        '8.0.9.1.2',
+        '8.0.9.2',
+        '8.0.10.2',
+        '8.0.10.1',
+      ]);
     });
 
-    // Inclusive at the bottom, exclusive at the top, so neighbouring bands can
-    // be written the way they are spoken without arguing over the boundary.
-    it('gives a figure exactly on a bound to the band that bound opens', () => {
-      expect(BRANCH.bandFor(12, 2025)?.key).toBe('mid_rise');
-      expect(BRANCH.bandFor(11.99, 2025)?.key).toBe('low_rise_recent');
-      expect(BRANCH.bandFor(25, 2025)?.key).toBe('high_rise');
-      expect(BRANCH.bandFor(9.4, 2010)?.key).toBe('low_rise_recent');
-      expect(BRANCH.bandFor(9.4, 2009)?.key).toBe('low_rise_legacy');
+    it('reads every title document as a type of its own', () => {
+      for (const type of PROVISIONS.titleTypes) {
+        expect(VerificationProfile.CADASTRE.recognises(type)).toBe(true);
+      }
     });
 
-    it('places a case on a rule that does not turn on the year without one', () => {
-      expect(BRANCH.bandFor(18, null)?.key).toBe('mid_rise');
+    it('reads a title’s date off a line the title declares', () => {
+      for (const entry of PROVISIONS.titleDocuments) {
+        expect(
+          VerificationProfile.CADASTRE.schemaFor(entry.type).declares(
+            entry.dateField,
+          ),
+        ).toBe(true);
+      }
     });
 
-    /*
-     * The whole reason a measure that could not be read is null rather than a
-     * default: a band whose rule turns on that measure must not answer, because
-     * answering means guessing which side of a threshold the case falls on.
-     */
-    it('places no case on a rule that turns on a figure nobody could read', () => {
-      expect(BRANCH.bandFor(null, 2025)).toBeNull();
-      expect(BRANCH.bandFor(9.4, null)).toBeNull();
-      expect(BRANCH.bandFor(null, null)).toBeNull();
+    it('asks for no paper it does not read', () => {
+      for (const rule of PROVISIONS.rules) {
+        for (const requirement of rule.requirements) {
+          for (const type of requirement.anyOf) {
+            expect(VerificationProfile.CADASTRE.recognises(type)).toBe(true);
+          }
+        }
+      }
     });
 
-    it('says what each band answers for, so the report can quote the rule', () => {
-      expect(BRANCH.bandFor(18, 2025)?.bounds).toBe('12 m to below 25 m');
-      expect(BRANCH.bandFor(31, 2025)?.bounds).toBe('25 m and above');
-      expect(BRANCH.bandFor(9.4, 2025)?.bounds).toBe(
-        'below 12 m, built 2010 and above',
-      );
-      expect(BRANCH.bandFor(9.4, 2005)?.bounds).toBe(
-        'below 12 m, built below 2010',
+    it('reads every figure off a line the paper declares', () => {
+      const figures = [
+        ...PROVISIONS.builtIn,
+        ...PROVISIONS.storeys,
+        ...PROVISIONS.height,
+        ...PROVISIONS.span,
+        ...PROVISIONS.purpose,
+        ...PROVISIONS.landRight,
+      ];
+
+      for (const at of figures) {
+        expect(
+          VerificationProfile.CADASTRE.schemaFor(at.type).declares(at.key),
+        ).toBe(true);
+      }
+    });
+
+    it('reads the height off the design, the paper that describes the building', () => {
+      expect(PROVISIONS.height[0]?.type.value).toBe('sketch_project');
+      expect(PROVISIONS.height[0]?.key.value).toBe('building_height');
+    });
+
+    // A design approved in 2012 is a house built in 2014 as often as not.
+    it('does not date a case by when its design was approved', () => {
+      expect(
+        PROVISIONS.builtIn.some(at => at.key.value === 'approval_date'),
+      ).toBe(false);
+    });
+
+    it('asks the archive about the originals of the titles its registers keep', () => {
+      const [check] = VerificationProfile.CADASTRE.registryChecks;
+
+      expect(check?.documents.map(paper => paper.type.value)).toEqual(
+        expect.arrayContaining([
+          'land_right_state_act',
+          'technical_passport',
+          'property_right_certificate',
+          'state_property_disposal_act',
+        ]),
       );
     });
   });
@@ -785,30 +888,41 @@ describe('VerificationProfile', () => {
     const INTAKE = VerificationProfile.CADASTRE.intake;
 
     /*
-     * One ground, and it is the only paper in this profile that grants
-     * anything. The plan-scheme depicts, the archival certificate attests, the
-     * receipt records a payment and the application asks — offering any of them
-     * as a ground would put a choice on the intake screen that means nothing.
+     * Any title to the land the table of provisions lists, and nothing else.
+     * The plan-scheme depicts, the design draws, the receipt records a payment
+     * and the application asks — offering any of them as a ground would put a
+     * choice on the intake screen that means nothing (ADR-0025).
      */
-    it('registers a right founded on the order that allotted the parcel', () => {
-      expect(INTAKE.grounds.map(ground => ground.value)).toEqual([
-        'disposal_order',
-      ]);
+    it('registers a right founded on any title to the land', () => {
+      const titles = VerificationProfile.CADASTRE.provisions!.titleTypes.map(
+        type => type.value,
+      );
+
+      expect(INTAKE.grounds.map(ground => ground.value)).toEqual(titles);
       expect(INTAKE.registers(DocumentType.create('disposal_order'))).toBe(
         true,
       );
+      expect(
+        INTAKE.registers(DocumentType.create('household_book_extract')),
+      ).toBe(true);
     });
 
-    it('registers a right founded on none of its other papers', () => {
-      for (const type of CADASTRE_TYPES.filter(
-        key => key !== 'disposal_order',
-      )) {
+    it('registers a right founded on none of its papers that grant nothing', () => {
+      for (const type of [
+        'land_plot_plan',
+        'payment_receipt',
+        'sketch_project',
+        'archive_certificate',
+        'application',
+        'identity_card',
+        'architectural_planning_section',
+      ]) {
         expect(INTAKE.registers(DocumentType.create(type))).toBe(false);
       }
     });
 
     /*
-     * The supporting documents a case needs turn on the year (ADR-0013), but
+     * Which provision a case falls under turns on the year (ADR-0025), but
      * which profile governs it does not: no norm has been given that says
      * otherwise, and a threshold invented here would silently send submissions
      * to the wrong policy.

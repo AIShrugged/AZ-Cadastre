@@ -268,6 +268,88 @@ export type SourceFileView = {
   documents: readonly DocumentView[];
 };
 
+/*
+ * Which provision of Article 8 a package's case falls under, and how the
+ * package answers it — the domain's `CaseProvision`, in strings (ADR-0025).
+ */
+export type ProvisionView = {
+  key: string;
+  // Determined | Ambiguous | Undetermined.
+  outcome: string;
+  // The provision applied, set exactly on `Determined`.
+  provision: string | null;
+  // The provisions still open, set exactly on `Ambiguous`.
+  candidates: readonly string[];
+  // The figures whose reading would settle an ambiguous case.
+  undecidedOn: readonly string[];
+  parameters: readonly ParameterView[];
+  // Every row of the table and how the case stood against each of its
+  // conditions, in the table's order: what a reader holds the decision to.
+  rules: readonly RuleEvaluationView[];
+  // The determined provision, or every candidate. Empty where none applies.
+  provisions: readonly ProvisionStandingView[];
+  titleDocuments: readonly TitleDocumentStandingView[];
+};
+
+export type ParameterView = {
+  // One of the domain's `CASE_PARAMETERS`.
+  parameter: string;
+  // What the table was decided on: a number for the four measures, a word for
+  // the right and the purpose, null where the figure could not be established.
+  value: number | string | null;
+  // One of the domain's `PARAMETER_SOURCES`, or null where nothing stated it.
+  source: string | null;
+  // The words the figure was read out of, or the declared year.
+  stated: string | null;
+  from: {
+    documentId: string;
+    documentType: string;
+    fieldName: string | null;
+    pageNumber: number | null;
+    confidence: number | null;
+  } | null;
+};
+
+export type RuleEvaluationView = {
+  provision: string;
+  description: string;
+  conditions: readonly { parameter: string; holds: boolean | null }[];
+  excluded: boolean;
+  holds: boolean;
+};
+
+export type ProvisionStandingView = {
+  provision: string;
+  description: string;
+  titleRight: string | null;
+  requirements: readonly {
+    anyOf: readonly string[];
+    onlyBuiltBefore: number | null;
+    applies: boolean | null;
+    answered: boolean;
+  }[];
+};
+
+export type TitleDocumentStandingView = {
+  documentId: string;
+  documentType: string;
+  landRight: string;
+  dated: {
+    fieldName: string;
+    value: string;
+    pageNumber: number | null;
+    confidence: number | null;
+  } | null;
+  withinWindow: boolean | null;
+  items: readonly {
+    item: string;
+    window: string;
+    issuedFrom: string | null;
+    issuedBefore: string | null;
+    admits: boolean | null;
+  }[];
+};
+
 export type PackageDetailView = PackageSummaryView & {
   files: readonly SourceFileView[];
   /*
@@ -279,6 +361,12 @@ export type PackageDetailView = PackageSummaryView & {
    * (COMM-80).
    */
   gaps: readonly DocumentGapView[];
+  /*
+   * Which provision of Article 8 the case falls under, and what it asks for.
+   * Worked out on every read by the service the report was compiled with, and
+   * null on a profile that declares no table of provisions (ADR-0025).
+   */
+  provision: ProvisionView | null;
   // Every check the run was able to make, agreed or not: one that agreed is
   // work the inspector does not have to redo.
   crossChecks: readonly CrossCheckView[];

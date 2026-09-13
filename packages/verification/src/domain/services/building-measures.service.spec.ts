@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { heightInMetres, yearIn } from './building-measures.service.js';
+import {
+  dateSpanIn,
+  heightInMetres,
+  spanInMetres,
+  storeysIn,
+  yearIn,
+} from './building-measures.service.js';
 
 describe('heightInMetres', () => {
   it('reads a height written in metres', () => {
@@ -79,5 +85,86 @@ describe('yearIn', () => {
     expect(yearIn('12.03.99')).toBeNull();
     expect(yearIn('QB-2025888301')).toBeNull();
     expect(yearIn('')).toBeNull();
+  });
+});
+
+describe('spanInMetres', () => {
+  it('reads the longest of the spacings a plan dimensions', () => {
+    expect(spanInMetres('A—B 6,00 m; B—C 5,40 m; 1—2 4,80 m')).toBe(6);
+  });
+
+  // "1—2 4,80 m" names the axes before it states the spacing, and an axis
+  // number is not a length.
+  it('takes the last length of an entry, not the axis numbers before it', () => {
+    expect(spanInMetres('1—2 4,80 m')).toBe(4.8);
+  });
+
+  it('reads a bare dimension on a plan as millimetres', () => {
+    expect(spanInMetres('A—B 6000; B—C 5400')).toBeCloseTo(6, 6);
+  });
+
+  it('reads a small bare figure as metres', () => {
+    expect(spanInMetres('4,2')).toBe(4.2);
+  });
+
+  it('reads nothing out of a value that states no length', () => {
+    expect(spanInMetres('')).toBeNull();
+    expect(spanInMetres('not stated')).toBeNull();
+  });
+});
+
+describe('storeysIn', () => {
+  it('reads a count written alone or with its word', () => {
+    expect(storeysIn('2')).toBe(2);
+    expect(storeysIn('2 mərtəbə')).toBe(2);
+    expect(storeysIn('3 этажа')).toBe(3);
+  });
+
+  // "2,5 m" is a height, and truncating it to two storeys would be a guess.
+  it('passes over a figure with a fractional part', () => {
+    expect(storeysIn('2,5 m')).toBeNull();
+  });
+
+  it('passes over a year', () => {
+    expect(storeysIn('2014')).toBeNull();
+  });
+
+  it('reads nothing out of a value that states no count', () => {
+    expect(storeysIn('')).toBeNull();
+  });
+});
+
+describe('dateSpanIn', () => {
+  it('reads a date written day first', () => {
+    expect(dateSpanIn('12.05.1995')).toEqual({
+      first: '1995-05-12',
+      last: '1995-05-12',
+    });
+  });
+
+  it('reads an ISO date', () => {
+    expect(dateSpanIn('1995-05-12')).toEqual({
+      first: '1995-05-12',
+      last: '1995-05-12',
+    });
+  });
+
+  // A paper whose day went unread is not thereby dated 1 January.
+  it('reads a year alone as the whole of that year', () => {
+    expect(dateSpanIn('1995-ci il')).toEqual({
+      first: '1995-01-01',
+      last: '1995-12-31',
+    });
+  });
+
+  it('refuses a day the calendar does not have, and falls back to the year', () => {
+    expect(dateSpanIn('31.02.1995')).toEqual({
+      first: '1995-01-01',
+      last: '1995-12-31',
+    });
+  });
+
+  it('reads nothing out of a value that states no date', () => {
+    expect(dateSpanIn('')).toBeNull();
   });
 });

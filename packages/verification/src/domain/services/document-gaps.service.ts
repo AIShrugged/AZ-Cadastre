@@ -2,6 +2,8 @@ import { Confidence } from '../value-objects/confidence.vo.js';
 import { DocumentType } from '../value-objects/document-type.vo.js';
 import type { VerificationProfile } from '../value-objects/verification-profile.vo.js';
 
+import { provisionOf } from './case-provision.service.js';
+
 /**
  * Why a package will take a document it already has files for.
  *
@@ -66,9 +68,15 @@ export type ReadDocument = {
   // Only what was read off this document. A value carried over from another
   // paper says the package is consistent and says nothing about this scan, so
   // it neither answers a field nor doubts one here (ADR-0023).
+  //
+  // The value and the sheet travel with the key because which provision of
+  // Article 8 a case falls under is read off these same readings, and the gaps
+  // a package publishes depend on the provision (ADR-0025).
   readonly readings: readonly {
     readonly key: string;
+    readonly value: string;
     readonly confidence: number;
+    readonly pageNumber: number | null;
   }[];
   readonly superseded: boolean;
 };
@@ -91,6 +99,9 @@ export type ReadDocument = {
 export function gapsIn(
   profile: VerificationProfile,
   documents: readonly ReadDocument[],
+  // What the office declared at intake: the ground names the title an operator
+  // is asked for, and the year is one of the figures the provision turns on.
+  declared: DeclaredForGaps = { legalBasis: null, builtYear: null },
 ): readonly DocumentGap[] {
   const inForce = documents.filter(document => !document.superseded);
   const placed = inForce.flatMap(document => {
@@ -100,9 +111,12 @@ export function gapsIn(
     return type?.isKnown ? [{ document, type }] : [];
   });
 
-  const missing = profile.requiredTypes
-    .filter(required => !placed.some(({ type }) => type.equals(required)))
-    .map(expectedType => gap('MissingDocument', expectedType));
+  const missing = uniqueByType([
+    ...profile.requiredTypes
+      .filter(required => !placed.some(({ type }) => type.equals(required)))
+      .map(expectedType => gap('MissingDocument', expectedType)),
+    ...shortOfProvision(profile, documents, declared, placed),
+  ]);
 
   const unusable = placed
     .filter(({ document, type }) => wasReadBadly(profile, document, type))
@@ -153,6 +167,80 @@ function wasReadBadly(
     document.readings.some(reading =>
       Confidence.of(reading.confidence).isBelow(Confidence.FLOOR),
     )
+  );
+}
+
+export type DeclaredForGaps = {
+  readonly legalBasis: string | null;
+  readonly builtYear: number | null;
+};
+
+/*
+ * The papers the provision of Article 8 this case falls under asks for, and the
+ * title every provision asks for, that no document in force answers (ADR-0025).
+ *
+ * The title is any of a list, and a gap names one type — so which ones are
+ * offered is decided here and not left to a screen: the ground the office
+ * declared at intake where it declared one, otherwise every title of the class
+ * the provision rests on, otherwise every title there is. Offering fifteen
+ * uploads is worse than offering one, and offering none would leave an operator
+ * with no way to send in the one paper the package cannot do without.
+ *
+ * A provision's own groups are offered only once the provision is decided. Where
+ * several are still open, which papers are owed is the question the report asks
+ * the inspector, and offering the union would ask the applicant for papers no
+ * provision of their case needs.
+ */
+function shortOfProvision(
+  profile: VerificationProfile,
+  documents: readonly ReadDocument[],
+  declared: DeclaredForGaps,
+  placed: readonly { readonly type: DocumentType }[],
+): readonly DocumentGap[] {
+  const provisions = profile.provisions;
+
+  if (!provisions) return [];
+
+  const answer = provisionOf(provisions, declared.builtYear, documents);
+  const decided =
+    answer.decision.outcome === 'Determined' ? answer.decision.provision : null;
+
+  const titled = placed.some(({ type }) => provisions.isTitle(type));
+  const basis =
+    declared.legalBasis === null
+      ? null
+      : DocumentType.create(declared.legalBasis);
+  const titles = titled
+    ? []
+    : basis && provisions.isTitle(basis)
+      ? [basis]
+      : provisions.titleTypes.filter(
+          type =>
+            decided?.titleRight == null ||
+            provisions.rightConferredBy(type) === decided.titleRight,
+        );
+
+  const groups = (
+    answer.provisions[0] && decided ? answer.provisions[0] : null
+  )?.requirements
+    .filter(
+      requirement => requirement.applies === true && !requirement.answered,
+    )
+    .flatMap(requirement =>
+      requirement.anyOf.map(type => DocumentType.create(type)),
+    );
+
+  return [...titles, ...(groups ?? [])].map(type =>
+    gap('MissingDocument', type),
+  );
+}
+
+// One gap per type: a paper two requirements ask for is one upload.
+function uniqueByType(gaps: readonly DocumentGap[]): readonly DocumentGap[] {
+  return gaps.filter(
+    (one, index) =>
+      gaps.findIndex(other => other.expectedType.equals(one.expectedType)) ===
+      index,
   );
 }
 

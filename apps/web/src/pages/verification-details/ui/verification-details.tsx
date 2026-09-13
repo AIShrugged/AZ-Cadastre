@@ -21,7 +21,6 @@ import {
   ArrowLeftIcon,
   CheckIcon,
   ChevronRightIcon,
-  ClipboardListIcon,
   CornerDownRightIcon,
   EyeOffIcon,
   FileTextIcon,
@@ -56,6 +55,7 @@ import {
   OUTCOME_NOTE,
   OutcomeMark,
   profileName,
+  provisionSummary,
   readReport,
   readWellEnough,
   RegistryOutcomeMark,
@@ -67,12 +67,12 @@ import {
   supportingSetsOf,
   takesFiles,
   toViewPackage,
+  unansweredAlternatives,
   useGetPackageQuery,
   useGetProfilesQuery,
   type Disposition,
   type MarkStanding,
   type ProfileDto,
-  type SupportingSet,
   type VerificationPackage,
 } from '@/entities/verification-package';
 import { ApproveArchiveSearch } from '@/features/approve-archive-search';
@@ -106,6 +106,8 @@ import type {
 } from '@cadastre/api-contracts/verification';
 
 import { PANEL, panelForHash, type PanelId } from '../model/panels';
+
+import { CaseProvisionPanel } from './case-provision';
 
 type Translate = (
   key: string,
@@ -1670,6 +1672,31 @@ const SECTIONS: Record<IssueKind, { heading: string; tone: SectionTone }> = {
     heading: ISSUE_KIND_KEY.WrongDocumentSupplied,
     tone: 'finding',
   },
+  // A missing document that could have been any of several titles to the land,
+  // and it leaves the package incomplete the same way (ADR-0025).
+  MissingTitleDocument: {
+    heading: ISSUE_KIND_KEY.MissingTitleDocument,
+    tone: 'finding',
+  },
+  // The title was read well and does not found the case: it is dated outside
+  // the window its item of the Decree gives it.
+  TitleDocumentInvalid: {
+    heading: ISSUE_KIND_KEY.TitleDocumentInvalid,
+    tone: 'finding',
+  },
+  // Held against the package: which papers it must carry turns on the
+  // provision, and only the inspector can settle which one applies.
+  ProvisionUndetermined: {
+    heading: ISSUE_KIND_KEY.ProvisionUndetermined,
+    tone: 'finding',
+  },
+  // An observation and never a fault: a paper the policy confirms through a
+  // state system that is not connected was read and not confirmed, and the
+  // applicant is not answerable for an integration nobody built.
+  IntegrationNotConnected: {
+    heading: ISSUE_KIND_KEY.IntegrationNotConnected,
+    tone: 'note',
+  },
   // Neither a fault nor an observation about the envelope: what the applicant
   // has to bring next, for the case this package turned out to be. Last,
   // because it is the only line that is about what happens after the report
@@ -1761,15 +1788,94 @@ function findingOf(
     : null;
 
   if (issue.kind === 'MissingDocument') {
+    // A group any of several papers answers names no type on the finding
+    // (ADR-0025): the alternatives are read off the provision the report was
+    // compiled on, so the row names every paper that would close it.
+    const alternatives =
+      issue.documentType === null ? unansweredAlternatives(pkg.provision) : [];
+
+    return {
+      subject:
+        alternatives.length > 0
+          ? alternatives
+              .map(type => translateOr(t, `doctype.${type}`, type))
+              .join(` ${t('common.or')} `)
+          : translateOr(
+              t,
+              `doctype.${issue.documentType}`,
+              issue.documentType ?? '',
+            ),
+      where:
+        alternatives.length > 0
+          ? t('detail.f.missing_any_sub')
+          : t('detail.f.missing_sub'),
+      anchor: null,
+      docId: null,
+    };
+  }
+
+  // The title every provision asks for, and any of the titles answers it: the
+  // row lands on the provision fold, which says which ones there are.
+  if (issue.kind === 'MissingTitleDocument') {
+    return {
+      subject: t('provision.req.title'),
+      where: t('detail.f.title_missing_sub'),
+      anchor: '#provision',
+      docId: null,
+    };
+  }
+
+  // A title read well and dated outside the window its item gives it; the row
+  // lands on the date it was read off, since a misread digit is the likeliest
+  // cause.
+  if (issue.kind === 'TitleDocumentInvalid') {
     return {
       subject: translateOr(
         t,
         `doctype.${issue.documentType}`,
         issue.documentType ?? '',
       ),
-      where: t('detail.f.missing_sub'),
-      anchor: null,
+      where: [t('detail.f.title_invalid_sub'), within]
+        .filter(Boolean)
+        .join(' · '),
+      anchor,
+      docId: document?.id ?? null,
+    };
+  }
+
+  // Which provision applies is a question about figures, not about a sheet: the
+  // row lands on the fold that shows each figure and where it came from.
+  if (issue.kind === 'ProvisionUndetermined') {
+    const candidates = pkg.provision?.candidates ?? [];
+
+    return {
+      subject: t('panel.provision'),
+      where:
+        candidates.length > 0
+          ? t('detail.f.provision_ambiguous_sub', {
+              list: candidates.join(', '),
+            })
+          : t('detail.f.provision_none_sub'),
+      anchor: '#provision',
       docId: null,
+    };
+  }
+
+  // A paper the policy confirms through a state system that is not connected.
+  // Named by its type; filed against a document where there is one, and against
+  // nothing where the policy takes it from the system instead of the envelope.
+  if (issue.kind === 'IntegrationNotConnected') {
+    return {
+      subject: translateOr(
+        t,
+        `doctype.${issue.documentType}`,
+        issue.documentType ?? '',
+      ),
+      where: [t('detail.f.not_connected_sub'), within]
+        .filter(Boolean)
+        .join(' · '),
+      anchor,
+      docId: document?.id ?? null,
     };
   }
 
@@ -1899,11 +2005,6 @@ function findingOf(
       docId: document?.id ?? null,
     };
   }
-
-  // What the applicant must bring beyond the envelope is not a finding and does
-  // not appear in this list at all: it has a panel of its own, below the
-  // worklist, where it can be read as an instruction rather than as a row in a
-  // register of faults (`SupportingDocuments`, ADR-0013).
 
   // A document that read perfectly well. It is named by where it sits, and the
   // sub-line says what it is — not in the profile, or a second answer to a type
@@ -2170,168 +2271,6 @@ function Worklist({
         </details>
       )}
     </section>
-  );
-}
-
-// ─── What the applicant has to bring next ────────────────────────────────────
-// The third thing a report says, and the only one that is not about the
-// envelope that arrived: for the case this submission turned out to be, these
-// papers are wanted, and none of them was ever in the package to be judged.
-//
-// It has a panel of its own, outside the worklist and outside the folded
-// observations, for the reason ADR-0013 gives: it is the only line anybody has
-// to act on after the report, and both of the places it could have gone say
-// something about it that is not true — the worklist would report it as a fault
-// of the submission, and the fold would file it with the stray papers nobody
-// needs to read.
-//
-// Nothing here is tinted. The register keeps amber and red for what is wrong
-// with a package, and being asked for a document is not a finding against
-// anybody: an applicant who reads a warning colour beside this concludes they
-// have made a mistake, and an inspector concludes the package is short of
-// something. Neither is what it says.
-function SupportingDocuments({
-  report,
-  pkg,
-  onJump,
-}: {
-  report: ReportDto;
-  pkg: PackageDetailDto;
-  onJump: Jump;
-}) {
-  const { t } = useI18n();
-  const sets = supportingSetsOf(report);
-
-  if (sets.length === 0) return null;
-
-  return (
-    <section id='supporting' className='mb-9 scroll-mt-16'>
-      <h2 className='register-label'>{t('detail.sec.supporting')}</h2>
-      <p className='mt-3 max-w-[70ch] text-[0.8125rem] leading-relaxed text-muted-foreground'>
-        {t('supporting.lead')}
-      </p>
-      <ul className='mt-4 flex flex-col gap-3'>
-        {sets.map((set, index) => (
-          <SupportingSetEntry
-            key={`${set.placed}-${index}`}
-            set={set}
-            pkg={pkg}
-            onJump={onJump}
-          />
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-/**
- * One set, written as an instruction.
- *
- * Both readings open on the same sentence — what has to be brought — and differ
- * only in what follows it. That order is the point: a message that opened on
- * "the height could not be read" would be a report about our own machinery,
- * and the applicant standing at the counter would still not know what to
- * collect. What we could not work out is context for the instruction, never a
- * substitute for it.
- *
- * The papers themselves are not named. `IssueDto` carries no list of them —
- * they travel only in the English audit line, which is written for the record
- * and not for a reader — so the panel says which profile defines the set rather
- * than inventing names for it. Publishing them is a contract change (ADR-0013,
- * "Consequences"), and it lands in the block below and nowhere else.
- */
-function SupportingSetEntry({
-  set,
-  pkg,
-  onJump,
-}: {
-  set: SupportingSet;
-  pkg: PackageDetailDto;
-  onJump: Jump;
-}) {
-  const { t } = useI18n();
-  const { issue, placed } = set;
-
-  const document = documentsOf(pkg).find(
-    candidate => candidate.id === issue.documentId,
-  );
-  const file = pkg.files.find(candidate => candidate.id === issue.sourceFileId);
-  // Same addressing the worklist uses, so the reading the branch turned on is a
-  // jump into the sheet rather than a sentence about it.
-  const anchor = document
-    ? issue.fieldName
-      ? fieldAnchor(document.id, issue.fieldName)
-      : `#doc-${document.id}`
-    : null;
-
-  const subject = issue.fieldName
-    ? translateOr(t, `field.${issue.fieldName}`, issue.fieldName)
-    : translateOr(t, `doctype.${issue.documentType}`, issue.documentType ?? '');
-  const seat = [
-    pkg.files.length > 1 ? file?.originalFilename : undefined,
-    issue.pageNumber === null
-      ? undefined
-      : t('detail.page_single', { n: issue.pageNumber }),
-  ]
-    .filter(Boolean)
-    .join(' · ');
-
-  return (
-    <li className='rounded-lg border border-rule px-4 py-3.5'>
-      <div className='flex items-start gap-2.5'>
-        <ClipboardListIcon
-          aria-hidden
-          className='size-4 shrink-0 translate-y-0.5 text-muted-foreground'
-        />
-        <div className='min-w-0 flex-1'>
-          <p className='text-[0.875rem] font-[550] leading-snug text-foreground'>
-            {t('supporting.bring')}
-          </p>
-          <p className='mt-1.5 max-w-[65ch] text-[0.8125rem] leading-relaxed text-muted-foreground'>
-            {placed ? t('supporting.placed') : t('supporting.unplaced')}
-          </p>
-
-          {/* Which profile the set is defined by. Said in both readings,
-              because it is the only place a reader can go for the papers
-              themselves until the contract carries them. */}
-          <p className='mt-2 max-w-[65ch] text-[0.8125rem] leading-relaxed text-muted-foreground'>
-            {t('supporting.defined_by', {
-              profile: profileName(t, pkg.profileKey),
-            })}
-          </p>
-
-          {placed && (
-            <div className='mt-3 border-t border-rule pt-2.5'>
-              <h3 className='register-label'>{t('supporting.decided_on')}</h3>
-              <div className='mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-1'>
-                {anchor ? (
-                  <a
-                    href={anchor}
-                    onClick={onJump(document?.id ?? null, anchor)}
-                    title={t('detail.attention_go')}
-                    className='text-[0.8125rem] leading-snug text-foreground underline decoration-rule-strong underline-offset-3 transition-colors hover:decoration-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
-                  >
-                    {subject}
-                  </a>
-                ) : (
-                  <span className='text-[0.8125rem] leading-snug text-foreground'>
-                    {subject}
-                  </span>
-                )}
-                {seat && (
-                  <span className='text-[0.75rem] leading-snug text-muted-foreground'>
-                    {seat}
-                  </span>
-                )}
-                {issue.confidence !== null && (
-                  <Confidence value={issue.confidence} bare />
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </li>
   );
 }
 
@@ -3201,14 +3140,24 @@ function CaseSheet({
             </ol>
           )}
 
-          {/* What the applicant still has to bring, where the profile branches
-              — stated on the sheet because it outlives the review. */}
-          {pkg.report && (
-            <SupportingDocuments
-              report={pkg.report}
-              pkg={pkg}
-              onJump={onJump}
-            />
+          {/* Which provision of Article 8 the case falls under decides the rest
+              of what the package must carry. The sheet names it and the fold
+              below says what it was decided on (ADR-0025). */}
+          {pkg.provision && (
+            <p className='mt-4 text-[0.8125rem] leading-snug'>
+              <a
+                href='#provision'
+                onClick={onJump(null, '#provision')}
+                className={cn(
+                  'underline-offset-2 hover:underline',
+                  pkg.provision.outcome === 'Determined'
+                    ? 'text-foreground'
+                    : 'text-incomplete-ink',
+                )}
+              >
+                {provisionSummary(t, pkg.provision)}
+              </a>
+            </p>
           )}
         </section>
 
@@ -3575,6 +3524,38 @@ export function VerificationDetails() {
               <Worklist report={pkg.report} pkg={pkg} onJump={jump} />
             ) : (
               <PendingReview running={running} />
+            )}
+          </StagePanel>
+
+          <StagePanel
+            id={PANEL.provision}
+            title={t('panel.provision')}
+            summary={
+              pkg.provision
+                ? provisionSummary(t, pkg.provision)
+                : t('provision.pending')
+            }
+            // Open by itself once the run has finished and the provision is not
+            // settled: which papers the package owes turns on it, and that is
+            // the next thing the inspector has to look at.
+            open={
+              panels[PANEL.provision] ??
+              (pkg.report !== null &&
+                pkg.provision !== null &&
+                pkg.provision.outcome !== 'Determined')
+            }
+            onOpenChange={open => foldPanel(PANEL.provision, open)}
+          >
+            {pkg.provision ? (
+              <CaseProvisionPanel
+                provision={pkg.provision}
+                profile={profile}
+                onJump={jump}
+              />
+            ) : (
+              <p className='text-[0.8125rem] text-muted-foreground'>
+                {t('provision.pending')}
+              </p>
             )}
           </StagePanel>
 

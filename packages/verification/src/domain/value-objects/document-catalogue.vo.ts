@@ -23,6 +23,12 @@ import {
  * application/Individual residential houses/Document-Checklists State
  * Registration AZ-EN.xlsx`, and the deck of sample scans beside it.
  *
+ * Grounds the cadastre profile reads — the title documents its provisions rest
+ * on and the papers a provision asks for — are the profile's own types since
+ * ADR-0025 and are not listed here: a key is in one list or the other, never
+ * both, or the same paper would answer a requirement and be an extra document
+ * depending on which list was consulted first.
+ *
  * A paper the catalogue does not know is still reported, as the extra document
  * it has always been — that is what the report calls "other documents".
  */
@@ -44,22 +50,6 @@ export type CatalogueGroup = {
 // requires the papers of a first registration of a new house — so a document
 // read as one of these is named and reported, and answers no requirement.
 const ARTICLE_8: readonly CatalogueDeclaration[] = [
-  {
-    key: 'state_property_disposal_act',
-    description:
-      'Act of an executive authority or a municipality alienating, leasing, ' +
-      'granting the use of or mortgaging immovable property owned by the ' +
-      'state or by a municipality — a municipal sale-purchase act and the ' +
-      'like (Article 8.0.1). It disposes of property the state owns; it is ' +
-      'not the executive order allotting an applicant a parcel to build on.',
-    hints: [
-      'bələdiyyənin alqı-satqı aktı',
-      'daşınmaz əmlakın özgəninkiləşdirilməsinə dair akt',
-      'özgəninkiləşdirmə aktı',
-      'акт купли-продажи муниципалитета',
-      'акт об отчуждении недвижимого имущества',
-    ],
-  },
   {
     key: 'auction_results_protocol',
     description:
@@ -156,32 +146,6 @@ const ARTICLE_8: readonly CatalogueDeclaration[] = [
     ],
   },
   {
-    key: 'registration_certificate',
-    description:
-      'Registration certificate confirming a right over immovable property, ' +
-      'issued by an executive authority up to 6 July 2006 (Article 8.0.5) — ' +
-      'the booklet the technical inventory bureaus issued, often produced ' +
-      'together with a technical passport. It records an existing right; it ' +
-      'is not the inventory passport itself.',
-    hints: ['qeydiyyat vəsiqəsi', 'регистрационное удостоверение'],
-  },
-  {
-    key: 'property_right_certificate',
-    description:
-      'Act or certificate confirming a right over immovable property, issued ' +
-      'by an executive authority: up to 6 July 2006 under Article 8.0.5, and ' +
-      'between 6 July 2006 and 24 June 2009 under Article 8.0.12. The two ' +
-      'articles name the same paper in two windows, so the date decides which ' +
-      'ground it is and never whether the document is this one.',
-    hints: [
-      'daşınmaz əmlaka dair şəhadətnamə',
-      'daşınmaz əmlak üzərində hüquqları təsdiq edən şəhadətnamə',
-      'mülkiyyət hüququna dair şəhadətnamə',
-      'свидетельство на недвижимое имущество',
-      'свидетельство о праве собственности на недвижимое имущество',
-    ],
-  },
-  {
     key: 'housing_cooperative_allocation_decision',
     description:
       'Decision of the general meeting of the members of a housing-' +
@@ -209,74 +173,6 @@ const ARTICLE_8: readonly CatalogueDeclaration[] = [
       'договор аренды садового участка',
       'ордер на садовый участок',
       'членская книжка',
-    ],
-  },
-  {
-    key: 'operation_acceptance_act',
-    description:
-      'Act accepting a completed building into operation, issued by the local ' +
-      'executive authority for buildings raised before 1 January 2013 ' +
-      '(Article 8.0.9). It closes the construction; a permit to occupy issued ' +
-      'under the later Code is a different paper.',
-    hints: [
-      'istismara qəbul aktı',
-      'yaşayış evinin istismara qəbul aktı',
-      'акт приёмки в эксплуатацию',
-      'акт приёмки жилого дома в эксплуатацию',
-    ],
-  },
-  {
-    key: 'construction_permit_decision',
-    description:
-      'Decision of the relevant executive authority permitting a building to ' +
-      'be constructed (Articles 8.0.9.2, 8.0.10.1). It permits work that has ' +
-      'not started; it says nothing about a finished building.',
-    hints: [
-      'tikilinin inşa edilməsinə icazə barədə qərar',
-      'tikintiyə icazə barədə qərar',
-      'tikinti icazəsi',
-      'решение о разрешении на строительство',
-      'разрешение на строительство',
-    ],
-  },
-  {
-    key: 'architectural_planning_section',
-    description:
-      'Architectural and planning section of a construction design, required ' +
-      'of objects that need a permit and of those under the notification ' +
-      'procedure (Articles 8.0.10.1, 8.0.10.2). It is a section OF an ' +
-      "approved design, not the designer's sketch design of the house.",
-    hints: [
-      'layihənin memarlıq-planlaşdırma bölməsi',
-      'memarlıq-planlaşdırma bölməsi',
-      'архитектурно-планировочный раздел проекта',
-      'архитектурно-планировочная часть проекта',
-    ],
-  },
-  {
-    key: 'operation_permit',
-    description:
-      'Permit to put a completed object into operation, issued under the ' +
-      'Urban Planning and Construction Code (Articles 8.0.10.1, 8.0.10-1). ' +
-      'A permit granted by an authority, not an acceptance act signed by a ' +
-      'commission.',
-    hints: [
-      'istismara icazə',
-      'obyektin istismarına icazə',
-      'разрешение на эксплуатацию',
-    ],
-  },
-  {
-    key: 'construction_completion_notice',
-    description:
-      'The notification an owner sends the authority once construction under ' +
-      'the notification procedure is finished (Article 8.0.10.2). It is sent ' +
-      'BY the owner; nothing is granted by it.',
-    hints: [
-      'tikintinin başa çatması barədə məlumat',
-      'məlumatlandırma icraatı barədə bildiriş',
-      'уведомление о завершении строительства',
-      'информация о завершении строительства',
     ],
   },
   {
@@ -359,35 +255,6 @@ const ARTICLE_8: readonly CatalogueDeclaration[] = [
 // for one paper give the classifier two right answers to one question.
 const DECREE_439: readonly CatalogueDeclaration[] = [
   {
-    key: 'soviet_land_record',
-    description:
-      'Land record issued by the economic department, or by the technical ' +
-      'inventory bureau (BTI), of the executive committee of a local soviet ' +
-      '(Decree points 1.1 and 1.2). A register entry about a plot, from the ' +
-      'Soviet era.',
-    hints: [
-      'torpaq qeydləri',
-      'torpaq qeydi',
-      'земельные записи',
-      'земельная запись',
-    ],
-  },
-  {
-    key: 'land_right_state_act',
-    description:
-      'State act on the right of ownership, possession or use of a land plot, ' +
-      "issued by a city or district soviet's executive committee (Decree " +
-      'points 1.3 and 2.1). Headed "state act"; it is the plot it concerns, ' +
-      'not a building on it.',
-    hints: [
-      'torpaqdan istifadə hüququna dair dövlət aktı',
-      'torpaq sahəsinə dair dövlət aktı',
-      'dövlət aktı',
-      'государственный акт на право пользования землёй',
-      'государственный акт на землю',
-    ],
-  },
-  {
     key: 'temporary_land_use_certificate',
     description:
       'Certificate of the right of TEMPORARY use of land, issued alongside ' +
@@ -397,20 +264,6 @@ const DECREE_439: readonly CatalogueDeclaration[] = [
       'torpaqdan müvəqqəti istifadə hüququna dair şəhadətnamə',
       'müvəqqəti istifadə şəhadətnaməsi',
       'свидетельство о праве временного пользования землёй',
-    ],
-  },
-  {
-    key: 'land_allocation_decision',
-    description:
-      "Decision of a soviet of workers' or people's deputies allotting land " +
-      'plots — Soviet-era under Decree point 1.4, and between 9 November 1991 ' +
-      'and 19 December 1995 under point 2.2. The two points are the same ' +
-      'paper in two periods.',
-    hints: [
-      'torpaq sahələrinin ayrılması barədə qərar',
-      'torpaq sahəsinin ayrılması haqqında qərar',
-      'решение об отводе земельных участков',
-      'решение о выделении земельного участка',
     ],
   },
   {
@@ -424,19 +277,6 @@ const DECREE_439: readonly CatalogueDeclaration[] = [
       'tikinti hüququ haqqında müqavilə',
       'нотариально удостоверенный договор о праве застройки',
       'договор о праве застройки',
-    ],
-  },
-  {
-    key: 'notarised_land_allocation_contract',
-    description:
-      'Notarised contract allotting a land plot for the construction of a ' +
-      'dwelling under personal ownership, concluded after 26 August 1948 ' +
-      '(Decree point 1.6). It allots the plot rather than granting a right to ' +
-      'build on somebody else’s.',
-    hints: [
-      'yaşayış evlərinin tikintisi üçün torpaq sahələrinin verilməsi haqqında müqavilə',
-      'torpaq sahəsinin verilməsi haqqında notariat qaydasında təsdiq edilmiş müqavilə',
-      'договор о предоставлении земельного участка для строительства жилого дома',
     ],
   },
   {
@@ -479,61 +319,6 @@ const DECREE_439: readonly CatalogueDeclaration[] = [
     ],
   },
   {
-    key: 'household_book_extract',
-    description:
-      'Extract from a household registration book, or a certificate issued on ' +
-      'the basis of such an extract, given before 1 January 2001 for houses ' +
-      'built by that date (Decree point 2.3). Often produced as an archival ' +
-      'EXTRACT — a copy of the book entry — rather than as a certificate an ' +
-      'archive writes in its own words.',
-    hints: [
-      'təsərrüfatbaşına kitabından çıxarış',
-      'təsərrüfat kitabından çıxarış',
-      'arxiv çıxarışı',
-      'выписка из похозяйственной книги',
-      'архивная выписка',
-    ],
-  },
-  {
-    key: 'kolkhoz_allocation_decision',
-    description:
-      'Decision of the general meeting of the members of a collective farm ' +
-      '(kolkhoz), or of their delegates, allotting homestead land plots for ' +
-      'the construction of dwellings and garden houses (Decree point 2.5).',
-    hints: [
-      'kolxoz üzvlərinin ümumi yığıncağının qərarı',
-      'kolxoz üzvlərinin yığıncağının qərarı',
-      'решение общего собрания членов колхоза',
-    ],
-  },
-  {
-    key: 'sovkhoz_allocation_order',
-    description:
-      'Order of the head of a state farm (sovkhoz) or of another ' +
-      'state-subordinated agricultural enterprise allotting a homestead plot ' +
-      '(Decree point 2.5-1). One manager signs it, where the kolkhoz answer ' +
-      'is a meeting of members.',
-    hints: [
-      'sovxoz rəhbərinin əmri',
-      'kənd təsərrüfatı müəssisəsi rəhbərinin əmri',
-      'приказ руководителя совхоза',
-      'распоряжение главы совхоза',
-    ],
-  },
-  {
-    key: 'bound_land_book_extract',
-    description:
-      'Extract from the bound (laced) land books kept by a kolkhoz or a ' +
-      'sovkhoz about a homestead plot (Decree points 2.5 and 2.5-1). A copy ' +
-      'of a farm register entry, not of a household registration book.',
-    hints: [
-      'qaytanlanmış torpaq kitabından çıxarış',
-      'torpaq kitabından çıxarış',
-      'выписка из прошнурованной земельной книги',
-      'выписка из земельной книги',
-    ],
-  },
-  {
     key: 'cooperative_land_allocation_decision',
     description:
       "Decision of a soviet's executive committee allotting land plots to " +
@@ -544,31 +329,6 @@ const DECREE_439: readonly CatalogueDeclaration[] = [
       'mənzil-tikinti kooperativinə torpaq sahəsinin ayrılması barədə qərar',
       'bağ-tikinti kooperativinə torpaq sahəsinin ayrılması barədə qərar',
       'решение об отводе земельного участка жилищно-строительному кооперативу',
-    ],
-  },
-  {
-    key: 'homestead_land_allocation_decision',
-    description:
-      'Decision allotting a homestead land plot for the construction of a ' +
-      'dwelling, taken before 1 January 2001 by the representative of the ' +
-      'local executive authority for an administrative-territorial unit ' +
-      '(Decree point 2.7).',
-    hints: [
-      'həyətyanı torpaq sahəsinin ayrılması barədə qərar',
-      'həyətyanı torpaq sahəsinin verilməsi barədə qərar',
-      'решение об отводе приусадебного земельного участка',
-    ],
-  },
-  {
-    key: 'apartment_demolition_decision',
-    description:
-      'Decision of a local executive authority to demolish dwelling-type ' +
-      'flats and raise an individual dwelling in their place, produced with ' +
-      'the design agreed with that authority (Decree point 2.8).',
-    hints: [
-      'mənzillərin sökülərək fərdi yaşayış evinin inşası barədə qərar',
-      'mənzillərin sökülməsi barədə qərar',
-      'решение о сносе квартир и строительстве индивидуального жилого дома',
     ],
   },
 ];
@@ -600,35 +360,6 @@ const APPLICATION_PAPERS: readonly CatalogueDeclaration[] = [
       'выписка из государственного реестра юридических лиц',
     ],
   },
-  {
-    key: 'technical_passport',
-    description:
-      'Technical passport of a building drawn up by the technical inventory ' +
-      'bodies: the storeys, rooms, areas and year of a house, with its ' +
-      'measured drawings. Where it was drawn up before 1 January 2001 and ' +
-      'states the size of the adjoining plot it is itself a ground under ' +
-      'Decree point 2.4. It describes what stands; it does not grant anything.',
-    hints: [
-      'texniki pasport',
-      'texniki pasportlar',
-      'yaşayış evinə dair texniki pasport',
-      'технический паспорт',
-      'технические паспорта',
-    ],
-  },
-  {
-    key: 'state_register_extract',
-    description:
-      'Extract from the State Register of Immovable Property: what the ' +
-      'register already holds about the property, under an extract number and ' +
-      'a date. It reports a registration that has happened; it is not a ' +
-      'ground for making one.',
-    hints: [
-      'daşınmaz əmlakın dövlət reyestrindən çıxarış',
-      'выписка из государственного реестра недвижимого имущества',
-      'выписка из реестра недвижимого имущества',
-    ],
-  },
 ];
 
 // The registry's own service paperwork and the papers a submission is wrapped
@@ -648,19 +379,6 @@ const REGISTRAR_SERVICE: readonly CatalogueDeclaration[] = [
       "The registry's own examination sheet, on which an examiner records " +
       'what they checked. Often left blank.',
     hints: ['ekspertiza vərəqi', 'лист экспертизы'],
-  },
-  {
-    key: 'designer_licence',
-    description:
-      'The licence of the design organisation that drew the sketch design, ' +
-      'or the annex listing what the licence permits. It is the firm that ' +
-      'is licensed, never the property.',
-    hints: [
-      'lisenziya',
-      'lisenziyaya əlavə',
-      'lisenziyanın əlavəsi',
-      'лицензия',
-    ],
   },
   {
     key: 'valuation_contract',

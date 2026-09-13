@@ -68,8 +68,14 @@ const profile: ProfileDto = {
       key: 'technical_passport',
       required: true,
       fields: ['cadastral_number', 'area', 'address'],
+      source: 'NationalArchive',
     },
-    { key: 'payment_receipt', required: false, fields: [] },
+    {
+      key: 'payment_receipt',
+      required: false,
+      fields: [],
+      source: 'Package',
+    },
   ],
   grounds: [],
 };

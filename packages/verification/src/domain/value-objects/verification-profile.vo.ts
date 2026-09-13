@@ -1,16 +1,19 @@
 import {
   CrossCheckNotInProfileException,
   DocumentTypeNotInProfileException,
+  FieldNotInSchemaException,
   RegistryCheckNotInProfileException,
   UnknownProfileException,
 } from '../exceptions/index.js';
 
+import { ARTICLE_8_PROVISIONS } from './article-8-provisions.table.js';
 import { CrossCheckKey } from './cross-check.vo.js';
+import type { DocumentSource } from './document-source.vo.js';
 import { DocumentType } from './document-type.vo.js';
 import { FieldSchema, FieldSpec } from './field-schema.vo.js';
 import { FieldKey } from './field.vo.js';
+import { ProvisionsSpec, type ProvisionsDeclaration } from './provision.vo.js';
 import { RegistryCheckKey } from './registry-check.vo.js';
-import { UNCONFIRMED_SUPPORTING_DOCUMENTS } from './supporting-documents.table.js';
 
 type Declaration = {
   readonly key: string;
@@ -44,6 +47,10 @@ type Declaration = {
   // that adding one is answering the question rather than forgetting it.
   readonly expectsStamp: boolean;
   readonly expectsSignature: boolean;
+  // Where the policy expects a paper of this kind to come from — the envelope,
+  // or a state system that confirms it (ADR-0025). Declared on every type, for
+  // the reason the marks are.
+  readonly source: DocumentSource;
   // [field key, English label, and an optional note for whoever reads the
   // value off the paper]. The note is the sentence the label has no room for —
   // which of two figures printed together is meant, or where on the sheet the
@@ -134,63 +141,6 @@ export type ParticularsDeclaration = {
 };
 
 /*
- * What the applicant has to bring beyond the envelope, and how the engine works
- * out which of several sets this case needs.
- *
- * A branch and not a flat list, because the papers a first registration rests
- * on are not the same for every building: how tall it is and what year it is
- * dated by decide them. The profile states which values to read the two figures
- * off and which bands to read them into; the report says which band this
- * package fell in and what that band asks the applicant to bring.
- *
- * The engine never checks these papers and cannot: they are not in the envelope
- * and several of them are issued by offices this system does not reach. Naming
- * them is the whole of what it does with them, which is why the message it
- * produces is stated for the applicant and never counted against the package.
- */
-export type SupportingDocumentsDeclaration = {
-  readonly key: string;
-  readonly description: string;
-  // Where the height of the building is printed, as [document type key, field
-  // key], in the order the papers are believed: the first of these the package
-  // states is the one read. The same ordering rule a registry check's subject
-  // follows, and for the same reason — one figure is printed on several sheets
-  // and they are not equally trustworthy.
-  readonly height: readonly (readonly [string, string])[];
-  // Where the year the case is dated by is printed, read the same way. A date
-  // is read for its year; a bare year is read as itself.
-  readonly builtIn: readonly (readonly [string, string])[];
-  // In declaration order, and the first band that covers the case wins. Bands
-  // need not cover every case: one that no band covers is a hole in the table,
-  // and the report says the set could not be decided rather than picking a
-  // neighbouring band.
-  readonly bands: readonly RequirementBandDeclaration[];
-};
-
-// One band of the branch: the heights and the years it answers for, and the
-// papers it asks for. Bounds are inclusive at the bottom and exclusive at the
-// top, so neighbouring bands can be written as they are spoken — "below 12 m"
-// and "12 m and taller" — without an argument about which one owns 12. Null is
-// an open end, and a bound left null is a measure this band does not care
-// about: a band with no year bounds answers whatever year is read, including
-// none at all.
-export type RequirementBandDeclaration = {
-  readonly key: string;
-  readonly description: string;
-  // Metres.
-  readonly heightFrom: number | null;
-  readonly heightBelow: number | null;
-  // Years.
-  readonly builtFrom: number | null;
-  readonly builtBefore: number | null;
-  // The papers, named as an applicant would be told them, in English like every
-  // other audit line. Free text and not document type keys: none of them is a
-  // type this profile classifies, and inventing keys for papers the engine
-  // never reads would put words in the contract that answer nothing.
-  readonly documents: readonly string[];
-};
-
-/*
  * What a profile answers for, in the language the office speaks at the counter
  * — before a single sheet has been read.
  *
@@ -209,8 +159,7 @@ export type IntakeDeclaration = {
   // an intake screen offers them as documents, and a ground naming a paper the
   // profile never reads would be a choice nothing downstream could act on.
   readonly grounds: readonly string[];
-  // The years this profile answers for, read the same way a requirement band's
-  // are — inclusive at the bottom, exclusive at the top, null for an open end.
+  // The years this profile answers for — inclusive at the bottom, exclusive at the top, null for an open end.
   // Both null is a profile that takes a case of any year, which is what every
   // profile shipped today is: no norm has been given that turns on the date,
   // and inventing one to make the year look decisive would be inventing policy.
@@ -455,145 +404,6 @@ function boundsSaid(
   return '';
 }
 
-// One band of a supporting-documents branch, as the engine reads it.
-export class RequirementBand {
-  readonly #documents: readonly string[];
-
-  private constructor(
-    public readonly key: string,
-    public readonly description: string,
-    public readonly heightFrom: number | null,
-    public readonly heightBelow: number | null,
-    public readonly builtFrom: number | null,
-    public readonly builtBefore: number | null,
-    documents: readonly string[],
-  ) {
-    this.#documents = [...documents];
-  }
-
-  static of(declaration: RequirementBandDeclaration): RequirementBand {
-    return new RequirementBand(
-      declaration.key,
-      declaration.description,
-      declaration.heightFrom,
-      declaration.heightBelow,
-      declaration.builtFrom,
-      declaration.builtBefore,
-      declaration.documents,
-    );
-  }
-
-  get documents(): readonly string[] {
-    return this.#documents;
-  }
-
-  /*
-   * Whether this band answers for a building of this height, dated this year.
-   *
-   * A measure that could not be read is null, and a band that has something to
-   * say about that measure does not cover the case: guessing which side of a
-   * threshold an unread figure falls on is the one thing this must never do. A
-   * band that says nothing about it covers the case anyway — a rule that holds
-   * whatever the year is holds when nobody could read the year.
-   */
-  covers(metres: number | null, year: number | null): boolean {
-    return (
-      within(metres, this.heightFrom, this.heightBelow) &&
-      within(year, this.builtFrom, this.builtBefore)
-    );
-  }
-
-  // The band's bounds as one line of the audit message, so a reader of the
-  // report can see which rule was applied without opening the profile.
-  get bounds(): string {
-    const height = boundsSaid(
-      this.heightFrom,
-      this.heightBelow,
-      figure => `${figure} m`,
-    );
-    const built = boundsSaid(
-      this.builtFrom,
-      this.builtBefore,
-      figure => `${figure}`,
-    );
-
-    return (
-      [height, built && `built ${built}`].filter(Boolean).join(', ') ||
-      'any building'
-    );
-  }
-
-  // The papers this band asks for, as one line of the audit message.
-  get cited(): string {
-    return this.#documents.join('; ');
-  }
-}
-
-export class SupportingDocumentsSpec {
-  readonly #height: readonly FieldRef[];
-  readonly #builtIn: readonly FieldRef[];
-  readonly #bands: readonly RequirementBand[];
-
-  private constructor(
-    public readonly key: string,
-    public readonly description: string,
-    height: readonly FieldRef[],
-    builtIn: readonly FieldRef[],
-    bands: readonly RequirementBand[],
-  ) {
-    this.#height = [...height];
-    this.#builtIn = [...builtIn];
-    this.#bands = [...bands];
-  }
-
-  static of(
-    declaration: SupportingDocumentsDeclaration,
-  ): SupportingDocumentsSpec {
-    const refs = (
-      pairs: readonly (readonly [string, string])[],
-    ): readonly FieldRef[] =>
-      pairs.map(([type, field]) =>
-        FieldRef.of(DocumentType.create(type), FieldKey.create(field)),
-      );
-
-    return new SupportingDocumentsSpec(
-      declaration.key,
-      declaration.description,
-      refs(declaration.height),
-      refs(declaration.builtIn),
-      declaration.bands.map(band => RequirementBand.of(band)),
-    );
-  }
-
-  // In the order the papers are believed. The first the package states is the
-  // one the figure is read off.
-  get height(): readonly FieldRef[] {
-    return this.#height;
-  }
-
-  get builtIn(): readonly FieldRef[] {
-    return this.#builtIn;
-  }
-
-  get bands(): readonly RequirementBand[] {
-    return this.#bands;
-  }
-
-  /*
-   * Which band this case falls in, or null where the table gives no answer —
-   * because a figure could not be read, or because the bands leave a hole the
-   * case fell into. Both are the same thing to a reader: the set could not be
-   * decided, and they are told so instead of being told the wrong set.
-   *
-   * The first band that covers wins. Bands are read in the order the profile
-   * declares them, so a table whose bands overlap is answered predictably
-   * rather than arbitrarily.
-   */
-  bandFor(metres: number | null, year: number | null): RequirementBand | null {
-    return this.#bands.find(band => band.covers(metres, year)) ?? null;
-  }
-}
-
 /**
  * What a profile answers for at the counter, as the engine reads it: the
  * grounds it registers a right on, and the years it takes a case from.
@@ -640,7 +450,7 @@ export class IntakeSpec {
 
   // Whether a case of this year is one this profile takes. A year nobody
   // declared is null, and a profile bounded by no year answers for it — the
-  // same reading a requirement band gives an unread figure.
+  // same reading a provision gives an unread figure.
   takesCaseFrom(year: number | null): boolean {
     return within(year, this.builtFrom, this.builtBefore);
   }
@@ -675,6 +485,7 @@ export class DocumentTypeSpec {
     public readonly isAlwaysAccepted: boolean,
     public readonly expectsStamp: boolean,
     public readonly expectsSignature: boolean,
+    public readonly source: DocumentSource,
   ) {}
 
   static of(declaration: Declaration): DocumentTypeSpec {
@@ -691,6 +502,7 @@ export class DocumentTypeSpec {
       declaration.alwaysAccepted,
       declaration.expectsStamp,
       declaration.expectsSignature,
+      declaration.source,
     );
   }
 
@@ -712,6 +524,8 @@ export class DocumentTypeSpec {
       false,
       false,
       false,
+      // Nothing is asked of it, so nothing is asked of any system about it.
+      'Package',
     );
   }
 
@@ -729,9 +543,219 @@ export class DocumentTypeSpec {
       false,
       false,
       false,
+      'Package',
     );
   }
 }
+
+/*
+ * The fields the acceptance contract asks of the papers its provisions name
+ * (block `DOCFIELDS`), by kind of paper. Held apart from the declarations
+ * because several kinds share one set: every title document is read for the
+ * same lines, whatever office issued it (ADR-0025).
+ */
+type Fields = Declaration['fields'];
+
+const QR_NOTE =
+  'only the text the sheet prints for the code — the link or the reference ' +
+  'under or beside it. Never read the picture of the code itself: a decoded ' +
+  'guess is a value nobody can check against the paper.';
+
+const HEIGHT_NOTE =
+  'the height marked on the section from the ±0.000 datum to the underside of ' +
+  'the covering of the top storey (UPCC 80.1). Not the ridge, not the parapet ' +
+  'and not the absolute mark.';
+
+const SPAN_NOTE =
+  'the axis spacings dimensioned on the floor plans, as printed, separated by ' +
+  'semicolons.';
+
+// What every title to the land is read for.
+const TITLE_FIELDS: Fields = [
+  ['document_no', 'Number of the document'],
+  [
+    'issue_date',
+    'Date of the document',
+    'the date the document was issued or the decision taken. A title is a ' +
+      'title only within a window of dates, and this is the date the window ' +
+      'is held against.',
+  ],
+  [
+    'issuing_authority',
+    'Issuing authority',
+    'the body that issued the document, as the document names it.',
+  ],
+  [
+    'holder_name',
+    'Surname, name and patronymic of the person',
+    'the person the right is granted to, as the document names them.',
+  ],
+  ['property_address', 'Address of the object'],
+  [
+    'plot_area',
+    'Size of the land plot',
+    'the size of the plot as the document states it, with its unit.',
+  ],
+];
+
+// A Soviet-era title is kept in the National Archive Fund, and the contract asks
+// of it where: the item of the Decree it is a ground under, the fond, the
+// inventory, the file and the sheet, and the QR code an archival reference
+// carries.
+const DECREE_439_FIELDS: Fields = [
+  ...TITLE_FIELDS,
+  [
+    'decree_item',
+    'Item number under Decree 439 (classification)',
+    'the point of the Decree No. 439 list the document states it is issued ' +
+      'under, where it states one. Do not classify the document yourself.',
+  ],
+  ['archive_reference', 'Archive fond, inventory, file and sheet'],
+  ['qr_code', 'QR code', QR_NOTE],
+];
+
+const REGISTER_EXTRACT_FIELDS: Fields = [
+  ['holder_name', 'Person whose right is formalised'],
+  ['property_type', 'Type of immovable property'],
+  [
+    'property_address',
+    'Address and former address',
+    'the address of the property, and the former address where the extract ' +
+      'prints one, as one value.',
+  ],
+  ['ownership_type', 'Ownership type of the land plot'],
+  [
+    'right_type',
+    'Type of right over the land plot',
+    'the right itself — ownership, use, lease — as the extract names it.',
+  ],
+  [
+    'land_category',
+    'Category of the land plot',
+    'the designated purpose of the land, as the category field of the extract ' +
+      'words it.',
+  ],
+  [
+    'plot_area',
+    'Size of the land plot',
+    'with its unit, as printed — hectares on most extracts.',
+  ],
+  ['registry_no', 'Registry number'],
+  [
+    'rightholders',
+    'Rightholders: name, share, registration number and date',
+    'every rightholder the extract lists, each with their share and the ' +
+      'number and date of the registration, separated by semicolons.',
+  ],
+  ['issue_date', 'Date of the extract'],
+  ['qr_code', 'QR code', QR_NOTE],
+];
+
+const APPROVED_DESIGN_FIELDS: Fields = [
+  ['designer_name', 'Design organisation'],
+  [
+    'approving_authority',
+    'Authority that approved the design',
+    'the executive authority whose approval or agreement the design carries.',
+  ],
+  ['approval_date', 'Date of approval'],
+  ['property_address', 'Property address'],
+  ['project_name', 'Name of the object'],
+  ['storeys', 'Storeys above ground'],
+  ['building_height', 'Building height', HEIGHT_NOTE],
+  ['span_dimensions', 'Span dimensions', SPAN_NOTE],
+];
+
+const ACCEPTANCE_ACT_FIELDS: Fields = [
+  ['approving_authority', 'Authority approving the act'],
+  ['decision_no', 'Number of the decision approving the act'],
+  [
+    'act_date',
+    'Date of the act',
+    'the date the act was signed or approved — the date the building was ' +
+      'accepted as finished.',
+  ],
+  ['property_address', 'Address of the object'],
+  ['project_name', 'Name of the object'],
+  ['client_name', 'Client (legal or natural person)'],
+  [
+    'commission',
+    'Chair and members of the acceptance commission',
+    'every member the act names, the chair first, separated by semicolons.',
+  ],
+  ['contractor_representative', 'Representative of the contractor'],
+];
+
+const PERMIT_FIELDS: Fields = [
+  ['decision_no', 'Number of the permit or decision'],
+  ['decision_date', 'Date of the permit or decision'],
+  ['issuing_authority', 'Issuing authority'],
+  ['property_address', 'Address of the object'],
+  ['client_name', 'Client'],
+];
+
+const OPERATION_PERMIT_FIELDS: Fields = [
+  ['permit_no', 'Number of the permit'],
+  [
+    'permit_date',
+    'Date of the permit',
+    'the date the permit for operation was issued — the date the building was ' +
+      'let into use.',
+  ],
+  ['issuing_authority', 'Issuing authority'],
+  ['property_address', 'Address of the object'],
+  [
+    'object_parameters',
+    'Parameters of the object',
+    'the parameters of the object the permit states — storeys, areas, height ' +
+      '— as it words them.',
+  ],
+];
+
+const PLANNING_SECTION_FIELDS: Fields = [
+  ['designer_name', 'Design organisation'],
+  ['designer_tax_id', 'Taxpayer number of the design organisation'],
+  ['licence_no', 'Design licence number stated on the document'],
+  [
+    'project_composition',
+    'Composition of the section',
+    'which drawings the section is composed of — plans, sections, elevations, ' +
+      'site plan — separated by semicolons.',
+  ],
+  ['property_address', 'Property address'],
+  ['storeys', 'Storeys above ground'],
+  ['building_height', 'Building height', HEIGHT_NOTE],
+  ['span_dimensions', 'Span dimensions', SPAN_NOTE],
+];
+
+const NOTICE_FIELDS: Fields = [
+  [
+    'addressee_authority',
+    'Addressee authority',
+    'the city or district executive authority the notification is addressed to.',
+  ],
+  ['applicant_name', 'Name of the applicant'],
+  ['property_address', 'Address of the object'],
+  ['plot_area', 'Size of the land plot'],
+  ['building_type', 'Type of building'],
+  [
+    'notice_date',
+    'Date of the notification',
+    'the date the notification was signed or sent — the date construction is ' +
+      'stated to be finished.',
+  ],
+];
+
+const LICENCE_FIELDS: Fields = [
+  ['licence_no', 'Registration number of the licence'],
+  ['licence_date', 'Date of the licence'],
+  ['issuing_authority', 'Issuing authority'],
+  ['activity_type', 'Type of activity'],
+  ['licensee_name', 'Licensee'],
+  ['licensee_address', 'Address of the licensee'],
+  ['licensee_tax_id', 'Taxpayer number of the licensee'],
+  ['signing_official', 'Signing official'],
+];
 
 export class VerificationProfile {
   // The one case the system handles: first state registration of an individual
@@ -739,8 +763,10 @@ export class VerificationProfile {
   // by, so it outlives the wording — the profile's name is a UI string in three
   // languages, not this.
   //
-  // Every type here is required: the profile is the mandatory set, and the
-  // additional documents a submission may carry are out of scope for now.
+  // Two of its types are required of every package — the plan of the plot and
+  // the sketch design (Articles 10.2.2 and 10.2.3). Which of the rest a
+  // package must carry is decided by the provision of Article 8 its case falls
+  // under (ADR-0025); every other paper is read where it arrives.
   static readonly CADASTRE = new VerificationProfile(
     'cadastre',
     [
@@ -756,6 +782,9 @@ export class VerificationProfile {
           'план-схема земельного участка',
           'план-схема',
         ],
+        // Retrieved from MQS where the registry reaches it, and read off the
+        // envelope where it does not — which, with MQS not connected, is always.
+        // Required of every package whatever its provision (Article 10.2.2).
         required: true,
         alwaysAccepted: false,
         // Drawn and issued by the cadastre office: the surveyed figures are
@@ -763,6 +792,7 @@ export class VerificationProfile {
         // so (ADR-0012).
         expectsStamp: true,
         expectsSignature: true,
+        source: 'Mqs',
         // The eleven items the acceptance contract asks of a plan-scheme, in
         // the order it numbers them. Sixteen keys and not eleven: four of its
         // items name two values apiece — the ownership and the right, the
@@ -855,12 +885,15 @@ export class VerificationProfile {
           'выписка из распоряжения',
           'распоряжение',
         ],
-        required: true,
+        // A title document and one of many: every provision asks for a title,
+        // and any of them answers it (Article 10.2.1, ADR-0025).
+        required: false,
         alwaysAccepted: false,
         // An act of an executive authority. An extract of one is issued by
         // the same authority and attested the same way.
         expectsStamp: true,
         expectsSignature: true,
+        source: 'Package',
         fields: [
           ['order_no', 'Order number'],
           ['issuing_authority', 'Issuing authority'],
@@ -876,7 +909,9 @@ export class VerificationProfile {
           'Receipt for the state duty paid for the registration. Carries a ' +
           'receipt number, the payer, an amount and the date it was paid.',
         hints: ['ödəniş qəbzi', 'qəbz', 'квитанция об оплате', 'квитанция'],
-        required: true,
+        // Not a shortfall at submission: the state duty is paid once the
+        // application has been approved (acceptance contract, 10.2.4).
+        required: false,
         // The one paper of this profile an operator may send in whenever they
         // have it, package complete or not: the duty is paid outside this
         // system, at a counter or a terminal, and a slip that turns up after
@@ -888,6 +923,7 @@ export class VerificationProfile {
         // here would report every correctly paid package as faulty (ADR-0012).
         expectsStamp: false,
         expectsSignature: false,
+        source: 'Package',
         fields: [
           ['receipt_no', 'Receipt number'],
           ['payer_name', 'Payer name'],
@@ -909,12 +945,15 @@ export class VerificationProfile {
           'эскизный проект',
           'эскизного проекта',
         ],
+        // Required of every package whatever its provision: for an individual
+        // house the technical document is the sketch design (Article 10.2.3).
         required: true,
         alwaysAccepted: false,
         // Produced and approved by a design organisation, which signs and
         // seals the title block of what it puts its name to.
         expectsStamp: true,
         expectsSignature: true,
+        source: 'Package',
         // The twelve items the acceptance contract asks of a sketch design, in
         // the order it numbers them, several of which name two or three values
         // apiece. Its thirteenth item — the architect's and the director's
@@ -988,9 +1027,9 @@ export class VerificationProfile {
               'storey — as the sheet words it, with the absolute mark where ' +
               'one is given.',
           ],
-          // Read for its own sake and for the branch: which supporting
-          // documents this case needs is decided on how tall the building is,
-          // and the sketch design is the only paper of this profile that says.
+          // Read for its own sake and for the table of provisions: which
+          // provision of Article 8 the case falls under turns on how tall the
+          // building is, and the design is the paper that says (ADR-0025).
           [
             'building_height',
             'Building height',
@@ -1021,12 +1060,15 @@ export class VerificationProfile {
           'архивная справка',
           'архивной справки',
         ],
-        required: true,
+        // Asked for by no provision. Read where it arrives, and one side of the
+        // checks that name it (ADR-0025).
+        required: false,
         alwaysAccepted: false,
         // What an archive issues over its own seal. Unsealed it states
         // nothing: the whole worth of the certificate is which office says it.
         expectsStamp: true,
         expectsSignature: true,
+        source: 'NationalArchive',
         fields: [
           ['certificate_no', 'Certificate number'],
           ['issuing_authority', 'Issuing authority'],
@@ -1047,12 +1089,15 @@ export class VerificationProfile {
           'заявление о государственной регистрации',
           'заявление',
         ],
-        required: true,
+        // Not among the papers the acceptance contract asks for. Read where it
+        // arrives, and one side of the checks that name it (ADR-0025).
+        required: false,
         alwaysAccepted: false,
         // Signed and not sealed: it is written by a natural person, who has no
         // seal to press. The signature is what makes it their application.
         expectsStamp: false,
         expectsSignature: true,
+        source: 'Package',
         fields: [
           ['applicant_name', 'Applicant name'],
           ['applicant_document_no', 'Applicant identity document number'],
@@ -1074,13 +1119,17 @@ export class VerificationProfile {
           'паспорт',
           'passport',
         ],
-        required: true,
+        // The registry takes the applicant's identity from IAMAS through EHİS
+        // and MQS, not off a scan; a card in the envelope is read and checked
+        // against the application, and is required of nobody (ADR-0025).
+        required: false,
         alwaysAccepted: false,
         // Neither. Its security features are printed into the card and the
         // reader marks them [photo], not [stamp]; a passport's specimen
         // signature is on a page the package need not carry (ADR-0012).
         expectsStamp: false,
         expectsSignature: false,
+        source: 'Mqs',
         fields: [
           ['first_name', 'First name'],
           ['last_name', 'Last name'],
@@ -1088,6 +1137,453 @@ export class VerificationProfile {
           ['issue_date', 'Issue date'],
           ['expiry_date', 'Expiration date'],
         ],
+      },
+      // ── What a provision of Article 8 asks for (ADR-0025) ─────────────────
+      // Required of no package as such: which of them a package must carry is
+      // decided by the provision its case falls under, not by the profile.
+      // Moved here out of the statutory catalogue, where a paper was named and
+      // never read (ADR-0022): a paper a requirement is answered by is a paper
+      // the engine has to read.
+      {
+        key: 'approved_design',
+        description:
+          'Construction design of the house approved by, or agreed with, the ' +
+          'local executive authority, and carrying that approval — the design a ' +
+          'building raised before 2013 was permitted on (Articles 8.0.9.1.1, ' +
+          '8.0.9.2). The approval of an authority is what makes it this paper: ' +
+          "the designer's own sketch design carries none.",
+        hints: [
+          'təsdiq edilmiş layihə',
+          'razılaşdırılmış layihə',
+          'утверждённый проект',
+          'согласованный проект',
+        ],
+        required: false,
+        alwaysAccepted: false,
+        // Approved by an authority, over its seal, and signed by the designer.
+        expectsStamp: true,
+        expectsSignature: true,
+        source: 'Package',
+        fields: APPROVED_DESIGN_FIELDS,
+      },
+      {
+        key: 'operation_acceptance_act',
+        description:
+          'Act accepting a completed building into operation, issued by the local ' +
+          'executive authority for buildings raised before 1 January 2013 ' +
+          '(Article 8.0.9). It closes the construction; a permit to occupy issued ' +
+          'under the later Code is a different paper.',
+        hints: [
+          'istismara qəbul aktı',
+          'yaşayış evinin istismara qəbul aktı',
+          'акт приёмки в эксплуатацию',
+          'акт приёмки жилого дома в эксплуатацию',
+        ],
+        required: false,
+        alwaysAccepted: false,
+        expectsStamp: true,
+        expectsSignature: true,
+        source: 'Package',
+        fields: ACCEPTANCE_ACT_FIELDS,
+      },
+      {
+        key: 'construction_permit_decision',
+        description:
+          'Decision of the relevant executive authority permitting a building to ' +
+          'be constructed (Articles 8.0.9.2, 8.0.10.1). It permits work that has ' +
+          'not started; it says nothing about a finished building.',
+        hints: [
+          'tikilinin inşa edilməsinə icazə barədə qərar',
+          'tikintiyə icazə barədə qərar',
+          'tikinti icazəsi',
+          'решение о разрешении на строительство',
+          'разрешение на строительство',
+        ],
+        required: false,
+        alwaysAccepted: false,
+        expectsStamp: true,
+        expectsSignature: true,
+        source: 'UrbanPlanningCommittee',
+        fields: PERMIT_FIELDS,
+      },
+      {
+        key: 'architectural_planning_section',
+        description:
+          'Architectural and planning section of a construction design, required ' +
+          'of objects that need a permit and of those under the notification ' +
+          'procedure (Articles 8.0.10.1, 8.0.10.2). It is a section OF an ' +
+          "approved design, not the designer's sketch design of the house.",
+        hints: [
+          'layihənin memarlıq-planlaşdırma bölməsi',
+          'memarlıq-planlaşdırma bölməsi',
+          'архитектурно-планировочный раздел проекта',
+          'архитектурно-планировочная часть проекта',
+        ],
+        required: false,
+        alwaysAccepted: false,
+        expectsStamp: true,
+        expectsSignature: true,
+        source: 'Package',
+        fields: PLANNING_SECTION_FIELDS,
+      },
+      {
+        key: 'operation_permit',
+        description:
+          'Permit to put a completed object into operation, issued under the ' +
+          'Urban Planning and Construction Code (Articles 8.0.10.1, 8.0.10-1). ' +
+          'A permit granted by an authority, not an acceptance act signed by a ' +
+          'commission.',
+        hints: [
+          'istismara icazə',
+          'obyektin istismarına icazə',
+          'разрешение на эксплуатацию',
+        ],
+        required: false,
+        alwaysAccepted: false,
+        expectsStamp: true,
+        expectsSignature: true,
+        source: 'UrbanPlanningCommittee',
+        fields: OPERATION_PERMIT_FIELDS,
+      },
+      {
+        key: 'construction_completion_notice',
+        description:
+          'The notification an owner sends the authority once construction under ' +
+          'the notification procedure is finished (Article 8.0.10.2). It is sent ' +
+          'BY the owner; nothing is granted by it.',
+        hints: [
+          'tikintinin başa çatması barədə məlumat',
+          'məlumatlandırma icraatı barədə bildiriş',
+          'уведомление о завершении строительства',
+          'информация о завершении строительства',
+        ],
+        required: false,
+        alwaysAccepted: false,
+        expectsStamp: false,
+        expectsSignature: true,
+        source: 'UrbanPlanningCommittee',
+        fields: NOTICE_FIELDS,
+      },
+      {
+        key: 'designer_licence',
+        description:
+          'The licence of the design organisation that drew the sketch design, ' +
+          'or the annex listing what the licence permits. It is the firm that ' +
+          'is licensed, never the property.',
+        hints: [
+          'lisenziya',
+          'lisenziyaya əlavə',
+          'lisenziyanın əlavəsi',
+          'лицензия',
+        ],
+        required: false,
+        alwaysAccepted: false,
+        expectsStamp: true,
+        expectsSignature: true,
+        source: 'LicencesPortal',
+        fields: LICENCE_FIELDS,
+      },
+      // ── Title documents (Article 10.2.1, ADR-0025) ─────────────────────────
+      // Any one of them answers the requirement every provision makes of a
+      // title to the land. The table of provisions says which right each
+      // confers and the window of dates it is a title in; the order allotting
+      // the parcel, declared above, is one of them.
+      {
+        key: 'state_register_extract',
+        description:
+          'Extract from the State Register of Immovable Property: what the ' +
+          'register already holds about the property, under an extract number and ' +
+          'a date. It reports a registration that has happened; it is not a ' +
+          'ground for making one.',
+        hints: [
+          'daşınmaz əmlakın dövlət reyestrindən çıxarış',
+          'выписка из государственного реестра недвижимого имущества',
+          'выписка из реестра недвижимого имущества',
+        ],
+        required: false,
+        alwaysAccepted: false,
+        expectsStamp: false,
+        expectsSignature: false,
+        source: 'Mqs',
+        fields: REGISTER_EXTRACT_FIELDS,
+      },
+      {
+        key: 'land_right_state_act',
+        description:
+          'State act on the right of ownership, possession or use of a land plot, ' +
+          "issued by a city or district soviet's executive committee (Decree " +
+          'points 1.3 and 2.1). Headed "state act"; it is the plot it concerns, ' +
+          'not a building on it.',
+        hints: [
+          'torpaqdan istifadə hüququna dair dövlət aktı',
+          'torpaq sahəsinə dair dövlət aktı',
+          'dövlət aktı',
+          'государственный акт на право пользования землёй',
+          'государственный акт на землю',
+        ],
+        required: false,
+        alwaysAccepted: false,
+        expectsStamp: true,
+        expectsSignature: true,
+        source: 'NationalArchive',
+        fields: DECREE_439_FIELDS,
+      },
+      {
+        key: 'soviet_land_record',
+        description:
+          'Land record issued by the economic department, or by the technical ' +
+          'inventory bureau (BTI), of the executive committee of a local soviet ' +
+          '(Decree points 1.1 and 1.2). A register entry about a plot, from the ' +
+          'Soviet era.',
+        hints: [
+          'torpaq qeydləri',
+          'torpaq qeydi',
+          'земельные записи',
+          'земельная запись',
+        ],
+        required: false,
+        alwaysAccepted: false,
+        expectsStamp: true,
+        expectsSignature: true,
+        source: 'NationalArchive',
+        fields: DECREE_439_FIELDS,
+      },
+      {
+        key: 'land_allocation_decision',
+        description:
+          "Decision of a soviet of workers' or people's deputies allotting land " +
+          'plots — Soviet-era under Decree point 1.4, and between 9 November 1991 ' +
+          'and 19 December 1995 under point 2.2. The two points are the same ' +
+          'paper in two periods.',
+        hints: [
+          'torpaq sahələrinin ayrılması barədə qərar',
+          'torpaq sahəsinin ayrılması haqqında qərar',
+          'решение об отводе земельных участков',
+          'решение о выделении земельного участка',
+        ],
+        required: false,
+        alwaysAccepted: false,
+        expectsStamp: true,
+        expectsSignature: true,
+        source: 'NationalArchive',
+        fields: DECREE_439_FIELDS,
+      },
+      {
+        key: 'notarised_land_allocation_contract',
+        description:
+          'Notarised contract allotting a land plot for the construction of a ' +
+          'dwelling under personal ownership, concluded after 26 August 1948 ' +
+          '(Decree point 1.6). It allots the plot rather than granting a right to ' +
+          'build on somebody else’s.',
+        hints: [
+          'yaşayış evlərinin tikintisi üçün torpaq sahələrinin verilməsi haqqında müqavilə',
+          'torpaq sahəsinin verilməsi haqqında notariat qaydasında təsdiq edilmiş müqavilə',
+          'договор о предоставлении земельного участка для строительства жилого дома',
+        ],
+        required: false,
+        alwaysAccepted: false,
+        expectsStamp: true,
+        expectsSignature: true,
+        source: 'NationalArchive',
+        fields: DECREE_439_FIELDS,
+      },
+      {
+        key: 'household_book_extract',
+        description:
+          'Extract from a household registration book, or a certificate issued on ' +
+          'the basis of such an extract, given before 1 January 2001 for houses ' +
+          'built by that date (Decree point 2.3). Often produced as an archival ' +
+          'EXTRACT — a copy of the book entry — rather than as a certificate an ' +
+          'archive writes in its own words.',
+        hints: [
+          'təsərrüfatbaşına kitabından çıxarış',
+          'təsərrüfat kitabından çıxarış',
+          'arxiv çıxarışı',
+          'выписка из похозяйственной книги',
+          'архивная выписка',
+        ],
+        required: false,
+        alwaysAccepted: false,
+        expectsStamp: true,
+        expectsSignature: true,
+        source: 'NationalArchive',
+        fields: DECREE_439_FIELDS,
+      },
+      {
+        key: 'technical_passport',
+        description:
+          'Technical passport of a building drawn up by the technical inventory ' +
+          'bodies: the storeys, rooms, areas and year of a house, with its ' +
+          'measured drawings. Where it was drawn up before 1 January 2001 and ' +
+          'states the size of the adjoining plot it is itself a ground under ' +
+          'Decree point 2.4. It describes what stands; it does not grant anything.',
+        hints: [
+          'texniki pasport',
+          'texniki pasportlar',
+          'yaşayış evinə dair texniki pasport',
+          'технический паспорт',
+          'технические паспорта',
+        ],
+        required: false,
+        alwaysAccepted: false,
+        expectsStamp: true,
+        expectsSignature: true,
+        source: 'NationalArchive',
+        fields: DECREE_439_FIELDS,
+      },
+      {
+        key: 'kolkhoz_allocation_decision',
+        description:
+          'Decision of the general meeting of the members of a collective farm ' +
+          '(kolkhoz), or of their delegates, allotting homestead land plots for ' +
+          'the construction of dwellings and garden houses (Decree point 2.5).',
+        hints: [
+          'kolxoz üzvlərinin ümumi yığıncağının qərarı',
+          'kolxoz üzvlərinin yığıncağının qərarı',
+          'решение общего собрания членов колхоза',
+        ],
+        required: false,
+        alwaysAccepted: false,
+        expectsStamp: true,
+        expectsSignature: true,
+        source: 'NationalArchive',
+        fields: DECREE_439_FIELDS,
+      },
+      {
+        key: 'bound_land_book_extract',
+        description:
+          'Extract from the bound (laced) land books kept by a kolkhoz or a ' +
+          'sovkhoz about a homestead plot (Decree points 2.5 and 2.5-1). A copy ' +
+          'of a farm register entry, not of a household registration book.',
+        hints: [
+          'qaytanlanmış torpaq kitabından çıxarış',
+          'torpaq kitabından çıxarış',
+          'выписка из прошнурованной земельной книги',
+          'выписка из земельной книги',
+        ],
+        required: false,
+        alwaysAccepted: false,
+        expectsStamp: true,
+        expectsSignature: true,
+        source: 'NationalArchive',
+        fields: DECREE_439_FIELDS,
+      },
+      {
+        key: 'sovkhoz_allocation_order',
+        description:
+          'Order of the head of a state farm (sovkhoz) or of another ' +
+          'state-subordinated agricultural enterprise allotting a homestead plot ' +
+          '(Decree point 2.5-1). One manager signs it, where the kolkhoz answer ' +
+          'is a meeting of members.',
+        hints: [
+          'sovxoz rəhbərinin əmri',
+          'kənd təsərrüfatı müəssisəsi rəhbərinin əmri',
+          'приказ руководителя совхоза',
+          'распоряжение главы совхоза',
+        ],
+        required: false,
+        alwaysAccepted: false,
+        expectsStamp: true,
+        expectsSignature: true,
+        source: 'NationalArchive',
+        fields: DECREE_439_FIELDS,
+      },
+      {
+        key: 'homestead_land_allocation_decision',
+        description:
+          'Decision allotting a homestead land plot for the construction of a ' +
+          'dwelling, taken before 1 January 2001 by the representative of the ' +
+          'local executive authority for an administrative-territorial unit ' +
+          '(Decree point 2.7).',
+        hints: [
+          'həyətyanı torpaq sahəsinin ayrılması barədə qərar',
+          'həyətyanı torpaq sahəsinin verilməsi barədə qərar',
+          'решение об отводе приусадебного земельного участка',
+        ],
+        required: false,
+        alwaysAccepted: false,
+        expectsStamp: true,
+        expectsSignature: true,
+        source: 'NationalArchive',
+        fields: DECREE_439_FIELDS,
+      },
+      {
+        key: 'apartment_demolition_decision',
+        description:
+          'Decision of a local executive authority to demolish dwelling-type ' +
+          'flats and raise an individual dwelling in their place, produced with ' +
+          'the design agreed with that authority (Decree point 2.8).',
+        hints: [
+          'mənzillərin sökülərək fərdi yaşayış evinin inşası barədə qərar',
+          'mənzillərin sökülməsi barədə qərar',
+          'решение о сносе квартир и строительстве индивидуального жилого дома',
+        ],
+        required: false,
+        alwaysAccepted: false,
+        expectsStamp: true,
+        expectsSignature: true,
+        source: 'NationalArchive',
+        fields: DECREE_439_FIELDS,
+      },
+      {
+        key: 'registration_certificate',
+        description:
+          'Registration certificate confirming a right over immovable property, ' +
+          'issued by an executive authority up to 6 July 2006 (Article 8.0.5) — ' +
+          'the booklet the technical inventory bureaus issued, often produced ' +
+          'together with a technical passport. It records an existing right; it ' +
+          'is not the inventory passport itself.',
+        hints: ['qeydiyyat vəsiqəsi', 'регистрационное удостоверение'],
+        required: false,
+        alwaysAccepted: false,
+        expectsStamp: true,
+        expectsSignature: true,
+        source: 'Package',
+        fields: TITLE_FIELDS,
+      },
+      {
+        key: 'property_right_certificate',
+        description:
+          'Act or certificate confirming a right over immovable property, issued ' +
+          'by an executive authority: up to 6 July 2006 under Article 8.0.5, and ' +
+          'between 6 July 2006 and 24 June 2009 under Article 8.0.12. The two ' +
+          'articles name the same paper in two windows, so the date decides which ' +
+          'ground it is and never whether the document is this one.',
+        hints: [
+          'daşınmaz əmlaka dair şəhadətnamə',
+          'daşınmaz əmlak üzərində hüquqları təsdiq edən şəhadətnamə',
+          'mülkiyyət hüququna dair şəhadətnamə',
+          'свидетельство на недвижимое имущество',
+          'свидетельство о праве собственности на недвижимое имущество',
+        ],
+        required: false,
+        alwaysAccepted: false,
+        expectsStamp: true,
+        expectsSignature: true,
+        source: 'Package',
+        fields: TITLE_FIELDS,
+      },
+      {
+        key: 'state_property_disposal_act',
+        description:
+          'Act of an executive authority or a municipality alienating, leasing, ' +
+          'granting the use of or mortgaging immovable property owned by the ' +
+          'state or by a municipality — a municipal sale-purchase act and the ' +
+          'like (Article 8.0.1). It disposes of property the state owns; it is ' +
+          'not the executive order allotting an applicant a parcel to build on.',
+        hints: [
+          'bələdiyyənin alqı-satqı aktı',
+          'daşınmaz əmlakın özgəninkiləşdirilməsinə dair akt',
+          'özgəninkiləşdirmə aktı',
+          'акт купли-продажи муниципалитета',
+          'акт об отчуждении недвижимого имущества',
+        ],
+        required: false,
+        alwaysAccepted: false,
+        expectsStamp: true,
+        expectsSignature: true,
+        source: 'Package',
+        fields: TITLE_FIELDS,
       },
     ],
     // What has to be the same across the papers. Each of these is a question an
@@ -1214,15 +1710,19 @@ export class VerificationProfile {
           ['Ərizə', 'application'],
           ['Sərəncam çıxarışı', 'disposal_order'],
           ['Arayış', 'archive_certificate'],
+          // The title documents the archive's registers keep a column for, under
+          // the registers' own words: the Land Committee's state acts, the
+          // technical inventory's passports, the State Property Committee's
+          // certificates and contracts. Which section of the archive a title is
+          // looked for in is decided by its kind (ADR-0025); a title only asked
+          // about when the package carries it.
+          ['Dövlət aktı', 'land_right_state_act'],
+          ['Texniki Pasport', 'technical_passport'],
+          ['Şəhadətnamə', 'property_right_certificate'],
+          ['Müqavilə', 'state_property_disposal_act'],
         ],
       },
     ],
-    // What the applicant is told to bring beyond the envelope, which depends on
-    // the building rather than on the papers. Held in a file of its own and
-    // marked provisional there: the thresholds and the sets in it are ours and
-    // not the customer's, and the mechanism that reads them is the part of this
-    // that is real.
-    [UNCONFIRMED_SUPPORTING_DOCUMENTS],
     // What a case of this kind is called: the applicant, the address and the
     // parcel, off the papers this profile believes them from.
     {
@@ -1261,44 +1761,39 @@ export class VerificationProfile {
         ['application', 'cadastral_number'],
       ],
     },
-    // What this profile answers for at the counter.
+    // What this profile answers for at the counter: a right founded on any title
+    // to the land the table of provisions lists (ADR-0025). The order allotting
+    // the parcel was the only ground while the required set was one flat list;
+    // it is one title among several now.
     //
-    // One ground: the order of the executive authority that allotted the parcel
-    // is the only paper in this profile that grants anything. The plan-scheme
-    // depicts, the archival certificate attests, the receipt records a payment
-    // and the application asks — none of them founds a right, and offering one
-    // of them as a ground would put a choice on the intake screen that means
-    // nothing. A case founded on a sale, an inheritance or a court decision is
-    // a case this build has no profile for, and the suggestion says so rather
-    // than proposing this one.
-    //
-    // No year bounds: this profile takes a case of any year. The supporting
-    // documents a case needs turn on the year (ADR-0013), but which profile
-    // governs it does not — no norm has been given that says otherwise, and a
-    // threshold invented here would be a threshold that silently sent
-    // submissions to the wrong policy.
+    // No year bounds: which provision a case falls under turns on the year, but
+    // which profile governs it does not.
     {
-      grounds: ['disposal_order'],
+      grounds: ARTICLE_8_PROVISIONS.titleDocuments
+        .map(entry => entry.type)
+        .filter((type, index, all) => all.indexOf(type) === index),
       builtFrom: null,
       builtBefore: null,
     },
+    // Which provision of Article 8 a case falls under, and what it asks for.
+    ARTICLE_8_PROVISIONS,
   );
 
   readonly #specs: readonly DocumentTypeSpec[];
   readonly #crossChecks: readonly CrossCheckSpec[];
   readonly #registryChecks: readonly RegistryCheckSpec[];
-  readonly #supportingDocuments: readonly SupportingDocumentsSpec[];
   readonly #particulars: ParticularsSpec;
   readonly #intake: IntakeSpec;
+  readonly #provisions: ProvisionsSpec | null;
 
   private constructor(
     public readonly key: string,
     declarations: readonly Declaration[],
     crossChecks: readonly CrossCheckDeclaration[],
     registryChecks: readonly RegistryCheckDeclaration[] = [],
-    supportingDocuments: readonly SupportingDocumentsDeclaration[] = [],
     particulars: ParticularsDeclaration | null = null,
     intake: IntakeDeclaration | null = null,
+    provisions: ProvisionsDeclaration | null = null,
   ) {
     this.#specs = declarations.map(declaration =>
       DocumentTypeSpec.of(declaration),
@@ -1309,15 +1804,65 @@ export class VerificationProfile {
     this.#registryChecks = registryChecks.map(declaration =>
       RegistryCheckSpec.of(declaration),
     );
-    this.#supportingDocuments = supportingDocuments.map(declaration =>
-      SupportingDocumentsSpec.of(declaration),
-    );
     this.#particulars = particulars
       ? ParticularsSpec.of(particulars)
       : ParticularsSpec.none();
     this.#intake = intake ? IntakeSpec.of(intake) : IntakeSpec.none();
 
+    this.#provisions = provisions ? ProvisionsSpec.of(provisions) : null;
+
     VerificationProfile.guardGroundsAreDeclared(key, this.#specs, this.#intake);
+    VerificationProfile.guardProvisionsAreDeclared(
+      key,
+      this.#specs,
+      this.#provisions,
+    );
+  }
+
+  // Every paper the table of provisions names — a title, a paper a provision
+  // asks for, a paper a figure is read off — is one of this profile's types,
+  // and every field it reads is one that type declares. Checked at import
+  // time, for the reason the grounds are: a requirement no document could ever
+  // be classified as would be a requirement no package could ever answer.
+  private static guardProvisionsAreDeclared(
+    key: string,
+    specs: readonly DocumentTypeSpec[],
+    provisions: ProvisionsSpec | null,
+  ): void {
+    if (!provisions) return;
+
+    const specFor = (type: DocumentType): DocumentTypeSpec => {
+      const found = specs.find(spec => spec.type.equals(type));
+
+      if (!found) throw new DocumentTypeNotInProfileException(type.value, key);
+
+      return found;
+    };
+
+    const figures = [
+      ...provisions.builtIn,
+      ...provisions.storeys,
+      ...provisions.height,
+      ...provisions.span,
+      ...provisions.purpose,
+      ...provisions.landRight,
+      ...provisions.titleDocuments.map(entry => ({
+        type: entry.type,
+        key: entry.dateField,
+      })),
+    ];
+
+    for (const at of figures) {
+      if (!specFor(at.type).schema.declares(at.key)) {
+        throw new FieldNotInSchemaException(at.key.value, at.type.value);
+      }
+    }
+
+    for (const rule of provisions.rules) {
+      for (const requirement of rule.requirements) {
+        requirement.anyOf.forEach(specFor);
+      }
+    }
   }
 
   // A ground is offered to the operator as one of this profile's papers, so it
@@ -1392,15 +1937,12 @@ export class VerificationProfile {
   }
 
   /*
-   * The branches this profile declares: what the applicant has to bring beyond
-   * the envelope, and which of the sets this case needs.
-   *
-   * Empty on a profile that asks for nothing beyond its own document types, and
-   * empty is not a gap — most policies have one set and say it in the required
-   * types.
+   * Which provision of Article 8 a case of this kind falls under, and what each
+   * provision asks the package for (ADR-0025). Null on a profile whose required
+   * set is the flat list its types declare.
    */
-  get supportingDocuments(): readonly SupportingDocumentsSpec[] {
-    return this.#supportingDocuments;
+  get provisions(): ProvisionsSpec | null {
+    return this.#provisions;
   }
 
   /*

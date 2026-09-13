@@ -120,7 +120,9 @@ describe('a document supplied for a gap the package publishes', () => {
     it('offers the required papers that are not here, naming no document', async () => {
       const detail = await detailOf(await submitAndSettle('gaps-missing'));
 
-      const [missing] = gapsFor(detail, 'archive_certificate');
+      // The sketch design is required of every package (Article 10.2.3), and
+      // this one carries only the application and the identity card.
+      const [missing] = gapsFor(detail, 'sketch_project');
       expect(missing?.reason).toBe('MissingDocument');
       expect(missing?.documentId).toBeNull();
     });

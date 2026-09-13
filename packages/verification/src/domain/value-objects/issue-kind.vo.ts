@@ -91,6 +91,57 @@ export class IssueKind {
   static readonly WRONG_DOCUMENT_SUPPLIED = new IssueKind(
     'WrongDocumentSupplied',
   );
+  /*
+   * No document of the package is a title to the land: none of the papers
+   * Article 10.2.1 accepts as confirming the right over the plot, whichever
+   * provision the case falls under (ADR-0025).
+   *
+   * Not MISSING_DOCUMENT, which names the one type that is absent. A title is
+   * any of a list — a state act, a household book extract, an order allotting
+   * the parcel — and a finding that picked one of them to name would tell the
+   * applicant to bring that one. It leaves the package incomplete all the same.
+   */
+  static readonly MISSING_TITLE_DOCUMENT = new IssueKind(
+    'MissingTitleDocument',
+  );
+  /*
+   * A title document the package does carry that does not found the case: it is
+   * dated outside the window its item gives it — a homestead allocation decision
+   * of 2003, where the Decree takes one issued before 2001 — or it is a title of
+   * the other class from the one the case's provision rests on (ADR-0025).
+   *
+   * Held against the package. Not UNREADABLE_DOCUMENT and not LOW_CONFIDENCE: the
+   * paper was read well, and what it was read to say is a title that does not
+   * hold.
+   */
+  static readonly TITLE_DOCUMENT_INVALID = new IssueKind(
+    'TitleDocumentInvalid',
+  );
+  /*
+   * Which provision of Article 8 the case falls under could not be decided —
+   * because a figure the table turns on was not stated and several provisions
+   * stay open, or because no provision covers the case at all (ADR-0025).
+   *
+   * Held against the package, unlike the supporting documents it replaces: which
+   * papers the package must carry turns on the answer, so a report that could
+   * not give one cannot say the package is complete, and only the inspector can
+   * settle it.
+   */
+  static readonly PROVISION_UNDETERMINED = new IssueKind(
+    'ProvisionUndetermined',
+  );
+  /*
+   * The policy confirms a paper of this kind through a state system this one
+   * does not reach — MQS, the Licences Portal, the Urban Planning Committee, the
+   * National Archive — so the paper was read and was not confirmed (ADR-0025).
+   *
+   * Stated so that a paper that was only read never reads as a paper that was
+   * checked, and never held against the package: the applicant is not
+   * answerable for an integration nobody has built.
+   */
+  static readonly INTEGRATION_NOT_CONNECTED = new IssueKind(
+    'IntegrationNotConnected',
+  );
 
   private constructor(public readonly value: string) {}
 
@@ -109,25 +160,32 @@ export class IssueKind {
       IssueKind.SUPPORTING_DOCUMENTS_REQUIRED,
       IssueKind.DECLARED_VALUE_MISMATCH,
       IssueKind.WRONG_DOCUMENT_SUPPLIED,
+      IssueKind.MISSING_TITLE_DOCUMENT,
+      IssueKind.TITLE_DOCUMENT_INVALID,
+      IssueKind.PROVISION_UNDETERMINED,
+      IssueKind.INTEGRATION_NOT_CONNECTED,
     ];
   }
 
   // Stated for the record, not against the package: a report carrying nothing
   // else still reads OK, because nothing here is a shortfall the inspector has
-  // to resolve before registering. The supporting documents are here for a
-  // slightly different reason than the rest — they are not a finding about the
+  // to resolve before registering. The supporting documents were here for a
+  // slightly different reason than the rest — they were not a finding about the
   // package at all — but the rule they need is the same one: absence of data is
-  // not a violation (ADR-0013). A declared value the papers contradict is here
-  // for a third reason: the applicant is not answerable for what the office
-  // typed about their case, and scoring the package down for it would hold them
-  // to it.
+  // not a violation (ADR-0013); no report compiles one since ADR-0025, and a
+  // stored one still reads the way it did. A declared value the papers
+  // contradict is here for a third reason: the applicant is not answerable for
+  // what the office typed about their case, and scoring the package down for it
+  // would hold them to it. An integration nobody connected is here for the same
+  // reason as that one.
   get isInformational(): boolean {
     return (
       this.equals(IssueKind.EXTRA_DOCUMENT) ||
       this.equals(IssueKind.DUPLICATE_DOCUMENT) ||
       this.equals(IssueKind.REGISTRY_UNCONFIRMED) ||
       this.equals(IssueKind.SUPPORTING_DOCUMENTS_REQUIRED) ||
-      this.equals(IssueKind.DECLARED_VALUE_MISMATCH)
+      this.equals(IssueKind.DECLARED_VALUE_MISMATCH) ||
+      this.equals(IssueKind.INTEGRATION_NOT_CONNECTED)
     );
   }
 
@@ -141,9 +199,13 @@ export class IssueKind {
 
   // A shortfall in the package itself, not in how well it was read: the
   // inspector is being told a document is absent, which is what makes the
-  // whole package incomplete.
+  // whole package incomplete. A missing title is a missing document that could
+  // have been any of several.
   get leavesPackageIncomplete(): boolean {
-    return this.equals(IssueKind.MISSING_DOCUMENT);
+    return (
+      this.equals(IssueKind.MISSING_DOCUMENT) ||
+      this.equals(IssueKind.MISSING_TITLE_DOCUMENT)
+    );
   }
 
   equals(other: IssueKind): boolean {

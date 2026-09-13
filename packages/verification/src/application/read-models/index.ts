@@ -14,12 +14,17 @@ export type {
   PackageDetailView,
   PackageSummaryView,
   PageView,
+  ParameterView,
+  ProvisionStandingView,
+  ProvisionView,
   RegistryAttributeView,
   RegistryCheckView,
   ReportView,
+  RuleEvaluationView,
   SourceFileView,
   StatedValueView,
   SuppliedForView,
+  TitleDocumentStandingView,
 } from './package.read-model.js';
 export type {
   FindingCountView,

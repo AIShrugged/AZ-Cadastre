@@ -302,31 +302,32 @@ screen no longer needing that address does not close it. Nor does it publish the
 import: that endpoint stays outside the contract on purpose, and the paragraph
 about it above is the live half of this entry.
 
-## 11. The supporting-documents thresholds are ours, not the customer's
+## 11. The year a house was built is what the office says it is
 
-**Not done.** The branch that decides which supporting documents a case needs
-works and is tested on every path. The numbers it works on are invented. We
-asked the customer for the height thresholds, the years and the composition of
-each set; the answer was "do as you see fit", and no norm was given to work
-from. `packages/verification/src/domain/value-objects/supporting-documents.table.ts`
-holds the invented part alone, under a banner saying so (ADR-0013), and it is
-the only file that has to change when the real rules arrive.
+**Not done.** Which provision of Article 8 a case falls under turns first on
+when the house was built (ADR-0025). The customer's acceptance contract takes
+that date from historical satellite imagery at the plot's coordinates,
+confirmed by the operator. There is no such integration, and no paper of the
+package states when a house was built. So the year is what the office declared
+at intake, and only where it declared nothing the date of a paper that closed
+the construction — the acceptance act, the permit for operation, the
+notification. It is a year, not a date: the intake has never asked for more.
 
-Two smaller guesses ride with it. Which date "the year" means is one — the table
-reads the design's approval date and falls back to the allotment order, because
-no paper of this profile carries a completion date. And the bands that state no
-year answer whatever year is read, including none at all; a real norm may not
-allow that.
+Two smaller guesses ride with it. The notification boundary is 1 June 2025, and
+a year cannot say which side of it a house built in 2025 falls on; the table
+reads 2025 on the letter's side. And the order of the papers the year falls
+back on is ours.
 
-**How it fires.** Quietly, which is the danger. An applicant is told to bring
-papers they do not need, or is not told about papers they do, and the report
-looks exactly as confident either way. Nothing throws and no test goes red.
+**How it fires.** A year typed wrong at the counter places a house under the
+wrong regime — before 2013 or after it — and the report asks for the wrong
+papers with the same confidence as the right ones. Where a paper states a
+different year, the report says so (`DeclaredValueMismatch`); where no paper
+does, nothing does.
 
-**What to do.** Get the requirement — the article, the circular or the office's
-own instruction — and rewrite the rows. Nothing in
-`verification-profile.vo.ts`, the aggregate or the report needs to move for it.
-Until then this branch states what we believe, and what we believe here is a
-placeholder: no decision may be taken on it.
+**What to do.** Put the date of construction on the intake as a date, and when
+an imagery integration exists, read it as a source of its own with the
+operator's confirmation beside it. Nothing in the table changes: `builtIn` and
+the declared year are the only two places that would.
 
 ## 12. A summary count cannot be narrowed to the period it was counted over
 
@@ -379,3 +380,46 @@ already requires: The Status-Never-Alone Rule. Every class in every tally is
 listed beneath its bar with its own mark, its name, its count and its share, so
 no value is ever carried by a fill alone — and the archive's five answers each
 carry a distinct glyph on top of that.
+
+## 14. Four checks the policy names are declared and not made
+
+**Not done.** Every paper declares where the policy expects it to come from
+(ADR-0025): the package, MQS, the Licences Portal, the Urban Planning
+Committee's system or the National Archive. None of the four systems is
+connected. A paper sourced from one is read like any other and reported as
+`IntegrationNotConnected`; so is a fact the policy takes from a system rather
+than a paper — the notification of a house built from 2026. The QR code on an
+archival reference is read as the text printed beside it and never decoded or
+followed.
+
+**How it fires.** Every report on a package carrying a plan of the plot holds
+at least one such line, because the plan is sourced from MQS. A design licence
+that has been revoked, a permit the committee never issued, an archival
+reference that was forged — each reads exactly as a valid one does, and the
+report says only that it was not checked.
+
+**What to do.** One outbound port per system, behind the same shape the archive
+register has (ADR-0009), answering facts and never verdicts. Connecting one
+turns its `IntegrationNotConnected` lines into answers; the source declarations
+do not move. For the National Archive the first thing needed is a sample of real
+QR links and whether the site may be read by a server at all.
+
+## 15. Which section of the archive keeps which title is our reading
+
+**Not done.** The register is asked about the original of a title under the
+word its own workbooks use for it — `Dövlət aktı` for a state act, `Texniki
+Pasport`, `Şəhadətnamə`, `Müqavilə` (ADR-0025). The pairing is ours, read off
+the six workbooks' column headers; the customer has said the sections will be
+confirmed later. So is filing the executive order allotting a parcel as an
+Article 8.0.1 lease-or-use title, which the contract does not list under that
+name and both real submissions rest on.
+
+**How it fires.** A title asked about under a word the area's register never
+used comes back `Unknown` — silence, never a finding — and an original the
+archive does hold goes unconfirmed. An order that in fact conveyed ownership
+places a pre-2013 case under 8.0.9.1.1 instead of 8.0.9.1.2, and the report asks
+for an approved design or an acceptance act the case does not need.
+
+**What to do.** When the customer names the sections, change the pairs in
+`property_of_record` and, for the order, its row in
+`article-8-provisions.table.ts`. Nothing else reads either.

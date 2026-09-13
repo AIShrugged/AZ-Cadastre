@@ -469,8 +469,10 @@ describe('a document supplied over HTTP', () => {
   // its buttons off `gaps` has to be able to tell this refusal apart from a
   // malformed body.
   it('answers 409 with NO_SUCH_DOCUMENT_GAP for a paper it never offered', async () => {
-    // arrange — a type this profile knows nothing about, which is therefore in
-    // no gap it publishes
+    // arrange — a paper the statutory catalogue names and the profile does not
+    // read, which is therefore in no gap it publishes. Not the technical
+    // passport any more: that is a title to the land since ADR-0025, and a
+    // package without a title is offered every one of them.
     const created = await submit(['erize-qeydiyyat.pdf']);
     await settled(created.id);
     const [file] = await presigned(['texniki-pasport.pdf']);
@@ -479,7 +481,7 @@ describe('a document supplied over HTTP', () => {
     const failure = await api.packages
       .supplyDocument(created.id, {
         file: file!,
-        expectedType: 'technical_passport',
+        expectedType: 'courier_waybill',
       })
       .catch((error: unknown) => error as ApiError);
 

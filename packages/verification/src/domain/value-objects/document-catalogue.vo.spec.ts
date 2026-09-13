@@ -27,26 +27,49 @@ describe('DocumentCatalogue', () => {
     expect(keys).toContain('auction_results_protocol');
     expect(keys).toContain('inheritance_certificate');
     expect(keys).toContain('court_decision');
-    expect(keys).toContain('operation_acceptance_act');
+    expect(keys).toContain('garden_plot_allocation_document');
     expect(keys).toContain('state_housing_allocation_order');
   });
 
   it('covers the grounds the Decree No. 439 list names', () => {
     const keys = CATALOGUE.types.map(type => type.value);
 
-    expect(keys).toContain('soviet_land_record');
-    expect(keys).toContain('land_right_state_act');
-    expect(keys).toContain('household_book_extract');
-    expect(keys).toContain('kolkhoz_allocation_decision');
-    expect(keys).toContain('apartment_demolition_decision');
+    expect(keys).toContain('temporary_land_use_certificate');
+    expect(keys).toContain('notarised_building_right_contract');
+    expect(keys).toContain('dwelling_transfer_decision');
+    expect(keys).toContain('house_inventory_valuation_passport');
+    expect(keys).toContain('cooperative_land_allocation_decision');
   });
 
   it('covers the papers of the application the profile does not ask for', () => {
     const keys = CATALOGUE.types.map(type => type.value);
 
     expect(keys).toContain('power_of_attorney');
-    expect(keys).toContain('technical_passport');
-    expect(keys).toContain('state_register_extract');
+    expect(keys).toContain('legal_entity_register_extract');
+  });
+
+  /*
+   * The grounds the cadastre profile reads — the title documents its provisions
+   * rest on and the papers a provision asks for — are the profile's own types
+   * since ADR-0025, and a key is in one list or the other. A paper that answers
+   * a requirement has to be read, and the catalogue reads nothing.
+   */
+  it('leaves the papers a provision of Article 8 reads to the profile', () => {
+    const keys = CATALOGUE.types.map(type => type.value);
+
+    for (const moved of [
+      'household_book_extract',
+      'land_right_state_act',
+      'technical_passport',
+      'state_register_extract',
+      'operation_acceptance_act',
+      'designer_licence',
+    ]) {
+      expect(keys).not.toContain(moved);
+      expect(
+        VerificationProfile.CADASTRE.recognises(DocumentType.create(moved)),
+      ).toBe(true);
+    }
   });
 
   it('holds every entry in exactly one group, and every group holds some', () => {
@@ -131,10 +154,10 @@ describe('DocumentCatalogue', () => {
   // outside a window, and nothing here gives it a window to reject one by.
   it('keeps a date constraint in the prose of an entry and nowhere else', () => {
     const entry = CATALOGUE.entryFor(
-      DocumentType.create('household_book_extract'),
+      DocumentType.create('notarised_building_right_contract'),
     );
 
-    expect(entry?.description).toContain('1 January 2001');
+    expect(entry?.description).toContain('26 August 1948');
     expect(entry?.schema.isEmpty).toBe(true);
   });
 

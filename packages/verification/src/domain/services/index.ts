@@ -2,8 +2,9 @@
  * Rules that belong to no single aggregate: what makes two values off two
  * papers the same value, whether a quotation is really on the page it claims,
  * which type a text looks like by the profile's own headings, how a set of
- * document starts becomes ranges that tile a file, what height and what year a
- * paper states, and what a document's sheets say about the seal and the
+ * document starts becomes ranges that tile a file, what height, span, storeys,
+ * right over the land and year a paper states, which provision of Article 8 a
+ * case falls under, and what a document's sheets say about the seal and the
  * signature an office attests it with.
  *
  * They live here, not in `infrastructure/`, because they decide domain
@@ -12,11 +13,25 @@
  * against them — but neither owns them.
  */
 export {
+  dateSpanIn,
   EARLIEST_YEAR,
   heightInMetres,
   LATEST_YEAR,
+  spanInMetres,
+  storeysIn,
   yearIn,
 } from './building-measures.service.js';
+export {
+  PARAMETER_SOURCES,
+  provisionOf,
+  type CaseProvision,
+  type FigureReading,
+  type ParameterReading,
+  type ParameterSource,
+  type ProvisionStanding,
+  type RequirementStanding,
+  type TitleDocumentStanding,
+} from './case-provision.service.js';
 export {
   attestationOf,
   MARK_STATES,
@@ -39,6 +54,7 @@ export {
   looksLike,
   type HeadingMatch,
 } from './document-hints.service.js';
+export { landPurposeIn, landRightIn } from './land-title.service.js';
 export { tileIntoRanges } from './page-tiling.service.js';
 export {
   suggestProfile,

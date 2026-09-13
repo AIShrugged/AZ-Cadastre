@@ -51,6 +51,7 @@ export { SourceFileMustHaveADocumentException } from './source-file-must-have-a-
 export { SourceFileMustHaveAPageException } from './source-file-must-have-a-page.exception.js';
 export { SourceFileNotInPackageException } from './source-file-not-in-package.exception.js';
 export { SourceFileNotSplitException } from './source-file-not-split.exception.js';
+export { TitleDocumentRightConflictException } from './title-document-right-conflict.exception.js';
 export { UnclassifiableDocumentException } from './unclassifiable-document.exception.js';
 export { UnknownProfileException } from './unknown-profile.exception.js';
 export { UntargetedSupplyException } from './untargeted-supply.exception.js';

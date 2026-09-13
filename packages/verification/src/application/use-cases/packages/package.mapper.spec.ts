@@ -245,6 +245,89 @@ function aRegistryCheckView(
   };
 }
 
+// A post-2013 case under the notification procedure, still short of the
+// notification (ADR-0025).
+function aProvisionView(): NonNullable<PackageDetailView['provision']> {
+  const plan = anId();
+
+  return {
+    key: 'article_8_provisions',
+    outcome: 'Determined',
+    provision: '8.0.10.2',
+    candidates: [],
+    undecidedOn: [],
+    parameters: [
+      {
+        parameter: 'builtYear',
+        value: 2014,
+        source: 'DeclaredAtIntake',
+        stated: '2014',
+        from: null,
+      },
+      {
+        parameter: 'purpose',
+        value: 'Residential',
+        source: 'ReadOffDocument',
+        stated: 'Fərdi yaşayış tikintisi üçün torpaq',
+        from: {
+          documentId: plan,
+          documentType: 'land_plot_plan',
+          fieldName: 'land_category',
+          pageNumber: 1,
+          confidence: 0.91,
+        },
+      },
+    ],
+    rules: [
+      {
+        provision: '8.0.10.2',
+        description: 'the notification procedure',
+        conditions: [{ parameter: 'builtYear', holds: true }],
+        excluded: false,
+        holds: true,
+      },
+    ],
+    provisions: [
+      {
+        provision: '8.0.10.2',
+        description: 'the notification procedure',
+        titleRight: null,
+        requirements: [
+          {
+            anyOf: ['construction_completion_notice'],
+            onlyBuiltBefore: 2026,
+            applies: true,
+            answered: false,
+          },
+        ],
+      },
+    ],
+    titleDocuments: [
+      {
+        documentId: anId(),
+        documentType: 'household_book_extract',
+        landRight: 'LeaseOrUse',
+        dated: {
+          fieldName: 'issue_date',
+          value: '1987',
+          pageNumber: 2,
+          confidence: 0.88,
+        },
+        withinWindow: true,
+        items: [
+          {
+            item: '2.3',
+            window: 'before 2001-01-01',
+            issuedFrom: null,
+            issuedBefore: '2001-01-01',
+            admits: true,
+          },
+        ],
+      },
+    ],
+  };
+}
+
 function aDetailView(
   overrides: Partial<PackageDetailView> = {},
 ): PackageDetailView {
@@ -252,6 +335,7 @@ function aDetailView(
     ...aSummaryView(),
     files: [aFileView()],
     gaps: [],
+    provision: aProvisionView(),
     crossChecks: [],
     registryChecks: [],
     archiveSearchApprovals: [],

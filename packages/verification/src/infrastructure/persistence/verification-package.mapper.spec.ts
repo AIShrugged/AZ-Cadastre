@@ -852,9 +852,9 @@ describe('VerificationPackageMapper', () => {
         VerificationProfile.CADASTRE.requiredTypes.length +
           // the file itself, which no document was carved out of
           1 +
-          // which supporting documents this case needs — told on every report
-          // the profile declares a branch on, decided or not (ADR-0013)
-          VerificationProfile.CADASTRE.supportingDocuments.length,
+          // no title to the land, and a provision nobody could decide with
+          // not one figure read (ADR-0025)
+          2,
       );
     });
 

@@ -17,6 +17,12 @@ describe('which fold an anchor is filed under', () => {
     expect(panelForHash('#document-gaps')).toBe(PANEL.documents);
   });
 
+  // A finding about a missing title or an undecided provision lands on the fold
+  // that shows the figures it was decided on (ADR-0025).
+  it('sends the provision of Article 8 to its own fold', () => {
+    expect(panelForHash('#provision')).toBe(PANEL.provision);
+  });
+
   it('sends a cross-document check to the checks fold', () => {
     expect(panelForHash('#check-address')).toBe(PANEL.checks);
   });

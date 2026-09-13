@@ -76,6 +76,34 @@ const MOCK_VALUES: Record<string, string> = {
 
   certificate_no: 'ARX-2025-0417',
 
+  // The papers a provision of Article 8 asks for, and the titles to the land
+  // (ADR-0025). Dated before 2001, so a title read with these values sits
+  // inside the window every item of the Decree gives it.
+  holder_name: 'ELÇİN ƏLİYEV',
+  decree_item: '2.7',
+  archive_reference: 'F. 12, siy. 3, iş 418, v. 7',
+  property_type: 'Fərdi yaşayış evi',
+  rightholders: 'ELÇİN ƏLİYEV — 1/1, RN-2025-004312, 27.09.2025',
+  approving_authority: 'Bakı Şəhər İcra Hakimiyyəti',
+  decision_no: 'R-2011/52',
+  act_date: '14.03.2011',
+  decision_date: '02.06.2010',
+  commission: 'Sədr: RƏŞAD MƏMMƏDOV; NİGAR HÜSEYNOVA',
+  contractor_representative: 'VÜQAR QASIMOV',
+  licence_no: 'L-0417-2019',
+  licence_date: '11.04.2019',
+  activity_type: 'Layihələndirmə',
+  licensee_name: '"AzMemarLayihə" MMC',
+  licensee_address: 'Bakı ş., Yasamal r., Ş. Mehdiyev küç. 5',
+  licensee_tax_id: '1400512345',
+  signing_official: 'ANAR RZAYEV',
+  permit_no: 'İ-2011/77',
+  permit_date: '20.04.2011',
+  object_parameters: '2 mərtəbə, 248 m², 9,4 m',
+  addressee_authority: 'Nəsimi Rayon İcra Hakimiyyəti',
+  building_type: 'Fərdi yaşayış evi',
+  notice_date: '10.12.2025',
+
   area: '642 m²',
 };
 

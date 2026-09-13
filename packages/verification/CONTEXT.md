@@ -40,16 +40,31 @@ What a Verification Package is called outside this system: the applicant, the ad
 _Avoid_: title, headline, summary, metadata
 
 **Verification Profile**:
-A declarative definition of what a valid Package looks like: which Document Types exist, their field schemas, which documents are required, and the cross-document rules. Domains (cadastre, …) are expressed as profiles; the engine only interprets them.
+A declarative definition of what a valid Package looks like: which Document Types exist, their field schemas and sources, which documents are required of every package, the table of Article 8 Provisions that decides the rest, and the cross-document rules. Domains (cadastre, …) are expressed as profiles; the engine only interprets them.
 _Avoid_: ruleset, config, template
 
 **Cross-document Check**:
 One of the Verification Profile's cross-document rules, applied to a Package: the values several Documents must state alike (the name on the identity document against the applicant on the application), the verdict — Match, Mismatch or Unclear — and every value it weighed. A check that agreed is kept, not only the ones that failed.
 _Avoid_: comparison, consistency rule, match
 
+**Article 8 Provision**:
+The provision of Article 8 of the Law a first registration falls under — 8.0.9.1.1, 8.0.9.1.2, 8.0.9.2, 8.0.10.2 or 8.0.10.1 — decided on the six Case Parameters by the Verification Profile's table of provisions, the first row whose conditions all hold. It is what decides which papers a Verification Package must carry beyond the plan of the plot, the sketch design and a Title Document. A figure nobody could state never decides a row: the provisions it leaves open are candidates, and the case is Ambiguous; a case no row covers is Undetermined; both are told to the inspector. Worked out from the readings on every read and stored nowhere, for the reason a Package Standing is (ADR-0025). The table is the customer's acceptance contract, transcribed.
+_Avoid_: sub-case, scenario, category, ground (which is a Title Document)
+
+**Case Parameters**:
+The six figures an Article 8 Provision is decided on: the year the house was built, its storeys above ground, its height from ±0.000, its longest span, the right held over the land and what the land is designated for. Each carries where it came from — read off a sheet, declared at intake, or decided by the kind of Title Document the package carries — and a reading that could not be understood stays beside the figure it failed to give, so a refused reading never looks like a missing one. The year is what the office declared before it is anything a paper says (ADR-0025).
+_Avoid_: attributes, inputs, features
+
+**Title Document**:
+A paper confirming the right over the land, which every Article 8 Provision asks for (Article 10.2.1): a state act, a household book extract, a Soviet-era allocation decision, the order allotting the parcel, the register extract. Any one of them answers the requirement. Its kind decides the right it confers — ownership or lease-or-use — and each is a title only within a window of dates its item of the Decree gives it; one dated outside every window is a finding against the package.
+_Avoid_: ground document, land document, legal basis (which is what the office declares at intake)
+
+**Document Source**:
+Where the policy expects a paper of a Document Type to come from: the envelope, or a state system that confirms it — MQS, the Licences Portal, the Urban Planning Committee, the National Archive. None of the systems is connected, and none is imitated: a paper sourced from one is read like any other and reported as read and not confirmed, so reading never passes for confirmation (ADR-0025).
+_Avoid_: integration flag, origin (which is a Field Origin)
+
 **Supporting Documents**:
-The papers an applicant must bring beyond the Verification Package, for the case the package turned out to be. Which set is needed depends on the building — how tall it is and what year it is dated by — so a Verification Profile declares the bands and the engine says which one this case falls in. The engine never reads these papers: they are not in the envelope, and naming them is the whole of what it does with them (ADR-0013). The thresholds and the sets shipped today are provisional and unconfirmed by the customer.
-_Avoid_: additional documents, attachments, required documents (which is the profile's own list)
+No longer part of the language. What papers a case needs beyond its envelope was a table of height bands we invented (ADR-0013); since ADR-0025 it is the Article 8 Provision the case falls under, and the papers it names are papers of the package. Reports written before carry the old finding, and it still reads the way it did.
 
 **Validation Issue**:
 A single problem found during verification (missing document, mismatched fields, a paper without the stamp or signature the profile expects of it, low confidence), always tied to the page and field it came from.

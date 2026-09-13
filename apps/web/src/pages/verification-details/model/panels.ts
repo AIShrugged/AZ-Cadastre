@@ -1,7 +1,7 @@
 /**
  * The folded panels of the case file, and which one holds a given anchor.
  *
- * The case page is a sheet of paper with its evidence filed under it: four
+ * The case page is a sheet of paper with its evidence filed under it: five
  * `<details>` panels, each saying what is inside before it is opened. Every jump
  * on that surface — a finding pointing at the reading behind it, a link arriving
  * from outside — goes through `panelForHash`, so the fold is opened before the
@@ -10,6 +10,7 @@
 
 export const PANEL = {
   attention: 'panel-attention',
+  provision: 'panel-provision',
   documents: 'panel-documents',
   checks: 'panel-checks',
   archive: 'panel-archive',
@@ -29,6 +30,7 @@ export type PanelId = (typeof PANEL)[keyof typeof PANEL];
  */
 export function panelForHash(hash: string): PanelId {
   if (hash.startsWith('#check-')) return PANEL.checks;
+  if (hash === '#provision') return PANEL.provision;
   if (hash.startsWith('#registry-') || hash.startsWith('#archive-')) {
     return PANEL.archive;
   }

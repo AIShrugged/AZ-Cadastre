@@ -54,9 +54,10 @@ import {
 import {
   attestationOf,
   gapsIn,
-  heightInMetres,
   looksLikeTheSameValue,
+  provisionOf,
   yearIn,
+  type CaseProvision,
   type DocumentAttestation,
   type DocumentGap,
   type ReadDocument,
@@ -67,6 +68,7 @@ import {
   CheckedValue,
   Confidence,
   DeclaredAtIntake,
+  DocumentType as DocumentTypeValue,
   FailureReason,
   PackageId,
   PackageStanding,
@@ -92,7 +94,6 @@ import {
   type RegistryCheckSpec,
   type SourceFileId,
   type SupplyTarget,
-  type SupportingDocumentsSpec,
   type VerificationProfile,
 } from '../value-objects/index.js';
 
@@ -285,7 +286,10 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
    * rules (COMM-80).
    */
   get gaps(): readonly DocumentGap[] {
-    return gapsIn(this.#profile, this.#documents.map(asRead));
+    return gapsIn(this.#profile, this.#documents.map(asRead), {
+      legalBasis: this.#declared.legalBasis?.value ?? null,
+      builtYear: this.#declared.builtYear,
+    });
   }
 
   get crossChecks(): readonly CrossCheck[] {
@@ -376,7 +380,9 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
    * would be asked about an address no sheet of the document it is filed
    * against prints.
    */
-  private valuesOf(reference: FieldRef): readonly CheckedValue[] {
+  private valuesOf(
+    reference: Pick<FieldRef, 'type' | 'key'>,
+  ): readonly CheckedValue[] {
     return this.documentsInForce.flatMap(document => {
       const classification = document.classification;
 
@@ -417,7 +423,9 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   // actually states. Shared by every rule that reads one figure off whichever
   // of several papers carries it, because the ordering is the profile's and the
   // walk is always the same.
-  private firstStated(references: readonly FieldRef[]): CheckedValue | null {
+  private firstStated(
+    references: readonly Pick<FieldRef, 'type' | 'key'>[],
+  ): CheckedValue | null {
     for (const reference of references) {
       const [value] = this.valuesOf(reference);
 
@@ -1144,8 +1152,10 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   // stop. Worked out from scratch every time, so a re-run cannot leave behind a
   // finding it has since answered.
   private compileReport(): void {
+    const provision = this.provision;
     const issues = [
-      ...this.missingDocuments(),
+      ...this.missingDocuments(provision),
+      ...this.againstTheProvision(provision),
       ...this.disagreements(),
       ...this.unreadable(),
       ...this.lowConfidence(),
@@ -1153,7 +1163,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       ...this.alsoInThePackage(),
       ...this.againstTheRecord(),
       ...this.againstTheDeclaration(),
-      ...this.supportingDocuments(),
+      ...this.unconfirmedOutside(provision),
       ...this.refusedSupplies(),
     ];
 
@@ -1161,16 +1171,200 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     this.apply(new ReportCompiled(this.id, this.#report.status, issues.length));
   }
 
-  private missingDocuments(): readonly ValidationIssue[] {
+  /*
+   * Which provision of Article 8 this package's case falls under, what that
+   * provision asks for and how the package answers it (ADR-0025).
+   *
+   * Worked out whenever it is asked for and never stored: the readings it is
+   * decided on are what the package holds, and the read side works the same
+   * answer out of the same rows. Null on a profile that declares no table of
+   * provisions.
+   */
+  get provision(): CaseProvision | null {
+    const provisions = this.#profile.provisions;
+
+    return provisions
+      ? provisionOf(
+          provisions,
+          this.#declared.builtYear,
+          this.#documents.map(asRead),
+        )
+      : null;
+  }
+
+  /*
+   * What the package is short of: a type the profile requires of every package,
+   * a title to the land, and a paper the case's provision asks for.
+   *
+   * A provision's own papers are asked for only once the provision is decided.
+   * Where it is not, which papers are owed is exactly what is unknown, and the
+   * report says so once rather than listing every candidate's papers as missing
+   * — a package would read as short of papers no provision of its case needs.
+   */
+  private missingDocuments(
+    provision: CaseProvision | null,
+  ): readonly ValidationIssue[] {
     const placed = this.documentsInForce.flatMap(document => {
       const classification = document.classification;
 
       return classification?.isPlaced ? [classification.type] : [];
     });
 
-    return this.#profile.requiredTypes
+    const required = this.#profile.requiredTypes
       .filter(required => !placed.some(type => type.equals(required)))
       .map(required => ValidationIssue.missingDocument(required));
+
+    const provisions = this.#profile.provisions;
+
+    if (!provision || !provisions) return required;
+
+    const decided =
+      provision.decision.outcome === 'Determined'
+        ? provision.decision.provision.provision
+        : null;
+    const titled = placed.some(type => provisions.isTitle(type));
+    const [standing] = provision.provisions;
+    const owed =
+      decided && standing
+        ? standing.requirements
+            .filter(
+              requirement =>
+                requirement.applies === true && !requirement.answered,
+            )
+            .map(requirement =>
+              ValidationIssue.missingForProvision(
+                decided,
+                requirement.anyOf.map(type => DocumentTypeValue.create(type)),
+              ),
+            )
+        : [];
+
+    return [
+      ...required,
+      ...(titled ? [] : [ValidationIssue.missingTitleDocument(decided)]),
+      ...owed,
+    ];
+  }
+
+  /*
+   * What the table of provisions has to say against the case: that which
+   * provision it falls under could not be decided, and that a title the package
+   * carries is dated outside the window it is a title in.
+   *
+   * The class of a title is not checked against the provision here, and on
+   * purpose: the right over the land is read off the class of the title the
+   * package carries, so a case decided under a provision always rests on a
+   * title of the class that provision takes. Two titles of different classes
+   * leave the right unstated and the provision undecided, which is said above.
+   */
+  private againstTheProvision(
+    provision: CaseProvision | null,
+  ): readonly ValidationIssue[] {
+    if (!provision) return [];
+
+    const decision = provision.decision;
+    const undecided =
+      decision.outcome === 'Ambiguous'
+        ? [
+            ValidationIssue.provisionAmbiguous(
+              decision.candidates.map(rule => rule.provision),
+              decision.undecidedOn,
+            ),
+          ]
+        : decision.outcome === 'Undetermined'
+          ? [
+              ValidationIssue.provisionNotCovered(
+                decision.evaluations.map(evaluation => ({
+                  provision: evaluation.rule.provision,
+                  by: evaluation.conditions
+                    .filter(condition => condition.holds === false)
+                    .map(condition => condition.parameter),
+                })),
+              ),
+            ]
+          : [];
+
+    const outOfWindow = provision.titleDocuments.flatMap(standing => {
+      if (standing.withinWindow !== false || !standing.dated) return [];
+
+      const document = this.documentsInForce.find(
+        one => one.id.value === standing.documentId,
+      );
+      const type = document?.classification?.type;
+
+      if (!document || !type) return [];
+
+      const dated = standing.dated;
+      const field = document.fieldsReadHere.find(
+        one => one.key.value === dated.fieldKey,
+      );
+
+      return [
+        ValidationIssue.titleDocumentOutOfWindow(
+          {
+            documentId: document.id,
+            sourceFileId: document.sourceFileId,
+            documentType: type,
+            fieldKey: field?.key ?? null,
+            pageNumber: field?.foundOn ?? null,
+            confidence: field?.confidence ?? null,
+          },
+          dated.value,
+          standing.items,
+        ),
+      ];
+    });
+
+    return [...undecided, ...outOfWindow];
+  }
+
+  /*
+   * The papers the policy confirms through a state system this one does not
+   * reach, so that a paper that was only read is never mistaken for one that
+   * was confirmed (ADR-0025).
+   *
+   * One per document in force whose type the profile sources from a system, and
+   * one per paper the case's provision takes from a system instead of from the
+   * package — the notification of a house built from 2026 — where no document
+   * of that type already said it. Never held against the package.
+   */
+  private unconfirmedOutside(
+    provision: CaseProvision | null,
+  ): readonly ValidationIssue[] {
+    const read = this.documentsInForce.flatMap(document => {
+      const classification = document.classification;
+
+      if (!classification?.isPlaced) return [];
+
+      const source = this.#profile.specFor(classification.type).source;
+
+      return source === 'Package'
+        ? []
+        : [
+            ValidationIssue.integrationNotConnected(
+              classification.type,
+              source,
+              { documentId: document.id, sourceFileId: document.sourceFileId },
+            ),
+          ];
+    });
+
+    const [standing] = provision?.provisions ?? [];
+    const decided = provision?.decision.outcome === 'Determined';
+    const takenElsewhere = (decided && standing ? standing.requirements : [])
+      .filter(requirement => requirement.applies === false)
+      .flatMap(requirement => requirement.anyOf)
+      .map(type => this.#profile.specFor(DocumentTypeValue.create(type)))
+      .filter(
+        spec =>
+          spec.source !== 'Package' &&
+          !read.some(issue => issue.documentType?.equals(spec.type)),
+      )
+      .map(spec =>
+        ValidationIssue.integrationNotConnected(spec.type, spec.source),
+      );
+
+    return [...read, ...takenElsewhere];
   }
 
   // What the papers of one submission were asked to agree on and did not. A
@@ -1208,35 +1402,6 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   }
 
   /*
-   * What the applicant must bring beyond the envelope, and which of the
-   * profile's sets this case needs.
-   *
-   * Stated on every report the profile declares a branch on, decided or not.
-   * That is the point of it: the message is about what happens next, not about
-   * what arrived, and a case whose height nobody could read still has papers to
-   * bring. Where the branch could not be decided the report says so and names
-   * every set, which is a different thing from a report that decided and is
-   * content — and the two must not read alike (ADR-0013).
-   *
-   * Never held against the package: the thresholds are read off the papers, not
-   * checked against them, and none of the papers named is in the envelope.
-   */
-  private supportingDocuments(): readonly ValidationIssue[] {
-    return this.#profile.supportingDocuments.map(spec => {
-      const stated = this.figuresFor(spec);
-      const band = spec.bandFor(stated.metres, stated.year);
-
-      return band
-        ? ValidationIssue.supportingDocuments(
-            band,
-            stated.decidedOn,
-            stated.yearFromDeclaration ? stated.year : null,
-          )
-        : ValidationIssue.supportingDocumentsUndecided(spec, stated);
-    });
-  }
-
-  /*
    * What the office declared when it took the submission in, against what the
    * papers turned out to say.
    *
@@ -1252,76 +1417,26 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
    */
   private againstTheDeclaration(): readonly ValidationIssue[] {
     const declaredYear = this.#declared.builtYear;
+    const provisions = this.#profile.provisions;
 
-    if (declaredYear === null) return [];
+    if (declaredYear === null || !provisions) return [];
 
-    // Two branches that read the year off the same field is one disagreement
-    // and not two: the finding is about a reading, and there is one reading.
-    const said = new Set<string>();
-
-    return this.#profile.supportingDocuments.flatMap(spec => {
-      const dated = this.firstStated(spec.builtIn);
-      const readYear = dated ? yearIn(dated.value.value) : null;
-
-      if (!dated || readYear === null || readYear === declaredYear) return [];
-
-      const at = `${dated.documentId.value}:${dated.fieldKey.value}`;
-
-      if (said.has(at)) return [];
-
-      said.add(at);
-
-      return [
-        ValidationIssue.declaredYearMismatch(declaredYear, readYear, dated),
-      ];
-    });
-  }
-
-  /*
-   * The two figures the branch turns on, each off the first paper of the
-   * profile's ordering that states it, and the readings they came from — kept
-   * so the message can be filed against a sheet the inspector can open.
-   *
-   * The year falls back to what the office declared at intake where no paper of
-   * this package states one, and only there: a figure printed on a paper is
-   * what the case actually rests on, and a declaration is what somebody said
-   * about it. Where both exist and disagree, the branch still reads the paper
-   * and the report says separately that the two do not match — the decision and
-   * the disagreement are two different things to tell an inspector, and folding
-   * them into one would leave a band chosen on a figure nobody stands behind.
-   *
-   * There is no such fallback for the height: nothing is declared about it at
-   * intake, which is why a case whose sketch design went unread is still a case
-   * whose band could not be decided.
-   */
-  private figuresFor(spec: SupportingDocumentsSpec): {
-    readonly metres: number | null;
-    readonly year: number | null;
-    readonly yearFromDeclaration: boolean;
-    readonly decidedOn: readonly CheckedValue[];
-  } {
-    const height = this.firstStated(spec.height);
-    const dated = this.firstStated(spec.builtIn);
-    const metres = height ? heightInMetres(height.value.value) : null;
+    /*
+     * The first paper that closes the construction, in the table's order —
+     * the one the provision would have been dated by had nothing been
+     * declared. The provision is decided on the declaration (ADR-0025), which
+     * is exactly why a paper that says otherwise has to be told: the decision
+     * rests on the counter, and the inspector is the one who can see which
+     * side is right.
+     */
+    const dated = this.firstStated(provisions.builtIn);
     const readYear = dated ? yearIn(dated.value.value) : null;
-    const year = readYear ?? this.#declared.builtYear;
 
-    // Only the readings a figure actually came out of. A field that was read
-    // and could not be understood as a height told the branch nothing, and
-    // anchoring the message to it would point the inspector at a value that
-    // decided none of this. A year taken off the declaration is not a reading
-    // at all and has no sheet to name.
-    const decidedOn = [
-      metres === null ? null : height,
-      readYear === null ? null : dated,
-    ].filter((value): value is CheckedValue => value !== null);
+    if (!dated || readYear === null || readYear === declaredYear) return [];
 
-    return {
-      metres,
-      year,
-      yearFromDeclaration: readYear === null && year !== null,
-      decidedOn,
-    };
+    return [
+      ValidationIssue.declaredYearMismatch(declaredYear, readYear, dated),
+    ];
   }
 
   private unreadable(): readonly ValidationIssue[] {
@@ -1659,7 +1774,9 @@ function asRead(document: Document): ReadDocument {
     classifiedAt: classification?.confidence.value ?? null,
     readings: document.fieldsReadHere.map(field => ({
       key: field.key.value,
+      value: field.value.value,
       confidence: field.confidence.value,
+      pageNumber: field.foundOn?.value ?? null,
     })),
     superseded: !document.isInForce,
   };

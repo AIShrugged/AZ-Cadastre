@@ -29,16 +29,16 @@ import {
   ImageIcon,
   MinusIcon,
   PlusIcon,
+  PrinterIcon,
   StampIcon,
   TriangleAlertIcon,
 } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import {
   attestationLines,
   documentIn,
-  documentsExpected,
   ENTRIES_SHOWN,
   entriesOf,
   fieldAnchor,
@@ -57,8 +57,9 @@ import {
   OutcomeMark,
   profileName,
   readReport,
+  readWellEnough,
   RegistryOutcomeMark,
-  REPORT_KEY,
+  requiredTypes,
   speaksAgainst,
   STAGES,
   STANDING_NOTE,
@@ -70,7 +71,9 @@ import {
   useGetProfilesQuery,
   type Disposition,
   type MarkStanding,
+  type ProfileDto,
   type SupportingSet,
+  type VerificationPackage,
 } from '@/entities/verification-package';
 import { ApproveArchiveSearch } from '@/features/approve-archive-search';
 import { DocumentGaps } from '@/features/supply-document';
@@ -81,19 +84,12 @@ import { cn } from '@/shared/lib/cn';
 import type { Jump } from '@/shared/lib/jump';
 import { Button } from '@/shared/ui/button';
 import { Skeleton } from '@/shared/ui/skeleton';
-import {
-  SurfaceBody,
-  SurfaceFooter,
-  SurfaceHeading,
-  SurfacePage,
-} from '@/shared/ui/surface';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
+import { SurfaceBody, SurfacePage } from '@/shared/ui/surface';
 import { CONFIDENCE_FLOOR } from '@cadastre/api-contracts/verification';
 import type {
   CheckedValueDto,
   CrossCheckDto,
   CrossCheckVerdict,
-  DeclaredAtIntakeDto,
   DocumentAttestationDto,
   DocumentDto,
   FieldDto,
@@ -101,13 +97,15 @@ import type {
   IssueDto,
   IssueKind,
   PackageDetailDto,
-  PackageStanding,
   RegistryAttributeDto,
   RegistryCheckDto,
   RegistryDocumentDto,
   ReportDto,
   SourceFileDto,
+  StatedValueDto,
 } from '@cadastre/api-contracts/verification';
+
+import { PANEL, panelForHash, type PanelId } from '../model/panels';
 
 type Translate = (
   key: string,
@@ -115,17 +113,22 @@ type Translate = (
 ) => string;
 
 type StageStatus = 'done' | 'current' | 'pending' | 'error';
-type WorkspaceView = 'review' | 'checks' | 'archive' | 'documents';
 
-function workspaceFromHash(hash: string): WorkspaceView {
-  if (hash.startsWith('#check-')) return 'checks';
-  if (hash.startsWith('#registry-') || hash.startsWith('#archive-')) {
-    return 'archive';
-  }
-  if (hash.startsWith('#doc-') || hash.startsWith('#field-'))
-    return 'documents';
-  return 'review';
-}
+/**
+ * Which folds the reader has opened or shut by hand, over the ones this page
+ * would open by itself.
+ *
+ * A partial record and not a full one, because the defaults are not known when
+ * the state is created: whether the attention fold opens depends on how many
+ * findings the report holds, and the package has not arrived at first render.
+ * So a fold is drawn by its default until somebody — the reader, or a jump —
+ * says otherwise, and only then does an entry appear here.
+ *
+ * It has to be React state at all because `<details open={…}>` is controlled:
+ * this page polls while a run is under way, and a fold opened by writing to the
+ * DOM node would be shut again by the next render a poll caused.
+ */
+type PanelOverrides = Partial<Record<PanelId, boolean>>;
 
 // ─── Pipeline, read down the rail ─────────────────────────────────────────────
 // Vertical, because the nine stage names are long in all three languages and a
@@ -1575,203 +1578,6 @@ function FileGroup({
   );
 }
 
-// ─── Where the submission stands ──────────────────────────────────────────────
-// The one state on this surface written for a person, and the first thing the
-// rail says: what has to happen to this package next, as the context worked it
-// out (ADR-0014). It is read off the contract and never derived here — two
-// clients deriving it differently is the reason it is in the contract at all.
-//
-// The other two states a reader would call a status stay off the screen.
-// `PackageStatus` is where the pipeline got to and `ReportStatus` is what the
-// run found; "Completed" over seven findings reads as a verdict this system
-// never makes.
-//
-// The name alone leaves the move to be inferred, so the sentence under it says
-// what has to happen — and where that move is "add the paper that never
-// arrived", the action to make it is right there.
-function Standing({
-  standing,
-  onAddFiles,
-  onApprove,
-}: {
-  standing: PackageStanding;
-  /** Null while a run is under way: the package takes no files then, and the
-   *  panel that would open says so in its own words. */
-  onAddFiles: (() => void) | null;
-  /** Null unless a signature is the thing outstanding. The panel it opens is
-   *  three scrolls down a tab the reader is not on, and a standing that names
-   *  the move without offering it makes them go and find it. */
-  onApprove: (() => void) | null;
-}) {
-  const { t } = useI18n();
-  return (
-    <section>
-      <h2 className='register-label'>{t('detail.standing')}</h2>
-      <div className='mt-3'>
-        <StandingMark standing={standing} />
-      </div>
-      <p className='mt-2 max-w-[40ch] text-[0.8125rem] leading-snug text-muted-foreground'>
-        {t(STANDING_NOTE[standing])}
-      </p>
-      {(onApprove || onAddFiles) && (
-        <div className='mt-3.5 flex flex-wrap gap-2'>
-          {/* The outstanding move first, whichever it is. */}
-          {onApprove && (
-            <Button size='sm' onClick={onApprove}>
-              <StampIcon /> {t('approve.action')}
-            </Button>
-          )}
-          {onAddFiles && (
-            <Button variant='outline' size='sm' onClick={onAddFiles}>
-              <PlusIcon /> {t('add.action')}
-            </Button>
-          )}
-        </div>
-      )}
-    </section>
-  );
-}
-
-// ─── What the office declared at the counter ──────────────────────────────────
-// Beside what was read and never among it. A reading carries a confidence
-// because something read can be read badly; a declaration carries none, because
-// somebody typed it — and the moment the two are drawn in one list, a figure
-// nobody checked reads as a figure the engine found. So this states what was
-// declared, says where it came from, and stops there: there is no operation in
-// the contract for editing a reading, and nothing here is one (ADR-0021).
-//
-// Drawn whether or not anything was declared. "The office declared nothing" is
-// what a reader needs when a report is silent about a disagreement — and it is
-// what every package taken in before intake asked says.
-function DeclaredAtIntake({ declared }: { declared: DeclaredAtIntakeDto }) {
-  const { t } = useI18n();
-
-  const lines: {
-    key: string;
-    label: string;
-    value: string | null;
-    // A figure is set in the register's mono face like every other figure on
-    // this page; the name of a paper is a name and reads as prose.
-    figure: boolean;
-  }[] = [
-    {
-      key: 'legalBasis',
-      label: t('declared.basis'),
-      value:
-        declared.legalBasis === null
-          ? null
-          : groundName(t, declared.legalBasis),
-      figure: false,
-    },
-    {
-      key: 'builtYear',
-      label: t('declared.year'),
-      value: declared.builtYear === null ? null : String(declared.builtYear),
-      figure: true,
-    },
-  ];
-
-  return (
-    <section>
-      <h2 className='register-label'>{t('declared.title')}</h2>
-      <p className='mt-2 max-w-[40ch] text-[0.75rem] leading-snug text-muted-foreground'>
-        {t('detail.declared_note')}
-      </p>
-      <dl className='mt-3 flex flex-col gap-2.5'>
-        {lines.map(line => (
-          <div key={line.key} className='flex min-w-0 flex-col gap-0.5'>
-            <dt className='register-label text-muted-foreground'>
-              {line.label}
-            </dt>
-            <dd className='text-[0.8125rem] break-words text-foreground'>
-              {line.value === null ? (
-                <span className='text-muted-foreground/70'>
-                  {t('declared.not_declared')}
-                </span>
-              ) : (
-                <span data-mono={line.figure ? '' : undefined}>
-                  {line.value}
-                </span>
-              )}
-            </dd>
-          </div>
-        ))}
-      </dl>
-    </section>
-  );
-}
-
-// ─── Required documents ───────────────────────────────────────────────────────
-// What the governing profile insists on, against what the engine actually found.
-// It reports a shortfall; it never refuses the package — the inspector decides,
-// and a document the classifier could not place may still be the missing one.
-//
-// The shortfall is the server's own, read off `gaps` (COMM-80). It used to be
-// worked out here, from the profile against every document on the page, and that
-// was the engine's rule written a second time — which since replacement exists is
-// also wrong: a scan pushed out of force keeps its type, so a package whose
-// replacement failed to classify read as complete.
-function RequiredDocuments({
-  missing,
-  total,
-  settled,
-}: {
-  missing: readonly string[];
-  total: number;
-  settled: boolean;
-}) {
-  const { t } = useI18n();
-
-  return (
-    <section>
-      <div className='flex items-baseline justify-between gap-3'>
-        <h2 className='register-label'>{t('detail.required')}</h2>
-        {/* Found against asked-for, so the rail's first line answers the
-            completeness question outright rather than only naming the gap. */}
-        {settled && total > 0 && (
-          <span
-            data-mono
-            className={cn(
-              'shrink-0 text-[0.6875rem] tabular-nums',
-              missing.length > 0
-                ? 'text-incomplete-ink'
-                : 'text-muted-foreground',
-            )}
-          >
-            {t('detail.required_found', { n: total - missing.length, total })}
-          </span>
-        )}
-      </div>
-
-      {!settled ? (
-        <p className='mt-3 text-[0.8125rem] leading-snug text-muted-foreground'>
-          {t('detail.required_pending')}
-        </p>
-      ) : missing.length === 0 ? (
-        <div className='mt-3'>
-          <StatusLine
-            tone='ok'
-            icon={<CheckIcon className='size-3' strokeWidth={3} />}
-            label={t('detail.required_all')}
-          />
-        </div>
-      ) : (
-        <ul className='mt-3 flex flex-col gap-2'>
-          {missing.map(type => (
-            <li key={type}>
-              <StatusLine
-                tone='fail'
-                icon={<TriangleAlertIcon className='size-3' />}
-                label={translateOr(t, `doctype.${type}`, type)}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
 // ─── The report ───────────────────────────────────────────────────────────────
 // The last thing every run produces, and the only thing the operator is
 // promised: a run is never stopped by a document it could not read, so whatever
@@ -3072,9 +2878,444 @@ function RegistryChecks({
   );
 }
 
+// ─── The case sheet ───────────────────────────────────────────────────────────
+// The package as a sheet of paper: the office's letterhead, the case number and
+// the date it was taken in, what the papers say about the property, and the two
+// numbered sections an inspector reads down — how far the run got, and what the
+// profile asks for against what arrived.
+//
+// It is a sheet and not a dashboard because that is what it is for. An
+// inspector works this case at a desk, prints it, and puts it in a file; the
+// evidence behind every line of it is in the panels below, and this is the page
+// that gets signed. Everything on it is read off the contract — nothing here is
+// worked out on the screen.
+//
+// **It states and never decides.** There is no verdict on this sheet and no
+// place to record one: the inspector decides, outside this system, and a sheet
+// that offered Approve / Refuse would be this product claiming a judgement it
+// has never made.
+
+/** One line of the requisites table: what the papers were read to say. */
+function Requisite({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <tr className='border-b border-rule last:border-0'>
+      <th
+        scope='row'
+        className='register-label w-[13rem] py-2.5 pr-4 text-left align-top font-normal'
+      >
+        {label}
+      </th>
+      <td className='py-2.5 align-top text-[0.875rem] text-foreground'>
+        {children}
+      </td>
+    </tr>
+  );
+}
+
+/**
+ * A value the engine read off the papers, as the sheet says it: the reading,
+ * and — only where the engine was unsure — the figure it was read with.
+ *
+ * The same rule the register's rows are drawn by. A sure confidence is a number
+ * nobody reads; an unsure one is the whole reason a reading is shown on a sheet
+ * somebody might cite from.
+ */
+function SheetValue({ value }: { value: StatedValueDto | null }) {
+  const { t } = useI18n();
+  if (value === null) {
+    return <span className='text-muted-foreground/60'>—</span>;
+  }
+  const percent = Math.round(value.confidence * 100);
+  return (
+    <span className='flex min-w-0 flex-wrap items-baseline gap-x-2'>
+      <span>{value.value}</span>
+      {!readWellEnough(value.confidence) && (
+        <span
+          data-mono
+          title={t('intake.read.glance', { p: percent })}
+          className='shrink-0 text-[0.6875rem] text-incomplete-ink'
+        >
+          {percent}%
+        </span>
+      )}
+    </span>
+  );
+}
+
+/**
+ * A value somebody typed at the counter. Never drawn with a confidence — a
+ * declaration carries none, and the moment it is shown among readings a figure
+ * nobody checked reads as one the engine found (ADR-0021).
+ *
+ * "Not declared" is drawn rather than left blank. A report that is silent about
+ * a disagreement reads differently depending on whether the office declared
+ * anything at all, and every package taken in before intake asked says this.
+ */
+function DeclaredValue({
+  value,
+  // A figure is set in the register's mono face like every other figure on this
+  // page; the name of a paper is a name and reads as prose.
+  figure = false,
+}: {
+  value: string | null;
+  figure?: boolean;
+}) {
+  const { t } = useI18n();
+  if (value === null) {
+    return (
+      <span className='text-muted-foreground/70'>
+        {t('declared.not_declared')}
+      </span>
+    );
+  }
+  return <span data-mono={figure ? '' : undefined}>{value}</span>;
+}
+
+function CaseSheet({
+  pkg,
+  view,
+  profile,
+  stages,
+  running,
+  failed,
+  stageRunning,
+  missing,
+  required,
+  settled,
+  onAddFiles,
+  onApprove,
+  onJump,
+}: {
+  pkg: PackageDetailDto;
+  view: VerificationPackage;
+  /** Null while the profiles are still loading, and null is what the sheet
+   *  wants: it lists no required documents rather than listing the wrong ones. */
+  profile: ProfileDto | null;
+  stages: StageStatus[];
+  running: boolean;
+  failed: boolean;
+  stageRunning: boolean;
+  missing: readonly string[];
+  required: readonly string[];
+  settled: boolean;
+  onAddFiles: (() => void) | null;
+  onApprove: (() => void) | null;
+  onJump: Jump;
+}) {
+  const { t, locale } = useI18n();
+  const shortfall = new Set(missing);
+
+  return (
+    <article className='overflow-hidden rounded-xl border border-rule bg-card shadow-[var(--shadow-sm)] print:border-0 print:shadow-none'>
+      <div className='px-5 py-6 md:px-9 md:py-8'>
+        {/* ── Letterhead ──
+            The office the sheet comes from, before the case it is about. Three
+            lines and not one: the service, the legal entity that keeps the
+            register, and the territorial department that took this package in. */}
+        <header>
+          <p className='flex flex-col gap-0.5 text-[0.6875rem] leading-snug tracking-[0.06em] text-muted-foreground uppercase'>
+            <strong className='font-semibold text-foreground/80'>
+              {t('sheet.institution')}
+            </strong>
+            <span>{t('sheet.entity')}</span>
+            <span>{t('sheet.unit')}</span>
+          </p>
+
+          {/* The ruled band that separates the letterhead from the case — the
+              mockup's двойная линейка, drawn from the rule tokens so it holds
+              in both themes. */}
+          <div aria-hidden className='mt-4 flex flex-col gap-[2px]'>
+            <span className='block h-px bg-rule-strong' />
+            <span className='block h-px bg-rule' />
+          </div>
+
+          <div className='mt-4 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1'>
+            <p className='text-[0.8125rem] text-muted-foreground'>
+              {t('sheet.case_no')}{' '}
+              <span data-mono className='text-foreground'>
+                {pkg.id}
+              </span>
+            </p>
+            <p className='text-[0.8125rem] text-muted-foreground'>
+              {t('sheet.taken_in', { d: formatDate(pkg.createdAt, locale) })}
+            </p>
+          </div>
+
+          <h1 className='mt-2.5 text-balance text-[1.375rem] font-semibold leading-tight tracking-[-0.02em] text-foreground'>
+            {profileName(t, view.profile)}
+          </h1>
+          <p className='mt-1 text-[0.875rem] italic text-muted-foreground'>
+            {t('sheet.subject')}
+          </p>
+        </header>
+
+        {/* ── Where it stands ──
+            The one line on this sheet written for a person, read off the
+            contract and never derived here (ADR-0014). The move it names is
+            offered beside it, because a standing that says what has to happen
+            and makes the reader go and find it is half a sentence. */}
+        <section className='mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-rule bg-secondary/60 px-4 py-3'>
+          <span className='register-label shrink-0'>
+            {t('sheet.situation')}
+          </span>
+          <StandingMark standing={pkg.standing} />
+          <span className='ml-auto shrink-0 text-[0.75rem] text-muted-foreground'>
+            {t('updated.ago', {
+              t: relativeShort(pkg.updatedAt, Date.now()),
+            })}
+          </span>
+        </section>
+        <p className='mt-2 max-w-[70ch] text-[0.8125rem] leading-snug text-muted-foreground'>
+          {t(STANDING_NOTE[pkg.standing])}
+        </p>
+
+        {/* ── Requisites ──
+            What the papers were read to say, over what the counter typed. The
+            two are kept apart and labelled apart: a reading can be read badly
+            and carries the figure it was read with, and a declaration cannot
+            and does not (ADR-0021). */}
+        <p className='mt-6 register-label'>{t('sheet.read_off')}</p>
+        <table className='mt-1 w-full border-collapse'>
+          <tbody>
+            <Requisite label={t('sheet.applicant')}>
+              <SheetValue value={view.applicant} />
+            </Requisite>
+            <Requisite label={t('sheet.address')}>
+              <SheetValue value={view.address} />
+            </Requisite>
+            <Requisite label={t('sheet.cadastral')}>
+              <SheetValue value={pkg.cadastralNumber} />
+            </Requisite>
+          </tbody>
+        </table>
+
+        <p className='mt-5 register-label'>{t('declared.title')}</p>
+        <p className='mt-1 max-w-[70ch] text-[0.75rem] leading-snug text-muted-foreground'>
+          {t('detail.declared_note')}
+        </p>
+        <table className='mt-1.5 w-full border-collapse'>
+          <tbody>
+            <Requisite label={t('declared.basis')}>
+              <DeclaredValue
+                value={
+                  pkg.declared.legalBasis === null
+                    ? null
+                    : groundName(t, pkg.declared.legalBasis)
+                }
+              />
+            </Requisite>
+            <Requisite label={t('declared.year')}>
+              <DeclaredValue
+                figure
+                value={
+                  pkg.declared.builtYear === null
+                    ? null
+                    : String(pkg.declared.builtYear)
+                }
+              />
+            </Requisite>
+          </tbody>
+        </table>
+
+        {/* ── I. Processing stages ── */}
+        <section className='mt-7'>
+          <h2 className='flex items-baseline gap-3 border-b border-rule-strong pb-1.5 text-[0.8125rem] font-semibold tracking-[0.04em] text-foreground uppercase'>
+            <span>{t('sheet.section.stages')}</span>
+          </h2>
+          <div className='mt-4'>
+            <RunProgress
+              stages={stages}
+              running={running}
+              failed={failed}
+              stageRunning={stageRunning}
+            />
+          </div>
+        </section>
+
+        {/* ── II. Documents ──
+            Every paper the profile insists on, in the profile's own order, each
+            said to be in the package or not — the mockup's numbered list. It
+            reports a shortfall and never refuses the package: a document the
+            classifier could not place may still be the missing one, and the
+            inspector decides. */}
+        <section className='mt-7'>
+          <h2 className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule-strong pb-1.5 text-[0.8125rem] font-semibold tracking-[0.04em] text-foreground uppercase'>
+            <span>{t('sheet.section.documents')}</span>
+            {settled && required.length > 0 && (
+              <span
+                data-mono
+                className={cn(
+                  'text-[0.6875rem] font-normal tracking-normal normal-case tabular-nums',
+                  missing.length > 0
+                    ? 'text-incomplete-ink'
+                    : 'text-muted-foreground',
+                )}
+              >
+                {t('detail.required_found', {
+                  n: required.length - missing.length,
+                  total: required.length,
+                })}
+              </span>
+            )}
+          </h2>
+
+          {profile === null || required.length === 0 ? (
+            <p className='mt-4 text-[0.8125rem] leading-snug text-muted-foreground'>
+              {t('sheet.documents.unknown')}
+            </p>
+          ) : !settled ? (
+            <p className='mt-4 text-[0.8125rem] leading-snug text-muted-foreground'>
+              {t('detail.required_pending')}
+            </p>
+          ) : (
+            <ol className='mt-2'>
+              {required.map(type => {
+                const short = shortfall.has(type);
+                return (
+                  <li
+                    key={type}
+                    className='flex flex-wrap items-baseline gap-x-4 gap-y-0.5 border-b border-rule py-2.5 last:border-0'
+                  >
+                    {/* The word and not the colour carries it — the rule every
+                        disposition on this surface is drawn by. */}
+                    <span
+                      className={cn(
+                        'w-[6.5rem] shrink-0 text-[0.6875rem] font-semibold tracking-[0.08em] uppercase',
+                        short ? 'text-incomplete-ink' : 'text-ok-ink',
+                      )}
+                    >
+                      {t(short ? 'sheet.doc.missing' : 'sheet.doc.present')}
+                    </span>
+                    <span className='min-w-0 flex-1 text-[0.875rem] text-foreground'>
+                      {translateOr(t, `doctype.${type}`, type)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+
+          {/* What the applicant still has to bring, where the profile branches
+              — stated on the sheet because it outlives the review. */}
+          {pkg.report && (
+            <SupportingDocuments
+              report={pkg.report}
+              pkg={pkg}
+              onJump={onJump}
+            />
+          )}
+        </section>
+
+        {/* ── What can be done about it ──
+            The moves this system actually offers, and no others. There is no
+            Approve and no Refuse: the decision is the inspector's and is taken
+            off this screen. */}
+        <div className='mt-7 flex flex-wrap gap-2 print:hidden'>
+          {onApprove && (
+            <Button onClick={onApprove}>
+              <StampIcon /> {t('approve.action')}
+            </Button>
+          )}
+          {onAddFiles && (
+            <Button variant='outline' onClick={onAddFiles}>
+              <PlusIcon /> {t('add.action')}
+            </Button>
+          )}
+          <Button variant='outline' onClick={() => window.print()}>
+            <PrinterIcon /> {t('sheet.print')}
+          </Button>
+        </div>
+      </div>
+
+      <footer className='flex flex-wrap items-center justify-between gap-x-6 gap-y-1 border-t border-rule bg-secondary/40 px-5 py-3 text-[0.75rem] text-muted-foreground md:px-9'>
+        <span>{t('sheet.foot')}</span>
+        <span data-mono>{t('sheet.foot_mark')}</span>
+      </footer>
+    </article>
+  );
+}
+
+// ─── One folded stage ─────────────────────────────────────────────────────────
+// The evidence behind the sheet, in the order the run produced it, each behind
+// a fold that says what is inside before it is opened. A summary line on the
+// fold is what makes the stack readable shut: an inspector who only wants to
+// know how the archive answered should not have to open the archive to find out.
+function StagePanel({
+  id,
+  title,
+  summary,
+  open,
+  onOpenChange,
+  children,
+}: {
+  id: string;
+  title: string;
+  /** What the panel says while it is closed. */
+  summary?: ReactNode;
+  open: boolean;
+  /** The reader folding it by hand. Kept above this component so a jump can
+   *  open a fold the reader is not looking at without it being shut again by
+   *  the next render the poll causes. */
+  onOpenChange: (open: boolean) => void;
+  children: ReactNode;
+}) {
+  return (
+    <section
+      id={id}
+      className='group scroll-mt-16 overflow-hidden rounded-xl border border-rule bg-card shadow-[var(--shadow-xs)] print:hidden'
+    >
+      <h2>
+        <button
+          type='button'
+          aria-expanded={open}
+          aria-controls={`${id}-body`}
+          onClick={() => onOpenChange(!open)}
+          className='flex w-full cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 px-5 py-3.5 text-left transition-colors hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 md:px-6'
+        >
+          <ChevronRightIcon
+            aria-hidden
+            className={cn(
+              'size-3.5 shrink-0 text-muted-foreground transition-transform duration-200',
+              open && 'rotate-90',
+            )}
+          />
+          <span className='text-[0.9375rem] font-semibold tracking-[-0.01em] text-foreground'>
+            {title}
+          </span>
+          {summary !== undefined && (
+            <span className='ml-auto shrink-0 text-[0.8125rem] font-normal text-muted-foreground'>
+              {summary}
+            </span>
+          )}
+        </button>
+      </h2>
+      {/* A button and a region rather than `<details>`. React does not
+          reconcile `open` on a `<details>` after it has mounted, so a fold this
+          page opens for an arriving link — or for a finding pointing into it —
+          stayed shut while the state beside it said otherwise. A disclosure
+          built out of `aria-expanded` and a region is controlled all the way
+          down, and says the same thing to a screen reader. */}
+      {open && (
+        <div
+          id={`${id}-body`}
+          className='border-t border-rule px-5 py-6 md:px-6'
+        >
+          {children}
+        </div>
+      )}
+    </section>
+  );
+}
+
 // ─── Page ──────────────────────────────────────────────────────────────────────
 export function VerificationDetails() {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const navigate = useNavigate();
   const { id } = useParams();
 
@@ -3085,8 +3326,17 @@ export function VerificationDetails() {
   // actually found rather than being frozen at first render — the package is
   // still being verified while this page is open.
   const [pickedSegment, setPickedSegment] = useState<DocSegment | null>(null);
-  const [activeView, setActiveView] = useState<WorkspaceView>(() =>
-    workspaceFromHash(window.location.hash),
+  // Which folds have been opened or shut against their default — see
+  // `PanelOverrides`.
+  const [panels, setPanels] = useState<PanelOverrides>({});
+  const foldPanel = useCallback(
+    (panel: PanelId, open: boolean) =>
+      setPanels(current => ({ ...current, [panel]: open })),
+    [],
+  );
+  const revealPanel = useCallback(
+    (panel: PanelId) => foldPanel(panel, true),
+    [foldPanel],
   );
   const {
     data: pkg,
@@ -3102,21 +3352,40 @@ export function VerificationDetails() {
   const shouldPoll = pkg?.status === 'Pending' || pkg?.status === 'Processing';
   if (shouldPoll !== polling) setPolling(shouldPoll);
 
+  // A link from outside — a bookmark, a message, the browser's own history —
+  // arrives with a fragment and no click to open the fold it points into, and
+  // would otherwise land on a shut panel. Waits for the package, because until
+  // it has arrived the panels are not in the document to be opened.
+  const arrived = pkg !== undefined;
+  useEffect(() => {
+    if (!arrived) return;
+    const { hash } = window.location;
+    if (hash === '') return;
+    revealPanel(panelForHash(hash));
+    // The fold has to be laid out open before the browser can find what it
+    // points at, and opening it is a state change — so the scroll waits for the
+    // render that change causes rather than for the current one.
+    requestAnimationFrame(() => {
+      document.getElementById(hash.slice(1))?.scrollIntoView();
+    });
+  }, [arrived, revealPanel]);
+
   if (isLoading) {
     return (
       <SurfacePage>
-        <SurfaceHeading title={t('col.status')} />
         <SurfaceBody>
-          <div className='mx-auto grid w-full max-w-[88rem] gap-x-10 gap-y-8 px-4 py-7 md:px-8 md:py-9 xl:grid-cols-[minmax(0,1fr)_18rem]'>
-            <div className='flex flex-col gap-4 xl:col-start-1 xl:row-start-1'>
-              <Skeleton className='h-6 w-56' />
-              <Skeleton className='h-40 w-full' />
-              <Skeleton className='h-40 w-full' />
-            </div>
-            <div className='flex flex-col gap-4 xl:col-start-2 xl:row-start-1'>
-              <Skeleton className='h-48 w-full' />
-              <Skeleton className='h-16 w-full' />
-            </div>
+          <div
+            aria-busy='true'
+            aria-live='polite'
+            className='mx-auto flex w-full max-w-[64rem] flex-col gap-4 px-4 py-6 md:px-8 md:py-8'
+          >
+            {/* The shape of what is coming: the sheet, then the folds under it.
+                A skeleton laid out differently from what replaces it is a page
+                that jumps the moment the answer lands. */}
+            <Skeleton className='h-[28rem] w-full rounded-xl' />
+            <Skeleton className='h-12 w-full rounded-xl' />
+            <Skeleton className='h-12 w-full rounded-xl' />
+            <Skeleton className='h-12 w-full rounded-xl' />
           </div>
         </SurfaceBody>
       </SurfacePage>
@@ -3126,12 +3395,14 @@ export function VerificationDetails() {
   if (isError || !pkg) {
     return (
       <SurfacePage>
-        <SurfaceHeading
-          title={t('detail.notfound.title')}
-          subtitle={t('detail.notfound.body')}
-        />
         <SurfaceBody>
-          <div className='px-4 py-8 md:px-6'>
+          <div className='mx-auto flex w-full max-w-[64rem] flex-col items-start gap-4 px-4 py-10 md:px-8'>
+            <h1 className='text-[1.375rem] font-semibold leading-tight tracking-[-0.02em] text-foreground'>
+              {t('detail.notfound.title')}
+            </h1>
+            <p className='max-w-[60ch] text-[0.875rem] leading-relaxed text-muted-foreground'>
+              {t('detail.notfound.body')}
+            </p>
             <Button variant='outline' onClick={() => navigate(paths.cases)}>
               <ArrowLeftIcon /> {t('detail.back')}
             </Button>
@@ -3150,12 +3421,20 @@ export function VerificationDetails() {
   // Only once classification has been through every document is a type's
   // absence a finding rather than a stage that has not run yet.
   const classified = stages[2] === 'done' || stages[2] === 'error';
-  // Null while the profiles are still loading, and null is what the rail wants:
-  // it declines to state a total rather than state a wrong one.
-  const expected = documentsExpected(profiles ?? [], view.profile);
-  // The server's answer, not one worked out here: the same list the «Загрузить»
-  // buttons are drawn from, so the rail and the panel can never disagree about
-  // what the package is short of (COMM-80).
+  // Null while the profiles are still loading, and null is what the sheet
+  // wants: it lists no required documents rather than listing the wrong ones.
+  const profile =
+    profiles?.find(candidate => candidate.key === view.profile) ?? null;
+  // Every paper the profile insists on, in the profile's own order. The sheet
+  // names each one and says whether it arrived, so it needs the list itself and
+  // not just the count — the profile is the only thing that holds that order.
+  const required = profile ? requiredTypes(profile) : [];
+  // Which of them the package is short of is the **server's** answer and never
+  // one worked out here: the same list the «Загрузить» buttons are drawn from,
+  // so the sheet and the gaps panel can never disagree about what is missing
+  // (COMM-80). It is also the only correct one now that a scan can be replaced
+  // — a spent scan keeps its type, so a package whose replacement failed to
+  // classify would read as complete if this were derived from the documents.
   const missing = missingTypes(pkg.gaps);
 
   const counts = {
@@ -3169,25 +3448,12 @@ export function VerificationDetails() {
           countsAgainstPackage(issue.kind) && !isArchiveFinding(issue.kind),
       ).length
     : counts.review;
-  const workspaceTabs: {
-    view: WorkspaceView;
-    label: string;
-    count: number;
-  }[] = [
-    { view: 'review', label: t('detail.attention'), count: reviewCount },
-    {
-      view: 'checks',
-      label: t('detail.checks'),
-      count: pkg.crossChecks.filter(check => check.verdict !== 'Match').length,
-    },
-    {
-      view: 'archive',
-      label: t('detail.archive_comparison'),
-      count: pkg.registryChecks.filter(check => check.outcome !== 'Confirmed')
-        .length,
-    },
-    { view: 'documents', label: t('detail.documents'), count: counts.all },
-  ];
+  const unmatchedChecks = pkg.crossChecks.filter(
+    check => check.verdict !== 'Match',
+  ).length;
+  const unconfirmedRegistry = pkg.registryChecks.filter(
+    check => check.outcome !== 'Confirmed',
+  ).length;
   // Open on the work when there is work: a package this size is mostly settled,
   // and the segment that shows only what wants a second look is the one the
   // inspector would pick anyway. With nothing flagged there is nothing to
@@ -3200,16 +3466,16 @@ export function VerificationDetails() {
   // refused.
   const accepting = takesFiles(pkg.status);
 
-  // The rail's shortcut into the panel. The tab has to be mounted before the
-  // fragment is applied, or the jump lands in content that is not there — the
-  // same order the finding jumps below take.
+  // The sheet's shortcut into the panel that takes files. The fold has to be
+  // open before the fragment is applied, or the jump lands in content that is
+  // not laid out yet — the same order the finding jumps below take.
   //
   // It lands on the gaps where the package publishes any, because that is where
   // the move is: a row naming the paper, with the button that answers it. Only a
   // package the server will take nothing targeted for drops to the batch panel.
   const goToAddFiles = () => {
     const anchor = pkg.gaps.length > 0 ? '#document-gaps' : '#add-files';
-    setActiveView('documents');
+    revealPanel(PANEL.documents);
     requestAnimationFrame(() => {
       window.location.hash = anchor;
     });
@@ -3221,7 +3487,7 @@ export function VerificationDetails() {
   const goToApproval =
     pkg.standing === 'AwaitingArchiveApproval'
       ? () => {
-          setActiveView('archive');
+          revealPanel(PANEL.archive);
           requestAnimationFrame(() => {
             window.location.hash = '#archive-approval';
           });
@@ -3229,16 +3495,16 @@ export function VerificationDetails() {
       : null;
 
   // A finding always takes the inspector to its evidence, even when the
-  // evidence lives in another workspace view. The panel changes before the
-  // fragment is applied, so a link never lands in content that is not mounted.
+  // evidence is filed under a fold they have not opened. The fold is opened and
+  // the document's segment selected before the fragment is applied, so a link
+  // never lands in content that is not there.
   const jump: Jump = (docId, anchor) => event => {
-    const destination = workspaceFromHash(anchor);
+    const destination = panelForHash(anchor);
     const doc = documents.find(candidate => candidate.id === docId);
     const needsSegment = doc ? !isOpenIn(doc, segment) : false;
-    if (activeView === destination && !needsSegment) return;
     event.preventDefault();
-    setActiveView(destination);
-    if (doc) {
+    revealPanel(destination);
+    if (doc && needsSegment) {
       setPickedSegment(
         isAside(doc) ? 'other' : needsReview(doc) ? 'review' : 'all',
       );
@@ -3250,244 +3516,200 @@ export function VerificationDetails() {
 
   return (
     <SurfacePage>
-      {/* Named by what is being verified, not by the uuid the database issued.
-          The id is what the package is called between machines, so it keeps its
-          place — in the subtitle, in full and in mono, where it can be read off
-          and quoted back. */}
-      <SurfaceHeading
-        title={profileName(t, view.profile)}
-        badge={<StandingMark standing={pkg.standing} />}
-        subtitle={
-          <>
-            <span data-mono className='text-foreground/75'>
-              {pkg.id}
-            </span>
-            {' · '}
-            {formatDate(pkg.createdAt, locale)}
-          </>
-        }
-      />
-
       <SurfaceBody className='motion-safe:scroll-smooth'>
-        <div className='mx-auto grid w-full max-w-[88rem] gap-x-10 gap-y-7 px-4 py-7 md:px-8 md:py-9 xl:grid-cols-[minmax(0,1fr)_18rem]'>
-          <main className='min-w-0 xl:col-start-1 xl:row-start-1'>
-            <Tabs
-              value={activeView}
-              onValueChange={value => setActiveView(value as WorkspaceView)}
-            >
-              <div className='pb-5'>
-                <div className='flex flex-wrap items-baseline justify-between gap-x-5 gap-y-1'>
-                  <h2 className='text-xl font-[560] tracking-[-0.02em] text-foreground'>
-                    {pkg.report
-                      ? t('detail.review_focus')
-                      : t('detail.review_preparing')}
-                  </h2>
-                  {pkg.report && (
-                    <span className='text-[0.8125rem] text-muted-foreground'>
-                      {t(REPORT_KEY[pkg.report.status])}
-                    </span>
-                  )}
+        <div className='mx-auto flex w-full max-w-[64rem] flex-col gap-4 px-4 py-6 md:px-8 md:py-8'>
+          {/* Back to the register, on the sheet's own page rather than in the
+              chrome — this surface is a document, and the way out of a document
+              is a line at the top of it. */}
+          <Button
+            variant='ghost'
+            size='sm'
+            nativeButton={false}
+            className='-ml-2 self-start text-muted-foreground print:hidden'
+            render={<Link to={paths.cases} />}
+          >
+            <ArrowLeftIcon /> {t('detail.back')}
+          </Button>
+
+          {/* ── The sheet ── */}
+          <CaseSheet
+            pkg={pkg}
+            view={view}
+            profile={profile}
+            stages={stages}
+            running={running}
+            failed={failed}
+            stageRunning={stageRunning}
+            missing={missing}
+            required={required}
+            settled={classified}
+            onAddFiles={accepting ? goToAddFiles : null}
+            onApprove={goToApproval}
+            onJump={jump}
+          />
+
+          {/* ── The case file ──
+              The evidence the sheet is drawn from, filed under it. Each fold
+              says what is inside before it is opened, so the stack is readable
+              shut; the two the inspector actually works — what wants attention,
+              and the pages it was read off — open themselves.
+
+              There is no Decision fold. The mockup this surface follows carries
+              one, and this system has nothing to put in it: the inspector
+              decides, off this screen, and a form that recorded a verdict would
+              be this product claiming a judgement it never makes. */}
+          <StagePanel
+            id={PANEL.attention}
+            title={t('detail.attention')}
+            summary={
+              pkg.report
+                ? reviewCount === 0
+                  ? t('detail.attention_none')
+                  : t('findings.noted', { n: reviewCount })
+                : t('detail.review_preparing')
+            }
+            open={panels[PANEL.attention] ?? (reviewCount > 0 || !pkg.report)}
+            onOpenChange={open => foldPanel(PANEL.attention, open)}
+          >
+            {pkg.report ? (
+              <Worklist report={pkg.report} pkg={pkg} onJump={jump} />
+            ) : (
+              <PendingReview running={running} />
+            )}
+          </StagePanel>
+
+          <StagePanel
+            id={PANEL.documents}
+            title={t('panel.scanned')}
+            summary={t('detail.docs_count', {
+              d: pkg.classifiedCount,
+              r: pkg.documentsCount,
+            })}
+            open={panels[PANEL.documents] ?? true}
+            onOpenChange={open => foldPanel(PANEL.documents, open)}
+          >
+            {/* Ahead of the register of documents: this is what the inspector
+                opened the fold for when the package is short of a paper, and a
+                dropzone below sixteen entries is one nobody scrolls to.
+
+                The published gaps come first and the batch panel second, which
+                is the order the two are reached for: a named row with the button
+                that answers it is what the operator is here to do, and "more
+                files, answering nothing in particular" is the fallback for what
+                the list does not cover. */}
+            <div className='pb-8'>
+              <DocumentGaps pkg={pkg} profiles={profiles ?? []} onJump={jump} />
+            </div>
+
+            <div id='add-files' className='scroll-mt-16 pb-8'>
+              <AddFiles
+                packageId={pkg.id}
+                status={pkg.status}
+                reported={pkg.report !== null}
+              />
+            </div>
+
+            <section id='documents' className='scroll-mt-16'>
+              {counts.all > 1 && (
+                <div className='-mx-1 flex items-stretch gap-0.5 overflow-x-auto px-1'>
+                  {SEGMENTS.map(seg => {
+                    const active = segment === seg;
+                    return (
+                      <button
+                        key={seg}
+                        onClick={() => setPickedSegment(seg)}
+                        aria-pressed={active}
+                        disabled={counts[seg] === 0}
+                        className={cn(
+                          'relative flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2.5 py-2 text-[0.8125rem] transition-colors',
+                          'after:absolute after:inset-x-2 after:bottom-0 after:h-[2px] after:bg-transparent',
+                          'disabled:pointer-events-none disabled:opacity-40',
+                          active
+                            ? 'font-medium text-foreground after:bg-foreground'
+                            : 'text-muted-foreground hover:text-foreground',
+                        )}
+                      >
+                        {t(SEGMENT_KEY[seg])}
+                        <span
+                          data-mono
+                          className={cn(
+                            'text-[0.6875rem] tabular-nums',
+                            active
+                              ? 'text-foreground/60'
+                              : 'text-muted-foreground/60',
+                          )}
+                        >
+                          {counts[seg]}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
-                <p className='mt-1 max-w-[65ch] text-[0.875rem] leading-relaxed text-muted-foreground'>
-                  {pkg.report
-                    ? t('detail.review_focus_note')
-                    : running
-                      ? t('detail.review_preparing_note')
-                      : t('detail.review_unavailable')}
-                </p>
-              </div>
+              )}
 
-              <TabsList
-                variant='line'
-                aria-label={t('detail.report')}
-                className='mt-5 h-auto w-full flex-wrap justify-start gap-1 p-0'
-              >
-                {workspaceTabs.map(tab => (
-                  <TabsTrigger
-                    key={tab.view}
-                    value={tab.view}
-                    className='flex-none gap-2 px-3 py-2.5 text-[0.8125rem]'
-                  >
-                    {tab.label}
-                    <span
-                      data-mono
-                      className='text-[0.6875rem] tabular-nums text-muted-foreground/70 group-data-[variant=line]/tabs-list:data-active:text-foreground/65'
-                    >
-                      {tab.count}
-                    </span>
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-
-              <TabsContent value='review' className='pt-7'>
-                {pkg.report ? (
-                  <>
-                    <Worklist report={pkg.report} pkg={pkg} onJump={jump} />
-                    {/* Its own panel and not part of the worklist above, which
-                        returns nothing at all once the attention has moved to
-                        the archive comparison. What has to be brought next
-                        survives that: it is stated on every report the profile
-                        branches on, and it is the one line that outlives the
-                        review. */}
-                    <SupportingDocuments
-                      report={pkg.report}
-                      pkg={pkg}
-                      onJump={jump}
-                    />
-                  </>
-                ) : (
-                  <PendingReview running={running} />
-                )}
-              </TabsContent>
-
-              <TabsContent value='checks' className='pt-7'>
-                <DocumentComparisons
-                  checks={pkg.crossChecks}
-                  running={running}
-                  onJump={jump}
-                />
-              </TabsContent>
-
-              <TabsContent value='archive' className='pt-7'>
-                <RegistryChecks
-                  checks={pkg.registryChecks}
-                  running={running}
-                  onJump={jump}
-                />
-                {/* Under the answers and not over them: the conclusion is drawn
-                    from what the register said, so it is signed at the foot of
-                    what was read rather than above it. */}
-                <ApproveArchiveSearch pkg={pkg} />
-              </TabsContent>
-
-              <TabsContent value='documents' className='pt-7'>
-                {/* Ahead of the register of documents, and outside it: this is
-                    what the inspector came to the tab for when the package is
-                    short of a paper, and a dropzone below sixteen entries is a
-                    dropzone nobody scrolls to. Outside, because the segment bar
-                    below is sticky and would scroll over it.
-
-                    The published gaps come first and the batch panel second,
-                    which is the order the two are reached for: a named row with
-                    the button that answers it is what the operator is here to
-                    do, and "more files, answering nothing in particular" is the
-                    fallback for what the list does not cover. */}
-                <div className='pb-8'>
-                  <DocumentGaps
-                    pkg={pkg}
-                    profiles={profiles ?? []}
+              <div className='mt-5 flex flex-col gap-10'>
+                {pkg.files.map(file => (
+                  <FileGroup
+                    key={file.id}
+                    file={file}
+                    files={pkg.files}
+                    failed={view.disposition === 'failed'}
+                    segment={segment}
                     onJump={jump}
                   />
-                </div>
+                ))}
+              </div>
+            </section>
+          </StagePanel>
 
-                <div id='add-files' className='scroll-mt-16 pb-8'>
-                  <AddFiles
-                    packageId={pkg.id}
-                    status={pkg.status}
-                    reported={pkg.report !== null}
-                  />
-                </div>
+          <StagePanel
+            id={PANEL.checks}
+            title={t('detail.checks')}
+            summary={
+              pkg.crossChecks.length === 0
+                ? t('checks.none')
+                : unmatchedChecks === 0
+                  ? t('checks.all_match')
+                  : t('findings.noted', { n: unmatchedChecks })
+            }
+            open={panels[PANEL.checks] ?? false}
+            onOpenChange={open => foldPanel(PANEL.checks, open)}
+          >
+            <DocumentComparisons
+              checks={pkg.crossChecks}
+              running={running}
+              onJump={jump}
+            />
+          </StagePanel>
 
-                <section id='documents' className='scroll-mt-16'>
-                  <div className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2 pb-1'>
-                    <h2 className='register-label'>{t('detail.documents')}</h2>
-                    <span
-                      data-mono
-                      className='text-[0.75rem] tabular-nums text-muted-foreground'
-                    >
-                      {t('detail.docs_count', {
-                        d: pkg.classifiedCount,
-                        r: pkg.documentsCount,
-                      })}
-                    </span>
-                  </div>
-
-                  {counts.all > 1 && (
-                    <div className='sticky top-0 z-10 -mx-1 mt-2 flex items-stretch gap-0.5 overflow-x-auto bg-background px-1'>
-                      {SEGMENTS.map(seg => {
-                        const active = segment === seg;
-                        return (
-                          <button
-                            key={seg}
-                            onClick={() => setPickedSegment(seg)}
-                            aria-pressed={active}
-                            disabled={counts[seg] === 0}
-                            className={cn(
-                              'relative flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2.5 py-2 text-[0.8125rem] transition-colors',
-                              'after:absolute after:inset-x-2 after:bottom-0 after:h-[2px] after:bg-transparent',
-                              'disabled:pointer-events-none disabled:opacity-40',
-                              active
-                                ? 'font-medium text-foreground after:bg-foreground'
-                                : 'text-muted-foreground hover:text-foreground',
-                            )}
-                          >
-                            {t(SEGMENT_KEY[seg])}
-                            <span
-                              data-mono
-                              className={cn(
-                                'text-[0.6875rem] tabular-nums',
-                                active
-                                  ? 'text-foreground/60'
-                                  : 'text-muted-foreground/60',
-                              )}
-                            >
-                              {counts[seg]}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  <div className='mt-5 flex flex-col gap-10'>
-                    {pkg.files.map(file => (
-                      <FileGroup
-                        key={file.id}
-                        file={file}
-                        files={pkg.files}
-                        failed={view.disposition === 'failed'}
-                        segment={segment}
-                        onJump={jump}
-                      />
-                    ))}
-                  </div>
-                </section>
-              </TabsContent>
-            </Tabs>
-          </main>
-
-          <aside className='pb-7 xl:sticky xl:top-6 xl:col-start-2 xl:row-start-1 xl:h-fit xl:pb-0 xl:pl-9'>
-            <div className='flex flex-col gap-8'>
-              <Standing
-                standing={pkg.standing}
-                onAddFiles={accepting ? goToAddFiles : null}
-                onApprove={goToApproval}
-              />
-              <RunProgress
-                stages={stages}
-                running={running}
-                failed={failed}
-                stageRunning={stageRunning}
-              />
-              <RequiredDocuments
-                missing={missing}
-                total={expected ?? 0}
-                settled={classified}
-              />
-              <DeclaredAtIntake declared={pkg.declared} />
-            </div>
-          </aside>
+          <StagePanel
+            id={PANEL.archive}
+            title={t('detail.archive_comparison')}
+            summary={
+              pkg.registryChecks.length === 0
+                ? t('registry.none')
+                : unconfirmedRegistry === 0
+                  ? t('registry.all_confirmed')
+                  : t('findings.noted', { n: unconfirmedRegistry })
+            }
+            open={
+              panels[PANEL.archive] ??
+              pkg.standing === 'AwaitingArchiveApproval'
+            }
+            onOpenChange={open => foldPanel(PANEL.archive, open)}
+          >
+            <RegistryChecks
+              checks={pkg.registryChecks}
+              running={running}
+              onJump={jump}
+            />
+            {/* Under the answers and not over them: the conclusion is drawn
+                from what the register said, so it is signed at the foot of what
+                was read rather than above it. */}
+            <ApproveArchiveSearch pkg={pkg} />
+          </StagePanel>
         </div>
       </SurfaceBody>
-
-      <SurfaceFooter>
-        <span className='text-[0.8125rem] text-muted-foreground'>
-          {t('updated.ago', { t: relativeShort(pkg.updatedAt, Date.now()) })}
-        </span>
-        <Button variant='outline' onClick={() => navigate(paths.cases)}>
-          <ArrowLeftIcon /> {t('detail.back')}
-        </Button>
-      </SurfaceFooter>
     </SurfacePage>
   );
 }

@@ -11,6 +11,7 @@
  */
 import { type RouteObject } from 'react-router-dom';
 
+import { Analytics } from '@/pages/analytics';
 import { ArchiveSearch } from '@/pages/archive-search';
 import { CaseIntake } from '@/pages/case-intake';
 import { Cases } from '@/pages/cases';
@@ -27,6 +28,7 @@ export const routeObjects: RouteObject[] = [
       { path: 'intake', element: <CaseIntake /> },
       { path: 'cases', element: <Cases /> },
       { path: 'cases/:id', element: <VerificationDetails /> },
+      { path: 'analytics', element: <Analytics /> },
     ],
   },
 ];

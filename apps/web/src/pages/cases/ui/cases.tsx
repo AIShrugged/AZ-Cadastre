@@ -45,18 +45,17 @@
  * which counts every slice in a single transaction — six calls would count six
  * moments and the tabs would not add up to All.
  *
- * **The summary sits on this screen and not beside it.** The four things an
- * inspector opens a summary to ask are questions about the very submissions
- * this table lists, and a section of their own would be one more page to
- * remember; so the register opens with what it looks like from further away and
- * then lists the entries. It scrolls with them rather than pinning above them:
- * an inspector who works the queue all day folds it shut once, and the fold is
- * remembered.
+ * **The summary is not on this screen.** It used to head the register — what
+ * the register looks like from further away, over the entries themselves — and
+ * it now has a surface of its own at `/analytics`. The register is a register:
+ * an inspector who comes here comes to find a case, and four hundred pixels of
+ * tallies above the rows is four hundred pixels between them and the search
+ * box. The two questions are asked at different moments and are answered in
+ * different places.
  *
- * The strip that searches and narrows the register moved into the scrolling
- * region with the table it belongs to. Above the summary it would have sat four
- * hundred pixels from the rows it filters, which is the same control in the
- * wrong place.
+ * What stays is the tab strip, whose counts still come off the one summary
+ * call: those are not a summary but the sizes of the six views of this very
+ * table, and they belong beside the views they open.
  */
 import {
   ChevronRightIcon,
@@ -81,7 +80,6 @@ import {
   OutcomeMark,
   packageRef,
   pageCount,
-  parseOverviewPeriod,
   parseRegisterQuery,
   profileName,
   readWellEnough,
@@ -102,10 +100,8 @@ import {
   useGetProfilesQuery,
   WHOLE_REGISTER,
   WHOLE_REGISTER_PERIOD,
-  withOverviewPeriod,
   type CaseSlice,
   type CaseState,
-  type OverviewPeriod,
   type ProfileDto,
   type RegisterQuery,
   type VerificationPackage,
@@ -147,7 +143,6 @@ import {
 } from '@/shared/ui/table';
 import { ToggleGroup, ToggleGroupItem } from '@/shared/ui/toggle-group';
 import { HeaderActions } from '@/widgets/app-shell';
-import { RegisterSummary } from '@/widgets/register-summary';
 import {
   PackageStandingSchema,
   ReportStatusSchema,
@@ -814,28 +809,10 @@ export function Cases() {
 
   const query = useMemo(() => parseRegisterQuery(params), [params]);
   const request = useMemo(() => toListRequest(query), [query]);
-  // The window the summary is read over. It lives in the same address bar as
-  // the register's own question but narrows nothing on this table — the list
-  // endpoint takes no period — so it is parsed apart from the query and carried
-  // through every rewrite of it rather than folded into `RegisterQuery`.
-  const period = useMemo(() => parseOverviewPeriod(params), [params]);
 
   const ask = useCallback(
     (change: Partial<RegisterQuery>, replace = false) => {
-      setParams(
-        withOverviewPeriod(
-          registerQueryParams({ ...query, ...change }),
-          period,
-        ),
-        { replace },
-      );
-    },
-    [query, period, setParams],
-  );
-
-  const askPeriod = useCallback(
-    (next: OverviewPeriod) => {
-      setParams(withOverviewPeriod(registerQueryParams(query), next));
+      setParams(registerQueryParams({ ...query, ...change }), { replace });
     },
     [query, setParams],
   );
@@ -906,10 +883,7 @@ export function Cases() {
   };
 
   const narrowed = isNarrowed(query);
-  // Clearing the filters clears the filters. The period is not one of them — it
-  // scopes the summary and narrows no row in this table — so it survives.
-  const clear = () =>
-    setParams(withOverviewPeriod(registerQueryParams(WHOLE_REGISTER), period));
+  const clear = () => setParams(registerQueryParams(WHOLE_REGISTER));
 
   // Nothing has ever been answered for this question or any other — the one
   // state in which the register genuinely does not know what it holds.
@@ -944,12 +918,6 @@ export function Cases() {
       />
 
       <SurfaceBody>
-        {/* ── The register from further away ──
-            Above the strip that searches it, because it is about every
-            submission the office has taken in and the strip is about which of
-            them this page lists. It scrolls away with the summary it heads. */}
-        <RegisterSummary period={period} onPeriod={askPeriod} now={now} />
-
         {/* ── Slice tabs ── the register's six views, over the strip that
             searches within whichever one is open. */}
         <div className='flex shrink-0 items-center border-b border-rule px-4 py-1.5 md:px-6'>

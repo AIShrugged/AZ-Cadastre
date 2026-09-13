@@ -3,10 +3,13 @@
  * answered over a period they choose: how much work is in the machine, what the
  * runs made of it, what goes wrong most often, and how the archive answered.
  *
- * It lives at the top of the register and not on a screen of its own. An
- * inspector comes to the register anyway, and a sixth section beside it would
- * be a page they have to remember to visit — the summary is what the register
- * looks like from further away, so it sits above the register.
+ * It is the whole of `/analytics` and no longer a band above the register. It
+ * headed the register once, on the reasoning that an inspector comes there
+ * anyway; what that cost was four hundred pixels between them and the search
+ * box every time they came to find one case. Finding a case and taking the
+ * register's measure are asked at different moments, so they are answered in
+ * different places — and the fold this band used to carry went with the move:
+ * there is nothing to fold away from on a page that is only this.
  *
  * **What this surface is built to say, and what it is built not to say.**
  *
@@ -30,8 +33,8 @@
  *    a linked number, because the register's `Stalled` standing is not the same
  *    set as the conveyor's `Failed` state and a number must not claim it is.
  */
-import { ChevronDownIcon, OctagonAlertIcon, UnplugIcon } from 'lucide-react';
-import { useCallback, useState, type ReactNode } from 'react';
+import { OctagonAlertIcon, UnplugIcon } from 'lucide-react';
+import { useCallback, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
 import {
@@ -112,20 +115,6 @@ const INK: Record<SliceTone, string> = {
   silent: 'text-muted-foreground',
   question: 'text-accent-2-ink',
 };
-
-/** Whether the reader last left the summary unfolded. A display preference and
- *  not part of the question in the address bar: a link to a narrowed register
- *  should not also carry how tall somebody likes their screen. */
-const UNFOLDED = 'cadastre.summary.open';
-
-function readUnfolded(): boolean {
-  try {
-    return localStorage.getItem(UNFOLDED) !== '0';
-  } catch {
-    // A browser that refuses storage is not a reason to lose the summary.
-    return true;
-  }
-}
 
 // ─── One figure ─────────────────────────────────────────────────────────────
 
@@ -261,17 +250,6 @@ export function RegisterSummary({
   now: number;
 }) {
   const { t } = useI18n();
-  const [open, setOpen] = useState(readUnfolded);
-
-  const unfold = useCallback((next: boolean) => {
-    setOpen(next);
-    try {
-      localStorage.setItem(UNFOLDED, next ? '1' : '0');
-    } catch {
-      // Nothing to do and nothing worth saying: the fold still works, it just
-      // will not be remembered.
-    }
-  }, []);
 
   const { currentData, data, isError, refetch } = useGetPackagesOverviewQuery(
     toOverviewRequest(period, now),
@@ -311,7 +289,7 @@ export function RegisterSummary({
   );
 
   return (
-    <section className='shrink-0 border-b border-rule px-4 md:px-6'>
+    <section className='flex min-w-0 flex-col px-4 md:px-6'>
       {/* ── The band that has to be read first ──
           Drawn above the fold control and outside it, so folding the figures
           away can never fold away the one thing on this screen that asks for a
@@ -383,21 +361,7 @@ export function RegisterSummary({
           period of its own would put four answers about four different sets of
           submissions on one screen. */}
       <div className='flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5'>
-        <button
-          type='button'
-          onClick={() => unfold(!open)}
-          aria-expanded={open}
-          className='-ml-1 flex items-center gap-1.5 rounded-sm px-1 py-0.5 hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring'
-        >
-          <ChevronDownIcon
-            aria-hidden
-            className={cn(
-              'size-3.5 text-muted-foreground transition-transform',
-              !open && '-rotate-90',
-            )}
-          />
-          <span className='register-label'>{t('summary.title')}</span>
-        </button>
+        <span className='register-label'>{t('summary.title')}</span>
 
         <Select
           value={period}
@@ -426,11 +390,9 @@ export function RegisterSummary({
         </Select>
       </div>
 
-      {open && (
-        <Figures
-          {...{ summary, isError, answered, refetch, outcomeLink, linkable }}
-        />
-      )}
+      <Figures
+        {...{ summary, isError, answered, refetch, outcomeLink, linkable }}
+      />
     </section>
   );
 }

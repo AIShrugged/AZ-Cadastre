@@ -102,7 +102,10 @@ export function SurfaceBody({
 }) {
   return (
     <div
-      className={cn('flex min-h-0 flex-1 flex-col overflow-y-auto', className)}
+      className={cn(
+        'flex min-h-0 flex-1 flex-col overflow-y-auto print:overflow-visible',
+        className,
+      )}
     >
       {children}
     </div>

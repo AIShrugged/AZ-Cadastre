@@ -25,17 +25,19 @@ import {
   CornerDownRightIcon,
   EyeOffIcon,
   FileTextIcon,
+  HistoryIcon,
   ImageIcon,
   MinusIcon,
   PlusIcon,
   StampIcon,
   TriangleAlertIcon,
 } from 'lucide-react';
-import { useState, type ComponentProps, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import {
   attestationLines,
+  documentIn,
   documentsExpected,
   ENTRIES_SHOWN,
   entriesOf,
@@ -49,6 +51,7 @@ import {
   holdsHash,
   isCarriedOver,
   ISSUE_KIND_KEY,
+  isSuperseded,
   missingTypes,
   OUTCOME_NOTE,
   OutcomeMark,
@@ -70,10 +73,12 @@ import {
   type SupportingSet,
 } from '@/entities/verification-package';
 import { ApproveArchiveSearch } from '@/features/approve-archive-search';
+import { DocumentGaps } from '@/features/supply-document';
 import { AddFiles } from '@/features/upload-documents';
 import { paths } from '@/shared/config';
 import { formatDate, relativeShort, translateOr, useI18n } from '@/shared/i18n';
 import { cn } from '@/shared/lib/cn';
+import type { Jump } from '@/shared/lib/jump';
 import { Button } from '@/shared/ui/button';
 import { Skeleton } from '@/shared/ui/skeleton';
 import {
@@ -287,6 +292,13 @@ function isAside(doc: DocumentDto): boolean {
  *  it is already reported there (ADR-0023). Counting it here would send the
  *  inspector to a paper with nothing on it to look at. */
 function needsReview(doc: DocumentDto): boolean {
+  // A scan a later arrival has pushed out of force is the record of what was
+  // sent first, not a paper the case rests on: the report, the checks and the
+  // register's questions are all worked out from the documents in force
+  // (COMM-80). Counting its faults here would send the inspector to settle a
+  // reading nothing is decided on, and would count the work twice — once on the
+  // spent scan and once on the one that replaced it.
+  if (isSuperseded(doc)) return false;
   if (doc.type === null || doc.type === 'unknown') return true;
   if (isAside(doc)) return false;
   if (
@@ -811,11 +823,17 @@ function Field({
   docId,
   sourceText,
   folded,
+  spent,
   onJump,
 }: {
   field: FieldDto;
   docId: string;
   sourceText: string;
+  /** Whether the paper this was read off has been replaced. A doubtful reading
+   *  on a document out of force keeps its figure and loses the "needs review"
+   *  chip: the figure is what was read, which stays true, and the chip is an
+   *  instruction to go and settle something the case no longer rests on. */
+  spent: boolean;
   folded: boolean;
   onJump: Jump;
 }) {
@@ -873,7 +891,10 @@ function Field({
           review" is the worklist's own word for a sheet that wants a second
           look, and the report deliberately files no finding against this
           one — the line under the value says where to look instead. */}
-      <Confidence value={field.confidence} bare={isCarriedOver(field)} />
+      <Confidence
+        value={field.confidence}
+        bare={isCarriedOver(field) || spent}
+      />
     </div>
   );
 }
@@ -882,11 +903,14 @@ function Fields({
   fields,
   docId,
   sourceText,
+  spent,
   onJump,
 }: {
   fields: FieldDto[];
   docId: string;
   sourceText: string;
+  /** Whether this paper has been replaced — see `Field`. */
+  spent: boolean;
   onJump: Jump;
 }) {
   const { t } = useI18n();
@@ -917,6 +941,7 @@ function Fields({
             docId={docId}
             sourceText={sourceText}
             folded={false}
+            spent={spent}
             onJump={onJump}
           />
         ))}
@@ -927,6 +952,7 @@ function Fields({
             docId={docId}
             sourceText={sourceText}
             folded={!whole}
+            spent={spent}
             onJump={onJump}
           />
         ))}
@@ -951,7 +977,7 @@ function Fields({
           {/* A fold that swallowed the doubtful readings would answer the
               heading's count with rows nobody can see, so it says how many of
               them are down there. */}
-          {!whole && flagged > 0 && (
+          {!whole && flagged > 0 && !spent && (
             <span
               data-mono
               title={t('detail.fields_more_review', { n: flagged })}
@@ -1153,16 +1179,70 @@ function Attestation({
   );
 }
 
+/**
+ * A paper the package no longer rests on, kept where it always was.
+ *
+ * A replaced scan is never removed: a submission is evidence and not a working
+ * draft, so what was sent first stays readable, saying what replaced it and on
+ * what day (COMM-80). Drawn as history — muted, stamped, its figures out of the
+ * argument — because the one thing worse than hiding it would be leaving it
+ * looking like a paper the case is still decided on.
+ */
+function SupersededMark({
+  doc,
+  files,
+  onJump,
+}: {
+  doc: DocumentDto;
+  files: readonly SourceFileDto[];
+  onJump: Jump;
+}) {
+  const { t, locale } = useI18n();
+  const replacement = documentIn(files, doc.supersededById);
+  const when = doc.supersededAt ? formatDate(doc.supersededAt, locale) : '';
+
+  return (
+    <p className='mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[0.75rem] text-muted-foreground'>
+      <span className='inline-flex items-center gap-1.5 rounded-full bg-muted px-2 py-0.5 font-medium uppercase tracking-[0.08em] text-muted-foreground'>
+        <HistoryIcon aria-hidden className='size-3' />
+        {t('detail.superseded')}
+      </span>
+      <span>{when ? t('detail.superseded_on', { date: when }) : ''}</span>
+      {/* Null where the replacement has since gone with its own file: the stamp
+          is what says this document is out of force, not the pointer. */}
+      {replacement && (
+        <a
+          href={`#doc-${replacement.document.id}`}
+          onClick={onJump(
+            replacement.document.id,
+            `#doc-${replacement.document.id}`,
+          )}
+          className='text-primary underline-offset-2 hover:underline'
+        >
+          {t('detail.superseded_by', {
+            file: replacement.file.originalFilename,
+          })}
+        </a>
+      )}
+    </p>
+  );
+}
+
 function DocumentEntry({
   doc,
   file,
+  files,
   onJump,
 }: {
   doc: DocumentDto;
   file: SourceFileDto;
+  /** Every file of the package, so a replaced scan can name the one that
+   *  replaced it — which lives under a different file than this one. */
+  files: readonly SourceFileDto[];
   onJump: Jump;
 }) {
   const { t } = useI18n();
+  const spent = isSuperseded(doc);
   // Two different answers that both leave a document without fields, and they
   // must not read alike: "we could not tell what this is" against "we read it,
   // and the statutory list does not name it".
@@ -1193,7 +1273,10 @@ function DocumentEntry({
     // sheets start level with the document's own title.
     <article
       id={`doc-${doc.id}`}
-      className='scroll-mt-16 py-6 first:pt-5 last:pb-0 lg:grid lg:grid-cols-[minmax(0,1fr)_11.5rem] lg:gap-x-8'
+      className={cn(
+        'scroll-mt-16 py-6 first:pt-5 last:pb-0 lg:grid lg:grid-cols-[minmax(0,1fr)_11.5rem] lg:gap-x-8',
+        spent && 'opacity-70',
+      )}
     >
       <div className='min-w-0'>
         <header className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1'>
@@ -1208,7 +1291,10 @@ function DocumentEntry({
               <h3
                 className={cn(
                   'text-[0.9375rem] font-[550] leading-tight tracking-[-0.01em]',
-                  fieldless ? 'text-muted-foreground' : 'text-foreground',
+                  fieldless || spent
+                    ? 'text-muted-foreground'
+                    : 'text-foreground',
+                  spent && 'line-through decoration-rule-strong',
                 )}
               >
                 {translateOr(t, `doctype.${doc.type}`, doc.type)}
@@ -1225,7 +1311,7 @@ function DocumentEntry({
             {/* How many readings in this document want a second look — the count
               the worklist above sent the inspector here for, restated where the
               work is. Silent when there is nothing to check. */}
-            {flagged > 0 && (
+            {flagged > 0 && !spent && (
               <span
                 data-mono
                 className='shrink-0 rounded-full bg-incomplete/12 px-1.5 py-0.5 text-[0.6875rem] font-medium tabular-nums text-incomplete-ink'
@@ -1242,6 +1328,8 @@ function DocumentEntry({
             </span>
           )}
         </header>
+
+        {spent && <SupersededMark doc={doc} files={files} onJump={onJump} />}
 
         <Attestation attestation={doc.attestation} />
 
@@ -1262,6 +1350,7 @@ function DocumentEntry({
               fields={doc.fields}
               docId={doc.id}
               sourceText={text}
+              spent={spent}
               onJump={onJump}
             />
           )
@@ -1291,10 +1380,12 @@ function DocumentEntry({
 function AsideGroup({
   docs,
   file,
+  files,
   onJump,
 }: {
   docs: DocumentDto[];
   file: SourceFileDto;
+  files: readonly SourceFileDto[];
   onJump: Jump;
 }) {
   const { t } = useI18n();
@@ -1318,10 +1409,61 @@ function AsideGroup({
       </summary>
       <div className='divide-y divide-rule border-t border-rule'>
         {docs.map(doc => (
-          <DocumentEntry key={doc.id} doc={doc} file={file} onJump={onJump} />
+          <DocumentEntry
+            key={doc.id}
+            doc={doc}
+            file={file}
+            files={files}
+            onJump={onJump}
+          />
         ))}
       </div>
     </details>
+  );
+}
+
+/**
+ * What a file was sent in to answer, where it was sent in for one.
+ *
+ * Null on every file the submission was made with and on every one added in
+ * bulk: those are the envelope, and nothing about them claims to fill a
+ * particular hole (COMM-80). Stated on the file and not on the documents under
+ * it, because the target was given for the file — before anything had read it,
+ * and whatever the reader went on to make of it.
+ */
+function SuppliedFor({
+  file,
+  files,
+}: {
+  file: SourceFileDto;
+  files: readonly SourceFileDto[];
+}) {
+  const { t } = useI18n();
+  const target = file.suppliedFor;
+  if (!target) return null;
+
+  const type = translateOr(
+    t,
+    `doctype.${target.expectedType}`,
+    target.expectedType,
+  );
+  const replaced = documentIn(files, target.replacesDocumentId);
+
+  return (
+    <p className='mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.75rem] text-muted-foreground'>
+      <span className='inline-flex items-center gap-1.5 rounded-full bg-accent/60 px-2 py-0.5 font-medium uppercase tracking-[0.08em] text-accent-foreground'>
+        <CornerDownRightIcon aria-hidden className='size-3' />
+        {t('detail.supplied')}
+      </span>
+      <span>
+        {replaced
+          ? t('detail.supplied_replacing', {
+              type,
+              file: replaced.file.originalFilename,
+            })
+          : t('detail.supplied_for', { type })}
+      </span>
+    </p>
   );
 }
 
@@ -1332,11 +1474,15 @@ function AsideGroup({
 // each file's documents.
 function FileGroup({
   file,
+  files,
   failed,
   segment,
   onJump,
 }: {
   file: SourceFileDto;
+  /** Every file of the package: a document replaced by one sent in later names
+   *  its replacement, and the replacement lives under a different file. */
+  files: readonly SourceFileDto[];
   failed: boolean;
   segment: DocSegment;
   onJump: Jump;
@@ -1386,6 +1532,8 @@ function FileGroup({
         <OcrStatus file={file} failed={failed} orphan={found === 0} />
       </div>
 
+      <SuppliedFor file={file} files={files} />
+
       {found > 0 ? (
         shown.length === 0 ? (
           <p className='py-5 text-[0.8125rem] text-muted-foreground'>
@@ -1398,10 +1546,16 @@ function FileGroup({
                 key={doc.id}
                 doc={doc}
                 file={file}
+                files={files}
                 onJump={onJump}
               />
             ))}
-            <AsideGroup docs={asides} file={file} onJump={onJump} />
+            <AsideGroup
+              docs={asides}
+              file={file}
+              files={files}
+              onJump={onJump}
+            />
           </div>
         )
       ) : (
@@ -1551,6 +1705,12 @@ function DeclaredAtIntake({ declared }: { declared: DeclaredAtIntakeDto }) {
 // What the governing profile insists on, against what the engine actually found.
 // It reports a shortfall; it never refuses the package — the inspector decides,
 // and a document the classifier could not place may still be the missing one.
+//
+// The shortfall is the server's own, read off `gaps` (COMM-80). It used to be
+// worked out here, from the profile against every document on the page, and that
+// was the engine's rule written a second time — which since replacement exists is
+// also wrong: a scan pushed out of force keeps its type, so a package whose
+// replacement failed to classify read as complete.
 function RequiredDocuments({
   missing,
   total,
@@ -1756,13 +1916,10 @@ type Finding = {
   docId: string | null;
 };
 
-/** A click on a worklist or index row. The target may be filtered out of the
- *  register the inspector is currently looking at, so the jump is allowed to
- *  change the segment first — a link that lands on nothing is worse than no
- *  link. */
-type Jump = (docId: string | null, anchor: string) => (e: MouseEvent) => void;
-
-type MouseEvent = Parameters<NonNullable<ComponentProps<'a'>['onClick']>>[0];
+/* A click on a worklist or index row takes the `Jump` the shared layer
+ * declares. It is one type and not one per surface because the gaps panel hands
+ * this page's handler back to it, and two identical declarations of a function
+ * type are two types to the compiler. */
 
 /** What a finding is about, in the reader's own language, and where in the
  *  register it can be answered. The wire carries the English audit line;
@@ -1945,6 +2102,34 @@ function findingOf(
   // A document that read perfectly well. It is named by where it sits, and the
   // sub-line says what it is — not in the profile, or a second answer to a type
   // the package had already answered.
+  // A file sent in for a published gap that turned out to be a different paper.
+  // The subject is what was asked for, because that is the gap still open — and
+  // the sub-line names what turned up instead, since the operator's next move
+  // depends on which of the two went wrong. The finding carries the expected
+  // type, so what arrived is read off the document it was filed against.
+  if (issue.kind === 'WrongDocumentSupplied') {
+    const arrived =
+      document?.type === null ||
+      document?.type === undefined ||
+      document.type === 'unknown'
+        ? t('gap.arrived_unplaced')
+        : translateOr(t, `doctype.${document.type}`, document.type);
+
+    return {
+      subject: translateOr(
+        t,
+        `doctype.${issue.documentType}`,
+        issue.documentType ?? '',
+      ),
+      where: t('detail.f.wrong_supplied_sub', {
+        file: filename ?? file?.originalFilename ?? t('detail.files'),
+        arrived,
+      }),
+      anchor,
+      docId: document?.id ?? null,
+    };
+  }
+
   if (issue.kind === 'ExtraDocument' || issue.kind === 'DuplicateDocument') {
     // An extra document the catalogue recognised carries its own key rather
     // than "out_of_profile", and then the sub-line can say what the paper is
@@ -2968,11 +3153,10 @@ export function VerificationDetails() {
   // Null while the profiles are still loading, and null is what the rail wants:
   // it declines to state a total rather than state a wrong one.
   const expected = documentsExpected(profiles ?? [], view.profile);
-  const missing = missingTypes(
-    profiles ?? [],
-    view.profile,
-    documents.map(d => d.type),
-  );
+  // The server's answer, not one worked out here: the same list the «Загрузить»
+  // buttons are drawn from, so the rail and the panel can never disagree about
+  // what the package is short of (COMM-80).
+  const missing = missingTypes(pkg.gaps);
 
   const counts = {
     review: documents.filter(d => needsReview(d)).length,
@@ -3019,10 +3203,15 @@ export function VerificationDetails() {
   // The rail's shortcut into the panel. The tab has to be mounted before the
   // fragment is applied, or the jump lands in content that is not there — the
   // same order the finding jumps below take.
+  //
+  // It lands on the gaps where the package publishes any, because that is where
+  // the move is: a row naming the paper, with the button that answers it. Only a
+  // package the server will take nothing targeted for drops to the batch panel.
   const goToAddFiles = () => {
+    const anchor = pkg.gaps.length > 0 ? '#document-gaps' : '#add-files';
     setActiveView('documents');
     requestAnimationFrame(() => {
-      window.location.hash = '#add-files';
+      window.location.hash = anchor;
     });
   };
 
@@ -3176,7 +3365,21 @@ export function VerificationDetails() {
                     what the inspector came to the tab for when the package is
                     short of a paper, and a dropzone below sixteen entries is a
                     dropzone nobody scrolls to. Outside, because the segment bar
-                    below is sticky and would scroll over it. */}
+                    below is sticky and would scroll over it.
+
+                    The published gaps come first and the batch panel second,
+                    which is the order the two are reached for: a named row with
+                    the button that answers it is what the operator is here to
+                    do, and "more files, answering nothing in particular" is the
+                    fallback for what the list does not cover. */}
+                <div className='pb-8'>
+                  <DocumentGaps
+                    pkg={pkg}
+                    profiles={profiles ?? []}
+                    onJump={jump}
+                  />
+                </div>
+
                 <div id='add-files' className='scroll-mt-16 pb-8'>
                   <AddFiles
                     packageId={pkg.id}
@@ -3241,6 +3444,7 @@ export function VerificationDetails() {
                       <FileGroup
                         key={file.id}
                         file={file}
+                        files={pkg.files}
                         failed={view.disposition === 'failed'}
                         segment={segment}
                         onJump={jump}

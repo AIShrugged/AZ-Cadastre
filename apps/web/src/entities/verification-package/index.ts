@@ -6,16 +6,27 @@
  * Profile policy (read live from the engine, never copied), what the office
  * declares at the counter and what the engine makes of it, the pipeline stage
  * count, which of a document's fields are its own reading and what the card
- * has to do to state nineteen of them, the live package
- * API, and the entity's read-only UI marks.
+ * has to do to state nineteen of them, what the package will take a document
+ * for and which of its papers a later arrival has pushed out of force, the live
+ * package API, and the entity's read-only UI marks.
  */
 export type { ProfileDto } from './model/profile';
+export { documentsExpected, profileName, requiredTypes } from './model/profile';
+
+export type { GapTone, ScanShortfall } from './model/document-gaps';
 export {
-  documentsExpected,
+  documentIn,
+  fieldsAsked,
+  GAP_REASON_KEY,
+  GAP_REASON_NOTE,
+  GAP_REASON_TONE,
+  gapKey,
+  isSuperseded,
   missingTypes,
-  profileName,
-  requiredTypes,
-} from './model/profile';
+  namesAFault,
+  scanShortfall,
+  supplyTarget,
+} from './model/document-gaps';
 
 export { STAGES } from './model/pipeline';
 
@@ -174,6 +185,7 @@ export {
   useGetPackageQuery,
   useCreatePackageMutation,
   useAddFilesMutation,
+  useSupplyDocumentMutation,
   useApproveArchiveSearchMutation,
 } from './api/packages-api';
 export {

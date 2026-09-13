@@ -1,10 +1,22 @@
+/**
+ * The one road bytes take into the store: `documents/presign` signs a PUT, the
+ * browser sends the bytes there, and whichever operation wanted the file is
+ * handed the key it landed under. The file never passes through the service.
+ *
+ * In `shared/` and not with a feature because more than one surface sends a
+ * file — the panel that adds a batch of them to a package, and the button that
+ * sends one in for a published gap (COMM-81) — and a second copy of this road is
+ * exactly what the contract forbids. What a surface does with the key is the
+ * surface's; getting the bytes there is one thing, stated once.
+ */
 import axios from 'axios';
 
-import { http } from '@/shared/api';
 import type {
   DocumentContentType,
   PresignResponse,
 } from '@cadastre/api-contracts/verification';
+
+import { http } from './http';
 
 /** What the transport resolves with once a document is stored. */
 export type UploadResult = {

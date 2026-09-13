@@ -1,11 +1,9 @@
 import { createSlice, nanoid, type PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-import { failureCode } from '@/shared/api';
+import { failureCode, uploadDocument } from '@/shared/api';
+import { fileKind, MAX_BYTES } from '@/shared/lib/document-file';
 import type { AppDispatch } from '@/shared/lib/store-hooks';
-
-import { uploadDocument } from '../api/upload-api';
-import { fileKind, MAX_BYTES } from '../lib/file';
 
 import type { Attachment } from './types';
 

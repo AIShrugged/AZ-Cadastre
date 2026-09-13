@@ -1,13 +1,14 @@
+import type { FileKind } from '@/shared/lib/document-file';
 import type { DocumentContentType } from '@cadastre/api-contracts/verification';
 
-export type FileKind = 'pdf' | 'image';
+export type { FileKind };
 export type UploadStatus = 'uploading' | 'ready' | 'error';
 export type UploadErrorKind = 'format' | 'size' | 'failed';
 
 /**
  * One submitted document as tracked by the store. We keep only the metadata the
  * UI renders — never the raw `File` (non-serializable). The bytes live with the
- * upload transport (`api/upload-api`), keyed by `id`.
+ * upload transport (`@/shared/api`), keyed by `id`.
  */
 export type Attachment = {
   id: string;

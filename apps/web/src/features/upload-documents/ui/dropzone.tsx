@@ -2,9 +2,8 @@ import { UploadCloudIcon } from 'lucide-react';
 
 import { useI18n } from '@/shared/i18n';
 import { cn } from '@/shared/lib/cn';
+import { MAX_MB } from '@/shared/lib/document-file';
 import { Button } from '@/shared/ui/button';
-
-import { MAX_MB } from '../lib/file';
 
 export function Dropzone({
   onBrowse,

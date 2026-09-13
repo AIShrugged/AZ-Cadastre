@@ -317,6 +317,15 @@ const en: Dict = {
     'No issues found — every required document is present and read above the confidence threshold.',
   'detail.clean_open_set':
     'Which supporting documents this case needs, though, could not be worked out — see below.',
+  // ─── A paper replaced, and the file that replaced it (COMM-80) ─────────────
+  // A replaced document is never removed: the submission is evidence, so what
+  // was sent first stays readable, saying what replaced it and when.
+  'detail.superseded': 'Replaced',
+  'detail.superseded_on': 'on {date}',
+  'detail.superseded_by': 'replaced by {file}',
+  'detail.supplied': 'Supplied',
+  'detail.supplied_for': 'sent in for the missing {type}',
+  'detail.supplied_replacing': 'sent in for the {type} in {file}',
   'detail.f.missing_sub': 'Not found in the package',
   'detail.f.unplaced_sub': 'Type not recognized',
   'detail.f.unread_sheet_sub': 'Sheet could not be read',
@@ -325,6 +334,7 @@ const en: Dict = {
   'detail.f.extra_sub': 'Not named by the statutory list of documents',
   'detail.f.extra_named_sub': '{type} — not a type this profile asks for',
   'detail.f.duplicate_sub': 'A second {type}',
+  'detail.f.wrong_supplied_sub': '{file} — read as {arrived}',
   'detail.f.mismatch_sub': 'Does not agree across documents',
   'detail.f.unclear_sub': 'Could not be decided either way',
   'detail.f.registry_mismatch_sub': 'The archive record states otherwise',
@@ -626,6 +636,54 @@ const en: Dict = {
   'error.PACKAGE_MUST_GAIN_A_FILE': 'Choose at least one file to add',
   'error.PACKAGE_NOT_FOUND': 'This package is no longer in the register',
   'error.DUPLICATE_STORAGE_KEY': 'That file is already in the package',
+  // ─── A document supplied for one of the gaps the package publishes ─────────
+  // Three reasons and three asks: bring the paper nobody sent, photograph the
+  // unreadable one again, attach the one the profile takes whenever it turns up.
+  // The third is not a shortfall and must not read like one.
+  'gap.title': 'What can be supplied',
+  'gap.note':
+    'The engine works out what this package will take a document for. Each line below sends one file in answer to that line — not one more file in the envelope.',
+  'gap.closed_running':
+    'A run is under way, so this package takes no files right now. The lines stay; the buttons come back when it finishes.',
+  'gap.none':
+    'The package is short of nothing, and this profile takes no paper at any time.',
+  'gap.missing': 'Not in the package',
+  'gap.unusable': 'Unreadable scan',
+  'gap.any_time': 'Accepted at any time',
+  'gap.missing_note':
+    'Required by the profile, and the package carries none. Send what is missing.',
+  'gap.unusable_note':
+    'This paper is here and was read badly. Photograph the same document again — what arrives replaces it.',
+  'gap.any_time_note':
+    'Nothing is wrong with the package — the profile takes this whenever it turns up.',
+  'gap.unread_fields': 'Not read off the sheets:',
+  'gap.doubted_fields': 'Read, but not confidently:',
+  'gap.doubted_placement': 'Placed as this type with a confidence of',
+  'gap.floor': 'The engine trusts a reading from {floor}%.',
+  'gap.unusable_unspecified':
+    'The engine reports this scan as worth sending again. Which reading fell short cannot be named here.',
+  'gap.open_scan': 'Open the scan in {file}',
+  'gap.reading': '{file} was sent in and is being read.',
+  'gap.refused':
+    '{file} was sent in as {expected} and was read as {arrived}, so it was not taken: the line is still open and what was here stays in force.',
+  'gap.arrived_unplaced': 'no type this profile expects',
+  'supply.action': 'Upload',
+  'supply.action_for': 'Upload {type}',
+  'supply.uploading': 'Uploading {n}%',
+  'supply.sending': 'Sending…',
+  'supply.sent':
+    '{type} sent in — the package is being verified afresh, and this line goes when the report is rebuilt without it',
+  'supply.failed': 'The document could not be sent in — please try again',
+  'supply.refused_format': 'Unsupported format — PDF, JPG or PNG only',
+  'supply.refused_size': 'The file is larger than {max} MB',
+  'error.NO_SUCH_DOCUMENT_GAP':
+    'This package no longer takes a document for that line — reload to see what it does take',
+  'error.DOCUMENT_NOT_IN_PACKAGE':
+    'The document being replaced is not in this package — reload and try again',
+  'error.INVALID_SUPPLY_TARGET':
+    'Nothing can be sent in against that type — it is what the reader answers when it cannot place a paper',
+  'error.UNTARGETED_SUPPLY':
+    'A supplied document has to say what it answers — use the button on the line it is for',
   // ─── Approving the archive search (ADR-0016) ───────────────────────────────
   // The one write on the detail page a person makes rather than the engine.
   // Nothing in this block names an author, because there is none to name.
@@ -1186,6 +1244,15 @@ const ru: Dict = {
     'Замечаний нет — все обязательные документы присутствуют и распознаны выше порога уверенности.',
   'detail.clean_open_set':
     'Но какой комплект подтверждающих документов нужен по этому делу — определить не удалось, см. ниже.',
+  // ─── Заменённый документ и файл, который его заменил (COMM-80) ─────────────
+  // Заменённый документ не удаляется: заявление — доказательство, поэтому
+  // присланное первым остаётся читаемым и говорит, чем и когда заменено.
+  'detail.superseded': 'Заменён',
+  'detail.superseded_on': 'от {date}',
+  'detail.superseded_by': 'чем заменён: {file}',
+  'detail.supplied': 'Дослан',
+  'detail.supplied_for': 'в ответ на нехватку: {type}',
+  'detail.supplied_replacing': 'взамен документа «{type}» из {file}',
   'detail.f.missing_sub': 'Не найден в пакете',
   'detail.f.unplaced_sub': 'Тип не распознан',
   'detail.f.unread_sheet_sub': 'Лист не распознан',
@@ -1194,6 +1261,7 @@ const ru: Dict = {
   'detail.f.extra_sub': 'Не входит в законный перечень документов',
   'detail.f.extra_named_sub': '{type} — профиль такого типа не требует',
   'detail.f.duplicate_sub': 'Второй документ: {type}',
+  'detail.f.wrong_supplied_sub': '{file} — распознан как «{arrived}»',
   'detail.f.mismatch_sub': 'Документы расходятся',
   'detail.f.unclear_sub': 'Однозначно определить не удалось',
   'detail.f.registry_mismatch_sub': 'Архивная запись говорит другое',
@@ -1478,6 +1546,54 @@ const ru: Dict = {
   'error.PACKAGE_MUST_GAIN_A_FILE': 'Выберите хотя бы один файл',
   'error.PACKAGE_NOT_FOUND': 'Этого пакета больше нет в реестре',
   'error.DUPLICATE_STORAGE_KEY': 'Этот файл уже есть в пакете',
+  // ─── Дозагрузка документа по пробелу, опубликованному сервером ─────────────
+  // Три причины — три разных действия: принести недостающее, переснять
+  // нечитаемое, приложить то, что профиль принимает всегда. Третья — не
+  // нарушение, и читаться как нарушение она не должна.
+  'gap.title': 'Что можно дослать',
+  'gap.note':
+    'Чего не хватает заявлению, считает сервер. Каждая строка ниже — отправка одного файла в ответ именно на неё, а не ещё одного файла в пакет.',
+  'gap.closed_running':
+    'Идёт проверка, и сейчас заявление файлов не принимает. Строки остаются; кнопки вернутся, когда проверка закончится.',
+  'gap.none':
+    'Заявлению ничего не нужно доносить, и этот профиль не принимает документов «в любой момент».',
+  'gap.missing': 'Нет в комплекте',
+  'gap.unusable': 'Скан не читается',
+  'gap.any_time': 'Принимается всегда',
+  'gap.missing_note':
+    'Требуется профилем, а в заявлении отсутствует. Пришлите недостающее.',
+  'gap.unusable_note':
+    'Документ приложен, но прочитан плохо. Переснимите тот же документ — присланное встанет на его место.',
+  'gap.any_time_note':
+    'С заявлением всё в порядке — профиль принимает это в любой момент.',
+  'gap.unread_fields': 'Не прочитано:',
+  'gap.doubted_fields': 'Прочитано неуверенно:',
+  'gap.doubted_placement': 'Уверенность в том, что это документ такого типа:',
+  'gap.floor': 'Чтению доверяют начиная с {floor}%.',
+  'gap.unusable_unspecified':
+    'Сервер сообщает, что этот скан стоит прислать заново. Какое именно чтение подвело — здесь назвать нечем.',
+  'gap.open_scan': 'Открыть скан в {file}',
+  'gap.reading': '{file} отправлен, идёт распознавание.',
+  'gap.refused':
+    '{file} прислан как «{expected}», а распознан как «{arrived}» — поэтому не принят: строка осталась, прежний документ продолжает действовать.',
+  'gap.arrived_unplaced': 'ни один тип из требуемых профилем',
+  'supply.action': 'Загрузить',
+  'supply.action_for': 'Загрузить «{type}»',
+  'supply.uploading': 'Загрузка {n}%',
+  'supply.sending': 'Отправляем…',
+  'supply.sent':
+    '«{type}» отправлен — заявление проверяется заново, и строка исчезнет сама, когда отчёт пересоберётся без неё',
+  'supply.failed': 'Документ не отправлен — попробуйте ещё раз',
+  'supply.refused_format': 'Формат не поддерживается — только PDF, JPG или PNG',
+  'supply.refused_size': 'Файл больше {max} МБ',
+  'error.NO_SUCH_DOCUMENT_GAP':
+    'По этой строке заявление документов больше не принимает — обновите страницу, чтобы увидеть актуальный список',
+  'error.DOCUMENT_NOT_IN_PACKAGE':
+    'Заменяемого документа в этом заявлении нет — обновите страницу и повторите',
+  'error.INVALID_SUPPLY_TARGET':
+    'В ответ на такой тип прислать нечего: так распознаватель отвечает, когда не смог определить документ',
+  'error.UNTARGETED_SUPPLY':
+    'Досылаемый документ должен говорить, на что он отвечает — нажмите кнопку в нужной строке',
   // ─── Утверждение архивного поиска (ADR-0016) ───────────────────────────────
   'approve.title': 'Утверждение результатов архивного поиска',
   'approve.note':
@@ -2010,6 +2126,15 @@ const az: Dict = {
     'Qüsur yoxdur — bütün tələb olunan sənədlər mövcuddur və etibar həddindən yuxarı oxunub.',
   'detail.clean_open_set':
     'Lakin bu iş üçün hansı təsdiqedici sənəd dəstinin tələb olunduğu müəyyən edilə bilmədi — aşağıya baxın.',
+  // ─── Əvəz edilmiş sənəd və onu əvəz edən fayl (COMM-80) ────────────────────
+  // Əvəz edilmiş sənəd silinmir: paket sübutdur, ona görə ilk göndərilən
+  // oxunaqlı qalır və nə ilə, nə vaxt əvəz edildiyini bildirir.
+  'detail.superseded': 'Əvəz edilib',
+  'detail.superseded_on': '{date} tarixində',
+  'detail.superseded_by': 'nə ilə əvəz edilib: {file}',
+  'detail.supplied': 'Göndərilib',
+  'detail.supplied_for': 'çatışmayan {type} üçün göndərilib',
+  'detail.supplied_replacing': '{file} faylındakı {type} əvəzinə göndərilib',
   'detail.f.missing_sub': 'Paketdə tapılmadı',
   'detail.f.unplaced_sub': 'Növü tanınmadı',
   'detail.f.unread_sheet_sub': 'Vərəq oxuna bilmədi',
@@ -2018,6 +2143,7 @@ const az: Dict = {
   'detail.f.extra_sub': 'Qanuni sənəd siyahısında adı çəkilmir',
   'detail.f.extra_named_sub': '{type} — bu profilin tələb etdiyi növ deyil',
   'detail.f.duplicate_sub': 'İkinci {type}',
+  'detail.f.wrong_supplied_sub': '{file} — {arrived} kimi oxundu',
   'detail.f.mismatch_sub': 'Sənədlər arasında uyğun gəlmir',
   'detail.f.unclear_sub': 'Birmənalı müəyyən edilə bilmədi',
   'detail.f.registry_mismatch_sub': 'Arxiv qeydi başqa cür göstərir',
@@ -2302,6 +2428,54 @@ const az: Dict = {
   'error.PACKAGE_MUST_GAIN_A_FILE': 'Ən azı bir fayl seçin',
   'error.PACKAGE_NOT_FOUND': 'Bu paket artıq reyestrdə yoxdur',
   'error.DUPLICATE_STORAGE_KEY': 'Bu fayl artıq paketdədir',
+  // ─── Paketin elan etdiyi boşluq üçün göndərilən sənəd ──────────────────────
+  // Üç səbəb — üç fərqli iş: gəlməyən sənədi gətirmək, oxunmayanı yenidən
+  // şəkilləmək, profilin hər zaman qəbul etdiyini əlavə etmək. Üçüncüsü pozuntu
+  // deyil və pozuntu kimi oxunmamalıdır.
+  'gap.title': 'Nə göndərmək olar',
+  'gap.none':
+    'Paketin çatışmayan sənədi yoxdur və bu profil hər zaman qəbul edilən sənəd saymır.',
+  'gap.note':
+    'Paketin nəyə görə sənəd qəbul etdiyini mühərrik özü hesablayır. Aşağıdakı hər sətir məhz həmin sətrə bir fayl göndərir — zərfə daha bir fayl deyil.',
+  'gap.closed_running':
+    'Yoxlama gedir, ona görə paket indi fayl qəbul etmir. Sətirlər qalır; düymələr yoxlama bitəndə qayıdır.',
+  'gap.missing': 'Paketdə yoxdur',
+  'gap.unusable': 'Skan oxunmur',
+  'gap.any_time': 'Hər zaman qəbul edilir',
+  'gap.missing_note':
+    'Profil tələb edir, paketdə isə yoxdur. Çatışmayanı göndərin.',
+  'gap.unusable_note':
+    'Sənəd paketdədir, amma pis oxunub. Eyni sənədi yenidən şəkilləyin — gələn onun yerini tutacaq.',
+  'gap.any_time_note':
+    'Paketdə qüsur yoxdur — profil bunu istənilən vaxt qəbul edir.',
+  'gap.unread_fields': 'Vərəqlərdən oxunmadı:',
+  'gap.doubted_fields': 'Oxundu, amma inamsız:',
+  'gap.doubted_placement': 'Bu tipə aid edilmə əminliyi:',
+  'gap.floor': 'Oxunuşa {floor}%-dən etibarən etibar edilir.',
+  'gap.unusable_unspecified':
+    'Mühərrik bu skanın yenidən göndərilməyə dəydiyini bildirir. Hansı oxunuşun çatmadığını burada adlandırmaq mümkün deyil.',
+  'gap.open_scan': 'Skanı {file} faylında aç',
+  'gap.reading': '{file} göndərildi, oxunur.',
+  'gap.refused':
+    '{file} «{expected}» kimi göndərildi, «{arrived}» kimi oxundu — ona görə qəbul edilmədi: sətir açıq qalır, əvvəlki sənəd qüvvədə qalır.',
+  'gap.arrived_unplaced': 'bu profilin gözlədiyi heç bir tip',
+  'supply.action': 'Yüklə',
+  'supply.action_for': '«{type}» yüklə',
+  'supply.uploading': 'Yüklənir {n}%',
+  'supply.sending': 'Göndərilir…',
+  'supply.sent':
+    '«{type}» göndərildi — paket yenidən yoxlanılır, hesabat onsuz yığılanda bu sətir öz-özünə yox olacaq',
+  'supply.failed': 'Sənəd göndərilmədi — yenidən cəhd edin',
+  'supply.refused_format': 'Format dəstəklənmir — yalnız PDF, JPG və ya PNG',
+  'supply.refused_size': 'Fayl {max} MB-dan böyükdür',
+  'error.NO_SUCH_DOCUMENT_GAP':
+    'Paket artıq bu sətir üzrə sənəd qəbul etmir — siyahını görmək üçün səhifəni yeniləyin',
+  'error.DOCUMENT_NOT_IN_PACKAGE':
+    'Əvəz olunan sənəd bu paketdə yoxdur — səhifəni yeniləyib yenidən cəhd edin',
+  'error.INVALID_SUPPLY_TARGET':
+    'Belə bir tipə cavab olaraq heç nə göndərmək olmaz: oxuyucu sənədi təyin edə bilməyəndə belə cavab verir',
+  'error.UNTARGETED_SUPPLY':
+    'Göndərilən sənəd nəyə cavab verdiyini deməlidir — lazımi sətirdəki düyməni basın',
   // ─── Arxiv axtarışının təsdiqi (ADR-0016) ──────────────────────────────────
   'approve.title': 'Arxiv axtarışının təsdiqi',
   'approve.note':

@@ -7,9 +7,9 @@ import {
 
 import { translateOr, useI18n } from '@/shared/i18n';
 import { cn } from '@/shared/lib/cn';
+import { formatBytes, MAX_MB } from '@/shared/lib/document-file';
 import { Button } from '@/shared/ui/button';
 
-import { formatBytes, MAX_MB } from '../lib/file';
 import type { Attachment } from '../model/types';
 
 export function FileRow({

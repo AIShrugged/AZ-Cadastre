@@ -18,4 +18,10 @@ export const paths = {
   cases: '/cases',
   /** One case, addressable so it can be linked to and returned to. */
   case: (id: string) => `/cases/${encodeURIComponent(id)}`,
+  /**
+   * The register from further away. Its own surface and not a band above the
+   * register: taking the office's measure and finding one case are asked at
+   * different moments.
+   */
+  analytics: '/analytics',
 };

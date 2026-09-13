@@ -14,7 +14,12 @@
  * There is no account card and no sign-in. The product has no accounts on
  * purpose (ADR-0016): one user, the inspector, and nothing to read a name off.
  */
-import { FileStackIcon, InboxIcon, SearchIcon } from 'lucide-react';
+import {
+  ChartNoAxesColumnIcon,
+  FileStackIcon,
+  InboxIcon,
+  SearchIcon,
+} from 'lucide-react';
 import { useState } from 'react';
 import {
   Outlet,
@@ -111,6 +116,11 @@ const NAV: NavGroup[] = [
       { key: 'nav.intake', icon: InboxIcon, to: paths.intake },
       { key: 'nav.search', icon: SearchIcon, to: paths.search },
       { key: 'nav.cases', icon: FileStackIcon, to: paths.cases },
+      {
+        key: 'nav.analytics',
+        icon: ChartNoAxesColumnIcon,
+        to: paths.analytics,
+      },
     ],
   },
 ];
@@ -119,11 +129,15 @@ const NAV: NavGroup[] = [
  * Global app bar — identical on every route. Sidebar trigger on the left;
  * locale, appearance, and a route-owned action slot on the right. No title, no
  * breadcrumb, no back: the page names itself in its own heading below.
+ *
+ * Off the page when printing, with the sidebar: a surface that prints — the
+ * case sheet — is a document, and the workspace it was read in is not part of
+ * it.
  */
 function AppBar({ slotRef }: { slotRef: (el: HTMLElement | null) => void }) {
   const { t } = useI18n();
   return (
-    <SurfaceMasthead>
+    <SurfaceMasthead className='print:hidden'>
       <SidebarTrigger
         aria-label={t('sidebar.toggle')}
         className='size-8 shrink-0 rounded-md border border-input text-muted-foreground hover:bg-accent hover:text-foreground'
@@ -146,7 +160,10 @@ export function AppShell() {
 
   return (
     <SidebarProvider>
-      <Sidebar collapsible='icon' className='border-r border-sidebar-border'>
+      <Sidebar
+        collapsible='icon'
+        className='border-r border-sidebar-border print:hidden'
+      >
         {/* Logo band — fixed to the masthead height so its baseline and bottom
             rule align with the app header across the top of the page. */}
         <SidebarHeader className='h-16 shrink-0 justify-center gap-0 border-b border-sidebar-border px-2 group-data-[collapsible=icon]:px-0'>
@@ -201,7 +218,7 @@ export function AppShell() {
         <SidebarRail />
       </Sidebar>
 
-      <SidebarInset className='h-svh min-w-0 overflow-hidden bg-background'>
+      <SidebarInset className='h-svh min-w-0 overflow-hidden bg-background print:h-auto print:overflow-visible'>
         <AppBar slotRef={setHeaderSlot} />
         <HeaderSlotContext.Provider value={headerSlot}>
           <div className='flex min-h-0 flex-1 flex-col overflow-hidden'>

@@ -36,11 +36,12 @@ export const OVERVIEW_PERIODS: readonly OverviewPeriod[] = [
  * Every submission the office has ever taken in — the endpoint's own answer to
  * a request that names no bound, and the default here.
  *
- * The default is the *whole* register and not a recent window on purpose: the
- * list of submissions sits on the same screen directly beneath this summary and
- * is itself unbounded, so any other default would put a summary of one set of
- * submissions above a list of another and invite the reader to read the two
- * together.
+ * The default is the *whole* register and not a recent window on purpose. The
+ * summary answers "what does the office hold", and an office that opened the
+ * page to a silent seven-day window would read a quiet week as an empty
+ * register. It also keeps the counts linkable: the list endpoint takes no
+ * period, so only under this window does a figure open exactly the submissions
+ * it counted (`coversWholeRegister`).
  */
 export const WHOLE_REGISTER_PERIOD: OverviewPeriod = 'all';
 

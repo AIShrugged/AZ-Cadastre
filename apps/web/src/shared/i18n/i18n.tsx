@@ -317,6 +317,15 @@ const en: Dict = {
     'No issues found — every required document is present and read above the confidence threshold.',
   'detail.clean_open_set':
     'Which supporting documents this case needs, though, could not be worked out — see below.',
+  // ─── A paper replaced, and the file that replaced it (COMM-80) ─────────────
+  // A replaced document is never removed: the submission is evidence, so what
+  // was sent first stays readable, saying what replaced it and when.
+  'detail.superseded': 'Replaced',
+  'detail.superseded_on': 'on {date}',
+  'detail.superseded_by': 'replaced by {file}',
+  'detail.supplied': 'Supplied',
+  'detail.supplied_for': 'sent in for the missing {type}',
+  'detail.supplied_replacing': 'sent in for the {type} in {file}',
   'detail.f.missing_sub': 'Not found in the package',
   'detail.f.unplaced_sub': 'Type not recognized',
   'detail.f.unread_sheet_sub': 'Sheet could not be read',
@@ -642,11 +651,11 @@ const en: Dict = {
   'gap.unusable': 'Unreadable scan',
   'gap.any_time': 'Accepted at any time',
   'gap.missing_note':
-    'The profile requires this paper and the package carries none. Send the missing one.',
+    'Required by the profile, and the package carries none. Send what is missing.',
   'gap.unusable_note':
     'This paper is here and was read badly. Photograph the same document again — what arrives replaces it.',
   'gap.any_time_note':
-    'Nothing is wrong with the package. This profile takes this paper whenever it turns up.',
+    'Nothing is wrong with the package — the profile takes this whenever it turns up.',
   'gap.unread_fields': 'Not read off the sheets:',
   'gap.doubted_fields': 'Read, but not confidently:',
   'gap.doubted_placement': 'Placed as this type with a confidence of',
@@ -1235,6 +1244,15 @@ const ru: Dict = {
     'Замечаний нет — все обязательные документы присутствуют и распознаны выше порога уверенности.',
   'detail.clean_open_set':
     'Но какой комплект подтверждающих документов нужен по этому делу — определить не удалось, см. ниже.',
+  // ─── Заменённый документ и файл, который его заменил (COMM-80) ─────────────
+  // Заменённый документ не удаляется: заявление — доказательство, поэтому
+  // присланное первым остаётся читаемым и говорит, чем и когда заменено.
+  'detail.superseded': 'Заменён',
+  'detail.superseded_on': 'от {date}',
+  'detail.superseded_by': 'чем заменён: {file}',
+  'detail.supplied': 'Дослан',
+  'detail.supplied_for': 'в ответ на нехватку: {type}',
+  'detail.supplied_replacing': 'взамен документа «{type}» из {file}',
   'detail.f.missing_sub': 'Не найден в пакете',
   'detail.f.unplaced_sub': 'Тип не распознан',
   'detail.f.unread_sheet_sub': 'Лист не распознан',
@@ -1543,11 +1561,11 @@ const ru: Dict = {
   'gap.unusable': 'Скан не читается',
   'gap.any_time': 'Принимается всегда',
   'gap.missing_note':
-    'Профиль требует этот документ, а в заявлении его нет. Пришлите недостающий.',
+    'Требуется профилем, а в заявлении отсутствует. Пришлите недостающее.',
   'gap.unusable_note':
     'Документ приложен, но прочитан плохо. Переснимите тот же документ — присланное встанет на его место.',
   'gap.any_time_note':
-    'С заявлением всё в порядке. Этот документ профиль принимает в любой момент.',
+    'С заявлением всё в порядке — профиль принимает это в любой момент.',
   'gap.unread_fields': 'Не прочитано:',
   'gap.doubted_fields': 'Прочитано неуверенно:',
   'gap.doubted_placement': 'Уверенность в том, что это документ такого типа:',
@@ -2108,6 +2126,15 @@ const az: Dict = {
     'Qüsur yoxdur — bütün tələb olunan sənədlər mövcuddur və etibar həddindən yuxarı oxunub.',
   'detail.clean_open_set':
     'Lakin bu iş üçün hansı təsdiqedici sənəd dəstinin tələb olunduğu müəyyən edilə bilmədi — aşağıya baxın.',
+  // ─── Əvəz edilmiş sənəd və onu əvəz edən fayl (COMM-80) ────────────────────
+  // Əvəz edilmiş sənəd silinmir: paket sübutdur, ona görə ilk göndərilən
+  // oxunaqlı qalır və nə ilə, nə vaxt əvəz edildiyini bildirir.
+  'detail.superseded': 'Əvəz edilib',
+  'detail.superseded_on': '{date} tarixində',
+  'detail.superseded_by': 'nə ilə əvəz edilib: {file}',
+  'detail.supplied': 'Göndərilib',
+  'detail.supplied_for': 'çatışmayan {type} üçün göndərilib',
+  'detail.supplied_replacing': '{file} faylındakı {type} əvəzinə göndərilib',
   'detail.f.missing_sub': 'Paketdə tapılmadı',
   'detail.f.unplaced_sub': 'Növü tanınmadı',
   'detail.f.unread_sheet_sub': 'Vərəq oxuna bilmədi',
@@ -2416,11 +2443,11 @@ const az: Dict = {
   'gap.unusable': 'Skan oxunmur',
   'gap.any_time': 'Hər zaman qəbul edilir',
   'gap.missing_note':
-    'Profil bu sənədi tələb edir, paketdə isə yoxdur. Çatışmayanı göndərin.',
+    'Profil tələb edir, paketdə isə yoxdur. Çatışmayanı göndərin.',
   'gap.unusable_note':
     'Sənəd paketdədir, amma pis oxunub. Eyni sənədi yenidən şəkilləyin — gələn onun yerini tutacaq.',
   'gap.any_time_note':
-    'Paketdə qüsur yoxdur. Bu sənədi profil istənilən vaxt qəbul edir.',
+    'Paketdə qüsur yoxdur — profil bunu istənilən vaxt qəbul edir.',
   'gap.unread_fields': 'Vərəqlərdən oxunmadı:',
   'gap.doubted_fields': 'Oxundu, amma inamsız:',
   'gap.doubted_placement': 'Bu tipə aid edilmə əminliyi:',

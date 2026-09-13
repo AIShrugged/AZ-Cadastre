@@ -126,8 +126,79 @@ export function DocumentGaps({
         {accepting ? t('gap.note') : t('gap.closed_running')}
       </p>
 
-      <ul className='mt-4 divide-y divide-rule border-y border-rule'>
-        {pkg.gaps.map(gap => (
+      <div className='mt-4 flex flex-col gap-6'>
+        {groupsOf(pkg.gaps).map(group => (
+          <ReasonGroup
+            key={group.reason}
+            reason={group.reason}
+            gaps={group.gaps}
+            pkg={pkg}
+            profiles={profiles}
+            accepting={accepting}
+            onJump={onJump}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The gaps under one reason, with the ask stated once above them.
+ *
+ * Once and not per row: the ask is the same sentence for every gap of a reason,
+ * and five identical paragraphs down a column is a column nobody reads to the
+ * bottom of — the repetition buries the one line that differs, which is the name
+ * of the paper. The chip stays on the group for the same reason it existed on the
+ * row: what tells the three apart has to be visible without reading.
+ *
+ * The order is the contract's own — the papers that are not here, then the ones
+ * read badly, then what the profile takes at any time — so the groups fall out of
+ * the list rather than being sorted here.
+ */
+function ReasonGroup({
+  reason,
+  gaps,
+  pkg,
+  profiles,
+  accepting,
+  onJump,
+}: {
+  reason: DocumentGapReason;
+  gaps: readonly DocumentGapDto[];
+  pkg: PackageDetailDto;
+  profiles: readonly ProfileDto[];
+  accepting: boolean;
+  onJump: Jump;
+}) {
+  const { t } = useI18n();
+  const tone = GAP_REASON_TONE[reason];
+  const Icon = REASON_ICON[reason];
+
+  return (
+    <section>
+      <div className='flex flex-wrap items-baseline gap-x-3 gap-y-1'>
+        <span
+          className={cn(
+            'inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-[0.625rem] font-medium uppercase tracking-[0.08em]',
+            TONE_CHIP[tone],
+          )}
+        >
+          <Icon aria-hidden className='size-3' />
+          {t(GAP_REASON_KEY[reason])}
+        </span>
+        <p
+          className={cn(
+            'max-w-[62ch] text-[0.8125rem] leading-relaxed',
+            tone === 'offer' ? 'text-muted-foreground' : TONE_LABEL[tone],
+          )}
+        >
+          {t(GAP_REASON_NOTE[reason])}
+        </p>
+      </div>
+
+      <ul className='mt-2 divide-y divide-rule border-y border-rule'>
+        {gaps.map(gap => (
           <GapRow
             key={gapKey(gap)}
             gap={gap}
@@ -140,6 +211,23 @@ export function DocumentGaps({
       </ul>
     </section>
   );
+}
+
+/** The gaps in the order they arrived, run together by reason. Never sorted:
+ *  the contract states the order, and re-deciding it here is how a screen ends
+ *  up disagreeing with the list it is drawing. */
+function groupsOf(
+  gaps: readonly DocumentGapDto[],
+): { reason: DocumentGapReason; gaps: DocumentGapDto[] }[] {
+  const groups: { reason: DocumentGapReason; gaps: DocumentGapDto[] }[] = [];
+
+  for (const gap of gaps) {
+    const open = groups.at(-1);
+    if (open?.reason === gap.reason) open.gaps.push(gap);
+    else groups.push({ reason: gap.reason, gaps: [gap] });
+  }
+
+  return groups;
 }
 
 function GapRow({
@@ -156,37 +244,17 @@ function GapRow({
   onJump: Jump;
 }) {
   const { t } = useI18n();
-  const tone = GAP_REASON_TONE[gap.reason];
-  const Icon = REASON_ICON[gap.reason];
   const state = supplyStateFor(pkg, gap);
   const type = translateOr(t, `doctype.${gap.expectedType}`, gap.expectedType);
 
   return (
-    <li className='flex flex-wrap items-start justify-between gap-x-6 gap-y-3 py-4'>
+    <li className='flex flex-wrap items-start justify-between gap-x-6 gap-y-3 py-3'>
       <div className='min-w-0 flex-1'>
-        <div className='flex flex-wrap items-baseline gap-x-3 gap-y-1'>
-          <span
-            className={cn(
-              'inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-[0.625rem] font-medium uppercase tracking-[0.08em]',
-              TONE_CHIP[tone],
-            )}
-          >
-            <Icon aria-hidden className='size-3' />
-            {t(GAP_REASON_KEY[gap.reason])}
-          </span>
-          <h3 className='text-[0.9375rem] font-[550] leading-tight tracking-[-0.01em] text-foreground'>
-            {type}
-          </h3>
-        </div>
-
-        <p
-          className={cn(
-            'mt-1.5 max-w-[65ch] text-[0.8125rem] leading-relaxed',
-            tone === 'offer' ? 'text-muted-foreground' : TONE_LABEL[tone],
-          )}
-        >
-          {t(GAP_REASON_NOTE[gap.reason])}
-        </p>
+        {/* The name of the paper is the whole of the row's heading: what kind of
+            gap it is, and what to do about it, the group above already said. */}
+        <h3 className='text-[0.9375rem] font-[550] leading-tight tracking-[-0.01em] text-foreground'>
+          {type}
+        </h3>
 
         {gap.reason === 'UnusableScan' && (
           <ScanFault gap={gap} pkg={pkg} profiles={profiles} onJump={onJump} />
@@ -254,7 +322,10 @@ function ScanFault({
               <span className='text-muted-foreground'>
                 {t('gap.unread_fields')}{' '}
               </span>
-              <span data-mono className='text-[0.75rem] text-foreground'>
+              {/* The name of a field is a name and reads as prose. Mono is
+                  the register's face for a machine-read value, and setting a
+                  label in it makes the label look like the reading. */}
+              <span className='text-foreground'>
                 {shortfall.unread.map(fieldName).join(', ')}
               </span>
             </li>
@@ -264,13 +335,21 @@ function ScanFault({
               <span className='text-muted-foreground'>
                 {t('gap.doubted_fields')}{' '}
               </span>
-              <span data-mono className='text-[0.75rem] text-foreground'>
-                {shortfall.doubted
-                  .map(
-                    reading =>
-                      `${fieldName(reading.key)} ${Math.round(reading.confidence * 100)}%`,
-                  )
-                  .join(', ')}
+              <span className='text-foreground'>
+                {shortfall.doubted.map((reading, n) => (
+                  <span key={reading.key}>
+                    {n > 0 && ', '}
+                    {fieldName(reading.key)}{' '}
+                    {/* The figure is the machine's, and it is set as one — this
+                        is the number the operator weighs the floor against. */}
+                    <span
+                      data-mono
+                      className='text-[0.75rem] tabular-nums text-incomplete-ink'
+                    >
+                      {Math.round(reading.confidence * 100)}%
+                    </span>
+                  </span>
+                ))}
               </span>
             </li>
           )}
@@ -279,7 +358,10 @@ function ScanFault({
               <span className='text-muted-foreground'>
                 {t('gap.doubted_placement')}{' '}
               </span>
-              <span data-mono className='text-[0.75rem] text-foreground'>
+              <span
+                data-mono
+                className='text-[0.75rem] tabular-nums text-incomplete-ink'
+              >
                 {Math.round(shortfall.placement * 100)}%
               </span>
             </li>

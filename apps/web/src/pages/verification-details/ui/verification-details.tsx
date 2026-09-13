@@ -823,11 +823,17 @@ function Field({
   docId,
   sourceText,
   folded,
+  spent,
   onJump,
 }: {
   field: FieldDto;
   docId: string;
   sourceText: string;
+  /** Whether the paper this was read off has been replaced. A doubtful reading
+   *  on a document out of force keeps its figure and loses the "needs review"
+   *  chip: the figure is what was read, which stays true, and the chip is an
+   *  instruction to go and settle something the case no longer rests on. */
+  spent: boolean;
   folded: boolean;
   onJump: Jump;
 }) {
@@ -885,7 +891,10 @@ function Field({
           review" is the worklist's own word for a sheet that wants a second
           look, and the report deliberately files no finding against this
           one — the line under the value says where to look instead. */}
-      <Confidence value={field.confidence} bare={isCarriedOver(field)} />
+      <Confidence
+        value={field.confidence}
+        bare={isCarriedOver(field) || spent}
+      />
     </div>
   );
 }
@@ -894,11 +903,14 @@ function Fields({
   fields,
   docId,
   sourceText,
+  spent,
   onJump,
 }: {
   fields: FieldDto[];
   docId: string;
   sourceText: string;
+  /** Whether this paper has been replaced — see `Field`. */
+  spent: boolean;
   onJump: Jump;
 }) {
   const { t } = useI18n();
@@ -929,6 +941,7 @@ function Fields({
             docId={docId}
             sourceText={sourceText}
             folded={false}
+            spent={spent}
             onJump={onJump}
           />
         ))}
@@ -939,6 +952,7 @@ function Fields({
             docId={docId}
             sourceText={sourceText}
             folded={!whole}
+            spent={spent}
             onJump={onJump}
           />
         ))}
@@ -963,7 +977,7 @@ function Fields({
           {/* A fold that swallowed the doubtful readings would answer the
               heading's count with rows nobody can see, so it says how many of
               them are down there. */}
-          {!whole && flagged > 0 && (
+          {!whole && flagged > 0 && !spent && (
             <span
               data-mono
               title={t('detail.fields_more_review', { n: flagged })}
@@ -1336,6 +1350,7 @@ function DocumentEntry({
               fields={doc.fields}
               docId={doc.id}
               sourceText={text}
+              spent={spent}
               onJump={onJump}
             />
           )

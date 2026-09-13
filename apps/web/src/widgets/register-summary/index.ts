@@ -3,4 +3,8 @@
  * the machine, what the runs made of it, what goes wrong most often, and how
  * the archive register answered, over a period the reader chooses.
  */
-export { RegisterSummary } from './ui/register-summary';
+export {
+  ConveyorMark,
+  PeriodSelect,
+  RegisterSummary,
+} from './ui/register-summary';

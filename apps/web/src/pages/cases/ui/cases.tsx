@@ -73,7 +73,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   CASE_SLICES,
   caseState,
-  documentsExpected,
   drawsOutcome,
   hasFindings,
   isNarrowed,
@@ -97,12 +96,10 @@ import {
   toOverviewRequest,
   useGetPackagesOverviewQuery,
   useGetPackagesQuery,
-  useGetProfilesQuery,
   WHOLE_REGISTER,
   WHOLE_REGISTER_PERIOD,
   type CaseSlice,
   type CaseState,
-  type ProfileDto,
   type RegisterQuery,
   type VerificationPackage,
 } from '@/entities/verification-package';
@@ -201,26 +198,54 @@ function Stated({ value }: { value: StatedValueDto | null }) {
   );
 }
 
-// ─── Applicant / Address cell ───────────────────────────────────────────────
-// Who the submission is for, over which property it concerns — the two things a
-// person names a case by, and the two the row could not say while it led with a
-// profile key and a fragment of a uuid.
+// ─── The case cell ──────────────────────────────────────────────────────────
+// Who the submission is for, which property it concerns, and the short
+// reference it is cited by — one cell, because they are one answer to "which
+// case is this".
 //
-// Null means no document of this package states it yet: the run has not reached
-// the paper, or read nothing off it. Drawn as the same silence every other
-// unknown cell of this table draws, and as one dash rather than two where the
-// package names neither — two dashes stacked report nothing twice.
-function Named({ p }: { p: VerificationPackage }) {
-  if (p.applicant === null && p.address === null) {
-    return <span className='text-muted-foreground/60'>—</span>;
-  }
+// The profile's name is not on the row when every row shares it. It led this
+// column on every line — the same sixty characters eight times over, three
+// lines each on a phone — and a word repeated down a whole column says nothing
+// about any one row. It comes back beside the reference only when the page
+// holds cases of more than one profile, which is when it tells rows apart.
+//
+// A name no document states yet is said in words rather than as a dash: the
+// name leads the cell, and a dash in that place reads as a blank row.
+function Named({
+  p,
+  profile,
+}: {
+  p: VerificationPackage;
+  /** The profile's name, where the page mixes profiles; null otherwise. */
+  profile: string | null;
+}) {
+  const { t } = useI18n();
   return (
-    <span className='flex max-w-[20rem] flex-col gap-0.5 leading-tight'>
-      <span className='text-[0.8125rem] text-foreground'>
-        <Stated value={p.applicant} />
+    <span className='flex max-w-[32rem] min-w-0 flex-col gap-0.5 leading-tight'>
+      <span className='text-[0.875rem] font-medium text-foreground'>
+        {p.applicant === null ? (
+          <span className='font-normal text-muted-foreground'>
+            {t('cases.unnamed')}
+          </span>
+        ) : (
+          <Stated value={p.applicant} />
+        )}
       </span>
-      <span className='text-[0.75rem] text-muted-foreground'>
-        <Stated value={p.address} />
+      {p.address !== null && (
+        <span className='text-[0.8125rem] text-muted-foreground'>
+          <Stated value={p.address} />
+        </span>
+      )}
+      <span className='flex min-w-0 items-baseline gap-1.5 text-[0.75rem] text-muted-foreground/80'>
+        <span data-mono title={p.id} className='shrink-0'>
+          {packageRef(p.id)}
+        </span>
+        {profile && (
+          <>
+            <span aria-hidden>·</span>
+            <span className='truncate'>{profile}</span>
+          </>
+        )}
       </span>
     </span>
   );
@@ -252,9 +277,7 @@ function Report({
 }) {
   const { t } = useI18n();
   if (state.kind === 'reading') return null;
-  if (state.kind === 'unread') {
-    return <span className='text-[0.75rem] text-muted-foreground/60'>—</span>;
-  }
+  if (state.kind === 'unread') return null;
   const word = drawsOutcome(p.standing, state.outcome, narrowedByOutcome);
   if (!word && !hasFindings(state)) return null;
   return (
@@ -287,29 +310,22 @@ function Report({
 }
 
 // ─── Documents cell ─────────────────────────────────────────────────────────
-// Placed against what the governing profile expects. `expected` is null when
-// the engine named no such profile — this build has never heard of the policy
-// this package was opened under — so the cell reports what it knows rather than
-// inventing a total: the documents the engine found inside the uploaded files,
-// or, before it has read them, the number of files themselves.
-function Documents({
-  p,
-  expected,
-}: {
-  p: VerificationPackage;
-  expected: number | null;
-}) {
-  const total = expected ?? (p.docsFound || p.filesAttached);
-  const short = p.docsClassified < total;
+// How many documents the package holds. It was "placed / required" — "15/2",
+// fifteen papers the classifier placed over the two the profile requires, two
+// counts of different things that read as a broken fraction. The summary
+// carries no count of required papers present, and whether any are missing is
+// what the state cell's own word says, so this counts and does not compare.
+//
+// While a run is still placing them the cell is the run's progress instead —
+// placed of found — which is a fraction of one thing. Before anything is found
+// it counts the files the inspector attached.
+function Documents({ p }: { p: VerificationPackage }) {
+  const placing = p.stage !== undefined && p.docsFound > 0;
   return (
-    <span
-      data-mono
-      className={cn(
-        'text-[0.8125rem]',
-        short ? 'text-incomplete-ink' : 'text-foreground/80',
-      )}
-    >
-      {p.docsClassified}/{total}
+    <span className='text-[0.8125rem] tabular-nums text-foreground/80'>
+      {placing
+        ? `${p.docsClassified}/${p.docsFound}`
+        : p.docsFound || p.filesAttached}
     </span>
   );
 }
@@ -328,7 +344,7 @@ function Submitted({
   if (p.stage !== undefined) {
     return (
       <span className='flex flex-col gap-0.5 leading-tight'>
-        <span data-mono className='text-[0.8125rem] text-foreground/80'>
+        <span className='text-[0.8125rem] tabular-nums text-foreground/80'>
           {formatDate(p.submittedAt, locale)}
         </span>
         <span className='text-[0.75rem] text-progress'>
@@ -338,7 +354,7 @@ function Submitted({
     );
   }
   return (
-    <span data-mono className='text-[0.8125rem] text-foreground/80'>
+    <span className='text-[0.8125rem] tabular-nums text-foreground/80'>
       {formatDate(p.submittedAt, locale)}
     </span>
   );
@@ -376,7 +392,6 @@ function State({
 // ─── Desktop table ──────────────────────────────────────────────────────────
 function RegisterTable({
   rows,
-  profiles,
   density,
   selected,
   onSelect,
@@ -385,7 +400,6 @@ function RegisterTable({
   narrowedByOutcome,
 }: {
   rows: VerificationPackage[];
-  profiles: readonly ProfileDto[];
   density: Density;
   selected: string | null;
   onSelect: (p: VerificationPackage) => void;
@@ -396,37 +410,34 @@ function RegisterTable({
 }) {
   const { t } = useI18n();
   const pad = density === 'compact' ? 'py-2.5' : 'py-4';
+  // The profile is named on a row only when the page holds more than one — see
+  // `Named`.
+  const mixed = new Set(rows.map(row => row.profile)).size > 1;
 
   return (
     <Table className='border-separate border-spacing-0'>
       <TableHeader>
         <TableRow className='border-0 hover:bg-transparent'>
-          {/* Five columns. No Profile column of its own: the entry leads with
-              the profile's name, and the same string twice in one row is a
-              column that reports nothing. Remarks, Outcome and Standing were
-              three of these and are now one — what the run found, what it came
-              to and what happens next are one thing to look at, and the cell
-              still says the words both filters narrow by. The case it belongs
-              to comes second, because that is what an inspector reads a
-              register for. */}
-          {[
-            'col.case',
-            'col.applicant',
-            'col.documents',
-            'col.state',
-            'col.submitted',
-          ].map((c, i, all) => (
-            <TableHead
-              key={c}
-              className={cn(
-                'register-label sticky top-0 z-10 h-auto border-b border-rule-strong bg-background px-4 py-2.5',
-                i === 0 && 'pl-6',
-                i === all.length - 1 && 'pr-6',
-              )}
-            >
-              {t(c)}
-            </TableHead>
-          ))}
+          {/* Four columns. The case and its applicant were two, and the first
+              of them repeated the profile's name on every row; they are one
+              cell now (`Named`). Remarks, Outcome and Standing are one as
+              well — what the run found, what it came to and what happens next
+              are one thing to look at, and the cell still says the words both
+              filters narrow by. */}
+          {['col.case', 'col.documents', 'col.state', 'col.submitted'].map(
+            (c, i, all) => (
+              <TableHead
+                key={c}
+                className={cn(
+                  'sticky top-0 z-10 h-auto border-b border-rule-strong bg-background px-4 py-2.5 text-[0.75rem] font-medium text-muted-foreground',
+                  i === 0 && 'pl-6',
+                  i === all.length - 1 && 'pr-6',
+                )}
+              >
+                {t(c)}
+              </TableHead>
+            ),
+          )}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -457,26 +468,10 @@ function RegisterTable({
                   isSel && 'shadow-[inset_2px_0_0_var(--color-primary)]',
                 )}
               >
-                {/* What the entry is, then which entry it is. The uuid led this
-                    column and told the inspector nothing they could read; it
-                    stays as the reference underneath, in full on hover. */}
-                <div className='flex flex-col gap-0.5 leading-tight'>
-                  <span className='text-[0.8125rem] font-medium text-foreground'>
-                    {profileName(t, p.profile)}
-                  </span>
-                  <span
-                    data-mono
-                    title={p.id}
-                    className='text-[0.8125rem] text-muted-foreground'
-                  >
-                    {packageRef(p.id)}
-                  </span>
-                </div>
-              </TableCell>
-              <TableCell
-                className={cn('border-b border-rule px-4 align-middle', pad)}
-              >
-                <Named p={p} />
+                <Named
+                  p={p}
+                  profile={mixed ? profileName(t, p.profile) : null}
+                />
               </TableCell>
               <TableCell
                 className={cn(
@@ -484,10 +479,7 @@ function RegisterTable({
                   pad,
                 )}
               >
-                <Documents
-                  p={p}
-                  expected={documentsExpected(profiles, p.profile)}
-                />
+                <Documents p={p} />
               </TableCell>
               <TableCell
                 className={cn('border-b border-rule px-4 align-middle', pad)}
@@ -520,18 +512,17 @@ function RegisterTable({
 // a phone and another on a desk is two registers.
 function RegisterEntries({
   rows,
-  profiles,
   onSelect,
   locale,
   narrowedByOutcome,
 }: {
   rows: VerificationPackage[];
-  profiles: readonly ProfileDto[];
   onSelect: (p: VerificationPackage) => void;
   locale: Locale;
   narrowedByOutcome: boolean;
 }) {
   const { t } = useI18n();
+  const mixed = new Set(rows.map(row => row.profile)).size > 1;
   return (
     <ul className='flex flex-col border-t border-rule-strong'>
       {rows.map(p => (
@@ -541,31 +532,17 @@ function RegisterEntries({
             className='flex w-full flex-col gap-2.5 border-b border-rule px-4 py-4 text-left transition-colors hover:bg-accent/50 focus-visible:bg-accent/50 focus-visible:outline-none'
           >
             <div className='flex items-start justify-between gap-3'>
-              <div className='flex min-w-0 flex-col gap-0.5'>
-                <span className='text-[0.8125rem] font-medium text-foreground'>
-                  {profileName(t, p.profile)}
-                </span>
-                <span
-                  data-mono
-                  className='truncate text-[0.8125rem] text-muted-foreground'
-                >
-                  {packageRef(p.id)}
-                </span>
-              </div>
+              <Named p={p} profile={mixed ? profileName(t, p.profile) : null} />
               <StandingMark standing={p.standing} className='shrink-0' />
             </div>
-            <Named p={p} />
             {p.stage !== undefined && <StageBar stage={p.stage} />}
             <div className='flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[0.75rem] text-muted-foreground'>
               <span>
-                {t('col.documents')}{' '}
-                <span data-mono className='text-foreground/70'>
-                  {p.docsClassified}/
-                  {documentsExpected(profiles, p.profile) ??
-                    (p.docsFound || p.filesAttached)}
-                </span>
+                {t('col.documents')} <Documents p={p} />
               </span>
-              <span data-mono>{formatDate(p.submittedAt, locale)}</span>
+              <span className='tabular-nums'>
+                {formatDate(p.submittedAt, locale)}
+              </span>
               <Report
                 p={p}
                 state={caseState(p)}
@@ -605,10 +582,7 @@ function RegisterSkeleton({ density }: { density: Density }) {
             <Skeleton className='h-3.5 w-32' />
             <Skeleton className='h-3 w-44' />
           </div>
-          <div className='hidden flex-1 flex-col gap-1.5 md:flex'>
-            <Skeleton className='h-3.5 w-36' />
-            <Skeleton className='h-3 w-52' />
-          </div>
+
           <Skeleton className='hidden h-3 w-10 md:block' />
           <Skeleton className='h-4 w-28' />
           <Skeleton className='hidden h-3 w-20 md:block' />
@@ -840,9 +814,6 @@ export function Cases() {
   const shouldPoll = rows.some(p => p.stage !== undefined);
   if (shouldPoll !== polling) setPolling(shouldPoll);
 
-  // Which documents each profile expects — policy, so it is asked for once and
-  // cached, never polled alongside the packages.
-  const { data: profiles = [] } = useGetProfilesQuery();
   const [now] = useState(() => Date.now());
   // What each tab holds. Over the **whole** register and never over the
   // summary's period: the list this strip narrows is not narrowed by a period,
@@ -1012,7 +983,6 @@ export function Cases() {
             <div className='hidden flex-1 md:block md:pt-3'>
               <RegisterTable
                 rows={rows}
-                profiles={profiles}
                 density={density}
                 selected={selected}
                 onSelect={onSelect}
@@ -1024,7 +994,6 @@ export function Cases() {
             <div className='flex-1 md:hidden'>
               <RegisterEntries
                 rows={rows}
-                profiles={profiles}
                 onSelect={onSelect}
                 locale={locale}
                 narrowedByOutcome={query.reportStatus !== null}

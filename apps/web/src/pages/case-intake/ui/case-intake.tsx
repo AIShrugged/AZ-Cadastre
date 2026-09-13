@@ -44,6 +44,7 @@ import {
   ClipboardListIcon,
   FileTextIcon,
   LibraryIcon,
+  LightbulbIcon,
   ScaleIcon,
   UploadCloudIcon,
 } from 'lucide-react';
@@ -101,6 +102,7 @@ import { cn } from '@/shared/lib/cn';
 import { ACCEPT } from '@/shared/lib/document-file';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/store-hooks';
 import { Button } from '@/shared/ui/button';
+import { InfoHint } from '@/shared/ui/info-hint';
 import { Input } from '@/shared/ui/input';
 import {
   Select,
@@ -217,7 +219,9 @@ function ProfilePicker({
     <div
       role='radiogroup'
       aria-label={t('intake.field.profile')}
-      className='grid gap-3 sm:grid-cols-2'
+      // One profile takes the whole row, so its name is read in full rather
+      // than cut to an ellipsis in half of it.
+      className={cn('grid gap-3', profiles.length > 1 && 'sm:grid-cols-2')}
     >
       {profiles.map(profile => {
         const selected = profile.key === value;
@@ -232,7 +236,7 @@ function ProfilePicker({
             aria-checked={selected}
             onClick={() => onChange(profile.key)}
             className={cn(
-              'group flex items-center gap-3 rounded-xl border p-3.5 text-left outline-none transition-all',
+              'group flex w-full min-w-0 items-center gap-3 rounded-xl border p-3.5 text-left outline-none transition-all',
               'focus-visible:ring-2 focus-visible:ring-ring/50',
               selected
                 ? 'border-primary bg-accent/50 shadow-[var(--shadow-sm)] ring-1 ring-primary'
@@ -250,7 +254,7 @@ function ProfilePicker({
               <ProfileGlyph profileKey={profile.key} className='size-[18px]' />
             </span>
             <span className='min-w-0 flex-1'>
-              <span className='block truncate text-[0.875rem] font-medium text-foreground'>
+              <span className='block text-[0.875rem] leading-snug font-medium text-foreground'>
                 {profileName(t, profile.key)}
               </span>
               <span className='block text-[0.75rem] text-muted-foreground'>
@@ -300,28 +304,35 @@ function DeclaredField({
   children,
 }: {
   label: string;
+  /** What the box is for, behind the ⓘ beside its label. It used to sit under
+   *  both boxes at different lengths, so the two never lined up. */
   hint: string;
-  /** The suggestion's line for this field, once one has been answered. It
-   *  replaces the hint rather than joining it: the hint says what the box is
-   *  for, and by then the operator has filled it in. */
+  /** The suggestion's line for this field, once one has been answered — the
+   *  only text under the box, and only while there is something to say. */
   reason: string | null;
   warning: string | null;
   children: React.ReactNode;
 }) {
+  const { t } = useI18n();
+  const note = warning ?? reason;
+
   return (
     <div className='flex min-w-0 flex-col gap-1.5'>
-      <span className='text-[0.8125rem] font-medium text-foreground'>
+      <span className='flex h-6 items-center gap-1 text-[0.8125rem] font-medium text-foreground'>
         {label}
+        <InfoHint label={t('common.more_info')}>{hint}</InfoHint>
       </span>
       {children}
-      <p
-        className={cn(
-          'text-[0.75rem] leading-snug',
-          warning ? 'text-incomplete-ink' : 'text-muted-foreground',
-        )}
-      >
-        {warning ?? reason ?? hint}
-      </p>
+      {note && (
+        <p
+          className={cn(
+            'text-[0.75rem] leading-snug',
+            warning ? 'text-incomplete-ink' : 'text-muted-foreground',
+          )}
+        >
+          {note}
+        </p>
+      )}
     </div>
   );
 }
@@ -352,16 +363,16 @@ function Declared({
 
   return (
     <div className='flex flex-col gap-3'>
-      <div className='flex flex-col gap-1'>
-        <span className='text-[0.8125rem] font-medium text-foreground'>
+      <div className='flex flex-col gap-0.5'>
+        <h2 className='text-[0.875rem] font-semibold tracking-[-0.01em] text-foreground'>
           {t('declared.title')}
-        </span>
-        <p className='text-[0.75rem] leading-snug text-muted-foreground'>
+        </h2>
+        <p className='text-[0.8125rem] leading-snug text-muted-foreground'>
           {t('intake.declared.lead')}
         </p>
       </div>
 
-      <div className='grid gap-4 sm:grid-cols-2'>
+      <div className='grid items-start gap-4 sm:grid-cols-2'>
         <DeclaredField
           label={t('declared.basis')}
           hint={t('intake.declared.basis_hint')}
@@ -387,7 +398,10 @@ function Declared({
             <SelectTrigger
               aria-label={t('declared.basis')}
               aria-invalid={strayGround && profileKey !== null}
-              className='h-9 w-full bg-background text-[0.875rem]'
+              // The shared trigger sets its height through
+              // `data-[size=default]:h-8`, which outranks a plain `h-9`; the
+              // attribute is matched so the select sits level with the year box.
+              className='h-9 w-full bg-card text-[0.875rem] data-[size=default]:h-9'
             >
               <span className='min-w-0 truncate'>
                 {basis === null
@@ -442,7 +456,7 @@ function Declared({
             onChange={event =>
               onChange({ ...draft, builtYear: event.target.value })
             }
-            className='h-9 border-input bg-background text-[0.875rem] tabular-nums'
+            className='h-9 border-input bg-card text-[0.875rem] tabular-nums'
           />
         </DeclaredField>
       </div>
@@ -479,7 +493,8 @@ function Suggestion({
 
   return (
     <div className='flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-rule bg-muted/25 px-4 py-3'>
-      <span className='register-label shrink-0 text-muted-foreground'>
+      <span className='flex shrink-0 items-center gap-1.5 text-[0.8125rem] font-medium text-foreground'>
+        <LightbulbIcon aria-hidden className='size-3.5 text-muted-foreground' />
         {t('intake.suggest.title')}
       </span>
       {suggestion === null ? (
@@ -600,7 +615,7 @@ function KindTally({
           <span className='min-w-0 text-foreground'>
             {t(ISSUE_KIND_KEY[kind])}
           </span>
-          <span data-mono className='shrink-0 tabular-nums text-issues-ink'>
+          <span className='shrink-0 font-medium tabular-nums text-issues-ink'>
             {n}
           </span>
         </li>
@@ -818,9 +833,9 @@ export function CaseIntake() {
           {caseId === null ? (
             <>
               <div className='flex flex-col gap-2.5'>
-                <span className='text-[0.8125rem] font-medium text-foreground'>
+                <h2 className='text-[0.875rem] font-semibold tracking-[-0.01em] text-foreground'>
                   {t('intake.field.profile')}
-                </span>
+                </h2>
                 <ProfilePicker
                   profiles={profiles}
                   value={profile}
@@ -884,7 +899,7 @@ export function CaseIntake() {
                         key={reading.line}
                         className='flex min-w-0 flex-col gap-0.5'
                       >
-                        <dt className='register-label text-muted-foreground'>
+                        <dt className='text-[0.75rem] text-muted-foreground'>
                           {t(PACKET_LINE_KEY[reading.line])}
                         </dt>
                         <dd className='text-[0.8125rem] break-words text-foreground'>
@@ -895,7 +910,7 @@ export function CaseIntake() {
                                 : t('intake.read.unread')}
                             </span>
                           ) : (
-                            <span data-mono>{reading.field.value}</span>
+                            <span>{reading.field.value}</span>
                           )}
                         </dd>
                         {needsAGlance(reading) && reading.field !== null && (
@@ -918,7 +933,7 @@ export function CaseIntake() {
               {/* ── 3 · the recommendation, then what it rests on ── */}
               {view !== undefined && (
                 <div className='flex flex-col gap-2 rounded-xl border border-rule-strong px-4 py-3.5'>
-                  <span className='register-label text-muted-foreground'>
+                  <span className='text-[0.8125rem] font-medium text-foreground'>
                     {t('intake.recommendation')}
                   </span>
                   <StandingMark standing={view.standing} />
@@ -934,10 +949,7 @@ export function CaseIntake() {
                     icon={FileTextIcon}
                     title={t('intake.group.documents')}
                     badge={
-                      <span
-                        data-mono
-                        className='text-[0.75rem] tabular-nums text-muted-foreground'
-                      >
+                      <span className='text-[0.75rem] tabular-nums text-muted-foreground'>
                         {view.classifiedCount}/
                         {documentsExpected(profiles, view.profileKey) ??
                           view.documentsCount}
@@ -947,11 +959,7 @@ export function CaseIntake() {
                     <KindTally detail={view} kinds={DOCUMENT_KINDS} />
                   </Group>
 
-                  <Group
-                    icon={ScaleIcon}
-                    title={t('intake.group.legal')}
-                    lead={t('provision.lead')}
-                  >
+                  <Group icon={ScaleIcon} title={t('intake.group.legal')}>
                     {/* Which provision of Article 8 the case falls under, as
                         the server has worked it out so far; the detail page's
                         fold says what it was decided on (ADR-0025). */}
@@ -973,10 +981,7 @@ export function CaseIntake() {
                     icon={LibraryIcon}
                     title={t('intake.group.archive')}
                     badge={
-                      <span
-                        data-mono
-                        className='text-[0.75rem] tabular-nums text-muted-foreground'
-                      >
+                      <span className='text-[0.75rem] tabular-nums text-muted-foreground'>
                         {view.registryChecks.length}
                       </span>
                     }

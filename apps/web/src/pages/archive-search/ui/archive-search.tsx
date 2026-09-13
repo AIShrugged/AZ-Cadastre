@@ -33,8 +33,13 @@
  * keeping the question in the address bar would put it in all three the moment
  * the page is reloaded.
  */
-import { SearchIcon, SearchXIcon, UnplugIcon } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
+import {
+  ChevronRightIcon,
+  SearchIcon,
+  SearchXIcon,
+  UnplugIcon,
+} from 'lucide-react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 
 import {
   ATTRIBUTE_KEY,
@@ -62,6 +67,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@/shared/ui/empty';
+import { InfoHint } from '@/shared/ui/info-hint';
 import { Input } from '@/shared/ui/input';
 import {
   Select,
@@ -104,14 +110,12 @@ function Field({
   placeholder: string;
   onChange: (value: string) => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className='flex min-w-0 flex-col gap-1.5'>
-      <label
-        htmlFor={id}
-        className='text-[0.8125rem] font-medium text-foreground'
-      >
+      <FieldLabel htmlFor={id} hint={hint} hintLabel={t('common.more_info')}>
         {label}
-      </label>
+      </FieldLabel>
       <Input
         id={id}
         type='search'
@@ -119,11 +123,42 @@ function Field({
         value={value}
         placeholder={placeholder}
         onChange={e => onChange(e.target.value)}
-        className='h-9 border-input bg-background text-[0.875rem]'
+        className='h-9 border-input bg-card text-[0.875rem]'
       />
-      <p className='text-[0.75rem] leading-snug text-muted-foreground'>
-        {hint}
-      </p>
+    </div>
+  );
+}
+
+/**
+ * A label exactly one line tall, whether or not it carries an ⓘ, so every
+ * control in the form row starts at the same height.
+ *
+ * How each box searches sits behind the ⓘ. It was a sentence under every box,
+ * of different lengths, and the row read as three paragraphs with inputs
+ * wedged between them.
+ */
+function FieldLabel({
+  htmlFor,
+  hint,
+  hintLabel,
+  children,
+}: {
+  htmlFor?: string;
+  hint?: string;
+  hintLabel: string;
+  children: ReactNode;
+}) {
+  const text = 'text-[0.8125rem] font-medium text-foreground';
+  return (
+    <div className='flex h-6 min-w-0 items-center gap-1'>
+      {htmlFor ? (
+        <label htmlFor={htmlFor} className={cn('truncate', text)}>
+          {children}
+        </label>
+      ) : (
+        <span className={cn('truncate', text)}>{children}</span>
+      )}
+      {hint && <InfoHint label={hintLabel}>{hint}</InfoHint>}
     </div>
   );
 }
@@ -148,11 +183,8 @@ function Pairs({
     >
       {pairs.map(pair => (
         <div key={pair.key} className='flex min-w-0 flex-col gap-0.5'>
-          <dt className='register-label text-muted-foreground'>{pair.label}</dt>
-          <dd
-            data-mono
-            className='text-[0.8125rem] break-words text-foreground'
-          >
+          <dt className='text-[0.75rem] text-muted-foreground'>{pair.label}</dt>
+          <dd className='text-[0.875rem] break-words text-foreground'>
             {pair.value}
           </dd>
         </div>
@@ -173,12 +205,11 @@ function Panel({
   return (
     <section className='border-b border-rule'>
       <header className='flex items-center gap-2.5 border-b border-rule bg-muted/25 px-4 py-2 md:px-6'>
-        <h2 className='register-label text-foreground'>{title}</h2>
+        <h2 className='text-[0.8125rem] font-semibold text-foreground'>
+          {title}
+        </h2>
         {count !== undefined && (
-          <span
-            data-mono
-            className='rounded-full bg-muted px-1.5 text-[0.6875rem] text-muted-foreground tabular-nums'
-          >
+          <span className='rounded-full bg-muted px-1.5 text-[0.6875rem] font-medium text-muted-foreground tabular-nums'>
             {count}
           </span>
         )}
@@ -216,14 +247,13 @@ function CoverageBand({ answer }: { answer: ArchiveSearchResponse }) {
           which registers answered is exactly what a lowered bar is read for. */}
       {answer.sources.length > 0 && (
         <div className='flex min-w-0 flex-col gap-1'>
-          <span className='register-label text-muted-foreground'>
+          <span className='text-[0.75rem] text-muted-foreground'>
             {t('search.sources')}
           </span>
           <ul className='flex flex-wrap gap-1.5'>
             {answer.sources.map(source => (
               <li
                 key={source}
-                data-mono
                 className='rounded-full bg-muted px-2 py-0.5 text-[0.75rem] break-words text-foreground'
               >
                 {source}
@@ -253,10 +283,7 @@ function MatchRow({ match }: { match: ArchiveMatchDto }) {
     <li className='flex flex-col border-b border-rule last:border-b-0'>
       <div className='flex flex-col gap-2 px-4 pt-3.5 md:flex-row md:items-start md:justify-between md:px-6'>
         <div className='flex min-w-0 flex-col gap-0.5'>
-          <span
-            data-mono
-            className='text-[0.875rem] font-medium break-words text-foreground'
-          >
+          <span className='text-[0.9375rem] font-medium break-words text-foreground'>
             {match.record.address}
           </span>
           <span className='text-[0.75rem] text-muted-foreground'>
@@ -286,7 +313,7 @@ function MatchRow({ match }: { match: ArchiveMatchDto }) {
       {match.record.location !== null && (
         <p className='px-4 pb-2.5 text-[0.75rem] text-muted-foreground md:px-6'>
           {t('archive.location')}{' '}
-          <span data-mono className='text-foreground'>
+          <span className='text-foreground'>
             {t('archive.location.value', {
               folder: match.record.location.folder,
               pages: match.record.location.pages,
@@ -307,17 +334,14 @@ function MatchRow({ match }: { match: ArchiveMatchDto }) {
               key={line.criterion}
               className='inline-flex min-w-0 items-baseline gap-1.5 text-[0.75rem]'
             >
-              <span className='register-label text-muted-foreground'>
+              <span className='text-muted-foreground'>
                 {t(CRITERION_KEY[line.criterion])}
               </span>
-              <span data-mono className='tabular-nums text-foreground'>
+              <span className='font-medium tabular-nums text-foreground'>
                 {percent(line.confidence)}
               </span>
               {line.recorded !== null && (
-                <span
-                  data-mono
-                  className='min-w-0 truncate text-muted-foreground'
-                >
+                <span className='min-w-0 truncate text-muted-foreground'>
                   {line.recorded}
                 </span>
               )}
@@ -367,7 +391,7 @@ function DisagreementsPanel({
                   property is what a register may hold nothing for: the older
                   land-committee books carry a holder and no address at all,
                   and a row that led with the address would open with a blank. */}
-              <span className='register-label text-muted-foreground'>
+              <span className='text-[0.75rem] text-muted-foreground'>
                 {/* The register's own field name, in the reader's language
                     where this build has one — and bare where it does not, so
                     two sources contradicting each other about a column nobody
@@ -379,7 +403,7 @@ function DisagreementsPanel({
                 )}
               </span>
               {disagreement.subject !== '' && (
-                <span data-mono className='text-[0.8125rem] text-foreground'>
+                <span className='text-[0.8125rem] font-medium text-foreground'>
                   {disagreement.subject}
                 </span>
               )}
@@ -388,15 +412,12 @@ function DisagreementsPanel({
               {disagreement.statements.map((statement, index) => (
                 <li
                   key={`${statement.source}-${index}`}
-                  className='flex flex-col gap-0.5 border-l-2 border-rule-strong pl-3 sm:flex-row sm:items-baseline sm:gap-2.5'
+                  className='flex flex-col gap-0.5 border-l border-rule-strong pl-3 sm:flex-row sm:items-baseline sm:gap-2.5'
                 >
                   <span className='shrink-0 text-[0.75rem] text-muted-foreground'>
                     {statement.source}
                   </span>
-                  <span
-                    data-mono
-                    className='min-w-0 text-[0.8125rem] break-words text-foreground'
-                  >
+                  <span className='min-w-0 text-[0.8125rem] break-words text-foreground'>
                     {statement.value}
                   </span>
                 </li>
@@ -410,25 +431,30 @@ function DisagreementsPanel({
 }
 
 // ─── Where the answer came from ─────────────────────────────────────────────
-// The audit line the register wrote travels in English (TECH_DEBT §8) and is
-// shown as what it is — the record of the search, not a sentence written for
-// this reader.
+// The audit line the register wrote travels in English (TECH_DEBT §8). It is
+// the record of the search, not a sentence written for this reader, so it is
+// folded under "Technical details" — there for whoever needs it, and not the
+// last thing every search result ends on.
 function SourcePanel({ note }: { note: string }) {
   const { t } = useI18n();
   return (
-    <Panel title={t('archive.panel.source')} count={1}>
-      <div className='flex flex-col gap-1 px-4 py-3.5 md:px-6'>
+    <details className='group border-b border-rule'>
+      <summary className='flex cursor-pointer list-none select-none items-center gap-2 px-4 py-2.5 text-[0.8125rem] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 md:px-6'>
+        <ChevronRightIcon
+          aria-hidden
+          className='size-3.5 shrink-0 transition-transform duration-200 group-open:rotate-90'
+        />
+        {t('search.details')}
+      </summary>
+      <div className='flex flex-col gap-1 pr-4 pb-3.5 pl-9.5 md:pr-6 md:pl-11.5'>
         <span className='text-[0.8125rem] font-medium text-foreground'>
           {t('archive.source.register')}
         </span>
-        <p
-          data-mono
-          className='text-[0.75rem] leading-relaxed break-words text-muted-foreground'
-        >
+        <p className='text-[0.75rem] leading-relaxed break-words text-muted-foreground'>
           {note}
         </p>
       </div>
-    </Panel>
+    </details>
   );
 }
 
@@ -513,9 +539,12 @@ export function ArchiveSearch() {
         {/* ── The question ── */}
         <form
           onSubmit={onSubmit}
-          className='flex shrink-0 flex-col gap-4 border-b border-rule-strong px-4 py-4 md:px-6'
+          className='shrink-0 border-b border-rule-strong px-4 py-5 md:px-6'
         >
-          <div className='grid gap-4 md:grid-cols-3'>
+          {/* One row on a wide screen — the three boxes, the bar and the
+              button, bottom-aligned so every control sits on one line — two
+              columns on a tablet, one on a phone. */}
+          <div className='grid items-end gap-x-3 gap-y-4 md:grid-cols-2 xl:grid-cols-[repeat(3,minmax(0,1fr))_11rem_auto]'>
             <Field
               id='archive-address'
               label={t('search.field.address')}
@@ -540,62 +569,52 @@ export function ArchiveSearch() {
               value={query.parcel}
               onChange={field('parcel')}
             />
-          </div>
 
-          <div className='flex flex-wrap items-center gap-3'>
-            {/* "Show matches no weaker than …" — the operator's own words for
-                the threshold, offered at the contract's four band floors and
-                not on a scale this screen invented. */}
-            <Select
-              value={String(query.threshold)}
-              onValueChange={value => onThreshold(Number(value))}
-            >
-              <SelectTrigger
-                aria-label={t('search.threshold.label')}
-                className='h-8 max-w-full gap-2 border-input bg-background px-2.5 text-foreground hover:bg-accent hover:text-foreground'
+            {/* "Minimum match" — the operator's own bar, offered at the
+                contract's four band floors and not on a scale this screen
+                invented. Labelled above like the boxes, so the row aligns. */}
+            <div className='flex min-w-0 flex-col gap-1.5'>
+              <FieldLabel hintLabel={t('common.more_info')}>
+                {t('search.threshold.label')}
+              </FieldLabel>
+              <Select
+                value={String(query.threshold)}
+                onValueChange={value => onThreshold(Number(value))}
               >
-                <span className='flex min-w-0 items-baseline gap-1.5 text-[0.8125rem]'>
-                  <span className='shrink-0 text-muted-foreground'>
-                    {t('search.threshold.label')}
-                  </span>
-                  <span className='truncate font-medium'>
+                <SelectTrigger
+                  aria-label={t('search.threshold.label')}
+                  className='h-9 w-full gap-2 border-input bg-card px-2.5 text-[0.875rem] text-foreground hover:bg-accent hover:text-foreground data-[size=default]:h-9'
+                >
+                  <span className='truncate'>
                     {t(BAND_KEY[bandOf(query.threshold)])}
                   </span>
-                </span>
-              </SelectTrigger>
-              <SelectContent align='start'>
-                {THRESHOLD_CHOICES.map(choice => (
-                  <SelectItem key={choice.band} value={String(choice.floor)}>
-                    <span className='flex items-baseline gap-2'>
-                      {t(BAND_KEY[choice.band])}
-                      <span
-                        data-mono
-                        className='text-[0.75rem] tabular-nums text-muted-foreground'
-                      >
-                        {percent(choice.floor)}
+                </SelectTrigger>
+                <SelectContent align='start'>
+                  {THRESHOLD_CHOICES.map(choice => (
+                    <SelectItem key={choice.band} value={String(choice.floor)}>
+                      <span className='flex items-baseline gap-2'>
+                        {t(BAND_KEY[choice.band])}
+                        <span className='text-[0.75rem] tabular-nums text-muted-foreground'>
+                          {percent(choice.floor)}
+                        </span>
                       </span>
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
+            {/* That one box is enough is said by the empty state below, and
+                by the button, which lights the moment any box has text. */}
             <Button
               type='submit'
-              className='ml-auto'
+              className='h-9 w-full px-5 md:col-span-2 xl:col-span-1 xl:w-auto'
               disabled={!askable || isFetching}
             >
               <SearchIcon />
               {isFetching ? t('search.searching') : t('search.submit')}
             </Button>
           </div>
-
-          {/* That any one box is enough is said in words as well as in the
-              hints: an operator who reads neither still has the button, which
-              lights the moment one of the three carries anything. */}
-          <p className='max-w-2xl text-[0.75rem] leading-relaxed text-muted-foreground'>
-            {t('search.any_criterion')} {t('search.note')}
-          </p>
         </form>
 
         {/* ── The answer ── five states, each told apart from the rest: nothing

@@ -35,6 +35,7 @@ import { cn } from '@/shared/lib/cn';
 import { ACCEPT } from '@/shared/lib/document-file';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/store-hooks';
 import { Button } from '@/shared/ui/button';
+import { InfoHint } from '@/shared/ui/info-hint';
 import type { PackageStatus } from '@cadastre/api-contracts/verification';
 
 import { attachedFiles } from '../lib/attached';
@@ -88,7 +89,9 @@ export function AddFiles({
   if (!accepting) {
     return (
       <section className='rounded-xl border border-rule bg-muted/20 px-4 py-3.5'>
-        <h3 className='register-label'>{t('add.title')}</h3>
+        <h3 className='text-[0.875rem] font-semibold tracking-[-0.01em] text-foreground'>
+          {t('add.title')}
+        </h3>
         <p className='mt-2 max-w-[65ch] text-[0.8125rem] leading-relaxed text-muted-foreground'>
           {t('add.closed_running')}
         </p>
@@ -161,15 +164,27 @@ export function AddFiles({
 
       {/* One count, not three: the list below already numbers what is in it,
           and the line by the button says how many of them can be sent. */}
-      <h3 className='register-label'>{t('add.title')}</h3>
-      <p className='mt-2 max-w-[65ch] text-[0.8125rem] leading-relaxed text-muted-foreground'>
-        {reported ? t('add.note_reopens') : t('add.note')}
-      </p>
+      {/* What adding does is still said before the button is pressed — in one
+          line where it re-opens a report, with the full account behind the ⓘ
+          instead of a paragraph above the dropzone on every visit. */}
+      <div className='flex items-center gap-1'>
+        <h3 className='text-[0.875rem] font-semibold tracking-[-0.01em] text-foreground'>
+          {t('add.title')}
+        </h3>
+        <InfoHint label={t('common.more_info')}>
+          {reported ? t('add.note_reopens') : t('add.note')}
+        </InfoHint>
+      </div>
+      {reported && (
+        <p className='mt-0.5 text-[0.8125rem] leading-snug text-muted-foreground'>
+          {t('add.note_reopens_short')}
+        </p>
+      )}
 
       <Dropzone
         onBrowse={() => inputRef.current?.click()}
         className={cn(
-          'mt-3.5 py-8',
+          'mt-3 py-6',
           dragging && 'border-primary/70 bg-accent/50',
         )}
       />

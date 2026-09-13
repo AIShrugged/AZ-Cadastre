@@ -26,6 +26,10 @@
  * it is being read; one the run refused says what was expected and what turned
  * up; and while the package is mid-run the whole panel says the package takes no
  * files rather than offering buttons that would be declined.
+ *
+ * What each reason means is said behind the ⓘ beside it rather than above every
+ * group: it is the same sentence on every case, and the names of the papers are
+ * what an operator scans this list for.
  */
 import {
   ChevronRightIcon,
@@ -44,6 +48,7 @@ import {
   GAP_REASON_TONE,
   gapKey,
   namesAFault,
+  requiredTypes,
   scanShortfall,
   takesFiles,
   type GapTone,
@@ -51,6 +56,7 @@ import {
 import { translateOr, useI18n } from '@/shared/i18n';
 import { cn } from '@/shared/lib/cn';
 import type { Jump } from '@/shared/lib/jump';
+import { InfoHint } from '@/shared/ui/info-hint';
 import type {
   DocumentGapDto,
   DocumentGapReason,
@@ -71,12 +77,6 @@ const REASON_ICON: Record<DocumentGapReason, typeof ScanLineIcon> = {
 
 // A shortfall is drawn as one; a paper the profile simply accepts is not. The
 // quiet third tone is the whole point of publishing three reasons.
-const TONE_CHIP: Record<GapTone, string> = {
-  short: 'bg-incomplete/12 text-incomplete-ink',
-  doubt: 'bg-issues/14 text-issues-ink',
-  offer: 'bg-muted text-muted-foreground',
-};
-
 const TONE_LABEL: Record<GapTone, string> = {
   short: 'text-incomplete-ink',
   doubt: 'text-issues-ink',
@@ -103,7 +103,7 @@ export function DocumentGaps({
   if (pkg.gaps.length === 0) {
     return (
       <section id='document-gaps' className='scroll-mt-16'>
-        <h2 className='register-label'>{t('gap.title')}</h2>
+        <GapsHeading />
         <p className='mt-2 max-w-[65ch] text-[0.8125rem] leading-relaxed text-muted-foreground'>
           {t('gap.none')}
         </p>
@@ -111,27 +111,25 @@ export function DocumentGaps({
     );
   }
 
+  const profile = profiles.find(candidate => candidate.key === pkg.profileKey);
+  const required = new Set(profile ? requiredTypes(profile) : []);
+
   return (
     <section id='document-gaps' className='scroll-mt-16'>
-      <div className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1'>
-        <h2 className='register-label'>{t('gap.title')}</h2>
-        <span
-          data-mono
-          className='shrink-0 text-[0.6875rem] tabular-nums text-muted-foreground'
-        >
-          {pkg.gaps.length}
-        </span>
-      </div>
-      <p className='mt-2 max-w-[65ch] text-[0.8125rem] leading-relaxed text-muted-foreground'>
-        {accepting ? t('gap.note') : t('gap.closed_running')}
-      </p>
+      <GapsHeading count={pkg.gaps.length} hint={accepting} />
+      {!accepting && (
+        <p className='mt-2 max-w-[65ch] text-[0.8125rem] leading-relaxed text-muted-foreground'>
+          {t('gap.closed_running')}
+        </p>
+      )}
 
-      <div className='mt-4 flex flex-col gap-6'>
+      <div className='mt-4 flex flex-col gap-5'>
         {groupsOf(pkg.gaps).map(group => (
           <ReasonGroup
             key={group.reason}
             reason={group.reason}
             gaps={group.gaps}
+            required={required}
             pkg={pkg}
             profiles={profiles}
             accepting={accepting}
@@ -143,22 +141,51 @@ export function DocumentGaps({
   );
 }
 
+function GapsHeading({
+  count,
+  hint = false,
+}: {
+  count?: number;
+  hint?: boolean;
+}) {
+  const { t } = useI18n();
+
+  return (
+    <div className='flex flex-wrap items-center gap-x-1.5 gap-y-1'>
+      <h2 className='text-[0.9375rem] font-semibold tracking-[-0.01em] text-foreground'>
+        {t('gap.title')}
+      </h2>
+      {count !== undefined && (
+        <span className='rounded-full bg-muted px-1.5 py-px text-[0.6875rem] font-medium tabular-nums text-muted-foreground'>
+          {count}
+        </span>
+      )}
+      {hint && (
+        <InfoHint label={t('common.more_info')}>{t('gap.note')}</InfoHint>
+      )}
+    </div>
+  );
+}
+
 /**
- * The gaps under one reason, with the ask stated once above them.
- *
- * Once and not per row: the ask is the same sentence for every gap of a reason,
- * and five identical paragraphs down a column is a column nobody reads to the
- * bottom of — the repetition buries the one line that differs, which is the name
- * of the paper. The chip stays on the group for the same reason it existed on the
- * row: what tells the three apart has to be visible without reading.
+ * The gaps under one reason, with the reason named once above them.
  *
  * The order is the contract's own — the papers that are not here, then the ones
  * read badly, then what the profile takes at any time — so the groups fall out of
  * the list rather than being sorted here.
+ *
+ * **The papers the profile insists on lead; the rest fold.** A `MissingDocument`
+ * gap is published for every paper that would close a requirement — each title
+ * a provision could rest on among them — so a house whose provision is still
+ * open is offered sixteen titles beside the two papers the profile requires.
+ * Listed flat, the two were lost in the sixteen. The fold changes what is seen
+ * first and nothing else: every row is still here, one click away. Until the
+ * profile has loaded, which papers are required is unknown, and nothing folds.
  */
 function ReasonGroup({
   reason,
   gaps,
+  required,
   pkg,
   profiles,
   accepting,
@@ -166,6 +193,7 @@ function ReasonGroup({
 }: {
   reason: DocumentGapReason;
   gaps: readonly DocumentGapDto[];
+  required: ReadonlySet<string>;
   pkg: PackageDetailDto;
   profiles: readonly ProfileDto[];
   accepting: boolean;
@@ -175,40 +203,68 @@ function ReasonGroup({
   const tone = GAP_REASON_TONE[reason];
   const Icon = REASON_ICON[reason];
 
+  const leading =
+    reason === 'MissingDocument' && required.size > 0
+      ? gaps.filter(gap => required.has(gap.expectedType))
+      : [];
+  // A group with no required paper in it is not folded away whole.
+  const shown = leading.length > 0 ? leading : gaps;
+  const folded =
+    leading.length > 0
+      ? gaps.filter(gap => !required.has(gap.expectedType))
+      : [];
+
+  const row = (gap: DocumentGapDto) => (
+    <GapRow
+      key={gapKey(gap)}
+      gap={gap}
+      pkg={pkg}
+      profiles={profiles}
+      accepting={accepting}
+      onJump={onJump}
+    />
+  );
+
   return (
     <section>
-      <div className='flex flex-wrap items-baseline gap-x-3 gap-y-1'>
+      <div className='flex flex-wrap items-center gap-x-1 gap-y-1'>
         <span
           className={cn(
-            'inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-[0.625rem] font-medium uppercase tracking-[0.08em]',
-            TONE_CHIP[tone],
+            'inline-flex items-center gap-1.5 text-[0.8125rem] font-medium',
+            TONE_LABEL[tone],
           )}
         >
-          <Icon aria-hidden className='size-3' />
+          <Icon aria-hidden className='size-3.5' />
           {t(GAP_REASON_KEY[reason])}
         </span>
-        <p
-          className={cn(
-            'max-w-[62ch] text-[0.8125rem] leading-relaxed',
-            tone === 'offer' ? 'text-muted-foreground' : TONE_LABEL[tone],
+        <InfoHint label={t('common.more_info')}>
+          <span>{t(GAP_REASON_NOTE[reason])}</span>
+          {reason === 'UnusableScan' && (
+            <span className='opacity-80'>
+              {t('gap.floor', { floor: Math.round(CONFIDENCE_FLOOR * 100) })}
+            </span>
           )}
-        >
-          {t(GAP_REASON_NOTE[reason])}
-        </p>
+        </InfoHint>
       </div>
 
-      <ul className='mt-2 divide-y divide-rule border-y border-rule'>
-        {gaps.map(gap => (
-          <GapRow
-            key={gapKey(gap)}
-            gap={gap}
-            pkg={pkg}
-            profiles={profiles}
-            accepting={accepting}
-            onJump={onJump}
-          />
-        ))}
+      <ul className='mt-1.5 divide-y divide-rule border-y border-rule'>
+        {shown.map(row)}
       </ul>
+
+      {folded.length > 0 && (
+        <details className='group'>
+          <summary className='flex cursor-pointer list-none select-none items-center gap-2 border-b border-rule py-2.5 text-[0.8125rem] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50'>
+            <ChevronRightIcon
+              aria-hidden
+              className='size-3.5 shrink-0 transition-transform duration-200 group-open:rotate-90'
+            />
+            {t('gap.more', { n: folded.length })}
+          </summary>
+          <ul className='divide-y divide-rule border-b border-rule'>
+            {folded.map(row)}
+          </ul>
+        </details>
+      )}
     </section>
   );
 }
@@ -248,13 +304,11 @@ function GapRow({
   const type = translateOr(t, `doctype.${gap.expectedType}`, gap.expectedType);
 
   return (
-    <li className='flex flex-wrap items-start justify-between gap-x-6 gap-y-3 py-3'>
-      <div className='min-w-0 flex-1'>
+    <li className='flex flex-wrap items-start justify-between gap-x-6 gap-y-2 py-2'>
+      <div className='min-w-0 flex-1 pt-1'>
         {/* The name of the paper is the whole of the row's heading: what kind of
             gap it is, and what to do about it, the group above already said. */}
-        <h3 className='text-[0.9375rem] font-[550] leading-tight tracking-[-0.01em] text-foreground'>
-          {type}
-        </h3>
+        <h3 className='text-[0.875rem] leading-snug text-foreground'>{type}</h3>
 
         {gap.reason === 'UnusableScan' && (
           <ScanFault gap={gap} pkg={pkg} profiles={profiles} onJump={onJump} />
@@ -322,9 +376,6 @@ function ScanFault({
               <span className='text-muted-foreground'>
                 {t('gap.unread_fields')}{' '}
               </span>
-              {/* The name of a field is a name and reads as prose. Mono is
-                  the register's face for a machine-read value, and setting a
-                  label in it makes the label look like the reading. */}
               <span className='text-foreground'>
                 {shortfall.unread.map(fieldName).join(', ')}
               </span>
@@ -340,12 +391,9 @@ function ScanFault({
                   <span key={reading.key}>
                     {n > 0 && ', '}
                     {fieldName(reading.key)}{' '}
-                    {/* The figure is the machine's, and it is set as one — this
-                        is the number the operator weighs the floor against. */}
-                    <span
-                      data-mono
-                      className='text-[0.75rem] tabular-nums text-incomplete-ink'
-                    >
+                    {/* The figure is the machine's — this is the number the
+                        operator weighs the floor against. */}
+                    <span className='text-[0.75rem] font-medium tabular-nums text-incomplete-ink'>
                       {Math.round(reading.confidence * 100)}%
                     </span>
                   </span>
@@ -358,17 +406,11 @@ function ScanFault({
               <span className='text-muted-foreground'>
                 {t('gap.doubted_placement')}{' '}
               </span>
-              <span
-                data-mono
-                className='text-[0.75rem] tabular-nums text-incomplete-ink'
-              >
+              <span className='text-[0.75rem] font-medium tabular-nums text-incomplete-ink'>
                 {Math.round(shortfall.placement * 100)}%
               </span>
             </li>
           )}
-          <li className='text-[0.75rem] text-muted-foreground/80'>
-            {t('gap.floor', { floor: Math.round(CONFIDENCE_FLOOR * 100) })}
-          </li>
         </ul>
       ) : (
         <p className='text-[0.8125rem] leading-relaxed text-muted-foreground'>

@@ -35,6 +35,7 @@ const en: Dict = {
   'density.compact': 'Compact',
   'col.documents': 'Documents',
   'col.submitted': 'Submitted',
+  'cases.unnamed': 'Applicant not read',
   'col.status': 'Status',
   'status.ok': 'No issues',
   'status.issues': 'Issues found',
@@ -44,9 +45,9 @@ const en: Dict = {
   'filter.any_standing': 'Any standing',
   'filter.outcome': 'Outcome',
   'filter.any_outcome': 'Any outcome',
-  'findings.issues': '{n} issues',
-  'findings.issue_one': '1 issue',
-  'findings.low': '{n} low-confidence',
+  'findings.issues': 'Issues: {n}',
+  'findings.issue_one': 'Issues: 1',
+  'findings.low': 'Low confidence: {n}',
   'findings.none': 'None',
   'findings.noted': '{n} noted',
   'docs.count': '{d} of {r} required',
@@ -73,47 +74,72 @@ const en: Dict = {
   'register.error.retry': 'Ask again',
   'page.showing': '{a}–{b} of {n}',
   // ── Register summary (the four slices of a period) ─────────────────────────
-  'summary.title': 'Summary',
   'summary.period.label': 'Period',
-  'summary.period.all': 'Whole register',
+  'summary.period.all': 'All time',
   'summary.period.last7': 'Last 7 days',
   'summary.period.last30': 'Last 30 days',
   'summary.period.month': 'This month',
   'summary.period.year': 'This year',
   'summary.empty': 'Nothing in this period',
   'summary.error.body':
-    'The summary could not be read, so these numbers are unknown — this is not an empty register.',
-  'summary.stalled.label': 'Stalled:',
+    'We couldn’t load the numbers. That doesn’t mean there’s no data — try again.',
+  'summary.stalled.label': 'Stuck:',
   'summary.stalled.body':
-    '— the machinery stopped, and waiting will not clear them.',
-  'summary.stalled.open': 'Open stalled',
-  'summary.stalled.none': 'Nothing has stalled.',
-  'summary.pipeline.title': 'Where the work is',
-  'summary.pipeline.note': 'Submissions accepted in this period: {n}.',
-  'summary.pipeline.pending': 'Waiting to be read',
-  'summary.pipeline.processing': 'Being read',
-  'summary.pipeline.completed': 'Read',
-  'summary.pipeline.failed': 'Stalled',
-  'summary.outcomes.title': 'What the runs found',
+    '— these won’t move on their own, someone needs to take a look.',
+  'summary.stalled.open': 'Show stuck',
+  'summary.pipeline.title': 'Progress',
+  'summary.pipeline.pending': 'In queue',
+  'summary.pipeline.processing': 'Being checked',
+  'summary.pipeline.completed': 'Done',
+  'summary.pipeline.failed': 'Stuck',
+  'summary.outcomes.title': 'Check results',
   'summary.outcomes.note':
-    'Submissions with a report: {n} of {total}. One still being read has no outcome yet.',
+    'Checked so far: {n} of {total}. Applications that are still being checked don’t have a result yet.',
   'summary.outcomes.unlinked':
-    'These counts open the register only over the whole register — the list cannot yet be narrowed to a period.',
-  'summary.archive.title': 'What the archive answered',
+    'You can open these lists only when “All time” is selected.',
+  'summary.archive.title': 'Archive checks',
   'summary.archive.note':
-    'Questions put to the register: {n}. A profile may ask more than one about a submission.',
+    'Checks against the archive: {n}. One application can be checked more than once.',
   'summary.archive.not_found_note':
-    'The register answers about its own fonds. “No record” is a gap in the archive, not a fault in the submission.',
-  'summary.against.title': 'Held against the package',
-  'summary.against.note': 'Findings somebody has to resolve: {n}.',
-  'summary.observations.title': 'Noted for the record',
+    'The archive doesn’t hold everything. “No record” only means the archive has nothing on it — not that something is wrong with the application.',
+  'summary.against.title': 'To fix',
+  'summary.against.note': 'Problems someone needs to fix: {n}.',
+  'summary.observations.title': 'For information',
   'summary.observations.note':
-    'Observations: {n}. A report carrying nothing else still reads OK.',
-  'summary.findings.none': 'None in this period.',
-  'summary.findings.unseen': 'Kinds that did not occur in this period: {n}.',
+    'Notes: {n}. They are just for information and don’t count as problems.',
+  'summary.findings.none': 'Nothing here for this period',
   'page.prev': 'Previous',
   'page.next': 'Next',
   'updated.ago': 'updated {t} ago',
+  'field.approving_authority': 'Approving authority',
+  'field.decision_no': 'Decision number',
+  'field.act_date': 'Act date',
+  'field.commission': 'Commission',
+  'field.contractor_representative': 'Contractor representative',
+  'field.decision_date': 'Decision date',
+  'field.licence_no': 'Licence number',
+  'field.permit_no': 'Permit number',
+  'field.permit_date': 'Permit date',
+  'field.object_parameters': 'Object parameters',
+  'field.addressee_authority': 'Addressed to',
+  'field.building_type': 'Building type',
+  'field.notice_date': 'Notice date',
+  'field.licence_date': 'Licence date',
+  'field.activity_type': 'Activity',
+  'field.licensee_name': 'Licensee',
+  'field.licensee_address': 'Licensee address',
+  'field.licensee_tax_id': 'Licensee tax ID',
+  'field.signing_official': 'Signed by',
+  'field.holder_name': 'Holder',
+  'field.property_type': 'Property type',
+  'field.rightholders': 'Right holders',
+  'field.decree_item': 'Decree item',
+  'field.archive_reference': 'Archive reference',
+  'updated.when': 'updated {t}',
+  'transcript.signature': '(signature)',
+  'transcript.stamp': '(stamp)',
+  'transcript.qr': '(QR code)',
+  'transcript.blank': '(blank page)',
   open: 'Open',
   'profile.cadastre':
     'First state registration of an individual residential house',
@@ -229,9 +255,8 @@ const en: Dict = {
   'detail.classifying': 'Classifying…',
   'detail.splitting': 'Splitting into pages…',
   'detail.pages_read': '{n} of {total} pages read',
-  'detail.unclassified': 'Not classified — no matching document type.',
-  'detail.out_of_profile':
-    'Read, and not one of the documents the statutory list names.',
+  'detail.unclassified': 'Document type not recognised.',
+  'detail.out_of_profile': 'Not on the list of documents.',
   'detail.ocr_done': 'Text recognized',
   'detail.ocr_failed': 'OCR failed',
   'detail.view_text': 'View recognized text',
@@ -251,10 +276,8 @@ const en: Dict = {
   'detail.in_progress_note':
     'Verification is running — this updates as each stage completes.',
   'detail.review_preparing': 'Review is being prepared',
-  'detail.review_preparing_note':
-    'The final checklist appears after classification, field extraction and comparisons finish.',
-  'detail.review_unavailable':
-    'A final report could not be prepared. Check the process state and the source documents.',
+  'detail.review_preparing_note': 'The list appears when the check finishes.',
+  'detail.review_unavailable': 'The report could not be prepared.',
   'detail.review_focus': 'What to review',
   'detail.review_focus_note':
     'Start with the sections that show a non-zero count before making your decision.',
@@ -268,7 +291,7 @@ const en: Dict = {
   'detail.required': 'Required documents',
   'detail.required_all': 'Every required document was found.',
   'detail.required_missing': '{n} still missing',
-  'detail.required_pending': 'Checked once classification finishes.',
+  'detail.required_pending': 'Shown after recognition.',
   'detail.files': 'Files',
   'detail.files_count': '{n} files',
   'detail.file_one': '1 file',
@@ -285,15 +308,14 @@ const en: Dict = {
   'detail.taken_from': 'Taken from: {doc}',
   'detail.taken_from_go': 'Open the reading this value was taken from',
   'detail.confirmed': 'Registry confirms',
-  'detail.confirmed_why':
-    'The archive register holds the same value for this property, so this reading is one less thing to check.',
+  'detail.confirmed_why': 'Matches the archive.',
   'detail.ocr': 'OCR',
   'detail.fields': 'Extracted fields',
   'detail.pending': 'Extraction pending',
   'detail.needs_review': 'Needs review',
   'detail.unscored': 'unscored',
   'detail.unscored_why':
-    'Neither the model nor the route would say how sure it was, so no confidence was recorded. Check this reading against the sheet.',
+    'No confidence given — check the value against the scan.',
   'detail.none': 'None',
   'detail.th.field': 'Field',
   'detail.th.value': 'Value',
@@ -320,10 +342,9 @@ const en: Dict = {
   'detail.sec.not_connected': 'Not confirmed: integration not connected',
   'detail.f.title_missing_sub': 'Any document Article 10.2.1 accepts',
   'detail.f.title_invalid_sub': 'Dated outside the window it is a title in',
-  'detail.f.provision_ambiguous_sub': 'One of: {list}',
+  'detail.f.provision_ambiguous_sub': 'Several provisions could apply: {n}',
   'detail.f.provision_none_sub': 'No provision covers this case',
-  'detail.f.not_connected_sub':
-    'Read, not confirmed: the state system is not connected',
+  'detail.f.not_connected_sub': 'Not confirmed: state system not connected',
   'detail.f.missing_any_sub': 'Any one of these is enough',
   'common.or': 'or',
   'doctype.approved_design': 'Approved design',
@@ -333,11 +354,17 @@ const en: Dict = {
   'source.UrbanPlanningCommittee': 'Urban Planning Committee',
   'source.NationalArchive': 'National Archive',
   'panel.provision': 'Article 8 provision',
-  'provision.lead':
-    'Which provision of Article 8 the case falls under decides which documents the package must carry. It is worked out from six figures; the decision stays with the inspector.',
-  'provision.determined': 'Falls under {provision}',
-  'provision.ambiguous': 'Could be {list}: not every figure was established',
-  'provision.undetermined': 'No provision of Article 8 covers this case',
+  'provision.lead': 'The provision decides which documents are needed.',
+  'provision.determined': 'Falls under provision {provision}: {rule}',
+  'provision.ambiguous': 'Provision not settled — missing: {params}',
+  'provision.undetermined': 'No Article 8 provision fits',
+  'provision.ambiguous_open': 'Provision not settled — data missing',
+  'provision.and_more': 'and {n} more',
+  'provision.name.8.0.9.1.1': 'Before 2013 · up to 12 m · lease',
+  'provision.name.8.0.9.1.2': 'Before 2013 · up to 12 m · owned',
+  'provision.name.8.0.9.2': 'Before 2013 · over 12 m',
+  'provision.name.8.0.10.2': 'From 2013 · notification',
+  'provision.name.8.0.10.1': 'From 2013 · permit',
   'provision.parameters': 'Figures',
   'provision.param.builtYear': 'Year built',
   'provision.param.storeys': 'Storeys above ground',
@@ -354,14 +381,12 @@ const en: Dict = {
   'provision.from.ReadOffDocument': 'From {document}',
   'provision.from.DeclaredAtIntake': 'Declared at intake',
   'provision.from.TitleDocumentType': 'By the kind of title: {document}',
-  'provision.requirements': 'What {provision} asks for',
   'provision.req.title': 'A title to the land (Article 10.2.1)',
   'provision.req.answered': 'In the package',
   'provision.req.missing': 'Not in the package',
   'provision.req.via_integration':
-    'Not asked on paper for a house built from {year}: checked through an integration that is not connected',
-  'provision.req.year_unknown':
-    'Asked for only if built before {year}, and the year is not established',
+    'From {year}, checked via a state system (not connected)',
+  'provision.req.year_unknown': 'Needed if built before {year} (year unknown)',
   'provision.req.nothing_more': 'Nothing beyond the title',
   'provision.titles': 'Titles to the land in the package',
   'provision.title.within': 'Dated within its window',
@@ -372,11 +397,11 @@ const en: Dict = {
   'provision.window.between': '{from} to {before}',
   'provision.window.any': 'any date',
   'provision.item': 'Item {item}',
-  'provision.rules': 'Decision table: the first row that applies decides',
+  'provision.rules': 'The first matching provision applies.',
   'provision.rule.holds': 'Applies',
   'provision.rule.excluded': 'Ruled out',
   'provision.rule.open': 'Undecided',
-  'provision.pending': 'The provision is decided once the documents are read',
+  'provision.pending': 'Settled once the documents are read',
   'provision.rule.8.0.9.1.1':
     'Built before 2013, up to 12 m, land on lease or use',
   'provision.rule.8.0.9.1.2':
@@ -386,10 +411,9 @@ const en: Dict = {
     'Built from 2013 under notification: up to 3 storeys, 12 m and 6 m spans, land for housing',
   'provision.rule.8.0.10.1':
     'Built from 2013 outside the notification procedure, by permit',
-  'detail.clean':
-    'No issues found — every required document is present and read above the confidence threshold.',
+  'detail.clean': 'No issues.',
   'detail.clean_open_set':
-    'Which supporting documents this case needs, though, could not be worked out — see below.',
+    'But the required set of supporting documents is not determined.',
   // ─── A paper replaced, and the file that replaced it (COMM-80) ─────────────
   // A replaced document is never removed: the submission is evidence, so what
   // was sent first stays readable, saying what replaced it and when.
@@ -397,7 +421,7 @@ const en: Dict = {
   'detail.superseded_on': 'on {date}',
   'detail.superseded_by': 'replaced by {file}',
   'detail.supplied': 'Supplied',
-  'detail.supplied_for': 'sent in for the missing {type}',
+  'detail.supplied_for': 'for “{type}”',
   'detail.supplied_replacing': 'sent in for the {type} in {file}',
   'detail.f.missing_sub': 'Not found in the package',
   'detail.f.unplaced_sub': 'Type not recognized',
@@ -417,34 +441,28 @@ const en: Dict = {
   'detail.f.declared_sub': 'Disagrees with what was declared at intake',
   'detail.f.declared_year_sub': 'Declared at intake: {year}',
   'detail.declared_note':
-    'Typed at the counter, from what the applicant said. Not a reading: it has no confidence and it is never merged with what the engine read off the papers.',
+    'From the applicant at intake, not from the documents.',
   'detail.f.attestation_sub': 'No stamp or signature was read on it',
   // ── Seal and signature, as the sheets showed them (COMM-77) ───────────────
   // Drawn on every placed document, present or missing: an inspector acts on
   // the difference between "sealed", "not sealed" and "nobody read the sheet",
   // and until this the last two both showed as nothing at all.
   'attest.stamp': 'Stamp',
-  'attest.stamp.present': 'Stamped',
-  'attest.stamp.present_unasked': 'Stamped — this profile asks for no stamp',
-  'attest.stamp.illegible': 'Stamped, but the legend could not be read',
-  'attest.stamp.illegible_unasked':
-    'Stamped, legend unreadable — no stamp was asked for',
-  'attest.stamp.absent': 'No stamp on the sheets that were read',
-  'attest.stamp.absent_unasked': 'No stamp, and this profile asks for none',
-  'attest.stamp.unread':
-    'No sheet was read — nothing can be said about a stamp',
+  'attest.stamp.present': 'Present',
+  'attest.stamp.present_unasked': 'Present (not required)',
+  'attest.stamp.illegible': 'Present, text unreadable',
+  'attest.stamp.illegible_unasked': 'Present, text unreadable (not required)',
+  'attest.stamp.absent': 'None',
+  'attest.stamp.absent_unasked': 'None (not required)',
+  'attest.stamp.unread': 'Not read',
   'attest.signature': 'Signature',
-  'attest.signature.present': 'Signed',
-  'attest.signature.present_unasked':
-    'Signed — this profile asks for no signature',
-  'attest.signature.absent': 'No signature on the sheets that were read',
-  'attest.signature.absent_unasked':
-    'No signature, and this profile asks for none',
-  'attest.signature.unread':
-    'No sheet was read — nothing can be said about a signature',
+  'attest.signature.present': 'Present',
+  'attest.signature.present_unasked': 'Present (not required)',
+  'attest.signature.absent': 'None',
+  'attest.signature.absent_unasked': 'None (not required)',
+  'attest.signature.unread': 'Not read',
   'attest.legend': 'Read off the seal',
-  'attest.unread_why':
-    'The sheets were never read, so nothing was looked at. This is not a statement that the mark is missing.',
+  'attest.unread_why': 'Page not read — whether the mark is there is unknown.',
   'supporting.lead':
     'Papers the applicant has to bring beyond the package. None of them was ever in the envelope, so nothing here is counted against the submission and nothing here is a fault.',
   'supporting.bring': 'The applicant must bring a set of supporting documents.',
@@ -457,13 +475,11 @@ const en: Dict = {
   'supporting.decided_on': 'Decided on',
   'detail.checks': 'Cross-document checks',
   'detail.checks_result': 'Document comparison results',
-  'detail.checks_result_note':
-    'Fields that the profile asks to compare across documents. Every value leads back to its source document and page.',
+  'detail.checks_result_note': 'Fields compared across documents.',
   'detail.checks_note':
     'Values the profile requires several documents to state alike.',
-  'detail.checks_pending': 'Made once every document has been read.',
-  'detail.checks_none':
-    'No document comparisons were available for this package.',
+  'detail.checks_pending': 'Checks run after the documents are read.',
+  'detail.checks_none': 'No checks yet.',
   'detail.checks_agreed': '{n} of {total} agree',
   'detail.checks_go': 'Go to this reading in the register',
   'detail.check_agreed': 'Agree',
@@ -480,9 +496,9 @@ const en: Dict = {
   'detail.archive_comparison': 'Comparison with archive',
   'detail.registry_note':
     'What the papers say about the property, held against the archive record of it. The only check that leaves the submission.',
-  'detail.registry_pending': 'Asked once the property address has been read.',
+  'detail.registry_pending': 'The archive is asked once the address is read.',
   'detail.registry_none':
-    'The register gave no answer for this package — either the address it asks about could not be read, or it could not be reached. Neither stops a run.',
+    'No archive answer — the address was not read or the register was unavailable.',
   'detail.registry_asked': 'Asked about',
   'detail.registry_where': 'In the archive',
   'detail.reg.confirmed': 'Record agrees',
@@ -490,24 +506,21 @@ const en: Dict = {
   'detail.reg.incomplete': 'Original not in the archive',
   'detail.reg.not_found': 'No record',
   'detail.reg.ambiguous': 'Several records',
-  'detail.reg.confirmed_note':
-    'The record was found and everything held against it agreed. This is the lookup you do not have to make.',
-  'detail.reg.differs_note':
-    'The record was found and states something else. It is the record that disagrees, not the papers with each other.',
+  'detail.reg.confirmed_note': 'Record found, everything matches.',
+  'detail.reg.differs_note': 'Record found, but its data differs.',
   'detail.reg.incomplete_note':
-    'The record was found and agrees with the package. What the archive does not have is the original of one of the papers below \u2014 which, for a title relied on under Decree 439, is a condition of the ground and not a formality.',
+    'The record matches, but the archive lacks the original of one document.',
   'detail.reg.not_found_note':
-    'The register holds nothing under this address. Its coverage is the privatisations of the 1990s and 2000s, so an absent record says nothing about this package.',
+    'No record in the archive. Not a fault in the application — the archive is incomplete.',
   'detail.reg.ambiguous_note':
-    'More than one record answers to this address. Which of them applies is yours to say, not the engine\u2019s.',
+    'Several records match this address — check manually.',
   'detail.reg.submitted': 'In the package',
   'detail.reg.recorded': 'On record',
   'detail.reg.silent': 'the register never held this column',
   'detail.reg.papers': 'Papers in the archive',
   'detail.reg.holding_held': 'The archive holds the original',
   'detail.reg.holding_notheld': 'The archive has no original of it',
-  'detail.reg.holding_unknown':
-    'the archive of this area never recorded papers of this kind',
+  'detail.reg.holding_unknown': 'the district archive does not keep these',
   'regattr.ownerName': 'Right holder',
   'regattr.cadastralNumber': 'Cadastral number',
   'regattr.plotArea': 'Plot area',
@@ -517,8 +530,7 @@ const en: Dict = {
   'detail.attention': 'Needs attention',
   'detail.attention_go': 'Go to this reading in the register',
   'detail.observations': 'Observations',
-  'detail.observations_note':
-    'Neither is a shortfall — the package simply carries more than the profile asks for.',
+  'detail.observations_note': 'Not a shortfall — just extra documents.',
   'detail.seg.review': 'To review',
   'detail.seg.all': 'All',
   'detail.seg.other': 'Other',
@@ -529,6 +541,21 @@ const en: Dict = {
   'detail.process_done': 'Verification complete',
   'detail.stages_done': '{n} stages',
   'detail.required_found': '{n} of {total}',
+  'common.more_info': 'More about this',
+  'provision.short.determined': 'Provision {provision}',
+  'provision.short.ambiguous': 'Not settled · options: {n}',
+  'provision.short.undetermined': 'No provision fits',
+  'provision.options': 'Possible provisions and what each needs',
+  'provision.col.document': 'Document',
+  'provision.req.title_short': 'Title to the land',
+  'provision.req.not_asked': 'Not needed',
+  'provision.others': 'Ruled out: {n}',
+  'provision.rule.depends': 'Depends on: {list}',
+  'provision.rule.fails': 'Ruled out by: {list}',
+  'gap.more': 'Other suitable documents: {n}',
+  'detail.sheets_more': 'Show {n} more pages',
+  'detail.sheets_fewer': 'Show fewer',
+  'add.note_reopens_short': 'The package will be checked again.',
   'detail.sheets': 'Sheets',
   'detail.contents_rest': '{n} more',
   'detail.fields_more': '{n} more fields',
@@ -658,28 +685,23 @@ const en: Dict = {
   'standing.NeedsInspector': 'Needs the inspector',
   'standing.AwaitingArchiveApproval': 'Archive search unapproved',
   'standing.Cleared': 'Nothing outstanding',
-  'standing.note.Queued': 'Accepted. No run has read it yet.',
+  'standing.note.Queued': 'Package received, the check starts soon.',
   'standing.note.UnderVerification':
-    'A run is reading the package — this page updates as each stage finishes.',
+    'Checking in progress, the page updates itself.',
   'standing.note.Stalled':
-    'Our own machinery broke down, so nothing was concluded about the papers. Adding a file starts a fresh run.',
-  'standing.note.ShortOfDocuments':
-    'A paper this profile requires never arrived. Add it below and the package is verified afresh.',
-  'standing.note.NeedsInspector':
-    'The set is complete and the run holds findings against it — every one of them for you to resolve.',
+    'The check stopped due to a failure. Add a file to run it again.',
+  'standing.note.ShortOfDocuments': 'Documents are missing. Add them below.',
+  'standing.note.NeedsInspector': 'All documents are in, but there are issues.',
   'standing.note.AwaitingArchiveApproval':
-    'Nothing is held against it. The archive search it rests on has not been approved by anybody yet.',
-  'standing.note.Cleared':
-    'Nothing is held against it and nothing is outstanding. The registration decision is still yours.',
+    'No issues. The archive search needs approval.',
+  'standing.note.Cleared': 'No issues. The decision is yours.',
   // ─── Adding files to a package that already exists (ADR-0013) ──────────────
   'add.title': 'Add documents',
   'add.action': 'Add documents',
-  'add.note':
-    'The paper that never arrived, or a readable scan of a sheet nobody could read. Every file added is verified with the package.',
+  'add.note': 'A missing document or a clearer scan.',
   'add.note_reopens':
-    'Adding a file re-opens this package: the report, the document comparisons and the archive answers were all made over a set that has since changed, so they are discarded and the package is verified afresh. What was read off each file stays.',
-  'add.closed_running':
-    'A run is under way, so this package takes no files right now — a run reads the set it started with. Add them once it finishes.',
+    'The report and checks will be rebuilt. What was read from the files is kept.',
+  'add.closed_running': 'Checking in progress — add files when it finishes.',
   'add.none': 'No files added yet',
   'add.uploading': 'Uploading…',
   'add.ready': '{n} ready to add',
@@ -713,38 +735,30 @@ const en: Dict = {
   // unreadable one again, attach the one the profile takes whenever it turns up.
   // The third is not a shortfall and must not read like one.
   'gap.title': 'What can be supplied',
-  'gap.note':
-    'The engine works out what this package will take a document for. Each line below sends one file in answer to that line — not one more file in the envelope.',
-  'gap.closed_running':
-    'A run is under way, so this package takes no files right now. The lines stay; the buttons come back when it finishes.',
-  'gap.none':
-    'The package is short of nothing, and this profile takes no paper at any time.',
+  'gap.note': 'Each button sends a file for that row.',
+  'gap.closed_running': 'Checking in progress — send files when it finishes.',
+  'gap.none': 'Nothing needs to be sent.',
   'gap.missing': 'Not in the package',
   'gap.unusable': 'Unreadable scan',
   'gap.any_time': 'Accepted at any time',
-  'gap.missing_note':
-    'Required by the profile, and the package carries none. Send what is missing.',
-  'gap.unusable_note':
-    'This paper is here and was read badly. Photograph the same document again — what arrives replaces it.',
-  'gap.any_time_note':
-    'Nothing is wrong with the package — the profile takes this whenever it turns up.',
+  'gap.missing_note': 'This document is not in the package.',
+  'gap.unusable_note': 'The document was read poorly. Send the scan again.',
+  'gap.any_time_note': 'Can be sent at any time.',
   'gap.unread_fields': 'Not read off the sheets:',
   'gap.doubted_fields': 'Read, but not confidently:',
-  'gap.doubted_placement': 'Placed as this type with a confidence of',
-  'gap.floor': 'The engine trusts a reading from {floor}%.',
-  'gap.unusable_unspecified':
-    'The engine reports this scan as worth sending again. Which reading fell short cannot be named here.',
-  'gap.open_scan': 'Open the scan in {file}',
-  'gap.reading': '{file} was sent in and is being read.',
+  'gap.doubted_placement': 'Type recognised at',
+  'gap.floor': 'Reliable from {floor}%',
+  'gap.unusable_unspecified': 'Better send this scan again.',
+  'gap.open_scan': 'Open scan',
+  'gap.reading': '{file}: being read',
   'gap.refused':
-    '{file} was sent in as {expected} and was read as {arrived}, so it was not taken: the line is still open and what was here stays in force.',
-  'gap.arrived_unplaced': 'no type this profile expects',
+    '{file} was not accepted: expected “{expected}”, got “{arrived}”.',
+  'gap.arrived_unplaced': 'an unknown document',
   'supply.action': 'Upload',
   'supply.action_for': 'Upload {type}',
   'supply.uploading': 'Uploading {n}%',
   'supply.sending': 'Sending…',
-  'supply.sent':
-    '{type} sent in — the package is being verified afresh, and this line goes when the report is rebuilt without it',
+  'supply.sent': '“{type}” sent — the package is being checked again',
   'supply.failed': 'The document could not be sent in — please try again',
   'supply.refused_format': 'Unsupported format — PDF, JPG or PNG only',
   'supply.refused_size': 'The file is larger than {max} MB',
@@ -759,26 +773,23 @@ const en: Dict = {
   // ─── Approving the archive search (ADR-0016) ───────────────────────────────
   // The one write on the detail page a person makes rather than the engine.
   // Nothing in this block names an author, because there is none to name.
-  'approve.title': 'Approval of the archive search',
-  'approve.note':
-    'What the register answered is above. What it means for this application is yours to say — approving records that conclusion, over the answers as they stand now.',
-  'approve.no_author':
-    'This system keeps no accounts, so an approval carries no name — only what was concluded and when. It is recorded as the office\u2019s, not as anybody\u2019s in particular.',
+  'approve.title': 'Archive search approval',
+  'approve.note': 'Confirm that the archive answers were reviewed.',
+  'approve.no_author': 'No name is saved — the system has no user accounts.',
   'approve.summary_label': 'Conclusion for the application',
   'approve.summary_hint':
-    'What the archive search means for this application as a whole — not for one lookup, which already says what it found. Required: an approval that records only that it happened records nothing.',
+    'Briefly: what the archive means for the application.',
   'approve.summary_placeholder':
-    'The record does not contradict the submission; the missing original does not bear on the right claimed…',
+    'e.g. The archive record matches the documents',
   'approve.comment_label': 'Remark (optional)',
-  'approve.comment_hint':
-    'A reservation, or why this was signed for despite something. Leave it empty when you have none — an empty remark is better than a filled-in one that says nothing.',
+  'approve.comment_hint': 'Optional.',
   'approve.comment_placeholder': 'A reservation, if you have one…',
   'approve.left': '{n} characters left',
   'approve.over': '{n} characters over',
   'approve.action': 'Approve the search',
   'approve.sending': 'Recording…',
   'approve.done': 'The archive search is approved',
-  'approve.failed': 'The approval could not be recorded — please try again',
+  'approve.failed': 'Could not save — try again',
   'approve.given': 'Approved',
   'approve.remark': 'Remark',
   'approve.covered': 'Signed over these answers',
@@ -787,11 +798,10 @@ const en: Dict = {
   'approve.spent_since': 'stopped counting {d}',
   'approve.spent_title': 'Earlier approvals ({n})',
   'approve.spent_note':
-    'The archive was searched again after these were signed, so they stopped counting. They are kept rather than removed: what was signed for, and over which answers, is part of the record.',
-  'approve.unsettled':
-    'A run is under way, so the register may still answer differently. The search can be approved once it finishes.',
+    'The archive was asked again, so these no longer apply.',
+  'approve.unsettled': 'Checking in progress — approve when it finishes.',
   'approve.not_asked':
-    'The register was asked nothing about this submission — its profile asks it nothing, or no sheet stated an address to ask about. There is no archive search to approve.',
+    'The archive was not asked about this application — nothing to approve.',
   'error.ARCHIVE_SEARCH_NOT_SETTLED':
     'A run is under way — the search can be approved once it finishes',
   'error.ARCHIVE_SEARCH_NOT_ASKED':
@@ -811,20 +821,19 @@ const en: Dict = {
   'sheet.case_no': 'Case №',
   'sheet.taken_in': 'taken in {d}',
   'sheet.subject': 'application case sheet',
-  'sheet.situation': 'Situation',
   'sheet.read_off': 'Read off the papers',
   'sheet.applicant': 'Applicant',
   'sheet.address': 'Address',
   'sheet.cadastral': 'Cadastral №',
-  'sheet.section.stages': 'I. Processing stages',
-  'sheet.section.documents': 'II. Documents',
+  'sheet.section.stages': 'Processing stages',
+  'sheet.section.documents': 'Documents',
   'sheet.documents.unknown':
-    'This build knows no profile by that name, so it states no list of required documents rather than the wrong one.',
+    'Unknown profile — the list of required documents is unavailable.',
   'sheet.doc.missing': 'Missing',
   'sheet.doc.present': 'In package',
   'sheet.print': 'Export case sheet (PDF)',
   'sheet.foot':
-    'Scanned pages, the archive check and the decision remain in the digital case file.',
+    'Scans, the archive check and the decision are in the digital case.',
   'sheet.foot_mark': 'AZ · case sheet',
   'panel.scanned': 'Scanned pages',
   'detail.attention_none': 'Nothing outstanding',
@@ -851,28 +860,21 @@ const en: Dict = {
 
   // ── Archive search ─────────────────────────────────────────────────────────
   'page.search.title': 'Archive search',
-  'page.search.subtitle':
-    'Ask the archive register what it holds about a property — before the packet is taken in.',
+  'page.search.subtitle': 'Check what the archive knows about a property.',
   'search.field.address': 'Address',
-  'search.field.address_hint':
-    'Searched by. A record answers to every spelling its office ever wrote down, so an old address finds it too.',
+  'search.field.address_hint': 'Also finds old spellings.',
   'search.field.address_placeholder': 'Address or village',
-  'search.field.name': 'Applicant name',
-  'search.field.name_hint':
-    'Searched by. A name transliterated differently still finds the record; how far apart they are is in the confidence.',
+  'search.field.name': 'Full name',
+  'search.field.name_hint': 'Also finds other Latin spellings.',
   'search.field.name_placeholder': 'Surname, name, patronymic',
-  'search.field.parcel': 'Parcel / cadastral no.',
-  'search.field.parcel_hint':
-    'Searched by, as far as it is known. Half a number is a question the register can answer.',
-  'search.field.parcel_placeholder': 'Parcel, registry, certificate',
-  'search.any_criterion':
-    'Any one of the three finds records; together they narrow the search rather than widen it.',
-  'search.note':
-    'The register states what its own fonds hold and passes judgement on no application. Its coverage is partial and historical.',
-  'search.submit': 'Search the archive',
+  'search.field.parcel': 'Parcel number',
+  'search.field.parcel_hint': 'Part of the number works too.',
+  'search.field.parcel_placeholder': 'Cadastral or register no.',
+  'search.submit': 'Search',
+  'search.details': 'Technical details',
   'search.searching': 'Searching…',
   // ── The bar the operator sets, in the contract's own four bands ────────────
-  'search.threshold.label': 'Show no weaker than',
+  'search.threshold.label': 'Minimum match',
   'search.band.high': 'High',
   'search.band.probable': 'Probable',
   'search.band.possible': 'Possible',
@@ -882,29 +884,24 @@ const en: Dict = {
   // languages, and no grammatical number for a plural nobody reads at this
   // size.
   'search.matched': 'Matches: {n}',
-  'search.considered': 'Records compared: {n}.',
-  'search.at_threshold': 'Offered from {band} ({value}) up.',
-  'search.sources': 'Sources that answered',
-  'search.panel.matches': 'Records the archive offers',
-  'search.silent_about':
-    'The source keeps no column for: {fields}. Silence, counted neither for nor against.',
+  'search.considered': 'Records checked: {n}.',
+  'search.at_threshold': 'Match from {value}.',
+  'search.sources': 'Sources',
+  'search.panel.matches': 'Records found',
+  'search.silent_about': 'The source has no data for: {fields}',
   'search.disputed': 'Sources differ',
   'search.panel.disagreements': 'Where the sources differ',
   'search.disagreements.note':
-    'Two registers answer for the same property and record it differently. The register quotes both and settles neither — somebody who can open the folder does that.',
-  'search.more':
-    'Showing the surest {shown} of {n}. Narrow the question to reach the rest.',
-  'search.idle.title': 'Nothing asked yet',
-  'search.idle.body':
-    'Enter whatever you have — an address, a name, a parcel number — and the register will offer the records that might be it.',
-  'search.none.title': 'The archive offers nothing here',
+    'The registers record this property differently. Check the folder.',
+  'search.more': 'Showing {shown} of {n}. Refine the search to see the rest.',
+  'search.idle.title': 'Enter something to search for',
+  'search.idle.body': 'One field is enough: address, name or parcel number.',
+  'search.none.title': 'Nothing found',
   'search.none.body':
-    'Nothing the register compared reaches the level asked for. Its coverage is partial and historical, so this says nothing about the property — lower the level, or search by less of what you know.',
+    'Lower the minimum match or clear a field. The archive is incomplete.',
   'search.error.title': 'The archive did not answer',
-  'search.error.body':
-    'The register could not be reached. Try the search again.',
-  'search.footer':
-    'The archive is several registers, kept by different offices over thirty years. About what none of them holds, it says nothing.',
+  'search.error.body': 'The archive is unavailable. Try again.',
+  'search.footer': 'The archive is incomplete: a missing record means nothing.',
   'archive.found': 'Record found',
   'archive.found_note': 'The register holds a record under this address.',
   'archive.not_found': 'No record',
@@ -938,8 +935,7 @@ const en: Dict = {
 
   // ── Case pre-check ─────────────────────────────────────────────────────────
   'page.intake.title': 'Case pre-check',
-  'page.intake.subtitle':
-    'Add the packet; the system reads it, checks it and reports what it found. You decide.',
+  'page.intake.subtitle': 'Upload the documents — the system checks them.',
   'intake.step.add': 'Add the packet',
   'intake.step.read': 'We read it',
   'intake.step.result': 'Result',
@@ -953,12 +949,11 @@ const en: Dict = {
   'intake.open_case': 'Open the case',
   'intake.recommendation': 'Recommendation',
   'intake.read.title': 'What we read from the packet',
-  'intake.read.lead':
-    'The applicant, the address and the parcel are read from the documents themselves. A reading the engine was unsure of is marked — check it against the papers on the case sheet.',
-  'intake.read.filling': 'fills itself',
+  'intake.read.lead': 'Read from the documents. Doubtful values are marked.',
+  'intake.read.filling': 'filling in…',
   'intake.read.reading': 'being read…',
-  'intake.read.unread': 'not read from the packet',
-  'intake.read.glance': 'read at {p}% — worth a second look',
+  'intake.read.unread': 'not read',
+  'intake.read.glance': '{p}% sure — check it',
   'intake.read.applicant': 'Applicant',
   'intake.read.address': 'Address',
   'intake.read.parcel': 'Parcel / registry no.',
@@ -967,9 +962,8 @@ const en: Dict = {
   'intake.group.legal_none':
     'The run named no set of supporting documents for this case.',
   'intake.group.archive': 'Archive',
-  'intake.group.archive_none':
-    'The archive register was not asked about this case.',
-  'intake.group.nothing': 'Nothing is held against the packet here.',
+  'intake.group.archive_none': 'The archive was not queried.',
+  'intake.group.nothing': 'No issues.',
   // ── What the office declares at the counter ────────────────────────────────
   // Not a reading and never a correction to one: the operator says what the
   // claim is founded on and what year the building is said to date from, and
@@ -978,70 +972,62 @@ const en: Dict = {
   'declared.basis': 'What the right is founded on',
   'declared.year': 'Year built',
   'declared.not_declared': 'Not declared',
-  'intake.profile.unchosen':
-    'Choose a verification profile — the packet is filed under the one you pick, and nothing picks it for you.',
-  'intake.declared.lead':
-    'Optional, and taken from what the applicant says — not from the documents. It suggests a profile and is kept apart from what the engine reads.',
+  'intake.profile.unchosen': 'Choose a profile to start.',
+  'intake.declared.lead': 'Optional. Helps pick the profile.',
   'intake.declared.basis_hint':
-    'The paper the claimed right rests on, from those this profile registers a right on.',
+    'The document the right is based on. As the applicant says.',
   'intake.declared.basis_stray':
-    '“{ground}” is not a ground the {profile} profile registers a right on — choose another ground, or another profile.',
-  'intake.declared.year_hint':
-    'Four digits, {from}–{to}. Leave empty if unknown.',
+    '“{ground}” does not fit the “{profile}” profile.',
+  'intake.declared.year_hint': 'Four digits. Can be left empty.',
   'intake.declared.year_placeholder': 'e.g. 1998',
-  'intake.declared.year_outside':
-    'A year is read between {from} and {to} — this one will not be taken.',
-  'intake.suggest.title': 'Suggested profile',
+  'intake.declared.year_outside': 'The year must be within {from}–{to}.',
+  'intake.suggest.title': 'Suggestion',
   'intake.suggest.undeclared':
-    'Declare a ground or a year and the profile it points at is suggested here.',
-  'intake.suggest.take': 'Choose this profile',
+    'Enter the basis or year — we will suggest a profile.',
+  'intake.suggest.take': 'Choose',
   'intake.suggest.chosen': 'chosen',
-  'intake.suggest.asking': 'asking again…',
-  'intake.suggest.none':
-    'None — the declaration does not point at one profile. Why is written under the field it is about.',
-  'intake.suggest.unavailable':
-    'Not available just now. It only ever recommends — choose the profile yourself, as always.',
+  'intake.suggest.asking': 'updating…',
+  'intake.suggest.none': 'No matching profile.',
+  'intake.suggest.unavailable': 'Suggestions are unavailable right now.',
   // The suggestion's reasoning, one line per figure, said beside the figure it
   // is about. The English audit line the answer carries is for the record and
   // is never shown.
-  'suggest.basis.none':
-    'Not declared. Which paper a right is founded on is what tells one profile from another, so none is suggested until one is.',
-  'suggest.basis.unregistered':
-    'No profile registers a right founded on “{ground}”.',
-  'suggest.basis.several':
-    'More than one profile registers a right founded on “{ground}” — {profiles}. Which of them this case is, the declaration does not say.',
-  'suggest.basis.only':
-    '“{ground}” is a ground the {profile} profile registers a right on, and the only profile that does.',
-  'suggest.year.moot':
-    'No profile is selected by the ground, so there is nothing here to narrow.',
-  'suggest.year.any':
-    'Not declared, and not needed: {profile} answers for any year.',
-  'suggest.year.leaves': '{year} leaves {profile}.',
-  'suggest.year.awaited':
-    'Not declared — {profile} answers for a period, so without a year it can be neither ruled in nor out.',
+  'suggest.basis.none': 'No profile can be suggested without a basis.',
+  'suggest.basis.unregistered': 'No profile accepts this basis.',
+  'suggest.basis.several': 'Fits several profiles: {profiles}.',
+  'suggest.basis.only': 'Fits the “{profile}” profile.',
+  'suggest.year.moot': 'Clarify the basis first.',
+  'suggest.year.any': 'The year does not matter for “{profile}”.',
+  'suggest.year.leaves': '{year} fits “{profile}”.',
+  'suggest.year.awaited': '“{profile}” needs the year built.',
   'suggest.year.undeclared': 'Not declared.',
-  'suggest.year.rules_out':
-    '{year} rules out {profile}, which is the only profile this ground points at.',
-  'suggest.year.no_narrower': '{year} does not narrow this to one profile.',
+  'suggest.year.rules_out': '{year} does not fit “{profile}”.',
+  'suggest.year.no_narrower': '{year} does not narrow the choice.',
 
   // ── Cases ──────────────────────────────────────────────────────────────────
   'page.cases.title': 'Cases',
-  'page.cases.subtitle':
-    'Applications, document completeness and verification remarks in one register.',
+  'page.cases.subtitle': 'All applications and their check results.',
   'page.analytics.title': 'Analytics',
-  'page.analytics.subtitle':
-    'What the office has taken in, what the runs made of it, and how the archive answered.',
-  'analytics.kpi.taken_in': 'Applications taken in',
-  'analytics.kpi.clean': 'Nothing held against them',
-  'analytics.kpi.findings': 'Findings against packages',
-  'analytics.kpi.archive': 'Questions put to the archive',
+  'analytics.kpi.taken_in': 'Applications received',
+  'analytics.kpi.clean': 'No problems found',
+  'analytics.kpi.findings': 'Problems to fix',
+  'analytics.kpi.archive': 'Archive checks',
+  'analytics.running': 'Everything is running',
+  'analytics.hint': 'What does this mean?',
+  'analytics.findings.title': 'Most common problems',
+  'analytics.unseen': 'Didn’t come up: {n} more',
+  'analytics.center.reported': 'checked',
+  'analytics.center.questions': 'checks',
+  'analytics.kpi.clean_sub': '{p} of checked applications',
+  'analytics.kpi.findings_sub': 'Plus notes: {n}',
+  'analytics.kpi.archive_sub': 'Matched: {n}',
   'action.intake': 'Case pre-check',
   'col.case': 'Case',
   'col.applicant': 'Applicant / Address',
   // Both filters over this table narrow into this one column, so its heading
   // names both — the inspector who set "Outcome" has to see where the answer
   // landed.
-  'col.state': 'Standing & outcome',
+  'col.state': 'Status',
   'slice.label': 'Case views',
   'slice.all': 'All',
   'slice.processing': 'Processing',
@@ -1062,6 +1048,7 @@ const ru: Dict = {
   'density.compact': 'Компактно',
   'col.documents': 'Документы',
   'col.submitted': 'Подано',
+  'cases.unnamed': 'Заявитель не прочитан',
   'col.status': 'Статус',
   'status.ok': 'Без замечаний',
   'status.issues': 'Найдены замечания',
@@ -1071,9 +1058,9 @@ const ru: Dict = {
   'filter.any_standing': 'Любое состояние',
   'filter.outcome': 'Итог проверки',
   'filter.any_outcome': 'Любой итог',
-  'findings.issues': '{n} замечаний',
-  'findings.issue_one': '1 замечание',
-  'findings.low': '{n} с низкой увер.',
+  'findings.issues': 'Замечаний: {n}',
+  'findings.issue_one': 'Замечаний: 1',
+  'findings.low': 'Неуверенно: {n}',
   'findings.none': 'Нет',
   'findings.noted': 'отмечено: {n}',
   'docs.count': '{d} из {r} обязательных',
@@ -1099,46 +1086,71 @@ const ru: Dict = {
   'register.error.retry': 'Спросить снова',
   'page.showing': '{a}–{b} из {n}',
   // ── Сводка по реестру (четыре среза периода) ───────────────────────────────
-  'summary.title': 'Сводка',
   'summary.period.label': 'Период',
-  'summary.period.all': 'Весь реестр',
+  'summary.period.all': 'За всё время',
   'summary.period.last7': 'Последние 7 дней',
   'summary.period.last30': 'Последние 30 дней',
   'summary.period.month': 'Текущий месяц',
   'summary.period.year': 'Текущий год',
   'summary.empty': 'За этот период ничего нет',
   'summary.error.body':
-    'Сводку не удалось прочитать, поэтому цифры неизвестны — это не пустой реестр.',
-  'summary.stalled.label': 'Остановилось:',
-  'summary.stalled.body': '— сломался конвейер, ожидание их не сдвинет.',
-  'summary.stalled.open': 'Открыть остановившиеся',
-  'summary.stalled.none': 'Ничего не остановилось.',
-  'summary.pipeline.title': 'Ход работы',
-  'summary.pipeline.note': 'За этот период принято заявлений: {n}.',
-  'summary.pipeline.pending': 'Ждут обработки',
-  'summary.pipeline.processing': 'В работе',
-  'summary.pipeline.completed': 'Обработаны',
-  'summary.pipeline.failed': 'Остановились',
-  'summary.outcomes.title': 'Итоги отчётов',
+    'Не получилось загрузить цифры. Это не значит, что данных нет, — попробуйте ещё раз.',
+  'summary.stalled.label': 'Зависли:',
+  'summary.stalled.body': '— сами они не сдвинутся, нужно разобраться.',
+  'summary.stalled.open': 'Показать зависшие',
+  'summary.pipeline.title': 'Ход проверки',
+  'summary.pipeline.pending': 'В очереди',
+  'summary.pipeline.processing': 'Проверяются',
+  'summary.pipeline.completed': 'Готово',
+  'summary.pipeline.failed': 'Зависли',
+  'summary.outcomes.title': 'Результаты проверки',
   'summary.outcomes.note':
-    'Заявлений с отчётом: {n} из {total}. У того, что ещё читают, итога пока нет.',
+    'Проверено: {n} из {total}. У заявлений, которые ещё проверяются, результата пока нет.',
   'summary.outcomes.unlinked':
-    'Эти цифры открывают реестр только для всего реестра — список пока нельзя ограничить периодом.',
-  'summary.archive.title': 'Ответы архивного реестра',
+    'Открыть эти списки можно, только когда выбрано «За всё время».',
+  'summary.archive.title': 'Проверка по архиву',
   'summary.archive.note':
-    'Запросов к реестру: {n}. По одному заявлению профиль может задать несколько.',
+    'Проверок по архиву: {n}. Одно заявление могут проверить несколько раз.',
   'summary.archive.not_found_note':
-    'Реестр отвечает о своих фондах. «Не найдено» — пробел в архиве, а не изъян заявления.',
-  'summary.against.title': 'Замечания к пакету',
-  'summary.against.note': 'Замечаний, которые кому-то придётся снять: {n}.',
-  'summary.observations.title': 'Отмечено для сведения',
+    'В архиве есть не всё. «Записи нет» значит только, что в архиве ничего не нашлось, — с заявлением всё может быть в порядке.',
+  'summary.against.title': 'Исправить',
+  'summary.against.note': 'Проблем, которые нужно исправить: {n}.',
+  'summary.observations.title': 'К сведению',
   'summary.observations.note':
-    'Наблюдений: {n}. Отчёт, где нет ничего другого, всё равно читается как «без замечаний».',
-  'summary.findings.none': 'За этот период ничего.',
-  'summary.findings.unseen': 'Видов, не встретившихся за этот период: {n}.',
+    'Заметок: {n}. Это просто информация, проблемами они не считаются.',
+  'summary.findings.none': 'За этот период здесь пусто',
   'page.prev': 'Назад',
   'page.next': 'Вперёд',
   'updated.ago': 'обновлено {t} назад',
+  'field.approving_authority': 'Утвердивший орган',
+  'field.decision_no': 'Номер решения',
+  'field.act_date': 'Дата акта',
+  'field.commission': 'Комиссия',
+  'field.contractor_representative': 'Представитель подрядчика',
+  'field.decision_date': 'Дата решения',
+  'field.licence_no': 'Номер лицензии',
+  'field.permit_no': 'Номер разрешения',
+  'field.permit_date': 'Дата разрешения',
+  'field.object_parameters': 'Параметры объекта',
+  'field.addressee_authority': 'Кому адресовано',
+  'field.building_type': 'Тип постройки',
+  'field.notice_date': 'Дата уведомления',
+  'field.licence_date': 'Дата лицензии',
+  'field.activity_type': 'Вид деятельности',
+  'field.licensee_name': 'Лицензиат',
+  'field.licensee_address': 'Адрес лицензиата',
+  'field.licensee_tax_id': 'ИНН лицензиата',
+  'field.signing_official': 'Подписавшее лицо',
+  'field.holder_name': 'Правообладатель',
+  'field.property_type': 'Вид имущества',
+  'field.rightholders': 'Правообладатели',
+  'field.decree_item': 'Пункт постановления',
+  'field.archive_reference': 'Архивный шифр',
+  'updated.when': 'обновлено {t}',
+  'transcript.signature': '(подпись)',
+  'transcript.stamp': '(печать)',
+  'transcript.qr': '(QR-код)',
+  'transcript.blank': '(пустая страница)',
   open: 'Открыть',
   'profile.cadastre':
     'Первичная государственная регистрация индивидуального жилого дома',
@@ -1264,9 +1276,8 @@ const ru: Dict = {
   'detail.classifying': 'Классификация…',
   'detail.splitting': 'Разбивка на страницы…',
   'detail.pages_read': 'распознано {n} из {total} страниц',
-  'detail.unclassified': 'Не классифицировано — тип документа не распознан.',
-  'detail.out_of_profile':
-    'Прочитан; в законном перечне документов такой бумаги нет.',
+  'detail.unclassified': 'Тип документа не распознан.',
+  'detail.out_of_profile': 'Не входит в перечень документов.',
   'detail.ocr_done': 'Текст распознан',
   'detail.ocr_failed': 'Ошибка OCR',
   'detail.view_text': 'Показать распознанный текст',
@@ -1286,10 +1297,8 @@ const ru: Dict = {
   'detail.in_progress_note':
     'Проверка идёт — обновляется по мере прохождения этапов.',
   'detail.review_preparing': 'Результаты проверки готовятся',
-  'detail.review_preparing_note':
-    'Итоговый список появится после классификации, извлечения полей и сверок.',
-  'detail.review_unavailable':
-    'Итоговый отчёт не удалось подготовить. Проверьте ход процесса и исходные документы.',
+  'detail.review_preparing_note': 'Список появится после проверки.',
+  'detail.review_unavailable': 'Отчёт не удалось подготовить.',
   'detail.review_focus': 'На что обратить внимание',
   'detail.review_focus_note':
     'Перед решением начните с разделов с ненулевым счётчиком.',
@@ -1303,7 +1312,7 @@ const ru: Dict = {
   'detail.required': 'Обязательные документы',
   'detail.required_all': 'Все обязательные документы найдены.',
   'detail.required_missing': 'не найдено: {n}',
-  'detail.required_pending': 'Проверяется после завершения классификации.',
+  'detail.required_pending': 'Появится после распознавания.',
   'detail.files': 'Файлы',
   'detail.files_count': '{n} файлов',
   'detail.file_one': '1 файл',
@@ -1320,15 +1329,13 @@ const ru: Dict = {
   'detail.taken_from': 'Взято из: {doc}',
   'detail.taken_from_go': 'Открыть значение, с которого оно взято',
   'detail.confirmed': 'Реестр подтверждает',
-  'detail.confirmed_why':
-    'Архивный реестр хранит для этого объекта то же значение — это чтение проверять не нужно.',
+  'detail.confirmed_why': 'Совпадает с архивом.',
   'detail.ocr': 'OCR',
   'detail.fields': 'Извлечённые поля',
   'detail.pending': 'Извлечение ожидается',
   'detail.needs_review': 'Требует проверки',
   'detail.unscored': 'без оценки',
-  'detail.unscored_why':
-    'Ни модель, ни маршрут не сообщили уверенность, поэтому она не записана. Сверьте это значение с листом.',
+  'detail.unscored_why': 'Уверенность не указана — сверьте значение со сканом.',
   'detail.none': 'Нет',
   'detail.th.field': 'Поле',
   'detail.th.value': 'Значение',
@@ -1356,10 +1363,9 @@ const ru: Dict = {
   'detail.f.title_missing_sub': 'Подходит любой документ по ст. 10.2.1',
   'detail.f.title_invalid_sub':
     'Дата вне периода, в котором документ действителен',
-  'detail.f.provision_ambiguous_sub': 'Один из: {list}',
+  'detail.f.provision_ambiguous_sub': 'Подходит несколько вариантов: {n}',
   'detail.f.provision_none_sub': 'Ни один пункт не подходит',
-  'detail.f.not_connected_sub':
-    'Прочитан, но не подтверждён: государственная система не подключена',
+  'detail.f.not_connected_sub': 'Не подтверждено: госсистема не подключена',
   'detail.f.missing_any_sub': 'Достаточно любого из них',
   'common.or': 'или',
   'doctype.approved_design': 'Утверждённый проект',
@@ -1369,12 +1375,17 @@ const ru: Dict = {
   'source.UrbanPlanningCommittee': 'Комитет по градостроительству',
   'source.NationalArchive': 'Национальный архив',
   'panel.provision': 'Пункт статьи 8',
-  'provision.lead':
-    'От пункта статьи 8 зависит, какие документы должны быть в пакете. Пункт определяется по шести параметрам; решение остаётся за инспектором.',
-  'provision.determined': 'Применяется пункт {provision}',
-  'provision.ambiguous':
-    'Возможные пункты: {list} — установлены не все параметры',
-  'provision.undetermined': 'Ни один пункт статьи 8 не охватывает этот случай',
+  'provision.lead': 'От пункта зависит, какие документы нужны.',
+  'provision.determined': 'Применяется пункт {provision}: {rule}',
+  'provision.ambiguous': 'Пункт не определён — нет данных: {params}',
+  'provision.undetermined': 'Ни один пункт статьи 8 не подходит',
+  'provision.ambiguous_open': 'Пункт не определён — не хватает данных',
+  'provision.and_more': 'и ещё {n}',
+  'provision.name.8.0.9.1.1': 'До 2013 · до 12 м · аренда',
+  'provision.name.8.0.9.1.2': 'До 2013 · до 12 м · собственность',
+  'provision.name.8.0.9.2': 'До 2013 · выше 12 м',
+  'provision.name.8.0.10.2': 'С 2013 · по уведомлению',
+  'provision.name.8.0.10.1': 'С 2013 · по разрешению',
   'provision.parameters': 'Параметры',
   'provision.param.builtYear': 'Год постройки',
   'provision.param.storeys': 'Надземных этажей',
@@ -1391,15 +1402,14 @@ const ru: Dict = {
   'provision.from.ReadOffDocument': 'Из документа: {document}',
   'provision.from.DeclaredAtIntake': 'Заявлено при приёме',
   'provision.from.TitleDocumentType': 'По виду документа на землю: {document}',
-  'provision.requirements': 'Требования пункта {provision}',
   'provision.req.title':
     'Документ, подтверждающий право на земельный участок (ст. 10.2.1)',
   'provision.req.answered': 'Есть в пакете',
   'provision.req.missing': 'Нет в пакете',
   'provision.req.via_integration':
-    'Для постройки с {year} года на бумаге не требуется — проверяется через интеграцию, которая не подключена',
+    'С {year} года проверяется через госсистему (не подключена)',
   'provision.req.year_unknown':
-    'Требуется, только если построено до {year} года, а год не установлен',
+    'Нужен, если построено до {year} (год неизвестен)',
   'provision.req.nothing_more': 'Ничего, кроме документа на землю',
   'provision.titles': 'Документы на землю в пакете',
   'provision.title.within': 'Дата в допустимом периоде',
@@ -1410,11 +1420,11 @@ const ru: Dict = {
   'provision.window.between': 'с {from} до {before}',
   'provision.window.any': 'любая дата',
   'provision.item': 'Пункт {item}',
-  'provision.rules': 'Таблица решений: применяется первая подходящая строка',
+  'provision.rules': 'Применяется первый подходящий пункт.',
   'provision.rule.holds': 'Подходит',
   'provision.rule.excluded': 'Исключён',
   'provision.rule.open': 'Не определено',
-  'provision.pending': 'Пункт определится после чтения документов',
+  'provision.pending': 'Определится после чтения документов',
   'provision.rule.8.0.9.1.1':
     'Построено до 2013 г., высота до 12 м, участок в аренде или пользовании',
   'provision.rule.8.0.9.1.2':
@@ -1424,10 +1434,9 @@ const ru: Dict = {
     'Построено с 2013 г. в уведомительном порядке: до 3 этажей, 12 м, пролёты до 6 м, участок под жильё',
   'provision.rule.8.0.10.1':
     'Построено с 2013 г. вне уведомительного порядка, по разрешению',
-  'detail.clean':
-    'Замечаний нет — все обязательные документы присутствуют и распознаны выше порога уверенности.',
+  'detail.clean': 'Замечаний нет.',
   'detail.clean_open_set':
-    'Но какой комплект подтверждающих документов нужен по этому делу — определить не удалось, см. ниже.',
+    'Но нужный комплект подтверждающих документов не определён.',
   // ─── Заменённый документ и файл, который его заменил (COMM-80) ─────────────
   // Заменённый документ не удаляется: заявление — доказательство, поэтому
   // присланное первым остаётся читаемым и говорит, чем и когда заменено.
@@ -1435,7 +1444,7 @@ const ru: Dict = {
   'detail.superseded_on': 'от {date}',
   'detail.superseded_by': 'чем заменён: {file}',
   'detail.supplied': 'Дослан',
-  'detail.supplied_for': 'в ответ на нехватку: {type}',
+  'detail.supplied_for': 'для «{type}»',
   'detail.supplied_replacing': 'взамен документа «{type}» из {file}',
   'detail.f.missing_sub': 'Не найден в пакете',
   'detail.f.unplaced_sub': 'Тип не распознан',
@@ -1454,29 +1463,25 @@ const ru: Dict = {
   'detail.f.registry_unconfirmed_sub': 'Записи нет или их несколько',
   'detail.f.declared_sub': 'Расходится с заявленным при приёмке',
   'detail.f.declared_year_sub': 'Заявлено при приёмке: {year}',
-  'detail.declared_note':
-    'Записано на приёме со слов заявителя. Это не прочитанное: уверенности у него нет, и с тем, что движок прочитал в документах, оно не смешивается.',
+  'detail.declared_note': 'Со слов заявителя на приёме, не из документов.',
   'detail.f.attestation_sub': 'Печать или подпись на нём не прочитаны',
   // ── Печать и подпись, как их увидели на листах (COMM-77) ──────────────────
   'attest.stamp': 'Печать',
-  'attest.stamp.present': 'Печать есть',
-  'attest.stamp.present_unasked': 'Печать есть — профиль её не требует',
-  'attest.stamp.illegible': 'Печать есть, но легенда не читается',
-  'attest.stamp.illegible_unasked':
-    'Печать есть, легенда не читается — профиль печати не требует',
-  'attest.stamp.absent': 'На прочитанных листах печати нет',
-  'attest.stamp.absent_unasked': 'Печати нет, и профиль её не требует',
-  'attest.stamp.unread': 'Ни один лист не прочитан — о печати сказать нечего',
+  'attest.stamp.present': 'Есть',
+  'attest.stamp.present_unasked': 'Есть (не требуется)',
+  'attest.stamp.illegible': 'Есть, текст не читается',
+  'attest.stamp.illegible_unasked': 'Есть, текст не читается (не требуется)',
+  'attest.stamp.absent': 'Нет',
+  'attest.stamp.absent_unasked': 'Нет (не требуется)',
+  'attest.stamp.unread': 'Не прочитано',
   'attest.signature': 'Подпись',
-  'attest.signature.present': 'Подпись есть',
-  'attest.signature.present_unasked': 'Подпись есть — профиль её не требует',
-  'attest.signature.absent': 'На прочитанных листах подписи нет',
-  'attest.signature.absent_unasked': 'Подписи нет, и профиль её не требует',
-  'attest.signature.unread':
-    'Ни один лист не прочитан — о подписи сказать нечего',
+  'attest.signature.present': 'Есть',
+  'attest.signature.present_unasked': 'Есть (не требуется)',
+  'attest.signature.absent': 'Нет',
+  'attest.signature.absent_unasked': 'Нет (не требуется)',
+  'attest.signature.unread': 'Не прочитано',
   'attest.legend': 'Прочитано на печати',
-  'attest.unread_why':
-    'Листы не прочитаны, смотреть было не на что. Это не утверждение, что пометки нет.',
+  'attest.unread_why': 'Лист не прочитан — есть ли пометка, неизвестно.',
   'supporting.lead':
     'Документы, которые заявитель должен принести дополнительно к пакету. Ни одного из них в пакете не было и быть не могло, поэтому ничто здесь не засчитывается пакету в минус и нарушением не является.',
   'supporting.bring':
@@ -1489,13 +1494,11 @@ const ru: Dict = {
   'supporting.decided_on': 'Определено по',
   'detail.checks': 'Сверка документов',
   'detail.checks_result': 'Результаты сверки документов',
-  'detail.checks_result_note':
-    'Поля, которые профиль требует сверить между документами. Каждое значение ведёт к исходному документу и листу.',
+  'detail.checks_result_note': 'Поля, сверенные между документами.',
   'detail.checks_note':
     'Значения, которые по профилю должны совпадать в нескольких документах.',
-  'detail.checks_pending': 'Выполняется после прочтения всех документов.',
-  'detail.checks_none':
-    'Для этого пакета нет доступных результатов сверки документов.',
+  'detail.checks_pending': 'Сверка — после чтения документов.',
+  'detail.checks_none': 'Сверок пока нет.',
   'detail.checks_agreed': 'совпадает: {n} из {total}',
   'detail.checks_go': 'Перейти к этому значению в реестре',
   'detail.check_agreed': 'Совпадает',
@@ -1512,9 +1515,9 @@ const ru: Dict = {
   'detail.archive_comparison': 'Сравнение с архивом',
   'detail.registry_note':
     'Что документы говорят об объекте — против архивной записи о нём. Единственная проверка, которая выходит за пределы пакета.',
-  'detail.registry_pending': 'Реестр спрашивают, когда прочитан адрес объекта.',
+  'detail.registry_pending': 'Архив запросят после чтения адреса.',
   'detail.registry_none':
-    'Реестр не ответил по этому пакету: либо не прочитан адрес, о котором он спрашивает, либо до реестра не достучались. Ни то, ни другое не останавливает проверку.',
+    'Архив не ответил — адрес не прочитан или реестр недоступен.',
   'detail.registry_asked': 'Спрошено об адресе',
   'detail.registry_where': 'В архиве',
   'detail.reg.confirmed': 'Запись подтверждает',
@@ -1522,32 +1525,28 @@ const ru: Dict = {
   'detail.reg.incomplete': 'Подлинника нет в архиве',
   'detail.reg.not_found': 'Записи нет',
   'detail.reg.ambiguous': 'Несколько записей',
-  'detail.reg.confirmed_note':
-    'Запись найдена, и всё, что с ней сверяли, совпало. Это та справка, которую вам не нужно наводить.',
-  'detail.reg.differs_note':
-    'Запись найдена и говорит другое. Расходится именно запись, а не документы между собой.',
+  'detail.reg.confirmed_note': 'Запись найдена, всё совпало.',
+  'detail.reg.differs_note': 'Запись найдена, но данные в ней другие.',
   'detail.reg.incomplete_note':
-    'Запись найдена и с пакетом сходится. Чего в архиве нет \u2014 так это подлинника одного из документов ниже; для основания по постановлению 439 это условие действительности, а не формальность.',
+    'Запись совпадает, но подлинника одного из документов в архиве нет.',
   'detail.reg.not_found_note':
-    'По этому адресу реестр ничего не держит. Он покрывает приватизации 1990-х и 2000-х, поэтому отсутствие записи ничего не говорит о пакете.',
+    'В архиве нет записи. Это не ошибка заявления — архив хранит не всё.',
   'detail.reg.ambiguous_note':
-    'Этому адресу отвечает больше одной записи. Какая из них та самая — решать вам, а не системе.',
+    'Адресу соответствует несколько записей — проверьте вручную.',
   'detail.reg.submitted': 'В пакете',
   'detail.reg.recorded': 'В записи',
   'detail.reg.silent': 'такой графы в реестре не было',
   'detail.reg.papers': 'Документы в архиве',
   'detail.reg.holding_held': 'Подлинник в архиве есть',
   'detail.reg.holding_notheld': 'Подлинника в архиве нет',
-  'detail.reg.holding_unknown':
-    'архив этого района такие документы никогда не учитывал',
+  'detail.reg.holding_unknown': 'архив района такие документы не хранит',
   'regattr.ownerName': 'Правообладатель',
   'regattr.cadastralNumber': 'Кадастровый номер',
   'regattr.plotArea': 'Площадь участка',
   'detail.attention': 'Требует внимания',
   'detail.attention_go': 'Перейти к этому чтению в реестре',
   'detail.observations': 'Наблюдения',
-  'detail.observations_note':
-    'Ни то, ни другое не является недостачей — в пакете просто больше, чем требует профиль.',
+  'detail.observations_note': 'Это не недостача — просто лишние документы.',
   'detail.seg.review': 'К проверке',
   'detail.seg.all': 'Все',
   'detail.seg.other': 'Прочее',
@@ -1558,9 +1557,24 @@ const ru: Dict = {
   'detail.process_done': 'Проверка завершена',
   'detail.stages_done': '{n} этапов',
   'detail.required_found': '{n} из {total}',
+  'common.more_info': 'Подробнее',
+  'provision.short.determined': 'Пункт {provision}',
+  'provision.short.ambiguous': 'Не определён · вариантов: {n}',
+  'provision.short.undetermined': 'Не подходит ни один',
+  'provision.options': 'Возможные пункты и что для них нужно',
+  'provision.col.document': 'Документ',
+  'provision.req.title_short': 'Документ на землю',
+  'provision.req.not_asked': 'Не нужен',
+  'provision.others': 'Исключены: {n}',
+  'provision.rule.depends': 'Зависит от: {list}',
+  'provision.rule.fails': 'Не подходит по: {list}',
+  'gap.more': 'Другие подходящие документы: {n}',
+  'detail.sheets_more': 'Ещё страниц: {n}',
+  'detail.sheets_fewer': 'Свернуть',
+  'add.note_reopens_short': 'Пакет проверится заново.',
   'detail.sheets': 'Листы',
   'detail.contents_rest': 'ещё {n}',
-  'detail.fields_more': 'Ещё {n} полей',
+  'detail.fields_more': 'Ещё полей: {n}',
   'detail.fields_fold': 'Свернуть',
   'detail.fields_more_review': 'Из них {n} требуют проверки',
   'field.document_no': 'Номер документа',
@@ -1677,28 +1691,22 @@ const ru: Dict = {
   'standing.NeedsInspector': 'Нужен инспектор',
   'standing.AwaitingArchiveApproval': 'Архивный поиск не утверждён',
   'standing.Cleared': 'Замечаний нет',
-  'standing.note.Queued': 'Пакет принят. Ни одна проверка его ещё не читала.',
-  'standing.note.UnderVerification':
-    'Проверка читает пакет — страница обновляется по мере завершения этапов.',
+  'standing.note.Queued': 'Пакет принят, проверка скоро начнётся.',
+  'standing.note.UnderVerification': 'Идёт проверка, страница обновится сама.',
   'standing.note.Stalled':
-    'Сломалась наша собственная механика, о документах не сделано никаких выводов. Догрузка файла запускает проверку заново.',
-  'standing.note.ShortOfDocuments':
-    'Документ, которого требует профиль, так и не поступил. Догрузите его ниже — пакет будет проверен заново.',
-  'standing.note.NeedsInspector':
-    'Комплект полный, но проверка вынесла замечания — каждое разбирает инспектор.',
+    'Проверка прервалась из-за сбоя. Догрузите файл, чтобы запустить её снова.',
+  'standing.note.ShortOfDocuments': 'Не хватает документов. Догрузите их ниже.',
+  'standing.note.NeedsInspector': 'Документы на месте, но есть замечания.',
   'standing.note.AwaitingArchiveApproval':
-    'Замечаний к пакету нет. Архивный поиск, на котором он держится, ещё никем не утверждён.',
-  'standing.note.Cleared':
-    'Замечаний нет, и ничего не осталось. Решение о регистрации по-прежнему за вами.',
+    'Замечаний нет. Нужно утвердить архивный поиск.',
+  'standing.note.Cleared': 'Замечаний нет. Решение за вами.',
   // ─── Догрузка документов в открытый пакет (ADR-0013) ───────────────────────
   'add.title': 'Догрузка документов',
   'add.action': 'Догрузить документы',
-  'add.note':
-    'Документ, который так и не поступил, или читаемый скан листа, который не удалось прочитать. Каждый догруженный файл проверяется вместе с пакетом.',
+  'add.note': 'Недостающий документ или более чёткий скан.',
   'add.note_reopens':
-    'Догрузка открывает пакет заново: отчёт, сравнение документов и ответы архива сделаны по комплекту, который с тех пор изменился, поэтому они отбрасываются, а пакет проверяется заново. Прочитанное по каждому файлу сохраняется.',
-  'add.closed_running':
-    'Идёт проверка, поэтому сейчас пакет не принимает файлы — проверка читает тот комплект, с которым началась. Догрузите их, когда она закончится.',
+    'Отчёт и сверки пересоберутся заново. Прочитанное из файлов сохранится.',
+  'add.closed_running': 'Идёт проверка — догрузить можно после неё.',
   'add.none': 'Файлы пока не добавлены',
   'add.uploading': 'Загрузка…',
   'add.ready': 'Готово к догрузке: {n}',
@@ -1735,38 +1743,30 @@ const ru: Dict = {
   // нечитаемое, приложить то, что профиль принимает всегда. Третья — не
   // нарушение, и читаться как нарушение она не должна.
   'gap.title': 'Что можно дослать',
-  'gap.note':
-    'Чего не хватает заявлению, считает сервер. Каждая строка ниже — отправка одного файла в ответ именно на неё, а не ещё одного файла в пакет.',
-  'gap.closed_running':
-    'Идёт проверка, и сейчас заявление файлов не принимает. Строки остаются; кнопки вернутся, когда проверка закончится.',
-  'gap.none':
-    'Заявлению ничего не нужно доносить, и этот профиль не принимает документов «в любой момент».',
+  'gap.note': 'Каждая кнопка отправляет файл именно для этой строки.',
+  'gap.closed_running': 'Идёт проверка — отправить файлы можно после неё.',
+  'gap.none': 'Досылать ничего не нужно.',
   'gap.missing': 'Нет в комплекте',
   'gap.unusable': 'Скан не читается',
   'gap.any_time': 'Принимается всегда',
-  'gap.missing_note':
-    'Требуется профилем, а в заявлении отсутствует. Пришлите недостающее.',
-  'gap.unusable_note':
-    'Документ приложен, но прочитан плохо. Переснимите тот же документ — присланное встанет на его место.',
-  'gap.any_time_note':
-    'С заявлением всё в порядке — профиль принимает это в любой момент.',
+  'gap.missing_note': 'Этого документа нет в пакете.',
+  'gap.unusable_note': 'Документ прочитан плохо. Пришлите скан заново.',
+  'gap.any_time_note': 'Можно прислать в любое время.',
   'gap.unread_fields': 'Не прочитано:',
   'gap.doubted_fields': 'Прочитано неуверенно:',
-  'gap.doubted_placement': 'Уверенность в том, что это документ такого типа:',
-  'gap.floor': 'Чтению доверяют начиная с {floor}%.',
-  'gap.unusable_unspecified':
-    'Сервер сообщает, что этот скан стоит прислать заново. Какое именно чтение подвело — здесь назвать нечем.',
-  'gap.open_scan': 'Открыть скан в {file}',
-  'gap.reading': '{file} отправлен, идёт распознавание.',
+  'gap.doubted_placement': 'Тип распознан на',
+  'gap.floor': 'Надёжно от {floor}%',
+  'gap.unusable_unspecified': 'Скан лучше прислать заново.',
+  'gap.open_scan': 'Открыть скан',
+  'gap.reading': '{file}: идёт распознавание',
   'gap.refused':
-    '{file} прислан как «{expected}», а распознан как «{arrived}» — поэтому не принят: строка осталась, прежний документ продолжает действовать.',
-  'gap.arrived_unplaced': 'ни один тип из требуемых профилем',
+    '{file} не принят: ожидался «{expected}», распознан «{arrived}».',
+  'gap.arrived_unplaced': 'неизвестный документ',
   'supply.action': 'Загрузить',
   'supply.action_for': 'Загрузить «{type}»',
   'supply.uploading': 'Загрузка {n}%',
   'supply.sending': 'Отправляем…',
-  'supply.sent':
-    '«{type}» отправлен — заявление проверяется заново, и строка исчезнет сама, когда отчёт пересоберётся без неё',
+  'supply.sent': '«{type}» отправлен — пакет проверяется заново',
   'supply.failed': 'Документ не отправлен — попробуйте ещё раз',
   'supply.refused_format': 'Формат не поддерживается — только PDF, JPG или PNG',
   'supply.refused_size': 'Файл больше {max} МБ',
@@ -1779,26 +1779,22 @@ const ru: Dict = {
   'error.UNTARGETED_SUPPLY':
     'Досылаемый документ должен говорить, на что он отвечает — нажмите кнопку в нужной строке',
   // ─── Утверждение архивного поиска (ADR-0016) ───────────────────────────────
-  'approve.title': 'Утверждение результатов архивного поиска',
-  'approve.note':
-    'Выше — что ответил реестр. Что это значит для заявления, решает человек: утверждение записывает этот вывод по тем ответам, которые есть сейчас.',
-  'approve.no_author':
-    'Учётных записей в системе нет, поэтому у утверждения нет имени — только вывод и время. Оно записано как решение управления, а не конкретного человека.',
+  'approve.title': 'Утверждение архивного поиска',
+  'approve.note': 'Подтвердите, что ответы архива проверены.',
+  'approve.no_author': 'Имя не сохраняется — в системе нет учётных записей.',
   'approve.summary_label': 'Вывод по заявлению',
-  'approve.summary_hint':
-    'Что архивный поиск значит для заявления целиком — не по отдельной проверке, каждая из них уже сказала, что нашла. Обязательно: утверждение, которое фиксирует только сам факт, не фиксирует ничего.',
+  'approve.summary_hint': 'Коротко: что архив значит для заявления.',
   'approve.summary_placeholder':
-    'Запись реестра не противоречит поданным документам; отсутствие подлинника не влияет на заявленное право…',
+    'Например: запись архива совпадает с документами',
   'approve.comment_label': 'Комментарий (необязательно)',
-  'approve.comment_hint':
-    'Оговорка или причина, по которой утверждено несмотря на замечание. Оставьте пустым, если её нет: пустой комментарий лучше формального.',
+  'approve.comment_hint': 'Необязательно.',
   'approve.comment_placeholder': 'Оговорка, если она есть…',
   'approve.left': 'осталось {n} символов',
   'approve.over': 'на {n} символов больше',
   'approve.action': 'Утвердить поиск',
   'approve.sending': 'Записываем…',
   'approve.done': 'Архивный поиск утверждён',
-  'approve.failed': 'Не удалось записать утверждение — попробуйте ещё раз',
+  'approve.failed': 'Не удалось сохранить — попробуйте ещё раз',
   'approve.given': 'Утверждено',
   'approve.remark': 'Комментарий',
   'approve.covered': 'Утверждено по этим ответам',
@@ -1807,11 +1803,10 @@ const ru: Dict = {
   'approve.spent_since': 'перестало действовать {d}',
   'approve.spent_title': 'Прежние утверждения ({n})',
   'approve.spent_note':
-    'После них архив опрашивали заново, поэтому они перестали действовать. Их не удаляют: что именно утвердили и по каким ответам — часть записи.',
-  'approve.unsettled':
-    'Идёт проверка, реестр ещё может ответить иначе. Утвердить поиск можно, когда она закончится.',
+    'Архив запрашивали повторно, эти утверждения больше не действуют.',
+  'approve.unsettled': 'Идёт проверка — утвердить можно после неё.',
   'approve.not_asked':
-    'Реестр по этому заявлению ни о чём не спрашивали — профиль не задаёт ему вопросов либо адрес не удалось прочитать ни на одном листе. Утверждать нечего.',
+    'Архив по этому заявлению не запрашивали — утверждать нечего.',
   'error.ARCHIVE_SEARCH_NOT_SETTLED':
     'Идёт проверка — утвердить поиск можно, когда она закончится',
   'error.ARCHIVE_SEARCH_NOT_ASKED': 'Реестр по этому заявлению не опрашивали',
@@ -1830,20 +1825,18 @@ const ru: Dict = {
   'sheet.case_no': 'Дело №',
   'sheet.taken_in': 'принято {d}',
   'sheet.subject': 'лист дела по заявлению',
-  'sheet.situation': 'Положение',
   'sheet.read_off': 'Прочитано с документов',
   'sheet.applicant': 'Заявитель',
   'sheet.address': 'Адрес',
   'sheet.cadastral': 'Кадастровый №',
-  'sheet.section.stages': 'I. Этапы обработки',
-  'sheet.section.documents': 'II. Документы',
+  'sheet.section.stages': 'Этапы обработки',
+  'sheet.section.documents': 'Документы',
   'sheet.documents.unknown':
-    'Эта сборка не знает такого профиля, поэтому список обязательных документов не приводится — лучше никакого, чем неверный.',
+    'Профиль неизвестен — список обязательных документов недоступен.',
   'sheet.doc.missing': 'Не хватает',
   'sheet.doc.present': 'В пакете',
   'sheet.print': 'Выгрузить лист дела (PDF)',
-  'sheet.foot':
-    'Сканы страниц, проверка по архиву и решение остаются в электронном деле.',
+  'sheet.foot': 'Сканы, архивная проверка и решение — в электронном деле.',
   'sheet.foot_mark': 'AZ · лист дела',
   'panel.scanned': 'Отсканированные страницы',
   'detail.attention_none': 'Ничего не осталось',
@@ -1863,55 +1856,45 @@ const ru: Dict = {
 
   // ── Поиск по архиву ────────────────────────────────────────────────────────
   'page.search.title': 'Поиск по архиву',
-  'page.search.subtitle':
-    'Спросите архивный реестр, что он хранит об объекте, — ещё до того, как пакет принят.',
+  'page.search.subtitle': 'Проверьте, что архив знает об объекте.',
   'search.field.address': 'Адрес',
-  'search.field.address_hint':
-    'По нему ищут. Запись отвечает на любое написание, какое когда-либо завела её контора, — старый адрес тоже находит её.',
+  'search.field.address_hint': 'Находит и старые варианты написания.',
   'search.field.address_placeholder': 'Адрес или село',
-  'search.field.name': 'ФИО заявителя',
-  'search.field.name_hint':
-    'По нему ищут. Иначе переданная латиницей фамилия всё равно найдёт запись; насколько они расходятся — видно в степени совпадения.',
+  'search.field.name': 'ФИО',
+  'search.field.name_hint': 'Находит и другое написание латиницей.',
   'search.field.name_placeholder': 'Фамилия, имя, отчество',
-  'search.field.parcel': 'Участок / кадастровый номер',
-  'search.field.parcel_hint':
-    'По нему ищут — настолько, насколько он известен. Половина номера тоже вопрос, на который реестр отвечает.',
-  'search.field.parcel_placeholder': 'Участок, реестр, свидетельство',
-  'search.any_criterion':
-    'Достаточно любого из трёх; вместе они не расширяют поиск, а сужают его.',
-  'search.note':
-    'Реестр сообщает, что хранится в его собственных фондах, и не судит ни о каком заявлении. Его охват неполный и исторический.',
-  'search.submit': 'Искать в архиве',
+  'search.field.parcel': 'Номер участка',
+  'search.field.parcel_hint': 'Можно ввести часть номера.',
+  'search.field.parcel_placeholder': 'Кадастровый или реестровый №',
+  'search.submit': 'Найти',
+  'search.details': 'Технические сведения',
   'search.searching': 'Ищем…',
-  'search.threshold.label': 'Показывать не ниже',
+  'search.threshold.label': 'Точность не ниже',
   'search.band.high': 'Высокая',
   'search.band.probable': 'Вероятная',
   'search.band.possible': 'Возможная',
   'search.band.weak': 'Слабая',
   'search.matched': 'Совпадений: {n}',
-  'search.considered': 'Сравнено записей: {n}.',
-  'search.at_threshold': 'Показываются от «{band}» ({value}) и выше.',
-  'search.sources': 'Ответившие источники',
-  'search.panel.matches': 'Записи, которые предлагает архив',
-  'search.silent_about':
-    'У источника нет колонки: {fields}. Это молчание — оно не считается ни за, ни против.',
+  'search.considered': 'Проверено записей: {n}.',
+  'search.at_threshold': 'Точность от {value}.',
+  'search.sources': 'Источники',
+  'search.panel.matches': 'Найденные записи',
+  'search.silent_about': 'В источнике нет данных: {fields}',
   'search.disputed': 'Источники расходятся',
   'search.panel.disagreements': 'Где источники расходятся',
   'search.disagreements.note':
-    'Два реестра отвечают об одном объекте и записывают его по-разному. Реестр приводит оба и не решает спор — решает тот, кто может открыть папку.',
+    'Реестры записали объект по-разному. Сверьте с папкой.',
   'search.more':
-    'Показаны самые уверенные {shown} из {n}. Уточните запрос, чтобы дойти до остальных.',
-  'search.idle.title': 'Запрос ещё не отправлен',
-  'search.idle.body':
-    'Введите то, что есть, — адрес, фамилию, номер участка, — и реестр предложит записи, которые могут подойти.',
-  'search.none.title': 'Архив здесь ничего не предлагает',
+    'Показано {shown} из {n}. Уточните запрос, чтобы увидеть остальные.',
+  'search.idle.title': 'Введите данные для поиска',
+  'search.idle.body': 'Достаточно одного поля: адреса, ФИО или номера участка.',
+  'search.none.title': 'Ничего не найдено',
   'search.none.body':
-    'Ничто из сравнённого не дотягивает до выбранного уровня. Охват реестра неполный и исторический, поэтому об объекте это не говорит ничего: снизьте уровень или ищите по меньшему числу полей.',
+    'Снизьте точность или очистите одно из полей. Архив хранит не всё.',
   'search.error.title': 'Архив не ответил',
-  'search.error.body':
-    'Обратиться к реестру не удалось. Попробуйте поиск ещё раз.',
+  'search.error.body': 'Архив недоступен. Попробуйте ещё раз.',
   'search.footer':
-    'Архив — это несколько реестров, которые тридцать лет вели разные конторы. О том, чего нет ни в одном из них, он не говорит ничего.',
+    'Архив хранит не всё: если записи нет, это ничего не значит.',
   'archive.found': 'Запись найдена',
   'archive.found_note': 'Реестр хранит запись по этому адресу.',
   'archive.not_found': 'Записи нет',
@@ -1945,8 +1928,7 @@ const ru: Dict = {
 
   // ── Приёмка заявления ──────────────────────────────────────────────────────
   'page.intake.title': 'Приёмка заявления',
-  'page.intake.subtitle':
-    'Добавьте пакет — система прочитает его, проверит и доложит, что нашла. Решаете вы.',
+  'page.intake.subtitle': 'Загрузите документы — система их проверит.',
   'intake.step.add': 'Добавьте пакет',
   'intake.step.read': 'Мы его читаем',
   'intake.step.result': 'Результат',
@@ -1960,12 +1942,11 @@ const ru: Dict = {
   'intake.open_case': 'Открыть дело',
   'intake.recommendation': 'Рекомендация',
   'intake.read.title': 'Что мы прочитали в пакете',
-  'intake.read.lead':
-    'Заявитель, адрес и участок читаются из самих документов. Показание, в котором система не уверена, помечено — сверьте его с бумагами на карточке дела.',
-  'intake.read.filling': 'заполняется само',
+  'intake.read.lead': 'Прочитано из документов. Сомнительное помечено.',
+  'intake.read.filling': 'заполняется…',
   'intake.read.reading': 'читаем…',
-  'intake.read.unread': 'в пакете не прочитано',
-  'intake.read.glance': 'прочитано на {p}% — стоит перепроверить',
+  'intake.read.unread': 'не прочитано',
+  'intake.read.glance': 'точность {p}% — проверьте',
   'intake.read.applicant': 'Заявитель',
   'intake.read.address': 'Адрес',
   'intake.read.parcel': 'Участок / номер реестра',
@@ -1974,71 +1955,62 @@ const ru: Dict = {
   'intake.group.legal_none':
     'Проверка не назвала комплект подтверждающих документов для этого дела.',
   'intake.group.archive': 'Архив',
-  'intake.group.archive_none': 'Архивный реестр по этому делу не запрашивался.',
-  'intake.group.nothing': 'Здесь к пакету претензий нет.',
+  'intake.group.archive_none': 'Архив не запрашивался.',
+  'intake.group.nothing': 'Замечаний нет.',
   // ── Заявленное на приёмке ──────────────────────────────────────────────────
   'declared.title': 'Заявлено при приёмке',
   'declared.basis': 'На основании чего право',
   'declared.year': 'Год постройки',
   'declared.not_declared': 'Не заявлено',
-  'intake.profile.unchosen':
-    'Выберите профиль проверки — под ним пакет и будет принят, и за вас его никто не выбирает.',
-  'intake.declared.lead':
-    'Необязательно и со слов заявителя, а не из документов. По этому подсказывается профиль; с тем, что прочитает движок, это не смешивается.',
+  'intake.profile.unchosen': 'Выберите профиль, чтобы начать.',
+  'intake.declared.lead': 'Необязательно. Помогает подобрать профиль.',
   'intake.declared.basis_hint':
-    'Документ, на котором держится заявленное право, — из тех, что этот профиль признаёт основанием.',
+    'Документ, на котором основано право. Со слов заявителя.',
   'intake.declared.basis_stray':
-    '«{ground}» — не основание профиля «{profile}». Выберите другое основание или другой профиль.',
-  'intake.declared.year_hint':
-    'Четыре цифры, {from}–{to}. Не знаете — оставьте пустым.',
+    '«{ground}» не подходит к профилю «{profile}».',
+  'intake.declared.year_hint': 'Четыре цифры. Можно оставить пустым.',
   'intake.declared.year_placeholder': 'например, 1998',
-  'intake.declared.year_outside':
-    'Год читается в пределах {from}–{to} — этот принят не будет.',
-  'intake.suggest.title': 'Подсказка профиля',
-  'intake.suggest.undeclared':
-    'Заявите основание или год — и здесь появится профиль, на который они указывают.',
-  'intake.suggest.take': 'Выбрать этот профиль',
+  'intake.declared.year_outside': 'Год должен быть в пределах {from}–{to}.',
+  'intake.suggest.title': 'Подсказка',
+  'intake.suggest.undeclared': 'Укажите основание или год — подскажем профиль.',
+  'intake.suggest.take': 'Выбрать',
   'intake.suggest.chosen': 'выбран',
-  'intake.suggest.asking': 'спрашиваем заново…',
-  'intake.suggest.none':
-    'Профиль не подсказан: заявленное не указывает на один. Почему — написано под тем полем, о котором речь.',
-  'intake.suggest.unavailable':
-    'Сейчас недоступна. Она только рекомендует — профиль, как и всегда, выбираете вы.',
-  'suggest.basis.none':
-    'Не заявлено. Именно документ-основание отличает один профиль от другого, поэтому без него профиль не подсказывается.',
-  'suggest.basis.unregistered':
-    'Ни один профиль не признаёт основанием «{ground}».',
-  'suggest.basis.several':
-    'Основанием «{ground}» право признают сразу несколько профилей — {profiles}. Какой из них это дело, из заявленного не следует.',
-  'suggest.basis.only':
-    '«{ground}» — основание профиля «{profile}», и других таких профилей нет.',
-  'suggest.year.moot':
-    'По основанию профиль не определился — уточнять годом нечего.',
-  'suggest.year.any':
-    'Не заявлен, и не нужен: «{profile}» отвечает за любой год.',
-  'suggest.year.leaves': '{year} оставляет профиль «{profile}».',
-  'suggest.year.awaited':
-    'Не заявлен, а «{profile}» отвечает за определённый период — без года его нельзя ни принять, ни отвергнуть.',
+  'intake.suggest.asking': 'обновляем…',
+  'intake.suggest.none': 'Подходящий профиль не найден.',
+  'intake.suggest.unavailable': 'Подсказка сейчас недоступна.',
+  'suggest.basis.none': 'Без основания профиль не подсказать.',
+  'suggest.basis.unregistered': 'Ни один профиль не принимает это основание.',
+  'suggest.basis.several': 'Подходит нескольким профилям: {profiles}.',
+  'suggest.basis.only': 'Подходит профиль «{profile}».',
+  'suggest.year.moot': 'Сначала уточните основание.',
+  'suggest.year.any': 'Для «{profile}» год не важен.',
+  'suggest.year.leaves': '{year} подходит к «{profile}».',
+  'suggest.year.awaited': 'Для «{profile}» нужен год постройки.',
   'suggest.year.undeclared': 'Не заявлен.',
-  'suggest.year.rules_out':
-    '{year} исключает «{profile}» — единственный профиль, на который указывает это основание.',
-  'suggest.year.no_narrower': '{year} не сводит выбор к одному профилю.',
+  'suggest.year.rules_out': '{year} не подходит к «{profile}».',
+  'suggest.year.no_narrower': '{year} не сужает выбор.',
 
   // ── Дела ───────────────────────────────────────────────────────────────────
   'page.cases.title': 'Дела',
-  'page.cases.subtitle':
-    'Заявления, комплектность документов и замечания проверки — в одном реестре.',
+  'page.cases.subtitle': 'Все заявления и результаты их проверки.',
   'page.analytics.title': 'Аналитика',
-  'page.analytics.subtitle':
-    'Что принято, что показали проверки и как ответил архивный реестр.',
-  'analytics.kpi.taken_in': 'Принято заявлений',
-  'analytics.kpi.clean': 'Без замечаний',
-  'analytics.kpi.findings': 'Замечаний к пакетам',
-  'analytics.kpi.archive': 'Запросов к архиву',
+  'analytics.kpi.taken_in': 'Получено заявлений',
+  'analytics.kpi.clean': 'Без проблем',
+  'analytics.kpi.findings': 'Нужно исправить',
+  'analytics.kpi.archive': 'Проверок по архиву',
+  'analytics.running': 'Всё работает',
+  'analytics.hint': 'Что это значит?',
+  'analytics.findings.title': 'Частые проблемы',
+  'analytics.unseen': 'Не встречались: ещё {n}',
+  'analytics.center.reported': 'проверено',
+  'analytics.center.questions': 'проверки',
+  'analytics.kpi.clean_sub': '{p} проверенных заявлений',
+  'analytics.kpi.findings_sub': 'И ещё заметок: {n}',
+  'analytics.kpi.archive_sub': 'Совпало: {n}',
   'action.intake': 'Приёмка заявления',
   'col.case': 'Дело',
   'col.applicant': 'Заявитель / Адрес',
-  'col.state': 'Состояние и итог',
+  'col.state': 'Состояние',
   'slice.label': 'Срезы реестра',
   'slice.all': 'Все',
   'slice.processing': 'В работе',
@@ -2059,6 +2031,7 @@ const az: Dict = {
   'density.compact': 'Sıx',
   'col.documents': 'Sənədlər',
   'col.submitted': 'Təqdim',
+  'cases.unnamed': 'Ərizəçi oxunmayıb',
   'col.status': 'Status',
   'status.ok': 'Qüsur yoxdur',
   'status.issues': 'Qüsurlar aşkarlandı',
@@ -2068,9 +2041,9 @@ const az: Dict = {
   'filter.any_standing': 'İstənilən vəziyyət',
   'filter.outcome': 'Nəticə',
   'filter.any_outcome': 'İstənilən nəticə',
-  'findings.issues': '{n} qüsur',
-  'findings.issue_one': '1 qüsur',
-  'findings.low': '{n} aşağı etibar',
+  'findings.issues': 'Qüsur: {n}',
+  'findings.issue_one': 'Qüsur: 1',
+  'findings.low': 'Şübhəli: {n}',
   'findings.none': 'Yoxdur',
   'findings.noted': '{n} qeyd',
   'docs.count': '{r} tələbdən {d}',
@@ -2097,47 +2070,71 @@ const az: Dict = {
   'register.error.retry': 'Yenidən soruş',
   'page.showing': '{n} paketdən {a}–{b}',
   // ── Reyestr icmalı (dövrün dörd kəsiyi) ────────────────────────────────────
-  'summary.title': 'İcmal',
   'summary.period.label': 'Dövr',
-  'summary.period.all': 'Bütün reyestr',
+  'summary.period.all': 'Bütün dövr',
   'summary.period.last7': 'Son 7 gün',
   'summary.period.last30': 'Son 30 gün',
   'summary.period.month': 'Bu ay',
   'summary.period.year': 'Bu il',
   'summary.empty': 'Bu dövrdə heç nə yoxdur',
   'summary.error.body':
-    'İcmal oxuna bilmədi, ona görə bu rəqəmlər bilinmir — bu, boş reyestr demək deyil.',
-  'summary.stalled.label': 'Dayanıb:',
-  'summary.stalled.body':
-    '— mexanizm dayandı, gözləmək onları irəli aparmayacaq.',
-  'summary.stalled.open': 'Dayananları aç',
-  'summary.stalled.none': 'Heç nə dayanmayıb.',
-  'summary.pipeline.title': 'İşin gedişi',
-  'summary.pipeline.note': 'Bu dövrdə qəbul edilən təqdimat: {n}.',
-  'summary.pipeline.pending': 'Oxunmasını gözləyir',
-  'summary.pipeline.processing': 'Oxunur',
-  'summary.pipeline.completed': 'Oxunub',
-  'summary.pipeline.failed': 'Dayanıb',
-  'summary.outcomes.title': 'Yoxlamaların nəticəsi',
+    'Rəqəmləri yükləmək alınmadı. Bu, məlumat olmadığı demək deyil — yenidən cəhd edin.',
+  'summary.stalled.label': 'İlişib qalıb:',
+  'summary.stalled.body': '— özləri irəliləməyəcək, kiminsə baxması lazımdır.',
+  'summary.stalled.open': 'İlişənləri göstər',
+  'summary.pipeline.title': 'Yoxlamanın gedişi',
+  'summary.pipeline.pending': 'Növbədə',
+  'summary.pipeline.processing': 'Yoxlanılır',
+  'summary.pipeline.completed': 'Hazırdır',
+  'summary.pipeline.failed': 'İlişib qalıb',
+  'summary.outcomes.title': 'Yoxlamanın nəticələri',
   'summary.outcomes.note':
-    'Hesabatı olan təqdimat: {total} -dan {n}. Hələ oxunanın nəticəsi yoxdur.',
+    'Yoxlanılıb: {total} ərizədən {n}. Hələ yoxlanılan ərizələrin nəticəsi yoxdur.',
   'summary.outcomes.unlinked':
-    'Bu rəqəmlər reyestri yalnız bütövlükdə açır — siyahını hələ dövrə görə daraltmaq olmur.',
-  'summary.archive.title': 'Arxiv reyestrinin cavabları',
+    'Bu siyahıları yalnız «Bütün dövr» seçiləndə açmaq olar.',
+  'summary.archive.title': 'Arxiv üzrə yoxlama',
   'summary.archive.note':
-    'Reyestrə verilən sorğu: {n}. Profil bir təqdimat üzrə birdən çox sorğu verə bilər.',
+    'Arxiv yoxlaması: {n}. Bir ərizə bir neçə dəfə yoxlana bilər.',
   'summary.archive.not_found_note':
-    'Reyestr öz fondları barədə cavab verir. «Tapılmadı» arxivdəki boşluqdur, təqdimatdakı qüsur deyil.',
-  'summary.against.title': 'Paketə qarşı iradlar',
-  'summary.against.note': 'Kiminsə həll etməli olduğu irad: {n}.',
-  'summary.observations.title': 'Məlumat üçün qeyd edilib',
+    'Arxivdə hər şey yoxdur. «Qeyd yoxdur» sadəcə arxivdə heç nə tapılmadığını bildirir — ərizədə səhv olduğunu yox.',
+  'summary.against.title': 'Düzəltmək',
+  'summary.against.note': 'Düzəldilməli problem sayı: {n}.',
+  'summary.observations.title': 'Məlumat üçün',
   'summary.observations.note':
-    'Müşahidə: {n}. Başqa heç nə daşımayan hesabat yenə də «iradsız» oxunur.',
-  'summary.findings.none': 'Bu dövrdə heç nə.',
-  'summary.findings.unseen': 'Bu dövrdə rast gəlinməyən növ sayı: {n}.',
+    'Qeyd sayı: {n}. Bunlar sadəcə məlumatdır, problem sayılmır.',
+  'summary.findings.none': 'Bu dövr üçün burada heç nə yoxdur',
   'page.prev': 'Əvvəlki',
   'page.next': 'Növbəti',
   'updated.ago': '{t} əvvəl yeniləndi',
+  'field.approving_authority': 'Təsdiq edən orqan',
+  'field.decision_no': 'Qərarın nömrəsi',
+  'field.act_date': 'Aktın tarixi',
+  'field.commission': 'Komissiya',
+  'field.contractor_representative': 'Podratçının nümayəndəsi',
+  'field.decision_date': 'Qərarın tarixi',
+  'field.licence_no': 'Lisenziyanın nömrəsi',
+  'field.permit_no': 'İcazənin nömrəsi',
+  'field.permit_date': 'İcazənin tarixi',
+  'field.object_parameters': 'Obyektin göstəriciləri',
+  'field.addressee_authority': 'Kimə ünvanlanıb',
+  'field.building_type': 'Tikilinin növü',
+  'field.notice_date': 'Bildirişin tarixi',
+  'field.licence_date': 'Lisenziyanın tarixi',
+  'field.activity_type': 'Fəaliyyət növü',
+  'field.licensee_name': 'Lisenziyaçı',
+  'field.licensee_address': 'Lisenziyaçının ünvanı',
+  'field.licensee_tax_id': 'Lisenziyaçının VÖEN-i',
+  'field.signing_official': 'İmzalayan şəxs',
+  'field.holder_name': 'Hüquq sahibi',
+  'field.property_type': 'Əmlakın növü',
+  'field.rightholders': 'Hüquq sahibləri',
+  'field.decree_item': 'Qərarın bəndi',
+  'field.archive_reference': 'Arxiv şifri',
+  'updated.when': '{t} yeniləndi',
+  'transcript.signature': '(imza)',
+  'transcript.stamp': '(möhür)',
+  'transcript.qr': '(QR kod)',
+  'transcript.blank': '(boş səhifə)',
   open: 'Aç',
   'profile.cadastre': 'Fərdi yaşayış evinin ilkin dövlət qeydiyyatı',
   'upload.dropzone.title': 'Sənədləri buraya buraxın',
@@ -2259,9 +2256,8 @@ const az: Dict = {
   'detail.classifying': 'Təsnifat…',
   'detail.splitting': 'Səhifələrə bölünür…',
   'detail.pages_read': '{total} səhifədən {n}-i oxundu',
-  'detail.unclassified': 'Təsnif edilmədi — uyğun sənəd növü tapılmadı.',
-  'detail.out_of_profile':
-    'Oxundu; qanuni sənəd siyahısında belə sənəd yoxdur.',
+  'detail.unclassified': 'Sənəd növü tanınmayıb.',
+  'detail.out_of_profile': 'Sənədlər siyahısında yoxdur.',
   'detail.ocr_done': 'Mətn tanındı',
   'detail.ocr_failed': 'OCR uğursuz oldu',
   'detail.view_text': 'Tanınan mətni göstər',
@@ -2280,10 +2276,8 @@ const az: Dict = {
   'detail.stage_running': 'gedir…',
   'detail.in_progress_note': 'Yoxlama gedir — hər mərhələ bitdikcə yenilənir.',
   'detail.review_preparing': 'Yoxlama nəticələri hazırlanır',
-  'detail.review_preparing_note':
-    'Yekun siyahı təsnifat, sahələrin çıxarılması və müqayisələr bitəndən sonra görünəcək.',
-  'detail.review_unavailable':
-    'Yekun hesabat hazırlana bilmədi. Prosesin vəziyyətini və mənbə sənədlərini yoxlayın.',
+  'detail.review_preparing_note': 'Siyahı yoxlamadan sonra görünəcək.',
+  'detail.review_unavailable': 'Hesabat hazırlanmadı.',
   'detail.review_focus': 'Nəyə diqqət yetirməli',
   'detail.review_focus_note':
     'Qərar verməzdən əvvəl sıfır olmayan sayğaclı bölmələrdən başlayın.',
@@ -2297,7 +2291,7 @@ const az: Dict = {
   'detail.required': 'Tələb olunan sənədlər',
   'detail.required_all': 'Bütün tələb olunan sənədlər tapıldı.',
   'detail.required_missing': '{n} tapılmadı',
-  'detail.required_pending': 'Təsnifat bitdikdən sonra yoxlanılır.',
+  'detail.required_pending': 'Tanınmadan sonra görünəcək.',
   'detail.files': 'Fayllar',
   'detail.files_count': '{n} fayl',
   'detail.file_one': '1 fayl',
@@ -2314,15 +2308,13 @@ const az: Dict = {
   'detail.taken_from': 'Buradan götürülüb: {doc}',
   'detail.taken_from_go': 'Dəyərin götürüldüyü oxunuşu aç',
   'detail.confirmed': 'Reyestr təsdiqləyir',
-  'detail.confirmed_why':
-    'Arxiv reyestri bu obyekt üzrə eyni dəyəri saxlayır — bu oxunuşu yoxlamağa ehtiyac yoxdur.',
+  'detail.confirmed_why': 'Arxivlə uyğundur.',
   'detail.ocr': 'OCR',
   'detail.fields': 'Çıxarılan sahələr',
   'detail.pending': 'Çıxarış gözlənilir',
   'detail.needs_review': 'Yoxlama tələb edir',
   'detail.unscored': 'qiymətləndirilməyib',
-  'detail.unscored_why':
-    'Nə model, nə də marşrut etibarlılıq bildirmədi, ona görə də qeyd edilmədi. Bu oxunuşu vərəqlə tutuşdurun.',
+  'detail.unscored_why': 'Etibarlılıq göstərilməyib — dəyəri skanla yoxlayın.',
   'detail.none': 'Yoxdur',
   'detail.th.field': 'Sahə',
   'detail.th.value': 'Dəyər',
@@ -2349,10 +2341,9 @@ const az: Dict = {
   'detail.sec.not_connected': 'Təsdiqlənmədi: inteqrasiya qoşulmayıb',
   'detail.f.title_missing_sub': 'Maddə 10.2.1 üzrə istənilən sənəd',
   'detail.f.title_invalid_sub': 'Sənədin qüvvədə olduğu dövrdən kənar tarix',
-  'detail.f.provision_ambiguous_sub': 'Bunlardan biri: {list}',
+  'detail.f.provision_ambiguous_sub': 'Bir neçə bənd uyğun ola bilər: {n}',
   'detail.f.provision_none_sub': 'Heç bir bənd uyğun gəlmir',
-  'detail.f.not_connected_sub':
-    'Oxundu, təsdiqlənmədi: dövlət sistemi qoşulmayıb',
+  'detail.f.not_connected_sub': 'Təsdiqlənməyib: dövlət sistemi qoşulmayıb',
   'detail.f.missing_any_sub': 'Bunlardan hər hansı biri kifayətdir',
   'common.or': 'və ya',
   'doctype.approved_design': 'Təsdiq edilmiş layihə',
@@ -2362,12 +2353,17 @@ const az: Dict = {
   'source.UrbanPlanningCommittee': 'Şəhərsalma və Arxitektura Komitəsi',
   'source.NationalArchive': 'Milli Arxiv',
   'panel.provision': 'Maddə 8 üzrə bənd',
-  'provision.lead':
-    'Paketdə hansı sənədlərin olmalı olduğunu Maddə 8-in hansı bəndinin tətbiq olunması müəyyən edir. Bənd altı göstərici əsasında hesablanır; qərarı inspektor verir.',
-  'provision.determined': '{provision} bəndi tətbiq olunur',
-  'provision.ambiguous':
-    'Mümkün bəndlər: {list} — bütün göstəricilər müəyyən edilməyib',
-  'provision.undetermined': 'Maddə 8-in heç bir bəndi bu halı əhatə etmir',
+  'provision.lead': 'Hansı sənədlərin lazım olduğu bənddən asılıdır.',
+  'provision.determined': '{provision} bəndi tətbiq olunur: {rule}',
+  'provision.ambiguous': 'Bənd müəyyən edilməyib — yoxdur: {params}',
+  'provision.undetermined': 'Maddə 8-in heç bir bəndi uyğun deyil',
+  'provision.ambiguous_open': 'Bənd müəyyən edilməyib — məlumat çatışmır',
+  'provision.and_more': 'və daha {n}',
+  'provision.name.8.0.9.1.1': '2013-dək · 12 m-dək · icarə',
+  'provision.name.8.0.9.1.2': '2013-dək · 12 m-dək · mülkiyyət',
+  'provision.name.8.0.9.2': '2013-dək · 12 m-dən çox',
+  'provision.name.8.0.10.2': '2013-dən · məlumatlandırma',
+  'provision.name.8.0.10.1': '2013-dən · icazə ilə',
   'provision.parameters': 'Göstəricilər',
   'provision.param.builtYear': 'Tikinti ili',
   'provision.param.storeys': 'Yerüstü mərtəbələr',
@@ -2385,15 +2381,13 @@ const az: Dict = {
   'provision.from.DeclaredAtIntake': 'Qəbul zamanı bildirilib',
   'provision.from.TitleDocumentType':
     'Torpaq sənədinin növünə görə: {document}',
-  'provision.requirements': '{provision} bəndinin tələbləri',
   'provision.req.title':
     'Torpaq üzərində hüququ təsdiq edən sənəd (Maddə 10.2.1)',
   'provision.req.answered': 'Paketdədir',
   'provision.req.missing': 'Paketdə yoxdur',
   'provision.req.via_integration':
-    '{year}-ci ildən tikililər üçün kağız tələb olunmur — qoşulmamış inteqrasiya ilə yoxlanılır',
-  'provision.req.year_unknown':
-    'Yalnız {year}-ci ilədək tikilibsə tələb olunur, il isə müəyyən edilməyib',
+    '{year}-ci ildən dövlət sistemi ilə yoxlanılır (qoşulmayıb)',
+  'provision.req.year_unknown': '{year}-dək tikilibsə lazımdır (il bilinmir)',
   'provision.req.nothing_more': 'Torpaq sənədindən başqa heç nə',
   'provision.titles': 'Paketdəki torpaq sənədləri',
   'provision.title.within': 'Tarix icazə verilən dövrdədir',
@@ -2404,11 +2398,11 @@ const az: Dict = {
   'provision.window.between': '{from} — {before}',
   'provision.window.any': 'istənilən tarix',
   'provision.item': 'Bənd {item}',
-  'provision.rules': 'Qərar cədvəli: ilk uyğun sətir tətbiq olunur',
+  'provision.rules': 'İlk uyğun bənd tətbiq olunur.',
   'provision.rule.holds': 'Uyğundur',
   'provision.rule.excluded': 'İstisna edilib',
   'provision.rule.open': 'Müəyyən edilməyib',
-  'provision.pending': 'Bənd sənədlər oxunduqdan sonra müəyyən ediləcək',
+  'provision.pending': 'Sənədlər oxunandan sonra müəyyən ediləcək',
   'provision.rule.8.0.9.1.1':
     '2013-cü ilədək tikilib, hündürlük 12 m-dək, torpaq icarədə və ya istifadədə',
   'provision.rule.8.0.9.1.2':
@@ -2418,10 +2412,9 @@ const az: Dict = {
     '2013-cü ildən məlumatlandırma qaydasında: 3 mərtəbəyədək, 12 m və 6 m-dək aşırım, yaşayış üçün torpaq',
   'provision.rule.8.0.10.1':
     '2013-cü ildən məlumatlandırma qaydasından kənar, icazə ilə',
-  'detail.clean':
-    'Qüsur yoxdur — bütün tələb olunan sənədlər mövcuddur və etibar həddindən yuxarı oxunub.',
+  'detail.clean': 'Qüsur yoxdur.',
   'detail.clean_open_set':
-    'Lakin bu iş üçün hansı təsdiqedici sənəd dəstinin tələb olunduğu müəyyən edilə bilmədi — aşağıya baxın.',
+    'Amma lazım olan təsdiqedici sənədlər dəsti müəyyən edilməyib.',
   // ─── Əvəz edilmiş sənəd və onu əvəz edən fayl (COMM-80) ────────────────────
   // Əvəz edilmiş sənəd silinmir: paket sübutdur, ona görə ilk göndərilən
   // oxunaqlı qalır və nə ilə, nə vaxt əvəz edildiyini bildirir.
@@ -2429,7 +2422,7 @@ const az: Dict = {
   'detail.superseded_on': '{date} tarixində',
   'detail.superseded_by': 'nə ilə əvəz edilib: {file}',
   'detail.supplied': 'Göndərilib',
-  'detail.supplied_for': 'çatışmayan {type} üçün göndərilib',
+  'detail.supplied_for': '«{type}» üçün',
   'detail.supplied_replacing': '{file} faylındakı {type} əvəzinə göndərilib',
   'detail.f.missing_sub': 'Paketdə tapılmadı',
   'detail.f.unplaced_sub': 'Növü tanınmadı',
@@ -2448,30 +2441,25 @@ const az: Dict = {
   'detail.f.registry_unconfirmed_sub': 'Qeyd yoxdur və ya birdən çoxdur',
   'detail.f.declared_sub': 'Qəbulda bəyan ediləndən fərqlənir',
   'detail.f.declared_year_sub': 'Qəbulda bəyan edilib: {year}',
-  'detail.declared_note':
-    'Qəbulda ərizəçinin sözündən yazılıb. Bu, oxunmuş dəyər deyil: onun etibarlılıq dərəcəsi yoxdur və mühərrikin sənədlərdən oxuduqları ilə birləşdirilmir.',
+  'detail.declared_note': 'Qəbulda ərizəçinin sözlərindən, sənədlərdən deyil.',
   'detail.f.attestation_sub': 'Üzərində möhür və ya imza oxunmadı',
   // ── Möhür və imza — vərəqlərdə göründüyü kimi (COMM-77) ───────────────────
   'attest.stamp': 'Möhür',
-  'attest.stamp.present': 'Möhür var',
-  'attest.stamp.present_unasked': 'Möhür var — profil onu tələb etmir',
-  'attest.stamp.illegible': 'Möhür var, lakin üzərindəki yazı oxunmur',
-  'attest.stamp.illegible_unasked':
-    'Möhür var, yazısı oxunmur — profil möhür tələb etmir',
-  'attest.stamp.absent': 'Oxunmuş vərəqlərdə möhür yoxdur',
-  'attest.stamp.absent_unasked': 'Möhür yoxdur, profil də onu tələb etmir',
-  'attest.stamp.unread':
-    'Heç bir vərəq oxunmayıb — möhür barədə deyiləsi bir şey yoxdur',
+  'attest.stamp.present': 'Var',
+  'attest.stamp.present_unasked': 'Var (tələb olunmur)',
+  'attest.stamp.illegible': 'Var, yazı oxunmur',
+  'attest.stamp.illegible_unasked': 'Var, yazı oxunmur (tələb olunmur)',
+  'attest.stamp.absent': 'Yoxdur',
+  'attest.stamp.absent_unasked': 'Yoxdur (tələb olunmur)',
+  'attest.stamp.unread': 'Oxunmayıb',
   'attest.signature': 'İmza',
-  'attest.signature.present': 'İmza var',
-  'attest.signature.present_unasked': 'İmza var — profil onu tələb etmir',
-  'attest.signature.absent': 'Oxunmuş vərəqlərdə imza yoxdur',
-  'attest.signature.absent_unasked': 'İmza yoxdur, profil də onu tələb etmir',
-  'attest.signature.unread':
-    'Heç bir vərəq oxunmayıb — imza barədə deyiləsi bir şey yoxdur',
+  'attest.signature.present': 'Var',
+  'attest.signature.present_unasked': 'Var (tələb olunmur)',
+  'attest.signature.absent': 'Yoxdur',
+  'attest.signature.absent_unasked': 'Yoxdur (tələb olunmur)',
+  'attest.signature.unread': 'Oxunmayıb',
   'attest.legend': 'Möhürdən oxundu',
-  'attest.unread_why':
-    'Vərəqlər oxunmayıb, baxılası bir şey olmayıb. Bu, nişanın olmaması demək deyil.',
+  'attest.unread_why': 'Vərəq oxunmayıb — işarənin olub-olmadığı bilinmir.',
   'supporting.lead':
     'Ərizəçinin paketdən əlavə gətirməli olduğu sənədlər. Onların heç biri paketdə olmayıb və olmalı da deyildi, ona görə buradakı heç nə təqdimata qarşı sayılmır və qüsur deyil.',
   'supporting.bring': 'Ərizəçi təsdiqedici sənəd dəstini gətirməlidir.',
@@ -2484,12 +2472,11 @@ const az: Dict = {
   'supporting.decided_on': 'Nəyə əsasən',
   'detail.checks': 'Sənədlərarası yoxlama',
   'detail.checks_result': 'Sənədlərin müqayisə nəticələri',
-  'detail.checks_result_note':
-    'Profilin sənədlər arasında müqayisə etməyi tələb etdiyi sahələr. Hər dəyər mənbə sənədə və səhifəyə aparır.',
+  'detail.checks_result_note': 'Sənədlər arasında tutuşdurulan sahələr.',
   'detail.checks_note':
     'Profilə görə bir neçə sənəddə eyni olmalı olan dəyərlər.',
-  'detail.checks_pending': 'Bütün sənədlər oxunduqdan sonra aparılır.',
-  'detail.checks_none': 'Bu paket üçün sənədlərin müqayisə nəticələri yoxdur.',
+  'detail.checks_pending': 'Tutuşdurma sənədlər oxunandan sonradır.',
+  'detail.checks_none': 'Hələ tutuşdurma yoxdur.',
   'detail.checks_agreed': '{total} yoxlamadan {n} uyğundur',
   'detail.checks_go': 'Reyestrdə bu dəyərə keç',
   'detail.check_agreed': 'Uyğundur',
@@ -2506,9 +2493,9 @@ const az: Dict = {
   'detail.archive_comparison': 'Arxivlə müqayisə',
   'detail.registry_note':
     'Sənədlərin əmlak barədə dedikləri arxiv qeydi ilə tutuşdurulur. Paketdən kənara çıxan yeganə yoxlama.',
-  'detail.registry_pending': 'Əmlakın ünvanı oxunandan sonra soruşulur.',
+  'detail.registry_pending': 'Ünvan oxunandan sonra arxivə sorğu olunacaq.',
   'detail.registry_none':
-    'Reyestr bu paket üzrə cavab vermədi: ya soruşduğu ünvan oxunmayıb, ya da reyestrə çatmaq olmayıb. Heç biri yoxlamanı dayandırmır.',
+    'Arxiv cavab vermədi — ünvan oxunmayıb və ya reyestr əlçatan deyil.',
   'detail.registry_asked': 'Soruşulan ünvan',
   'detail.registry_where': 'Arxivdə',
   'detail.reg.confirmed': 'Qeyd təsdiqləyir',
@@ -2516,32 +2503,28 @@ const az: Dict = {
   'detail.reg.incomplete': 'Əsli arxivdə yoxdur',
   'detail.reg.not_found': 'Qeyd yoxdur',
   'detail.reg.ambiguous': 'Bir neçə qeyd',
-  'detail.reg.confirmed_note':
-    'Qeyd tapıldı və onunla tutuşdurulan hər şey uyğun gəldi. Bu, sizin ayrıca arayış götürməyinizə ehtiyac qalmayan haldır.',
-  'detail.reg.differs_note':
-    'Qeyd tapıldı və başqa cür göstərir. Fərqlənən sənədlər deyil, məhz qeyddir.',
+  'detail.reg.confirmed_note': 'Qeyd tapıldı, hər şey uyğundur.',
+  'detail.reg.differs_note': 'Qeyd tapıldı, amma məlumatlar fərqlidir.',
   'detail.reg.incomplete_note':
-    'Qeyd tapıldı və paketlə uyğun gəlir. Arxivdə olmayan şey aşağıdakı sənədlərdən birinin əslidir; 439 nömrəli qərara əsaslanan hüquq üçün bu, formallıq deyil, etibarlılıq şərtidir.',
+    'Qeyd uyğundur, amma sənədlərdən birinin əsli arxivdə yoxdur.',
   'detail.reg.not_found_note':
-    'Reyestrdə bu ünvan üzrə heç nə yoxdur. O, 1990–2000-ci illərin özəlləşdirmələrini əhatə edir, ona görə qeydin olmaması paket haqqında heç nə demir.',
+    'Arxivdə qeyd yoxdur. Bu ərizənin səhvi deyil — arxivdə hər şey saxlanmır.',
   'detail.reg.ambiguous_note':
-    'Bu ünvana birdən çox qeyd cavab verir. Hansının aid olduğunu sistem yox, siz deyirsiniz.',
+    'Bu ünvana bir neçə qeyd uyğundur — əl ilə yoxlayın.',
   'detail.reg.submitted': 'Paketdə',
   'detail.reg.recorded': 'Qeyddə',
   'detail.reg.silent': 'reyestrdə belə sütun heç vaxt olmayıb',
   'detail.reg.papers': 'Arxivdəki sənədlər',
   'detail.reg.holding_held': 'Əsli arxivdə var',
   'detail.reg.holding_notheld': 'Əsli arxivdə yoxdur',
-  'detail.reg.holding_unknown':
-    'bu ərazinin arxivi belə sənədləri heç vaxt qeydə almayıb',
+  'detail.reg.holding_unknown': 'rayon arxivi belə sənədləri saxlamır',
   'regattr.ownerName': 'Hüquq sahibi',
   'regattr.cadastralNumber': 'Kadastr nömrəsi',
   'regattr.plotArea': 'Torpaq sahəsi',
   'detail.attention': 'Diqqət tələb edir',
   'detail.attention_go': 'Reyestrdə bu oxunuşa keç',
   'detail.observations': 'Müşahidələr',
-  'detail.observations_note':
-    'Heç biri çatışmazlıq deyil — paketdə sadəcə profilin tələb etdiyindən artıq sənəd var.',
+  'detail.observations_note': 'Bu çatışmazlıq deyil — sadəcə əlavə sənədlər.',
   'detail.seg.review': 'Yoxlamalı',
   'detail.seg.all': 'Hamısı',
   'detail.seg.other': 'Digər',
@@ -2552,6 +2535,21 @@ const az: Dict = {
   'detail.process_done': 'Yoxlama tamamlandı',
   'detail.stages_done': '{n} mərhələ',
   'detail.required_found': '{total} sənəddən {n}',
+  'common.more_info': 'Ətraflı',
+  'provision.short.determined': '{provision} bəndi',
+  'provision.short.ambiguous': 'Müəyyən edilməyib · variant: {n}',
+  'provision.short.undetermined': 'Heç bir bənd uyğun deyil',
+  'provision.options': 'Mümkün bəndlər və onlar üçün lazım olanlar',
+  'provision.col.document': 'Sənəd',
+  'provision.req.title_short': 'Torpaq sənədi',
+  'provision.req.not_asked': 'Lazım deyil',
+  'provision.others': 'İstisna edilib: {n}',
+  'provision.rule.depends': 'Asılıdır: {list}',
+  'provision.rule.fails': 'Uyğun gəlmir: {list}',
+  'gap.more': 'Digər uyğun sənədlər: {n}',
+  'detail.sheets_more': 'Daha {n} səhifə',
+  'detail.sheets_fewer': 'Qısalt',
+  'add.note_reopens_short': 'Paket yenidən yoxlanılacaq.',
   'detail.sheets': 'Vərəqlər',
   'detail.contents_rest': 'daha {n}',
   'detail.fields_more': 'Daha {n} sahə',
@@ -2672,29 +2670,22 @@ const az: Dict = {
   'standing.NeedsInspector': 'Müfəttiş baxmalıdır',
   'standing.AwaitingArchiveApproval': 'Arxiv axtarışı təsdiqlənməyib',
   'standing.Cleared': 'Qeyd yoxdur',
-  'standing.note.Queued':
-    'Paket qəbul edildi. Hələ heç bir yoxlama onu oxumayıb.',
-  'standing.note.UnderVerification':
-    'Yoxlama paketi oxuyur — hər mərhələ bitdikcə bu səhifə yenilənir.',
+  'standing.note.Queued': 'Paket qəbul edildi, yoxlama tezliklə başlayacaq.',
+  'standing.note.UnderVerification': 'Yoxlama gedir, səhifə özü yenilənəcək.',
   'standing.note.Stalled':
-    'Öz mexanizmimiz dayandı, sənədlər barədə heç bir nəticə çıxarılmadı. Fayl əlavə etmək yoxlamanı yenidən başladır.',
-  'standing.note.ShortOfDocuments':
-    'Profilin tələb etdiyi sənəd gəlməyib. Onu aşağıda əlavə edin — paket yenidən yoxlanacaq.',
-  'standing.note.NeedsInspector':
-    'Dəst tamdır, lakin yoxlama qeydlər çıxarıb — hər birini müfəttiş həll edir.',
+    'Yoxlama nasazlıq səbəbindən dayandı. Yenidən başlatmaq üçün fayl əlavə edin.',
+  'standing.note.ShortOfDocuments': 'Sənədlər çatışmır. Aşağıda əlavə edin.',
+  'standing.note.NeedsInspector': 'Sənədlər tamdır, amma qeydlər var.',
   'standing.note.AwaitingArchiveApproval':
-    'Paketə qarşı qeyd yoxdur. Söykəndiyi arxiv axtarışını hələ kimsə təsdiqləməyib.',
-  'standing.note.Cleared':
-    'Qeyd də yoxdur, gözləyən də. Qeydiyyat qərarı yenə də sizindir.',
+    'Qüsur yoxdur. Arxiv axtarışı təsdiqlənməlidir.',
+  'standing.note.Cleared': 'Qüsur yoxdur. Qərar sizindir.',
   // ─── Mövcud paketə fayl əlavə etmək (ADR-0013) ─────────────────────────────
   'add.title': 'Sənəd əlavə et',
   'add.action': 'Sənəd əlavə et',
-  'add.note':
-    'Gəlməyən sənəd və ya oxunmayan vərəqin oxunaqlı skanı. Əlavə edilən hər fayl paketlə birlikdə yoxlanılır.',
+  'add.note': 'Çatışmayan sənəd və ya daha aydın skan.',
   'add.note_reopens':
-    'Fayl əlavə etmək bu paketi yenidən açır: hesabat, sənədlərin müqayisəsi və arxivin cavabları o vaxtdan dəyişmiş dəst üzərində alınıb, ona görə də ləğv edilir və paket yenidən yoxlanılır. Hər fayldan oxunanlar qalır.',
-  'add.closed_running':
-    'Yoxlama gedir, ona görə paket indi fayl qəbul etmir — yoxlama başladığı dəsti oxuyur. Bitəndən sonra əlavə edin.',
+    'Hesabat və yoxlamalar yenidən qurulacaq. Fayllardan oxunanlar qalır.',
+  'add.closed_running': 'Yoxlama gedir — faylları sonra əlavə edin.',
   'add.none': 'Hələ fayl əlavə edilməyib',
   'add.uploading': 'Yüklənir…',
   'add.ready': '{n} əlavə etməyə hazırdır',
@@ -2729,38 +2720,30 @@ const az: Dict = {
   // şəkilləmək, profilin hər zaman qəbul etdiyini əlavə etmək. Üçüncüsü pozuntu
   // deyil və pozuntu kimi oxunmamalıdır.
   'gap.title': 'Nə göndərmək olar',
-  'gap.none':
-    'Paketin çatışmayan sənədi yoxdur və bu profil hər zaman qəbul edilən sənəd saymır.',
-  'gap.note':
-    'Paketin nəyə görə sənəd qəbul etdiyini mühərrik özü hesablayır. Aşağıdakı hər sətir məhz həmin sətrə bir fayl göndərir — zərfə daha bir fayl deyil.',
-  'gap.closed_running':
-    'Yoxlama gedir, ona görə paket indi fayl qəbul etmir. Sətirlər qalır; düymələr yoxlama bitəndə qayıdır.',
+  'gap.none': 'Heç nə göndərmək lazım deyil.',
+  'gap.note': 'Hər düymə məhz həmin sətir üçün fayl göndərir.',
+  'gap.closed_running': 'Yoxlama gedir — faylları sonra göndərin.',
   'gap.missing': 'Paketdə yoxdur',
   'gap.unusable': 'Skan oxunmur',
   'gap.any_time': 'Hər zaman qəbul edilir',
-  'gap.missing_note':
-    'Profil tələb edir, paketdə isə yoxdur. Çatışmayanı göndərin.',
-  'gap.unusable_note':
-    'Sənəd paketdədir, amma pis oxunub. Eyni sənədi yenidən şəkilləyin — gələn onun yerini tutacaq.',
-  'gap.any_time_note':
-    'Paketdə qüsur yoxdur — profil bunu istənilən vaxt qəbul edir.',
+  'gap.missing_note': 'Bu sənəd paketdə yoxdur.',
+  'gap.unusable_note': 'Sənəd pis oxunub. Skanı yenidən göndərin.',
+  'gap.any_time_note': 'İstənilən vaxt göndərilə bilər.',
   'gap.unread_fields': 'Vərəqlərdən oxunmadı:',
   'gap.doubted_fields': 'Oxundu, amma inamsız:',
-  'gap.doubted_placement': 'Bu tipə aid edilmə əminliyi:',
-  'gap.floor': 'Oxunuşa {floor}%-dən etibarən etibar edilir.',
-  'gap.unusable_unspecified':
-    'Mühərrik bu skanın yenidən göndərilməyə dəydiyini bildirir. Hansı oxunuşun çatmadığını burada adlandırmaq mümkün deyil.',
-  'gap.open_scan': 'Skanı {file} faylında aç',
-  'gap.reading': '{file} göndərildi, oxunur.',
+  'gap.doubted_placement': 'Növ tanınıb:',
+  'gap.floor': '{floor}%-dən etibarlıdır',
+  'gap.unusable_unspecified': 'Bu skanı yenidən göndərmək yaxşıdır.',
+  'gap.open_scan': 'Skanı aç',
+  'gap.reading': '{file}: oxunur',
   'gap.refused':
-    '{file} «{expected}» kimi göndərildi, «{arrived}» kimi oxundu — ona görə qəbul edilmədi: sətir açıq qalır, əvvəlki sənəd qüvvədə qalır.',
-  'gap.arrived_unplaced': 'bu profilin gözlədiyi heç bir tip',
+    '{file} qəbul edilmədi: «{expected}» gözlənilirdi, «{arrived}» tanındı.',
+  'gap.arrived_unplaced': 'naməlum sənəd',
   'supply.action': 'Yüklə',
   'supply.action_for': '«{type}» yüklə',
   'supply.uploading': 'Yüklənir {n}%',
   'supply.sending': 'Göndərilir…',
-  'supply.sent':
-    '«{type}» göndərildi — paket yenidən yoxlanılır, hesabat onsuz yığılanda bu sətir öz-özünə yox olacaq',
+  'supply.sent': '«{type}» göndərildi — paket yenidən yoxlanılır',
   'supply.failed': 'Sənəd göndərilmədi — yenidən cəhd edin',
   'supply.refused_format': 'Format dəstəklənmir — yalnız PDF, JPG və ya PNG',
   'supply.refused_size': 'Fayl {max} MB-dan böyükdür',
@@ -2774,25 +2757,20 @@ const az: Dict = {
     'Göndərilən sənəd nəyə cavab verdiyini deməlidir — lazımi sətirdəki düyməni basın',
   // ─── Arxiv axtarışının təsdiqi (ADR-0016) ──────────────────────────────────
   'approve.title': 'Arxiv axtarışının təsdiqi',
-  'approve.note':
-    'Yuxarıda reyestrin cavabı var. Bunun bu ərizə üçün nə demək olduğunu insan deyir: təsdiq həmin nəticəni indiki cavablar üzrə qeyd edir.',
-  'approve.no_author':
-    'Sistemdə hesablar yoxdur, ona görə təsdiqin adı yoxdur — yalnız nəticə və vaxt. O, idarənin qərarı kimi yazılır, konkret şəxsin deyil.',
+  'approve.note': 'Arxiv cavablarının yoxlandığını təsdiqləyin.',
+  'approve.no_author': 'Ad saxlanmır — sistemdə istifadəçi hesabları yoxdur.',
   'approve.summary_label': 'Ərizə üzrə nəticə',
-  'approve.summary_hint':
-    'Arxiv axtarışının bütöv ərizə üçün nə demək olduğu — ayrı-ayrı yoxlamalar üçün deyil, onların hər biri artıq nə tapdığını deyib. Mütləqdir: yalnız faktı qeyd edən təsdiq heç nə qeyd etmir.',
-  'approve.summary_placeholder':
-    'Reyestrin qeydi təqdim olunan sənədlərə zidd deyil; əslin olmaması iddia edilən hüquqa təsir etmir…',
+  'approve.summary_hint': 'Qısaca: arxiv ərizə üçün nə deməkdir.',
+  'approve.summary_placeholder': 'Məsələn: arxiv qeydi sənədlərlə uyğundur',
   'approve.comment_label': 'Qeyd (məcburi deyil)',
-  'approve.comment_hint':
-    'Bir çəkinmə və ya nəyəsə baxmayaraq niyə təsdiqləndiyi. Yoxdursa, boş buraxın: boş qeyd formal qeyddən yaxşıdır.',
+  'approve.comment_hint': 'İstəyə bağlı.',
   'approve.comment_placeholder': 'Çəkinməniz varsa, yazın…',
   'approve.left': '{n} simvol qalıb',
   'approve.over': '{n} simvol artıqdır',
   'approve.action': 'Axtarışı təsdiqlə',
   'approve.sending': 'Yazılır…',
   'approve.done': 'Arxiv axtarışı təsdiqləndi',
-  'approve.failed': 'Təsdiq yazılmadı — yenidən cəhd edin',
+  'approve.failed': 'Saxlamaq alınmadı — yenidən cəhd edin',
   'approve.given': 'Təsdiqlənib',
   'approve.remark': 'Qeyd',
   'approve.covered': 'Bu cavablar üzrə imzalanıb',
@@ -2801,11 +2779,10 @@ const az: Dict = {
   'approve.spent_since': '{d} tarixindən qüvvədən düşüb',
   'approve.spent_title': 'Əvvəlki təsdiqlər ({n})',
   'approve.spent_note':
-    'Onlardan sonra arxiv yenidən soruşulub, ona görə qüvvədən düşüblər. Silinmirlər: nəyin və hansı cavablar üzrə təsdiqləndiyi qeydin bir hissəsidir.',
-  'approve.unsettled':
-    'Yoxlama gedir, reyestr hələ başqa cavab verə bilər. Axtarışı yoxlama bitəndən sonra təsdiqləmək olar.',
+    'Arxivə yenidən sorğu olunub, bunlar artıq qüvvədə deyil.',
+  'approve.unsettled': 'Yoxlama gedir — sonra təsdiqləyin.',
   'approve.not_asked':
-    'Bu təqdimat üzrə reyestrdən heç nə soruşulmayıb — profil ona sual vermir, yaxud heç bir vərəqdə ünvan oxunmayıb. Təsdiqləyəcək arxiv axtarışı yoxdur.',
+    'Bu ərizə üzrə arxivə sorğu olmayıb — təsdiq ediləcək heç nə yoxdur.',
   'error.ARCHIVE_SEARCH_NOT_SETTLED':
     'Yoxlama gedir — axtarışı bitəndən sonra təsdiqləmək olar',
   'error.ARCHIVE_SEARCH_NOT_ASKED':
@@ -2825,20 +2802,18 @@ const az: Dict = {
   'sheet.case_no': 'İş №',
   'sheet.taken_in': 'qəbul edilib {d}',
   'sheet.subject': 'ərizə üzrə iş vərəqi',
-  'sheet.situation': 'Vəziyyət',
   'sheet.read_off': 'Sənədlərdən oxunub',
   'sheet.applicant': 'Ərizəçi',
   'sheet.address': 'Ünvan',
   'sheet.cadastral': 'Kadastr №',
-  'sheet.section.stages': 'I. İcra mərhələləri',
-  'sheet.section.documents': 'II. Sənədlər',
+  'sheet.section.stages': 'İcra mərhələləri',
+  'sheet.section.documents': 'Sənədlər',
   'sheet.documents.unknown':
-    'Bu quruluş belə bir profil tanımır, ona görə tələb olunan sənədlərin siyahısı göstərilmir — səhv siyahıdansa, heç biri yaxşıdır.',
+    'Profil naməlumdur — tələb olunan sənədlərin siyahısı yoxdur.',
   'sheet.doc.missing': 'Çatışmır',
   'sheet.doc.present': 'Paketdə',
   'sheet.print': 'İş vərəqini ixrac et (PDF)',
-  'sheet.foot':
-    'Skan edilmiş səhifələr, arxiv yoxlaması və qərar elektron iş qovluğunda qalır.',
+  'sheet.foot': 'Skanlar, arxiv yoxlaması və qərar elektron işdədir.',
   'sheet.foot_mark': 'AZ · iş vərəqi',
   'panel.scanned': 'Skan edilmiş səhifələr',
   'detail.attention_none': 'Açıq məsələ yoxdur',
@@ -2858,55 +2833,45 @@ const az: Dict = {
 
   // ── Arxiv axtarışı ─────────────────────────────────────────────────────────
   'page.search.title': 'Arxiv axtarışı',
-  'page.search.subtitle':
-    'Paket qəbul edilməzdən əvvəl arxiv reyestrindən obyekt haqqında nə saxladığını soruşun.',
+  'page.search.subtitle': 'Arxivin obyekt haqqında nə bildiyini yoxlayın.',
   'search.field.address': 'Ünvan',
-  'search.field.address_hint':
-    'Buna görə axtarılır. Qeyd, onu yazan idarənin işlətdiyi hər yazılışa cavab verir — köhnə ünvan da onu tapır.',
+  'search.field.address_hint': 'Köhnə yazılışları da tapır.',
   'search.field.address_placeholder': 'Ünvan və ya kənd',
-  'search.field.name': 'Ərizəçinin adı',
-  'search.field.name_hint':
-    'Buna görə axtarılır. Fərqli transliterasiya olunmuş ad da qeydi tapır; nə qədər fərqləndiyi uyğunluq dərəcəsində görünür.',
+  'search.field.name': 'Soyad, ad, ata adı',
+  'search.field.name_hint': 'Fərqli latın yazılışını da tapır.',
   'search.field.name_placeholder': 'Soyad, ad, ata adı',
-  'search.field.parcel': 'Sahə / kadastr nömrəsi',
-  'search.field.parcel_hint':
-    'Buna görə axtarılır — nə qədər məlumdursa. Nömrənin yarısı da reyestrin cavab verə biləcəyi sualdır.',
-  'search.field.parcel_placeholder': 'Sahə, reyestr, şəhadətnamə',
-  'search.any_criterion':
-    'Üçündən biri kifayətdir; birlikdə axtarışı genişləndirmir, daraldırlar.',
-  'search.note':
-    'Reyestr yalnız öz fondlarında nə saxladığını bildirir və heç bir müraciət haqqında hökm vermir. Onun əhatəsi qismən və tarixidir.',
-  'search.submit': 'Arxivdə axtar',
+  'search.field.parcel': 'Sahə nömrəsi',
+  'search.field.parcel_hint': 'Nömrənin bir hissəsi də olar.',
+  'search.field.parcel_placeholder': 'Kadastr və ya reyestr №',
+  'search.submit': 'Axtar',
+  'search.details': 'Texniki məlumat',
   'search.searching': 'Axtarılır…',
-  'search.threshold.label': 'Ən azı bu səviyyədə',
+  'search.threshold.label': 'Minimum uyğunluq',
   'search.band.high': 'Yüksək',
   'search.band.probable': 'Ehtimallı',
   'search.band.possible': 'Mümkün',
   'search.band.weak': 'Zəif',
   'search.matched': 'Uyğunluqlar: {n}',
-  'search.considered': 'Müqayisə edilən qeydlər: {n}.',
-  'search.at_threshold': '«{band}» ({value}) və yuxarı göstərilir.',
-  'search.sources': 'Cavab verən mənbələr',
-  'search.panel.matches': 'Arxivin təklif etdiyi qeydlər',
-  'search.silent_about':
-    'Mənbədə bunun üçün sütun yoxdur: {fields}. Bu sükutdur — nə lehinə, nə də əleyhinə sayılır.',
+  'search.considered': 'Yoxlanılan qeydlər: {n}.',
+  'search.at_threshold': 'Uyğunluq {value}-dən.',
+  'search.sources': 'Mənbələr',
+  'search.panel.matches': 'Tapılan qeydlər',
+  'search.silent_about': 'Mənbədə məlumat yoxdur: {fields}',
   'search.disputed': 'Mənbələr fərqlənir',
   'search.panel.disagreements': 'Mənbələrin fərqləndiyi yerlər',
   'search.disagreements.note':
-    'İki reyestr eyni obyekt haqqında cavab verir və onu fərqli qeyd edir. Reyestr hər ikisini gətirir və mübahisəni həll etmir — bunu qovluğu aça bilən adam edir.',
+    'Reyestrlər obyekti fərqli qeyd edib. Qovluqla yoxlayın.',
   'search.more':
-    'Ən əmin {shown} qeyd {n} qeyddən göstərilir. Qalanına çatmaq üçün sorğunu dəqiqləşdirin.',
-  'search.idle.title': 'Hələ sorğu göndərilməyib',
-  'search.idle.body':
-    'Nəyiniz varsa yazın — ünvan, soyad, sahə nömrəsi — reyestr uyğun ola biləcək qeydləri təklif edəcək.',
-  'search.none.title': 'Arxiv burada heç nə təklif etmir',
+    '{n} qeyddən {shown} göstərilir. Qalanları üçün sorğunu dəqiqləşdirin.',
+  'search.idle.title': 'Axtarış üçün məlumat daxil edin',
+  'search.idle.body': 'Bir sahə kifayətdir: ünvan, ad və ya sahə nömrəsi.',
+  'search.none.title': 'Heç nə tapılmadı',
   'search.none.body':
-    'Müqayisə edilənlərin heç biri seçilmiş səviyyəyə çatmır. Reyestrin əhatəsi qismən və tarixi olduğundan bu, obyekt haqqında heç nə demir — səviyyəni endirin və ya daha az sahə üzrə axtarın.',
+    'Minimum uyğunluğu azaldın və ya bir sahəni təmizləyin. Arxivdə hər şey yoxdur.',
   'search.error.title': 'Arxiv cavab vermədi',
-  'search.error.body':
-    'Reyestrə müraciət alınmadı. Axtarışı yenidən cəhd edin.',
+  'search.error.body': 'Arxiv əlçatan deyil. Yenidən cəhd edin.',
   'search.footer':
-    'Arxiv — otuz il ərzində müxtəlif idarələrin apardığı bir neçə reyestrdir. Heç birində olmayan barədə isə heç nə demir.',
+    'Arxivdə hər şey yoxdur: qeydin olmaması heç nə demək deyil.',
   'archive.found': 'Qeyd tapıldı',
   'archive.found_note': 'Reyestr bu ünvan altında qeyd saxlayır.',
   'archive.not_found': 'Qeyd yoxdur',
@@ -2940,8 +2905,7 @@ const az: Dict = {
 
   // ── Ərizənin ilkin yoxlanışı ───────────────────────────────────────────────
   'page.intake.title': 'Ərizənin ilkin yoxlanışı',
-  'page.intake.subtitle':
-    'Paketi əlavə edin — sistem onu oxuyur, yoxlayır və tapdığını bildirir. Qərarı siz verirsiniz.',
+  'page.intake.subtitle': 'Sənədləri yükləyin — sistem onları yoxlayacaq.',
   'intake.step.add': 'Paketi əlavə edin',
   'intake.step.read': 'Onu oxuyuruq',
   'intake.step.result': 'Nəticə',
@@ -2955,12 +2919,11 @@ const az: Dict = {
   'intake.open_case': 'İşi aç',
   'intake.recommendation': 'Tövsiyə',
   'intake.read.title': 'Paketdən nə oxuduq',
-  'intake.read.lead':
-    'Ərizəçi, ünvan və sahə sənədlərin özündən oxunur. Sistemin əmin olmadığı oxunuş işarələnib — onu işin kartındakı sənədlərlə tutuşdurun.',
-  'intake.read.filling': 'özü doldurulur',
+  'intake.read.lead': 'Sənədlərdən oxunub. Şübhəli dəyərlər qeyd olunub.',
+  'intake.read.filling': 'doldurulur…',
   'intake.read.reading': 'oxunur…',
-  'intake.read.unread': 'paketdən oxunmadı',
-  'intake.read.glance': '{p}% oxundu — bir daha baxmağa dəyər',
+  'intake.read.unread': 'oxunmayıb',
+  'intake.read.glance': '{p}% dəqiqlik — yoxlayın',
   'intake.read.applicant': 'Ərizəçi',
   'intake.read.address': 'Ünvan',
   'intake.read.parcel': 'Sahə / reyestr nömrəsi',
@@ -2969,72 +2932,63 @@ const az: Dict = {
   'intake.group.legal_none':
     'Yoxlama bu iş üçün təsdiqedici sənəd dəsti adlandırmadı.',
   'intake.group.archive': 'Arxiv',
-  'intake.group.archive_none':
-    'Bu iş barədə arxiv reyestrinə sorğu verilməyib.',
-  'intake.group.nothing': 'Burada pakete qarşı bir şey yoxdur.',
+  'intake.group.archive_none': 'Arxivə sorğu olunmayıb.',
+  'intake.group.nothing': 'Qeyd yoxdur.',
   // ── Qəbulda bəyan edilənlər ────────────────────────────────────────────────
   'declared.title': 'Qəbulda bəyan edilib',
   'declared.basis': 'Hüquq nəyə əsaslanır',
   'declared.year': 'Tikinti ili',
   'declared.not_declared': 'Bəyan edilməyib',
-  'intake.profile.unchosen':
-    'Yoxlama profilini seçin — paket seçdiyiniz profil üzrə qəbul olunur və onu sizin əvəzinizə heç kim seçmir.',
-  'intake.declared.lead':
-    'Məcburi deyil və sənədlərdən yox, ərizəçinin sözündən götürülür. Buna görə profil tövsiyə olunur; mühərrikin oxuduğu ilə qarışdırılmır.',
+  'intake.profile.unchosen': 'Başlamaq üçün profil seçin.',
+  'intake.declared.lead': 'İstəyə bağlı. Profil seçməyə kömək edir.',
   'intake.declared.basis_hint':
-    'İddia edilən hüququn dayandığı sənəd — bu profilin əsas kimi tanıdığı sənədlərdən.',
+    'Hüququn əsaslandığı sənəd. Ərizəçinin sözlərindən.',
   'intake.declared.basis_stray':
-    '“{ground}” — “{profile}” profilinin əsası deyil. Başqa əsas və ya başqa profil seçin.',
-  'intake.declared.year_hint':
-    'Dörd rəqəm, {from}–{to}. Bilmirsinizsə, boş buraxın.',
+    '«{ground}» «{profile}» profilinə uyğun deyil.',
+  'intake.declared.year_hint': 'Dörd rəqəm. Boş qoymaq olar.',
   'intake.declared.year_placeholder': 'məsələn, 1998',
-  'intake.declared.year_outside':
-    'İl {from}–{to} aralığında oxunur — bu il qəbul edilməyəcək.',
-  'intake.suggest.title': 'Tövsiyə olunan profil',
+  'intake.declared.year_outside': 'İl {from}–{to} aralığında olmalıdır.',
+  'intake.suggest.title': 'Təklif',
   'intake.suggest.undeclared':
-    'Əsası və ya ili bəyan edin — onların işarə etdiyi profil burada görünəcək.',
-  'intake.suggest.take': 'Bu profili seç',
+    'Əsası və ya ili daxil edin — profil təklif edəcəyik.',
+  'intake.suggest.take': 'Seç',
   'intake.suggest.chosen': 'seçilib',
-  'intake.suggest.asking': 'yenidən soruşulur…',
-  'intake.suggest.none':
-    'Tövsiyə yoxdur: bəyan edilənlər tək bir profilə işarə etmir. Səbəbi aid olduğu sahənin altında yazılıb.',
-  'intake.suggest.unavailable':
-    'Hazırda əlçatan deyil. O yalnız tövsiyə edir — profili həmişəki kimi siz seçirsiniz.',
-  'suggest.basis.none':
-    'Bəyan edilməyib. Bir profili digərindən məhz hüququn əsaslandığı sənəd fərqləndirir, ona görə də o olmadan profil tövsiyə edilmir.',
-  'suggest.basis.unregistered':
-    'Heç bir profil “{ground}” əsasına söykənən hüququ qeydə almır.',
-  'suggest.basis.several':
-    '“{ground}” əsasına söykənən hüququ bir neçə profil qeydə alır — {profiles}. Bunlardan hansı olduğu bəyan edilənlərdən çıxmır.',
-  'suggest.basis.only':
-    '“{ground}” — “{profile}” profilinin əsasıdır və bunu edən yeganə profildir.',
-  'suggest.year.moot':
-    'Əsas üzrə profil müəyyən olunmadı — ilin dəqiqləşdirəcəyi bir şey yoxdur.',
-  'suggest.year.any':
-    'Bəyan edilməyib və lazım da deyil: “{profile}” istənilən il üçün cavab verir.',
-  'suggest.year.leaves': '{year} “{profile}” profilini saxlayır.',
-  'suggest.year.awaited':
-    'Bəyan edilməyib, “{profile}” isə müəyyən dövr üçün cavab verir — il olmadan onu nə qəbul etmək, nə də kənarlaşdırmaq olar.',
+  'intake.suggest.asking': 'yenilənir…',
+  'intake.suggest.none': 'Uyğun profil tapılmadı.',
+  'intake.suggest.unavailable': 'Təklif hazırda əlçatan deyil.',
+  'suggest.basis.none': 'Əsas olmadan profil təklif etmək olmur.',
+  'suggest.basis.unregistered': 'Heç bir profil bu əsası qəbul etmir.',
+  'suggest.basis.several': 'Bir neçə profilə uyğundur: {profiles}.',
+  'suggest.basis.only': '«{profile}» profilinə uyğundur.',
+  'suggest.year.moot': 'Əvvəlcə əsası dəqiqləşdirin.',
+  'suggest.year.any': '«{profile}» üçün il vacib deyil.',
+  'suggest.year.leaves': '{year} «{profile}» üçün uyğundur.',
+  'suggest.year.awaited': '«{profile}» üçün tikinti ili lazımdır.',
   'suggest.year.undeclared': 'Bəyan edilməyib.',
-  'suggest.year.rules_out':
-    '{year} bu əsasın işarə etdiyi yeganə profili — “{profile}” — kənarlaşdırır.',
-  'suggest.year.no_narrower': '{year} seçimi tək bir profilə endirmir.',
+  'suggest.year.rules_out': '{year} «{profile}» üçün uyğun deyil.',
+  'suggest.year.no_narrower': '{year} seçimi daraltmır.',
 
   // ── İşlər ──────────────────────────────────────────────────────────────────
   'page.cases.title': 'İşlər',
-  'page.cases.subtitle':
-    'Müraciətlər, sənədlərin tamlığı və yoxlama qeydləri bir reyestrdə.',
+  'page.cases.subtitle': 'Bütün ərizələr və yoxlama nəticələri.',
   'page.analytics.title': 'Analitika',
-  'page.analytics.subtitle':
-    'Nə qəbul edilib, yoxlamalar nə göstərib və arxiv reyestri necə cavab verib.',
-  'analytics.kpi.taken_in': 'Qəbul edilmiş ərizələr',
-  'analytics.kpi.clean': 'Qeydsiz',
-  'analytics.kpi.findings': 'Paketlərə dair qeydlər',
-  'analytics.kpi.archive': 'Arxivə sorğular',
+  'analytics.kpi.taken_in': 'Qəbul edilən ərizələr',
+  'analytics.kpi.clean': 'Problemsiz',
+  'analytics.kpi.findings': 'Düzəldilməli problemlər',
+  'analytics.kpi.archive': 'Arxiv yoxlamaları',
+  'analytics.running': 'Hər şey işləyir',
+  'analytics.hint': 'Bu nə deməkdir?',
+  'analytics.findings.title': 'Ən çox rast gələn problemlər',
+  'analytics.unseen': 'Rast gəlinmədi: daha {n}',
+  'analytics.center.reported': 'yoxlanılıb',
+  'analytics.center.questions': 'yoxlama',
+  'analytics.kpi.clean_sub': 'Yoxlanılanların {p}',
+  'analytics.kpi.findings_sub': 'Üstəlik qeydlər: {n}',
+  'analytics.kpi.archive_sub': 'Uyğun gəldi: {n}',
   'action.intake': 'Ərizənin qəbulu',
   'col.case': 'İş',
   'col.applicant': 'Ərizəçi / Ünvan',
-  'col.state': 'Vəziyyət və nəticə',
+  'col.state': 'Vəziyyət',
   'slice.label': 'Reyestr kəsimləri',
   'slice.all': 'Hamısı',
   'slice.processing': 'İşlənir',
@@ -3170,4 +3124,23 @@ export function relativeShort(iso: string, now: number): string {
   if (h < 24) return `${h}h`;
   const d = Math.round(h / 24);
   return `${d}d`;
+}
+
+/**
+ * How long ago, in the reader's own words — "5 дней назад", "3 hours ago",
+ * "сейчас". `relativeShort` answers "5d" in every language and stays for the
+ * register's narrow column; a sentence on a page takes this one.
+ */
+export function relativeAgo(iso: string, now: number, locale: Locale): string {
+  // Never "in 2 minutes": a clock a little ahead of the server is still "now".
+  const seconds = Math.min(
+    0,
+    Math.round((new Date(iso).getTime() - now) / 1000),
+  );
+  const words = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+  const span = Math.abs(seconds);
+  if (span < 60) return words.format(0, 'second');
+  if (span < 3600) return words.format(Math.round(seconds / 60), 'minute');
+  if (span < 86400) return words.format(Math.round(seconds / 3600), 'hour');
+  return words.format(Math.round(seconds / 86400), 'day');
 }

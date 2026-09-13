@@ -207,3 +207,21 @@ export function namesAFault(shortfall: ScanShortfall): boolean {
     shortfall.placement !== null
   );
 }
+
+/**
+ * The papers the profile requires that the package is short of, in the
+ * profile's own order.
+ *
+ * Not `missingTypes` itself. That is every `MissingDocument` gap, and a
+ * requirement any of several papers answers publishes a gap for each of them —
+ * sixteen titles to the land on a house whose provision is still open. The case
+ * sheet lists the required papers and counts the ones found, so subtracting the
+ * whole list from the required ones drew "-16 of 2".
+ */
+export function requiredShortfall(
+  required: readonly string[],
+  gaps: readonly DocumentGapDto[],
+): readonly string[] {
+  const missing = new Set(missingTypes(gaps));
+  return required.filter(type => missing.has(type));
+}

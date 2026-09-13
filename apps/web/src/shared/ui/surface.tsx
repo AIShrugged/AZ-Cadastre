@@ -59,34 +59,44 @@ export function SurfaceHeading({
   title,
   subtitle,
   badge,
+  actions,
   className,
 }: {
   title: ReactNode;
   subtitle?: ReactNode;
   badge?: ReactNode;
+  /** Controls that scope the whole surface (a period, say), set at the far end
+   *  of the heading. They wrap under the title on a narrow screen. */
+  actions?: ReactNode;
   className?: string;
 }) {
   return (
     <div
       className={cn(
-        'shrink-0 border-b border-rule px-4 py-3.5 md:px-6',
+        'flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2.5 border-b border-rule px-4 py-3.5 md:px-6',
         className,
       )}
     >
-      {/* The title wraps rather than truncates: a surface named by its subject
-          — a package by the verification it is — must not have that subject cut
-          to an ellipsis on a narrow screen. Short titles are unaffected; a long
-          one balances across its lines and takes the badge onto the first. */}
-      <div className='flex flex-wrap items-baseline gap-x-2.5 gap-y-1'>
-        <h1 className='min-w-0 text-balance text-[1.375rem] font-semibold leading-tight tracking-[-0.02em] text-foreground'>
-          {title}
-        </h1>
-        {badge && <span className='shrink-0'>{badge}</span>}
+      <div className='min-w-0 flex-1'>
+        {/* The title wraps rather than truncates: a surface named by its subject
+            — a package by the verification it is — must not have that subject
+            cut to an ellipsis on a narrow screen. Short titles are unaffected; a
+            long one balances across its lines and takes the badge onto the
+            first. */}
+        <div className='flex flex-wrap items-baseline gap-x-2.5 gap-y-1'>
+          <h1 className='min-w-0 text-balance text-[1.375rem] font-semibold leading-tight tracking-[-0.02em] text-foreground'>
+            {title}
+          </h1>
+          {badge && <span className='shrink-0'>{badge}</span>}
+        </div>
+        {subtitle && (
+          <p className='mt-1 text-[0.875rem] leading-relaxed text-muted-foreground'>
+            {subtitle}
+          </p>
+        )}
       </div>
-      {subtitle && (
-        <p className='mt-1 text-[0.875rem] leading-relaxed text-muted-foreground'>
-          {subtitle}
-        </p>
+      {actions && (
+        <div className='flex shrink-0 items-center gap-2'>{actions}</div>
       )}
     </div>
   );

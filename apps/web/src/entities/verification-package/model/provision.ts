@@ -27,17 +27,62 @@ export function provisionSummary(
   provision: CaseProvisionDto,
 ): string {
   switch (provision.outcome) {
-    case 'Determined':
+    case 'Determined': {
+      const code = provision.provision ?? '';
       return t('provision.determined', {
-        provision: provision.provision ?? '',
+        provision: code,
+        rule: lowerFirst(
+          translated(
+            t,
+            `provision.rule.${code}`,
+            provision.provisions[0]?.description ?? '',
+          ),
+        ),
       });
-    case 'Ambiguous':
-      return t('provision.ambiguous', {
-        list: provision.candidates.join(', '),
-      });
+    }
+    // Says what is missing rather than which codes are left. "Could be
+    // 8.0.9.1.1, 8.0.9.1.2, 8.0.9.2 …" named five sections of a decree nobody
+    // has open at the desk, and told the inspector nothing they could do; the
+    // figures that would settle it are the thing to go and find.
+    case 'Ambiguous': {
+      const names = provision.undecidedOn.map(parameter =>
+        lowerFirst(
+          // "Height, m" is a column heading; in a sentence it is "height".
+          t(`provision.param.${parameter}`).replace(/,\s*(м|m)$/u, ''),
+        ),
+      );
+      if (names.length === 0) return t('provision.ambiguous_open');
+      const params =
+        names.length <= 3
+          ? names.join(', ')
+          : `${names.slice(0, 2).join(', ')} ${t('provision.and_more', {
+              n: names.length - 2,
+            })}`;
+      return t('provision.ambiguous', { params });
+    }
     case 'Undetermined':
       return t('provision.undetermined');
   }
+}
+
+/**
+ * A provision in a few plain words — "Before 2013 · up to 12 m · lease" — for
+ * where its code alone would be the only label, such as a table column. The
+ * code stays beside it: it is what the decree and the inspector's colleagues
+ * call it. A provision this build has no words for is named by its code.
+ */
+export function provisionName(t: Translate, code: string): string {
+  return translated(t, `provision.name.${code}`, code);
+}
+
+/** The dictionary echoes a key it has no word for; this falls back instead. */
+function translated(t: Translate, key: string, fallback: string): string {
+  const word = t(key);
+  return word === key ? fallback : word;
+}
+
+function lowerFirst(text: string): string {
+  return text.charAt(0).toLocaleLowerCase() + text.slice(1);
 }
 
 /**
@@ -61,4 +106,29 @@ export function unansweredAlternatives(
   );
 
   return group?.anyOf ?? [];
+}
+
+/**
+ * The provision in the few words a closed fold has room for.
+ *
+ * `provisionSummary` is the sentence, and it stays on the case sheet and inside
+ * the fold. In the fold's own heading it named every candidate — five codes on
+ * an open case — and was the line that pushed a phone's page sideways.
+ */
+export function provisionShort(
+  t: Translate,
+  provision: CaseProvisionDto,
+): string {
+  switch (provision.outcome) {
+    case 'Determined':
+      return t('provision.short.determined', {
+        provision: provision.provision ?? '',
+      });
+    case 'Ambiguous':
+      return t('provision.short.ambiguous', {
+        n: provision.candidates.length,
+      });
+    case 'Undetermined':
+      return t('provision.short.undetermined');
+  }
 }

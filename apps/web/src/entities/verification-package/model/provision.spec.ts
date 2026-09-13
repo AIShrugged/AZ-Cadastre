@@ -41,15 +41,33 @@ function aProvision(over: Partial<CaseProvisionDto> = {}): CaseProvisionDto {
 }
 
 describe('provisionSummary', () => {
-  it('names the provision the case falls under', () => {
+  it('names the provision the case falls under, and what it is', () => {
     expect(provisionSummary(t, aProvision())).toBe(
-      'provision.determined(provision=8.0.9.1.1)',
+      'provision.determined(provision=8.0.9.1.1,rule=pre-2013, lease)',
     );
   });
 
-  // Not a blank: a case whose height nobody read could still be one of two
-  // provisions, and the reader is told which two.
-  it('names every candidate of a case it could not decide', () => {
+  // Guards the summary that read "Could be 8.0.9.1.1, 8.0.9.1.2, 8.0.9.2 …":
+  // codes nobody has open at the desk. An undecided case says which figures
+  // would settle it, and never lists the candidate codes.
+  it('says which figures an undecided case is missing, not its codes', () => {
+    const summary = provisionSummary(
+      t,
+      aProvision({
+        outcome: 'Ambiguous',
+        provision: null,
+        candidates: ['8.0.10.2', '8.0.10.1'],
+        undecidedOn: ['height', 'builtYear'],
+      }),
+    );
+
+    expect(summary).toBe(
+      'provision.ambiguous(params=provision.param.height, provision.param.builtYear)',
+    );
+    expect(summary).not.toContain('8.0.10');
+  });
+
+  it('shortens a long list of missing figures', () => {
     expect(
       provisionSummary(
         t,
@@ -57,9 +75,21 @@ describe('provisionSummary', () => {
           outcome: 'Ambiguous',
           provision: null,
           candidates: ['8.0.10.2', '8.0.10.1'],
+          undecidedOn: ['builtYear', 'storeys', 'height', 'span'],
         }),
       ),
-    ).toBe('provision.ambiguous(list=8.0.10.2, 8.0.10.1)');
+    ).toBe(
+      'provision.ambiguous(params=provision.param.builtYear, provision.param.storeys provision.and_more(n=2))',
+    );
+  });
+
+  it('still says the case is open when no figure is named', () => {
+    expect(
+      provisionSummary(
+        t,
+        aProvision({ outcome: 'Ambiguous', provision: null, candidates: [] }),
+      ),
+    ).toBe('provision.ambiguous_open');
   });
 
   it('says so of a case no provision covers', () => {

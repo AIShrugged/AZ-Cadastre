@@ -16,6 +16,7 @@ import {
   isSuperseded,
   missingTypes,
   namesAFault,
+  requiredShortfall,
   scanShortfall,
   supplyTarget,
 } from './document-gaps';
@@ -269,5 +270,37 @@ describe('why a scan is worth sending again', () => {
     const shortfall = scanShortfall(doc({ fields: [field()] }), []);
 
     expect(namesAFault(shortfall)).toBe(false);
+  });
+});
+
+// Guards the case sheet's "-16 of 2". Every paper that would close a
+// requirement is published as its own MissingDocument gap — sixteen titles to
+// the land on a case whose provision is still open — and the sheet subtracted
+// all of them from the two papers the profile requires.
+describe('requiredShortfall', () => {
+  const gaps = [
+    gap({ expectedType: 'land_plot_plan' }),
+    gap({ expectedType: 'state_register_extract' }),
+    gap({ expectedType: 'land_state_act' }),
+    gap({ expectedType: 'sketch_project' }),
+    gap({ reason: 'AlwaysAccepted', expectedType: 'payment_receipt' }),
+  ];
+
+  it('counts only the required papers among the missing ones', () => {
+    expect(
+      requiredShortfall(['sketch_project', 'land_plot_plan'], gaps),
+    ).toEqual(['sketch_project', 'land_plot_plan']);
+  });
+
+  it('never names more papers than the profile requires', () => {
+    const required = ['land_plot_plan', 'application'];
+    const short = requiredShortfall(required, gaps);
+
+    expect(short).toEqual(['land_plot_plan']);
+    expect(required.length - short.length).toBeGreaterThanOrEqual(0);
+  });
+
+  it('ignores a paper the profile takes at any time', () => {
+    expect(requiredShortfall(['payment_receipt'], gaps)).toEqual([]);
   });
 });

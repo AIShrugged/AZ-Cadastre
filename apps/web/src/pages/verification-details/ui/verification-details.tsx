@@ -48,17 +48,17 @@ import {
   HOLDING_KEY,
   HOLDING_TONE,
   holdsHash,
-  isCarriedOver,
   ISSUE_KIND_KEY,
   isSuperseded,
-  missingTypes,
   OUTCOME_NOTE,
   OutcomeMark,
   profileName,
+  provisionShort,
   provisionSummary,
   readReport,
   readWellEnough,
   RegistryOutcomeMark,
+  requiredShortfall,
   requiredTypes,
   speaksAgainst,
   STAGES,
@@ -79,10 +79,11 @@ import { ApproveArchiveSearch } from '@/features/approve-archive-search';
 import { DocumentGaps } from '@/features/supply-document';
 import { AddFiles } from '@/features/upload-documents';
 import { paths } from '@/shared/config';
-import { formatDate, relativeShort, translateOr, useI18n } from '@/shared/i18n';
+import { formatDate, relativeAgo, translateOr, useI18n } from '@/shared/i18n';
 import { cn } from '@/shared/lib/cn';
 import type { Jump } from '@/shared/lib/jump';
 import { Button } from '@/shared/ui/button';
+import { InfoHint } from '@/shared/ui/info-hint';
 import { Skeleton } from '@/shared/ui/skeleton';
 import { SurfaceBody, SurfacePage } from '@/shared/ui/surface';
 import { CONFIDENCE_FLOOR } from '@cadastre/api-contracts/verification';
@@ -223,7 +224,9 @@ function RunProgress({
       {running ? (
         <>
           <div className='flex items-baseline justify-between gap-3'>
-            <h2 className='register-label'>{t('detail.process')}</h2>
+            <h2 className='text-[0.8125rem] font-medium text-foreground'>
+              {t('detail.process')}
+            </h2>
             {stageRunning && (
               <span className='flex items-center gap-1.5 text-[0.6875rem] font-medium text-primary'>
                 <span
@@ -240,13 +243,22 @@ function RunProgress({
         <details className='group'>
           <summary className='-mx-2 flex cursor-pointer list-none select-none items-baseline gap-2 rounded-md px-2 py-1 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50'>
             <ChevronRightIcon className='size-3 shrink-0 translate-y-0.5 text-muted-foreground transition-transform duration-200 group-open:rotate-90' />
-            <span className='register-label'>
+            {!failed && (
+              <CheckIcon
+                aria-hidden
+                className='size-3.5 shrink-0 translate-y-0.5 text-ok-ink'
+                strokeWidth={3}
+              />
+            )}
+            <span
+              className={cn(
+                'text-[0.8125rem] font-medium',
+                failed ? 'text-failed-ink' : 'text-foreground',
+              )}
+            >
               {failed ? t('status.failed') : t('detail.process_done')}
             </span>
-            <span
-              data-mono
-              className='ml-auto shrink-0 text-[0.6875rem] tabular-nums text-muted-foreground/70'
-            >
+            <span className='ml-auto shrink-0 text-[0.75rem] tabular-nums text-muted-foreground'>
               {t('detail.stages_done', { n: stages.length })}
             </span>
           </summary>
@@ -490,7 +502,29 @@ function StatusLine({
 
 // The disclosure every raw transcription opens into — the machine's reading,
 // set in mono on a recessed panel so it never passes for extracted data.
+/**
+ * The OCR's own markup, said in words.
+ *
+ * The reader marks what it saw — `[hw: …]` around handwriting, `[signature]`,
+ * `[stamp: …]`, `[qr]`, `[blank page]` — and shown as it arrived that read as
+ * code on a page an inspector reads. The raw text still feeds the handwriting
+ * mark on each field (`isHandwritten`); only the pane shows this version.
+ */
+function readableTranscript(t: Translate, text: string): string {
+  return text
+    .replace(/\[hw:\s*([^\]]*?)\s*\]/giu, '$1')
+    .replace(/\[stamp:\s*illegible\s*\]/giu, t('transcript.stamp'))
+    .replace(
+      /\[stamp:\s*([^\]]*?)\s*\]/giu,
+      (_, legend: string) => `${t('transcript.stamp')} «${legend}»`,
+    )
+    .replace(/\[signature\]|\(signature\)/giu, t('transcript.signature'))
+    .replace(/\[qr\]/giu, t('transcript.qr'))
+    .replace(/\[blank page\]/giu, t('transcript.blank'));
+}
+
 function Transcript({ label, text }: { label: string; text: string }) {
+  const { t } = useI18n();
   return (
     <details className='group mt-3'>
       <summary className='inline-flex cursor-pointer list-none select-none items-center gap-1.5 text-[0.75rem] text-muted-foreground transition-colors hover:text-foreground'>
@@ -501,7 +535,7 @@ function Transcript({ label, text }: { label: string; text: string }) {
         data-mono
         className='mt-2 max-h-72 overflow-auto whitespace-pre-wrap rounded-lg border border-rule bg-muted/30 p-3 text-[0.75rem] leading-relaxed text-foreground/75'
       >
-        {text}
+        {readableTranscript(t, text)}
       </pre>
     </details>
   );
@@ -570,8 +604,8 @@ function OcrStatus({
 // ─── Page tally ───────────────────────────────────────────────────────────────
 // The file's meta line doubles as the progress read-out for a long PDF: how many
 // sheets it was split into, and — while the pages are still being read — how
-// many have come back. It carries its own separator, because a file with nothing
-// to count yet must not leave a dangling one behind.
+// many have come back. It opens the line on its own: the file's content type
+// used to precede it, a machine's label no inspector reads.
 function PageTally({ file, failed }: { file: SourceFileDto; failed: boolean }) {
   const { t } = useI18n();
   const total = file.pages.length;
@@ -582,7 +616,6 @@ function PageTally({ file, failed }: { file: SourceFileDto; failed: boolean }) {
   if (total === 0) {
     return failed ? null : (
       <>
-        {' · '}
         <span className='inline-flex items-center gap-1.5 text-primary'>
           <span
             aria-hidden
@@ -598,11 +631,11 @@ function PageTally({ file, failed }: { file: SourceFileDto; failed: boolean }) {
     total === 1 ? t('upload.page_one') : t('upload.pages', { n: total });
   // A running count earns its place only where there is a queue to watch: with a
   // single sheet, or none left unread, the total already says everything.
-  if (total === 1 || read === total) return <>{` · ${pages}`}</>;
+  if (total === 1 || read === total) return <>{pages}</>;
 
   return (
     <>
-      {` · ${pages} `}
+      {`${pages} `}
       <span aria-live='polite' className='inline-flex items-center gap-1.5'>
         {/* A failed run is not still working, so it gets the count without the
             heartbeat: 8 of 10 pages read is where it stopped. */}
@@ -803,9 +836,7 @@ function Enumerated({
             aria-hidden
             className='mt-[0.55em] size-1 shrink-0 rounded-full bg-current opacity-40'
           />
-          <span data-mono className='min-w-0 break-words'>
-            {entry}
-          </span>
+          <span className='min-w-0 break-words tabular-nums'>{entry}</span>
         </li>
       ))}
       {rest > 0 && !whole && (
@@ -828,17 +859,11 @@ function Field({
   docId,
   sourceText,
   folded,
-  spent,
   onJump,
 }: {
   field: FieldDto;
   docId: string;
   sourceText: string;
-  /** Whether the paper this was read off has been replaced. A doubtful reading
-   *  on a document out of force keeps its figure and loses the "needs review"
-   *  chip: the figure is what was read, which stays true, and the chip is an
-   *  instruction to go and settle something the case no longer rests on. */
-  spent: boolean;
   folded: boolean;
   onJump: Jump;
 }) {
@@ -865,14 +890,17 @@ function Field({
       <dt className='col-span-2 text-[0.8125rem] leading-snug text-muted-foreground @md:col-span-1'>
         {translateOr(t, `field.${field.name}`, field.name)}
       </dt>
-      <dd className='min-w-0'>
+      <dd
+        className='min-w-0'
+        // The figure a sure reading was made with, on asking — see below.
+        title={uncertain ? undefined : `${Math.round(field.confidence * 100)}%`}
+      >
         {entries.length > 0 ? (
           <Enumerated entries={entries} uncertain={uncertain} />
         ) : (
           <span
-            data-mono
             className={cn(
-              'break-words whitespace-pre-line text-[0.875rem] leading-snug',
+              'break-words whitespace-pre-line text-[0.875rem] leading-snug tabular-nums',
               uncertain ? 'text-incomplete-ink' : 'text-foreground',
             )}
           >
@@ -896,10 +924,14 @@ function Field({
           review" is the worklist's own word for a sheet that wants a second
           look, and the report deliberately files no finding against this
           one — the line under the value says where to look instead. */}
-      <Confidence
-        value={field.confidence}
-        bare={isCarriedOver(field) || spent}
-      />
+      {/* Only a doubtful reading carries its figure in the row. A 92% beside
+          every value was a column nobody read, and it hid the one figure worth
+          reading; a sure reading keeps its figure on hover of the value. */}
+      {uncertain ? (
+        <Confidence value={field.confidence} bare />
+      ) : (
+        <span aria-hidden />
+      )}
     </div>
   );
 }
@@ -946,7 +978,6 @@ function Fields({
             docId={docId}
             sourceText={sourceText}
             folded={false}
-            spent={spent}
             onJump={onJump}
           />
         ))}
@@ -957,7 +988,6 @@ function Fields({
             docId={docId}
             sourceText={sourceText}
             folded={!whole}
-            spent={spent}
             onJump={onJump}
           />
         ))}
@@ -1022,8 +1052,14 @@ function documentText(doc: DocumentDto, file: SourceFileDto): string {
 // have to take on trust, which is the one thing this surface exists not to ask
 // of them. Thumbnails, because the point is to find the right sheet quickly —
 // the sheet itself opens full size in its own tab.
+/** Enough to find the sheet a value came from. A twenty-six-page file drawn
+ *  whole was a column two thousand pixels tall beside five fields; the rest are
+ *  one click away. */
+const SHEETS_SHOWN = 6;
+
 function Sheets({ doc, file }: { doc: DocumentDto; file: SourceFileDto }) {
   const { t } = useI18n();
+  const [all, setAll] = useState(false);
   const sheets = file.pages.filter(
     page =>
       page.pageNumber >= doc.firstPage &&
@@ -1043,7 +1079,7 @@ function Sheets({ doc, file }: { doc: DocumentDto; file: SourceFileDto }) {
     // this surface was buried under, and a column of scans needs no label.
     <div className='mt-4 lg:mt-0'>
       <ul className='flex flex-wrap gap-2'>
-        {sheets.map(page => (
+        {(all ? sheets : sheets.slice(0, SHEETS_SHOWN)).map(page => (
           <li key={page.pageNumber}>
             <a
               href={page.imageUrl ?? undefined}
@@ -1061,16 +1097,25 @@ function Sheets({ doc, file }: { doc: DocumentDto; file: SourceFileDto }) {
                 // nothing at all.
                 className='h-28 w-full bg-background object-cover object-top'
               />
-              <span
-                data-mono
-                className='block border-t border-rule px-1 py-0.5 text-center text-[0.625rem] tabular-nums text-muted-foreground group-hover:text-foreground'
-              >
+              <span className='block border-t border-rule px-1 py-0.5 text-center text-[0.625rem] tabular-nums text-muted-foreground group-hover:text-foreground'>
                 {page.pageNumber}
               </span>
             </a>
           </li>
         ))}
       </ul>
+      {sheets.length > SHEETS_SHOWN && (
+        <button
+          type='button'
+          aria-expanded={all}
+          onClick={() => setAll(open => !open)}
+          className='-mx-1 mt-2 rounded-sm px-1 py-0.5 text-[0.75rem] text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
+        >
+          {all
+            ? t('detail.sheets_fewer')
+            : t('detail.sheets_more', { n: sheets.length - SHEETS_SHOWN })}
+        </button>
+      )}
     </div>
   );
 }
@@ -1286,10 +1331,7 @@ function DocumentEntry({
       <div className='min-w-0'>
         <header className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1'>
           <div className='flex min-w-0 items-baseline gap-3'>
-            <span
-              data-mono
-              className='shrink-0 text-[0.75rem] tabular-nums text-muted-foreground'
-            >
+            <span className='shrink-0 text-[0.75rem] tabular-nums text-muted-foreground'>
               {pageLabel(t, doc)}
             </span>
             {doc.type ? (
@@ -1526,11 +1568,7 @@ function FileGroup({
           <h2 className='truncate text-[0.9375rem] font-semibold text-foreground'>
             {file.originalFilename}
           </h2>
-          <span
-            data-mono
-            className='shrink-0 text-[0.6875rem] text-muted-foreground'
-          >
-            {file.contentType}
+          <span className='shrink-0 text-[0.75rem] tabular-nums text-muted-foreground'>
             <PageTally file={file} failed={failed} />
           </span>
         </div>
@@ -1853,7 +1891,7 @@ function findingOf(
       where:
         candidates.length > 0
           ? t('detail.f.provision_ambiguous_sub', {
-              list: candidates.join(', '),
+              n: candidates.length,
             })
           : t('detail.f.provision_none_sub'),
       anchor: '#provision',
@@ -2183,19 +2221,39 @@ function Worklist({
   const section = (kind: IssueKind, heading: string) => {
     const found = report.issues.filter(issue => issue.kind === kind);
     if (found.length === 0) return null;
+    const rows = found.map(issue => ({
+      issue,
+      finding: findingOf(t, issue, pkg, named),
+    }));
+    // Said once beside the heading when every row would say it: six rows each
+    // ending "Not found in the package" is one fact printed six times, and it
+    // turned the names — the part that differs — into a column of noise.
+    const shared =
+      rows.length > 1 &&
+      rows.every(row => row.finding.where === rows[0]?.finding.where)
+        ? (rows[0]?.finding.where ?? null)
+        : null;
+
     return (
       <div key={kind}>
-        <h3 className='register-label'>
-          {t(heading)}
-          <span data-mono className='ml-2 tabular-nums opacity-70'>
+        <h3 className='flex flex-wrap items-baseline gap-x-2 gap-y-0.5'>
+          <span className='text-[0.875rem] font-medium text-foreground'>
+            {t(heading)}
+          </span>
+          <span className='rounded-full bg-muted px-1.5 py-px text-[0.6875rem] font-medium tabular-nums text-muted-foreground'>
             {found.length}
           </span>
+          {shared && (
+            <span className='text-[0.75rem] text-muted-foreground'>
+              {shared}
+            </span>
+          )}
         </h3>
-        <ul className='mt-2 flex flex-col border-t border-rule'>
-          {found.map((issue, index) => (
+        <ul className='mt-1.5 flex flex-col border-t border-rule'>
+          {rows.map(({ issue, finding }, index) => (
             <FindingRow
               key={`${kind}-${index}`}
-              finding={findingOf(t, issue, pkg, named)}
+              finding={shared ? { ...finding, where: '' } : finding}
               confidence={issue.confidence}
               onJump={onJump}
             />
@@ -2206,23 +2264,12 @@ function Worklist({
   };
 
   return (
-    <section id='attention' className='mb-9 scroll-mt-16'>
-      <div className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 pb-1'>
-        <h2 className='register-label'>{t('detail.attention')}</h2>
-        <span
-          data-mono
-          className='text-[0.75rem] tabular-nums text-muted-foreground'
-        >
-          {findings.length === 0
-            ? t('findings.none')
-            : findings.length === 1
-              ? t('findings.issue_one')
-              : t('findings.issues', { n: findings.length })}
-        </span>
-      </div>
-
+    <section id='attention' className='scroll-mt-16'>
+      {/* No heading of its own. The fold this sits in is already titled "Needs
+          attention" and counts the findings on its closed line; saying both
+          again inside was the first repetition the reader met. */}
       {findings.length === 0 ? (
-        <p className='mt-3 max-w-[70ch] text-[0.8125rem] leading-relaxed text-muted-foreground'>
+        <p className='max-w-[70ch] text-[0.8125rem] leading-relaxed text-muted-foreground'>
           {t('detail.clean')}
           {/* And the sentence stops short of "so there is nothing left to do"
               when a set could not be placed. "We found nothing against it" and
@@ -2239,7 +2286,7 @@ function Worklist({
           )}
         </p>
       ) : (
-        <div className='mt-4 flex flex-col gap-5'>
+        <div className='flex flex-col gap-6'>
           {ISSUE_SECTIONS.filter(([kind]) => !isArchiveFinding(kind)).map(
             ([kind, { heading }]) => section(kind, heading),
           )}
@@ -2277,11 +2324,10 @@ function Worklist({
 function PendingReview({ running }: { running: boolean }) {
   const { t } = useI18n();
   return (
-    <section id='attention' className='scroll-mt-16 py-7'>
-      <h2 className='text-lg font-[550] tracking-[-0.015em] text-foreground'>
-        {t('detail.attention')}
-      </h2>
-      <p className='mt-2 max-w-[65ch] text-[0.875rem] leading-relaxed text-muted-foreground'>
+    <section id='attention' className='scroll-mt-16'>
+      {/* No heading: the fold is already titled "Needs attention", the same
+          repetition the finished worklist no longer makes. */}
+      <p className='max-w-[65ch] text-[0.875rem] leading-relaxed text-muted-foreground'>
         {running
           ? t('detail.review_preparing_note')
           : t('detail.review_unavailable')}
@@ -2834,7 +2880,9 @@ function RegistryChecks({
 // that offered Approve / Refuse would be this product claiming a judgement it
 // has never made.
 
-/** One line of the requisites table: what the papers were read to say. */
+/** One line of the requisites: a label in sentence case over its value on a
+ *  phone, beside it from `sm`. The labels were set as uppercase column headers,
+ *  which is the register's voice for a table heading and was shouting here. */
 function Requisite({
   label,
   children,
@@ -2843,17 +2891,34 @@ function Requisite({
   children: ReactNode;
 }) {
   return (
-    <tr className='border-b border-rule last:border-0'>
-      <th
-        scope='row'
-        className='register-label w-[13rem] py-2.5 pr-4 text-left align-top font-normal'
-      >
+    <div className='flex flex-col gap-0.5 border-b border-rule py-2 last:border-0 sm:flex-row sm:items-baseline sm:gap-4'>
+      <dt className='shrink-0 text-[0.8125rem] text-muted-foreground sm:w-[9.5rem]'>
         {label}
-      </th>
-      <td className='py-2.5 align-top text-[0.875rem] text-foreground'>
-        {children}
-      </td>
-    </tr>
+      </dt>
+      <dd className='min-w-0 text-[0.875rem] text-foreground'>{children}</dd>
+    </div>
+  );
+}
+
+/** A titled group of requisites, with what distinguishes it behind the ⓘ. */
+function RequisiteGroup({
+  title,
+  hint,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  children: ReactNode;
+}) {
+  const { t } = useI18n();
+  return (
+    <div className='min-w-0'>
+      <h2 className='flex items-center gap-1 text-[0.8125rem] font-semibold text-foreground'>
+        {title}
+        {hint && <InfoHint label={t('common.more_info')}>{hint}</InfoHint>}
+      </h2>
+      <dl className='mt-1'>{children}</dl>
+    </div>
   );
 }
 
@@ -2954,42 +3019,50 @@ function CaseSheet({
     <article className='overflow-hidden rounded-xl border border-rule bg-card shadow-[var(--shadow-sm)] print:border-0 print:shadow-none'>
       <div className='px-5 py-6 md:px-9 md:py-8'>
         {/* ── Letterhead ──
-            The office the sheet comes from, before the case it is about. Three
-            lines and not one: the service, the legal entity that keeps the
-            register, and the territorial department that took this package in. */}
+            The office the sheet comes from, before the case it is about. On
+            paper it is three lines under a double rule — the service, the legal
+            entity that keeps the register, the department that took the package
+            in — because a printed sheet is signed under it. On screen it is one
+            quiet line: three uppercase lines were the first thing an inspector
+            read past on every case, and they never change. */}
         <header>
-          <p className='flex flex-col gap-0.5 text-[0.6875rem] leading-snug tracking-[0.06em] text-muted-foreground uppercase'>
-            <strong className='font-semibold text-foreground/80'>
-              {t('sheet.institution')}
-            </strong>
-            <span>{t('sheet.entity')}</span>
-            <span>{t('sheet.unit')}</span>
+          <div className='hidden print:block'>
+            <p className='flex flex-col gap-0.5 text-[0.6875rem] leading-snug tracking-[0.06em] text-muted-foreground uppercase'>
+              <strong className='font-semibold text-foreground/80'>
+                {t('sheet.institution')}
+              </strong>
+              <span>{t('sheet.entity')}</span>
+              <span>{t('sheet.unit')}</span>
+            </p>
+            {/* The mockup's двойная линейка, drawn from the rule tokens. */}
+            <div aria-hidden className='mt-4 flex flex-col gap-[2px]'>
+              <span className='block h-px bg-rule-strong' />
+              <span className='block h-px bg-rule' />
+            </div>
+          </div>
+          <p className='text-[0.75rem] leading-snug text-muted-foreground print:hidden'>
+            {t('sheet.institution')} · {t('sheet.unit')}
           </p>
 
-          {/* The ruled band that separates the letterhead from the case — the
-              mockup's двойная линейка, drawn from the rule tokens so it holds
-              in both themes. */}
-          <div aria-hidden className='mt-4 flex flex-col gap-[2px]'>
-            <span className='block h-px bg-rule-strong' />
-            <span className='block h-px bg-rule' />
-          </div>
-
-          <div className='mt-4 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1'>
-            <p className='text-[0.8125rem] text-muted-foreground'>
-              {t('sheet.case_no')}{' '}
-              <span data-mono className='text-foreground'>
-                {pkg.id}
-              </span>
-            </p>
-            <p className='text-[0.8125rem] text-muted-foreground'>
-              {t('sheet.taken_in', { d: formatDate(pkg.createdAt, locale) })}
-            </p>
-          </div>
-
-          <h1 className='mt-2.5 text-balance text-[1.375rem] font-semibold leading-tight tracking-[-0.02em] text-foreground'>
+          <h1 className='mt-2 text-balance text-[1.5rem] font-semibold leading-tight tracking-[-0.02em] text-foreground print:mt-4 print:text-[1.375rem]'>
             {profileName(t, view.profile)}
           </h1>
-          <p className='mt-1 text-[0.875rem] italic text-muted-foreground'>
+          <p className='mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[0.8125rem] text-muted-foreground'>
+            <span className='min-w-0'>
+              {t('sheet.case_no')}{' '}
+              <span
+                data-mono
+                className='break-all text-[0.75rem] text-foreground/80'
+              >
+                {pkg.id}
+              </span>
+            </span>
+            <span aria-hidden>·</span>
+            <span>
+              {t('sheet.taken_in', { d: formatDate(pkg.createdAt, locale) })}
+            </span>
+          </p>
+          <p className='mt-1 hidden text-[0.875rem] italic text-muted-foreground print:block'>
             {t('sheet.subject')}
           </p>
         </header>
@@ -2999,29 +3072,27 @@ function CaseSheet({
             contract and never derived here (ADR-0014). The move it names is
             offered beside it, because a standing that says what has to happen
             and makes the reader go and find it is half a sentence. */}
-        <section className='mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-rule bg-secondary/60 px-4 py-3'>
-          <span className='register-label shrink-0'>
-            {t('sheet.situation')}
-          </span>
-          <StandingMark standing={pkg.standing} />
-          <span className='ml-auto shrink-0 text-[0.75rem] text-muted-foreground'>
-            {t('updated.ago', {
-              t: relativeShort(pkg.updatedAt, Date.now()),
-            })}
-          </span>
+        <section className='mt-5 rounded-lg border border-rule bg-secondary/60 px-4 py-3'>
+          <div className='flex flex-wrap items-center gap-x-4 gap-y-1'>
+            <StandingMark standing={pkg.standing} />
+            <span className='ml-auto shrink-0 text-[0.75rem] text-muted-foreground'>
+              {t('updated.when', {
+                t: relativeAgo(pkg.updatedAt, Date.now(), locale),
+              })}
+            </span>
+          </div>
+          <p className='mt-1 max-w-[70ch] text-[0.8125rem] leading-snug text-foreground/75'>
+            {t(STANDING_NOTE[pkg.standing])}
+          </p>
         </section>
-        <p className='mt-2 max-w-[70ch] text-[0.8125rem] leading-snug text-muted-foreground'>
-          {t(STANDING_NOTE[pkg.standing])}
-        </p>
 
         {/* ── Requisites ──
             What the papers were read to say, over what the counter typed. The
             two are kept apart and labelled apart: a reading can be read badly
             and carries the figure it was read with, and a declaration cannot
             and does not (ADR-0021). */}
-        <p className='mt-6 register-label'>{t('sheet.read_off')}</p>
-        <table className='mt-1 w-full border-collapse'>
-          <tbody>
+        <div className='mt-6 grid gap-x-10 gap-y-5 md:grid-cols-2'>
+          <RequisiteGroup title={t('sheet.read_off')}>
             <Requisite label={t('sheet.applicant')}>
               <SheetValue value={view.applicant} />
             </Requisite>
@@ -3031,15 +3102,12 @@ function CaseSheet({
             <Requisite label={t('sheet.cadastral')}>
               <SheetValue value={pkg.cadastralNumber} />
             </Requisite>
-          </tbody>
-        </table>
+          </RequisiteGroup>
 
-        <p className='mt-5 register-label'>{t('declared.title')}</p>
-        <p className='mt-1 max-w-[70ch] text-[0.75rem] leading-snug text-muted-foreground'>
-          {t('detail.declared_note')}
-        </p>
-        <table className='mt-1.5 w-full border-collapse'>
-          <tbody>
+          <RequisiteGroup
+            title={t('declared.title')}
+            hint={t('detail.declared_note')}
+          >
             <Requisite label={t('declared.basis')}>
               <DeclaredValue
                 value={
@@ -3059,15 +3127,15 @@ function CaseSheet({
                 }
               />
             </Requisite>
-          </tbody>
-        </table>
+          </RequisiteGroup>
+        </div>
 
-        {/* ── I. Processing stages ── */}
+        {/* ── Processing stages ── */}
         <section className='mt-7'>
-          <h2 className='flex items-baseline gap-3 border-b border-rule-strong pb-1.5 text-[0.8125rem] font-semibold tracking-[0.04em] text-foreground uppercase'>
-            <span>{t('sheet.section.stages')}</span>
+          <h2 className='border-b border-rule pb-2 text-[0.9375rem] font-semibold tracking-[-0.01em] text-foreground'>
+            {t('sheet.section.stages')}
           </h2>
-          <div className='mt-4'>
+          <div className='mt-3'>
             <RunProgress
               stages={stages}
               running={running}
@@ -3084,13 +3152,12 @@ function CaseSheet({
             classifier could not place may still be the missing one, and the
             inspector decides. */}
         <section className='mt-7'>
-          <h2 className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule-strong pb-1.5 text-[0.8125rem] font-semibold tracking-[0.04em] text-foreground uppercase'>
+          <h2 className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule pb-2 text-[0.9375rem] font-semibold tracking-[-0.01em] text-foreground'>
             <span>{t('sheet.section.documents')}</span>
             {settled && required.length > 0 && (
               <span
-                data-mono
                 className={cn(
-                  'text-[0.6875rem] font-normal tracking-normal normal-case tabular-nums',
+                  'text-[0.8125rem] font-medium tabular-nums',
                   missing.length > 0
                     ? 'text-incomplete-ink'
                     : 'text-muted-foreground',
@@ -3119,20 +3186,37 @@ function CaseSheet({
                 return (
                   <li
                     key={type}
-                    className='flex flex-wrap items-baseline gap-x-4 gap-y-0.5 border-b border-rule py-2.5 last:border-0'
+                    className='flex items-center gap-3 border-b border-rule py-2.5 last:border-0'
                   >
+                    <span
+                      aria-hidden
+                      className={cn(
+                        'grid size-5 shrink-0 place-items-center rounded-full',
+                        short
+                          ? 'bg-incomplete/12 text-incomplete-ink'
+                          : 'bg-ok/12 text-ok-ink',
+                      )}
+                    >
+                      {short ? (
+                        <MinusIcon className='size-3' strokeWidth={3} />
+                      ) : (
+                        <CheckIcon className='size-3' strokeWidth={3} />
+                      )}
+                    </span>
+                    <span className='min-w-0 flex-1 text-[0.875rem] text-foreground'>
+                      {translateOr(t, `doctype.${type}`, type)}
+                    </span>
                     {/* The word and not the colour carries it — the rule every
-                        disposition on this surface is drawn by. */}
+                        disposition on this surface is drawn by — after the
+                        name and in sentence case, so the list reads as papers
+                        rather than as a column of capitals. */}
                     <span
                       className={cn(
-                        'w-[6.5rem] shrink-0 text-[0.6875rem] font-semibold tracking-[0.08em] uppercase',
+                        'shrink-0 text-[0.75rem] font-medium',
                         short ? 'text-incomplete-ink' : 'text-ok-ink',
                       )}
                     >
                       {t(short ? 'sheet.doc.missing' : 'sheet.doc.present')}
-                    </span>
-                    <span className='min-w-0 flex-1 text-[0.875rem] text-foreground'>
-                      {translateOr(t, `doctype.${type}`, type)}
                     </span>
                   </li>
                 );
@@ -3182,7 +3266,9 @@ function CaseSheet({
         </div>
       </div>
 
-      <footer className='flex flex-wrap items-center justify-between gap-x-6 gap-y-1 border-t border-rule bg-secondary/40 px-5 py-3 text-[0.75rem] text-muted-foreground md:px-9'>
+      {/* Print only: it tells the reader of a paper copy what stayed in the
+          digital file, which on screen is everything below this sheet. */}
+      <footer className='hidden flex-wrap items-center justify-between gap-x-6 gap-y-1 border-t border-rule bg-secondary/40 px-5 py-3 text-[0.75rem] text-muted-foreground print:flex md:px-9'>
         <span>{t('sheet.foot')}</span>
         <span data-mono>{t('sheet.foot_mark')}</span>
       </footer>
@@ -3234,11 +3320,13 @@ function StagePanel({
               open && 'rotate-90',
             )}
           />
-          <span className='text-[0.9375rem] font-semibold tracking-[-0.01em] text-foreground'>
+          <span className='min-w-0 text-[0.9375rem] font-semibold tracking-[-0.01em] text-foreground'>
             {title}
           </span>
+          {/* Allowed to wrap: a summary set not to shrink pushed a phone's page
+              616px wide on the day it had five provisions to name. */}
           {summary !== undefined && (
-            <span className='ml-auto shrink-0 text-[0.8125rem] font-normal text-muted-foreground'>
+            <span className='ml-auto min-w-0 text-right text-[0.8125rem] font-normal text-muted-foreground'>
               {summary}
             </span>
           )}
@@ -3384,7 +3472,11 @@ export function VerificationDetails() {
   // (COMM-80). It is also the only correct one now that a scan can be replaced
   // — a spent scan keeps its type, so a package whose replacement failed to
   // classify would read as complete if this were derived from the documents.
-  const missing = missingTypes(pkg.gaps);
+  //
+  // Narrowed to the required papers: the gaps name every paper that would close
+  // a requirement — each title a provision could rest on among them — and the
+  // sheet counts found against required, so the whole list drew "-16 of 2".
+  const missing = requiredShortfall(required, pkg.gaps);
 
   const counts = {
     review: documents.filter(d => needsReview(d)).length,
@@ -3515,7 +3607,9 @@ export function VerificationDetails() {
                 ? reviewCount === 0
                   ? t('detail.attention_none')
                   : t('findings.noted', { n: reviewCount })
-                : t('detail.review_preparing')
+                : running
+                  ? t('detail.review_preparing')
+                  : t('status.failed')
             }
             open={panels[PANEL.attention] ?? (reviewCount > 0 || !pkg.report)}
             onOpenChange={open => foldPanel(PANEL.attention, open)}
@@ -3532,7 +3626,7 @@ export function VerificationDetails() {
             title={t('panel.provision')}
             summary={
               pkg.provision
-                ? provisionSummary(t, pkg.provision)
+                ? provisionShort(t, pkg.provision)
                 : t('provision.pending')
             }
             // Open by itself once the run has finished and the provision is not

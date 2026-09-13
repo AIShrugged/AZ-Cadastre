@@ -59,8 +59,12 @@ export function ApproveArchiveSearch({ pkg }: { pkg: PackageDetailDto }) {
 
   return (
     <section id='archive-approval' className='mb-9 scroll-mt-16'>
-      <h2 className='register-label'>{t('approve.title')}</h2>
-      <p className='mt-2 max-w-[70ch] text-[0.8125rem] leading-relaxed text-muted-foreground'>
+      {/* A heading in sentence case: set as the register's uppercase column
+          label, a whole block of work read as a caption. */}
+      <h2 className='text-[0.9375rem] font-semibold tracking-[-0.01em] text-foreground'>
+        {t('approve.title')}
+      </h2>
+      <p className='mt-1 max-w-[70ch] text-[0.8125rem] leading-snug text-muted-foreground'>
         {t('approve.note')}
       </p>
 

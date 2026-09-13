@@ -60,21 +60,10 @@ export function requiredTypes(profile: ProfileDto): readonly string[] {
     .map(type => type.key);
 }
 
-/**
- * The required types no document in the package was classified as — what the
- * inspector is still waiting on. Types the pipeline has not reached yet count
- * as missing, so this only reads as a finding once classification is done.
+/*
+ * Which required types a package is short of is NOT here, and must not come
+ * back: the engine publishes them as `PackageDetailDto.gaps`, worked out over
+ * the documents in force, and `missingTypes` in `document-gaps` reads that list
+ * (COMM-80). The tally this file used to compute counted a scan that had since
+ * been replaced as the paper the package carries.
  */
-export function missingTypes(
-  profiles: readonly ProfileDto[],
-  key: string,
-  found: readonly (string | null)[],
-): readonly string[] {
-  const profile = profiles.find(candidate => candidate.key === key);
-  if (!profile) return [];
-
-  const present = new Set(
-    found.filter((type): type is string => type !== null),
-  );
-  return requiredTypes(profile).filter(type => !present.has(type));
-}

@@ -16,6 +16,7 @@ import {
   ApproveArchiveSearchResponseSchema,
   GetPackageResponseSchema,
   ListPackagesResponseSchema,
+  SupplyDocumentResponseSchema,
   type AddFilesRequest,
   type AddFilesResponse,
   type ApproveArchiveSearchRequest,
@@ -24,6 +25,8 @@ import {
   type CreatePackageResponse,
   type GetPackageResponse,
   type ListPackagesRequestInput,
+  type SupplyDocumentRequest,
+  type SupplyDocumentResponse,
 } from '@cadastre/api-contracts/verification';
 
 import {
@@ -109,6 +112,39 @@ export const packagesApi = api.injectEndpoints({
       ],
     }),
     /*
+     * One file, sent in for one of the gaps the package publishes (COMM-80).
+     *
+     * The difference from `addFiles` is the target, and it is the whole
+     * difference: this file says which paper it is meant to be and, where it
+     * replaces a scan the run read badly, which document it stands in for — so
+     * the package can afterwards say whether what arrived closed the gap it was
+     * sent for. Both values are copied off a published gap and never assembled
+     * here; a target that is not on the list is refused with
+     * `NO_SUCH_DOCUMENT_GAP`.
+     *
+     * Same road for the bytes as every other file — `documents/presign` signs
+     * the URL, the browser PUTs, and this is handed the key — and the same two
+     * tags as `addFiles`, because the package re-opens and is verified afresh
+     * (ADR-0013): the detail this screen is reading and the row the register
+     * draws for it are both stale the moment the call returns.
+     */
+    supplyDocument: build.mutation<
+      SupplyDocumentResponse,
+      { id: string; body: SupplyDocumentRequest }
+    >({
+      query: ({ id, body }) => ({
+        url: `/packages/${id}/documents`,
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (response: unknown) =>
+        SupplyDocumentResponseSchema.parse(response),
+      invalidatesTags: (_result, _error, { id }) => [
+        'Package',
+        { type: 'Package', id },
+      ],
+    }),
+    /*
      * The one write on this resource a person makes rather than the engine:
      * their sign-off on what the archive register answered about the
      * submission, and the conclusion they drew from it (ADR-0016).
@@ -142,5 +178,6 @@ export const {
   useGetPackageQuery,
   useCreatePackageMutation,
   useAddFilesMutation,
+  useSupplyDocumentMutation,
   useApproveArchiveSearchMutation,
 } = packagesApi;

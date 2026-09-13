@@ -16,6 +16,8 @@ export function toProfileDto(view: ProfileView): ProfileDto {
       key: type.key,
       required: type.required,
       fields: [...type.fields],
+      // The domain's own enumeration, which the contract names member for member.
+      source: type.source as ProfileDto['documentTypes'][number]['source'],
     })),
     grounds: [...view.grounds],
   };

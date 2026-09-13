@@ -14,9 +14,13 @@ enum IssueKind {
   RegistryDocumentMissing // the archive holds no original of a paper relied on
   RegistryUnconfirmed // the register held no record of the property, or held two
   MissingAttestation // a paper the profile expects sealed or signed carries no such mark
-  SupportingDocumentsRequired // what the applicant must bring beyond the envelope, for the case this package turned out to be
+  SupportingDocumentsRequired // no longer compiled (ADR-0025); kept because reports written before carry it
   DeclaredValueMismatch // what the office declared at intake is not what the papers state
   WrongDocumentSupplied // a file sent in for a published gap turned out to be a different paper
+  MissingTitleDocument // no document of the package is a title to the land (Article 10.2.1)
+  TitleDocumentInvalid // a title outside its window of dates, or of the class its provision does not rest on
+  ProvisionUndetermined // which provision of Article 8 the case falls under could not be decided
+  IntegrationNotConnected // a check the policy makes through a state system this one does not reach
 }
 
 model ValidationIssue {

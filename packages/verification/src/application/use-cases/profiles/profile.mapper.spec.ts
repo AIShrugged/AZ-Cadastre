@@ -10,9 +10,19 @@ function aProfileView(overrides: Partial<ProfileView> = {}): ProfileView {
   return {
     key: 'cadastre',
     documentTypes: [
-      { key: 'land_plot_plan', required: true, fields: ['cadastral_number'] },
-      { key: 'identity_card', required: true, fields: ['document_no'] },
-      { key: 'payment_receipt', required: true, fields: [] },
+      {
+        key: 'land_plot_plan',
+        required: true,
+        fields: ['cadastral_number'],
+        source: 'Package',
+      },
+      {
+        key: 'identity_card',
+        required: true,
+        fields: ['document_no'],
+        source: 'Package',
+      },
+      { key: 'payment_receipt', required: true, fields: [], source: 'Package' },
     ],
     grounds: ['land_plot_plan'],
     ...overrides,
@@ -30,9 +40,24 @@ describe('toProfileDto', () => {
     const dto = toProfileDto(
       aProfileView({
         documentTypes: [
-          { key: 'payment_receipt', required: true, fields: [] },
-          { key: 'sketch_project', required: true, fields: [] },
-          { key: 'archive_certificate', required: false, fields: [] },
+          {
+            key: 'payment_receipt',
+            required: true,
+            fields: [],
+            source: 'Package',
+          },
+          {
+            key: 'sketch_project',
+            required: true,
+            fields: [],
+            source: 'Package',
+          },
+          {
+            key: 'archive_certificate',
+            required: false,
+            fields: [],
+            source: 'Package',
+          },
         ],
       }),
     );
@@ -48,15 +73,30 @@ describe('toProfileDto', () => {
     const dto = toProfileDto(
       aProfileView({
         documentTypes: [
-          { key: 'identity_card', required: true, fields: [] },
-          { key: 'archive_certificate', required: false, fields: [] },
+          {
+            key: 'identity_card',
+            required: true,
+            fields: [],
+            source: 'Package',
+          },
+          {
+            key: 'archive_certificate',
+            required: false,
+            fields: [],
+            source: 'Package',
+          },
         ],
       }),
     );
 
     expect(dto.documentTypes).toEqual([
-      { key: 'identity_card', required: true, fields: [] },
-      { key: 'archive_certificate', required: false, fields: [] },
+      { key: 'identity_card', required: true, fields: [], source: 'Package' },
+      {
+        key: 'archive_certificate',
+        required: false,
+        fields: [],
+        source: 'Package',
+      },
     ]);
   });
 
@@ -64,7 +104,12 @@ describe('toProfileDto', () => {
     const view = aProfileView();
 
     const dto = toProfileDto(view);
-    dto.documentTypes.push({ key: 'forged', required: true, fields: [] });
+    dto.documentTypes.push({
+      key: 'forged',
+      required: true,
+      fields: [],
+      source: 'Package',
+    });
 
     expect(view.documentTypes).toHaveLength(3);
   });
@@ -92,6 +137,7 @@ describe('toProfileDto', () => {
             key: 'application',
             required: true,
             fields: ['applicant_name', 'property_address', 'cadastral_number'],
+            source: 'Package',
           },
         ],
       }),

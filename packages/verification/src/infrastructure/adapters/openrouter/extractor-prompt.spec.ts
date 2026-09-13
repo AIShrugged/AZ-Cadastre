@@ -81,8 +81,9 @@ describe('extractionInstructions', () => {
     expect(prompt).toMatch(/never extend, renumber or/i);
   });
 
-  // The figure the supporting-documents branch turns on (ADR-0013). Measured
-  // to the ridge instead, the case is sent to the wrong band in silence.
+  // One of the figures the provision of Article 8 turns on (ADR-0025). Measured
+  // to the ridge instead, the case is placed under the wrong provision in
+  // silence.
   it('says where the height on the section is measured from and to', () => {
     const prompt = extractionInstructions(SKETCH_DESIGN);
 

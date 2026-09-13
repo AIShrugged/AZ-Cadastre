@@ -23,6 +23,7 @@ const profile = (key: string, grounds: string[]): ProfileDto => ({
     key: ground,
     required: true,
     fields: [],
+    source: 'Package',
   })),
   grounds,
 });

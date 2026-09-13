@@ -152,6 +152,7 @@ export {
   supportingSetsOf,
   SUPPORTING_DOCUMENTS,
 } from './model/supporting-documents';
+export { provisionSummary, unansweredAlternatives } from './model/provision';
 
 export type { RegisterQuery } from './model/register-query';
 export {

@@ -2,14 +2,18 @@ import { z } from 'zod';
 
 import {
   ArchiveHoldingSchema,
+  CaseParameterSchema,
   CrossCheckVerdictSchema,
   DocumentContentTypeSchema,
   DocumentGapReasonSchema,
   FieldOriginSchema,
   IssueKindSchema,
+  LandRightSchema,
   MarkStateSchema,
   PackageStandingSchema,
   PackageStatusSchema,
+  ParameterSourceSchema,
+  ProvisionOutcomeSchema,
   RegistryOutcomeSchema,
   ReportStatusSchema,
 } from '../enums/index.js';
@@ -512,6 +516,132 @@ export type ArchiveSearchApprovalDto = z.infer<
   typeof ArchiveSearchApprovalDtoSchema
 >;
 
+// ─── The provision of Article 8 ──────────────────────────────────────────────
+// Which provision a first registration falls under, decided on six figures, and
+// what that provision asks the package for (ADR-0025). Worked out by the server
+// on every read and never stored; a client draws it and decides none of it.
+
+export const CaseParameterDtoSchema = z.object({
+  parameter: CaseParameterSchema,
+  // What the table was decided on: a number for builtYear, storeys, height (m)
+  // and span (m); a `LandRight` or `LandPurpose` word for the other two. Null
+  // where the figure could not be established — which is never a guess.
+  value: z.union([z.number(), z.string()]).nullable(),
+  // Null where nothing stated the figure at all.
+  source: ParameterSourceSchema.nullable(),
+  // The words the figure was read out of, or the declared year. Set beside a
+  // null `value` where a paper stated something that could not be understood:
+  // "2 mərtəbə" on a height line is a reading refused, not a reading missing.
+  stated: z.string().nullable(),
+  // The document, line and sheet the figure is believed from. Null for a figure
+  // declared at intake; `fieldName` is null for a figure decided by the kind of
+  // title document rather than by a line of it.
+  from: z
+    .object({
+      documentId: z.string(),
+      documentType: z.string(),
+      fieldName: z.string().nullable(),
+      pageNumber: z.number().int().positive().nullable(),
+      confidence: z.number().nullable(),
+    })
+    .nullable(),
+});
+export type CaseParameterDto = z.infer<typeof CaseParameterDtoSchema>;
+
+export const ProvisionRuleEvaluationDtoSchema = z.object({
+  provision: z.string(),
+  description: z.string(),
+  // One entry per figure the row turns on. `holds` is null where the figure
+  // could not be established.
+  conditions: z.array(
+    z.object({ parameter: CaseParameterSchema, holds: z.boolean().nullable() }),
+  ),
+  excluded: z.boolean(),
+  holds: z.boolean(),
+});
+export type ProvisionRuleEvaluationDto = z.infer<
+  typeof ProvisionRuleEvaluationDtoSchema
+>;
+
+export const ProvisionRequirementDtoSchema = z.object({
+  // Document type keys; any one of them answers the group.
+  anyOf: z.array(z.string()),
+  // A group the policy asks for only for a case built before this year — from
+  // then on the fact reaches the registry through an integration instead.
+  onlyBuiltBefore: z.number().int().nullable(),
+  // Whether the policy asks this package for the group. Null where it turns on
+  // a year nobody could establish.
+  applies: z.boolean().nullable(),
+  answered: z.boolean(),
+});
+export type ProvisionRequirementDto = z.infer<
+  typeof ProvisionRequirementDtoSchema
+>;
+
+export const ProvisionStandingDtoSchema = z.object({
+  provision: z.string(),
+  description: z.string(),
+  // The class of title the provision rests on, where it names one.
+  titleRight: LandRightSchema.nullable(),
+  // Every provision also asks for a title to the land (Article 10.2.1); that
+  // requirement is the same for all of them and is not repeated here.
+  requirements: z.array(ProvisionRequirementDtoSchema),
+});
+export type ProvisionStandingDto = z.infer<typeof ProvisionStandingDtoSchema>;
+
+export const TitleDocumentStandingDtoSchema = z.object({
+  documentId: z.string(),
+  documentType: z.string(),
+  landRight: LandRightSchema,
+  dated: z
+    .object({
+      fieldName: z.string(),
+      value: z.string(),
+      pageNumber: z.number().int().positive().nullable(),
+      confidence: z.number().nullable(),
+    })
+    .nullable(),
+  // Whether any item the paper is listed under admits its date. Null where the
+  // date went unread, or where only a year was and a window's edge falls in it.
+  withinWindow: z.boolean().nullable(),
+  items: z.array(
+    z.object({
+      // The item of the Decree or of Article 8 that names the paper.
+      item: z.string(),
+      // The window as one English line, written for the record.
+      window: z.string(),
+      // The same window as ISO dates, for a reader in their own language:
+      // inclusive at the bottom, exclusive at the top, null for an open end.
+      issuedFrom: z.string().nullable(),
+      issuedBefore: z.string().nullable(),
+      admits: z.boolean().nullable(),
+    }),
+  ),
+});
+export type TitleDocumentStandingDto = z.infer<
+  typeof TitleDocumentStandingDtoSchema
+>;
+
+export const CaseProvisionDtoSchema = z.object({
+  key: z.string(),
+  outcome: ProvisionOutcomeSchema,
+  // Set exactly on `Determined`.
+  provision: z.string().nullable(),
+  // Set exactly on `Ambiguous`, in the table's order.
+  candidates: z.array(z.string()),
+  // The figures whose reading would settle an ambiguous case.
+  undecidedOn: z.array(CaseParameterSchema),
+  // All six, in the table's column order.
+  parameters: z.array(CaseParameterDtoSchema),
+  // Every row of the table, in order, and how the case stood against it.
+  rules: z.array(ProvisionRuleEvaluationDtoSchema),
+  // The determined provision or every candidate; empty on `Undetermined`.
+  provisions: z.array(ProvisionStandingDtoSchema),
+  // Every title to the land the package carries, with the window it is held to.
+  titleDocuments: z.array(TitleDocumentStandingDtoSchema),
+});
+export type CaseProvisionDto = z.infer<typeof CaseProvisionDtoSchema>;
+
 export const ReportDtoSchema = z.object({
   status: ReportStatusSchema,
   // ISO-8601.
@@ -534,6 +664,10 @@ export const PackageDetailDtoSchema = PackageDtoSchema.extend({
    * Empty only where a profile declares none and the package is complete.
    */
   gaps: z.array(DocumentGapDtoSchema),
+  // Which provision of Article 8 the case falls under and what it asks for.
+  // Present from submission on, sharpening as the papers are read; null on a
+  // profile that declares no table of provisions (ADR-0025).
+  provision: CaseProvisionDtoSchema.nullable(),
   // Empty until the cross-document stage has run, and short of the profile's
   // full list where a check had only one document to read.
   crossChecks: z.array(CrossCheckDtoSchema),

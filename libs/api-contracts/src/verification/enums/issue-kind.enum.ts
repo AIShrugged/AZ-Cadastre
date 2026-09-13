@@ -28,6 +28,10 @@ export const IssueKindSchema = z.enum([
   // shortfall as UnreadableDocument, which is about the reading: the sheet was
   // read, and what it holds is a document short of what makes it valid.
   'MissingAttestation',
+  // No longer compiled since ADR-0025, which replaced the invented bands with
+  // the provisions of Article 8; a report written before it may still carry
+  // one, so the value stays.
+  //
   // What the applicant must bring beyond the envelope, for the case this
   // package turned out to be. Not a finding: the engine never sees these
   // papers, and saying which ones are needed is the whole of what it does with
@@ -55,5 +59,30 @@ export const IssueKindSchema = z.enum([
   // asked for rather than what turned up, because the finding is about that gap
   // (COMM-80).
   'WrongDocumentSupplied',
+  // No document of the package is a title to the land — none of the papers
+  // Article 10.2.1 accepts as confirming the right over the plot. Leaves the
+  // package incomplete, like MissingDocument, and names no single type because
+  // any of the titles would answer it: which ones is on the report's
+  // provision (ADR-0025).
+  'MissingTitleDocument',
+  // A title document the package does carry that does not found the case: it
+  // is dated outside the window its item of the Decree gives it, or it is a
+  // title of the other class from the one the case's provision rests on — a
+  // lease document under 8.0.9.1.2, which is registered on ownership. Filed
+  // against the title and, for a date, against the date it was read off.
+  'TitleDocumentInvalid',
+  // Which provision of Article 8 the case falls under could not be decided:
+  // a figure the table turns on was not stated, and several provisions stay
+  // open; or no provision covers the case at all. Held against the package,
+  // because which papers it must carry turns on the answer and only the
+  // inspector can give it.
+  'ProvisionUndetermined',
+  // The policy confirms a paper of this kind through a state system — MQS, the
+  // Licences Portal, the Urban Planning Committee, the National Archive — and
+  // that system is not connected to this one, so the paper was read and not
+  // confirmed. Stated for the record and never against the package: the
+  // applicant is not answerable for an integration nobody built. Which system
+  // is the profile's `source` of `documentType`.
+  'IntegrationNotConnected',
 ]);
 export type IssueKind = z.infer<typeof IssueKindSchema>;

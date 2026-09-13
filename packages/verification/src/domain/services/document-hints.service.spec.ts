@@ -26,6 +26,7 @@ function aTypeHinted(key: string, ...hints: readonly string[]) {
     alwaysAccepted: false,
     expectsStamp: false,
     expectsSignature: false,
+    source: 'Package',
     fields: [],
   });
 }
@@ -109,13 +110,17 @@ describe('headingMatch', () => {
 // merely both appear on the sheet (ADR-0022).
 describe('enclosesHeading', () => {
   const TEXT = 'ТЕХНИЧЕСКИЙ ПАСПОРТ, 1998 г.';
+  // The identity card alone. The profile reads the technical passport as a
+  // title since ADR-0025, and within one list the earlier, longer heading
+  // wins by itself; the enclosure is a question between two lists.
+  const IDENTITY = CADASTRE.filter(spec => spec.type.value === 'identity_card');
   const OTHERS = [
     aTypeHinted('technical_passport', 'технический паспорт'),
     aTypeHinted('covering_letter', 'сопроводительное письмо'),
   ];
 
   it('sees a longer heading that contains the span given', () => {
-    const found = headingMatch(TEXT, CADASTRE);
+    const found = headingMatch(TEXT, IDENTITY);
 
     expect(found?.spec.type.value).toBe('identity_card');
     expect(enclosesHeading(TEXT, found!, OTHERS)).toBe(true);
@@ -125,7 +130,7 @@ describe('enclosesHeading', () => {
   // question is asked of the whole list and not of its best match.
   it('sees it even when another candidate matches earlier', () => {
     const text = 'СОПРОВОДИТЕЛЬНОЕ ПИСЬМО и ТЕХНИЧЕСКИЙ ПАСПОРТ';
-    const found = headingMatch(text, CADASTRE);
+    const found = headingMatch(text, IDENTITY);
 
     expect(enclosesHeading(text, found!, OTHERS)).toBe(true);
   });

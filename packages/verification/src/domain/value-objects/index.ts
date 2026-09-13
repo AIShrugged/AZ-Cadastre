@@ -15,6 +15,7 @@ export {
   type CatalogueGroup,
   type CatalogueSection,
 } from './document-catalogue.vo.js';
+export { DOCUMENT_SOURCES, type DocumentSource } from './document-source.vo.js';
 export { DocumentType } from './document-type.vo.js';
 export { FailureReason } from './failure-reason.vo.js';
 export { FieldKey, FieldValue } from './field.vo.js';
@@ -38,6 +39,28 @@ export { PackageStatus } from './package-status.vo.js';
 export { PageImage } from './page-image.vo.js';
 export { PageNumber } from './page-number.vo.js';
 export { PageRange } from './page-range.vo.js';
+export {
+  CASE_PARAMETERS,
+  LAND_PURPOSES,
+  LAND_RIGHTS,
+  ProvisionRule,
+  ProvisionsSpec,
+  Requirement,
+  TitleDocumentEntry,
+  type CaseParameterKey,
+  type CaseParameters,
+  type DateSpan,
+  type FigureAt,
+  type LandPurpose,
+  type LandRight,
+  type ProvisionDecision,
+  type ProvisionOutcome,
+  type ProvisionRuleDeclaration,
+  type ProvisionsDeclaration,
+  type RequirementDeclaration,
+  type RuleEvaluation,
+  type TitleDocumentDeclaration,
+} from './provision.vo.js';
 export { RecognisedText } from './recognised-text.vo.js';
 export {
   RegistryAttribute,
@@ -58,13 +81,9 @@ export {
   IntakeSpec,
   ParticularsSpec,
   RegistryCheckSpec,
-  RequirementBand,
-  SupportingDocumentsSpec,
   VerificationProfile,
   type CatalogueDeclaration,
   type IntakeDeclaration,
   type ParticularsDeclaration,
-  type RequirementBandDeclaration,
-  type SupportingDocumentsDeclaration,
 } from './verification-profile.vo.js';
 export { VerificationReport } from './verification-report.vo.js';

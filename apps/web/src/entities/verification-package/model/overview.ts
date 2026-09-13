@@ -223,6 +223,10 @@ export const ISSUE_KIND_KEY: Record<IssueKind, string> = {
   SupportingDocumentsRequired: 'detail.sec.supporting',
   DeclaredValueMismatch: 'detail.sec.declared_mismatch',
   WrongDocumentSupplied: 'detail.sec.wrong_supplied',
+  MissingTitleDocument: 'detail.sec.title_missing',
+  TitleDocumentInvalid: 'detail.sec.title_invalid',
+  ProvisionUndetermined: 'detail.sec.provision_undetermined',
+  IntegrationNotConnected: 'detail.sec.not_connected',
 };
 
 export type FindingRank = {

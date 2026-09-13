@@ -5,6 +5,8 @@ export type ProfileDocumentTypeView = {
   // labels: the profile's own labels are written for the extractor, and the
   // reader's language is the caller's to choose.
   fields: readonly string[];
+  // One of the domain's `DOCUMENT_SOURCES` (ADR-0025).
+  source: string;
 };
 
 export type ProfileView = {

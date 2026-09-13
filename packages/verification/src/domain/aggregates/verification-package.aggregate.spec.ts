@@ -151,6 +151,11 @@ const REQUIRED_TYPES = VerificationProfile.CADASTRE.requiredTypes.map(
   type => type.value,
 );
 
+// Every title to the land the table of provisions lists (ADR-0025).
+const TITLE_TYPES = VerificationProfile.CADASTRE.provisions!.titleTypes.map(
+  type => type.value,
+);
+
 type Options = {
   profile?: VerificationProfile;
   files?: readonly SourceFile[];
@@ -1226,20 +1231,6 @@ describe('VerificationPackage', () => {
   });
 
   describe('the report it finishes with', () => {
-    // Every required type, one per sheet, each placed — the package an
-    // inspector should have nothing to be told about.
-    function aCompletePackage() {
-      const built = aSegmentedPackage(REQUIRED_TYPES.length);
-      built.documents.forEach((document, index) => {
-        built.verification.classify(
-          document.id,
-          aClassification(REQUIRED_TYPES[index]!),
-        );
-      });
-
-      return built;
-    }
-
     function kindsOf(verification: VerificationPackage): readonly string[] {
       return (verification.report?.issues ?? []).map(issue => issue.kind.value);
     }
@@ -1254,17 +1245,17 @@ describe('VerificationPackage', () => {
 
     /*
      * "Clean" is about what is held against the package, not about the report
-     * being empty. Since ADR-0013 a good package still carries one message —
-     * which supporting documents this case needs — and that is stated for the
-     * applicant, so the outcome is still OK.
+     * being empty. A good package still carries a message — the plan of the
+     * plot is a paper the policy confirms through MQS, which is not connected —
+     * and that is stated for the record, so the outcome is still OK (ADR-0025).
      */
-    it('reads as clean when every required document was found', () => {
+    it('reads as clean when every paper its provision asks for was found', () => {
       const { verification } = aCompletePackage();
 
       verification.complete();
 
       expect(verification.report?.status.value).toBe('OK');
-      expect(kindsOf(verification)).toEqual(['SupportingDocumentsRequired']);
+      expect(kindsOf(verification)).toEqual(['IntegrationNotConnected']);
     });
 
     it('names every required document nobody supplied', () => {
@@ -1341,8 +1332,8 @@ describe('VerificationPackage', () => {
 
     it('flags a value the engine is unsure of, and says how unsure', () => {
       const { verification } = aCompletePackage();
-      const identity = verification.documents.at(-1)!;
-      verification.recordExtractedFields(identity.id, [
+      const title = verification.documents.at(-1)!;
+      verification.recordExtractedFields(title.id, [
         aField('document_no', 0.42),
       ]);
 
@@ -1357,14 +1348,14 @@ describe('VerificationPackage', () => {
 
     it('leaves a value it is sure of out of the report', () => {
       const { verification } = aCompletePackage();
-      const identity = verification.documents.at(-1)!;
-      verification.recordExtractedFields(identity.id, [
+      const title = verification.documents.at(-1)!;
+      verification.recordExtractedFields(title.id, [
         aField('document_no', 0.95),
       ]);
 
       verification.complete();
 
-      expect(kindsOf(verification)).toEqual(['SupportingDocumentsRequired']);
+      expect(kindsOf(verification)).toEqual(['IntegrationNotConnected']);
     });
 
     it('reports a document that read fine and is not of a type the profile asks for', () => {
@@ -1410,13 +1401,7 @@ describe('VerificationPackage', () => {
     // Informational, named or not: nothing here is a shortfall the inspector
     // has to resolve before registering.
     it('does not count a named extra document against the package', () => {
-      const built = aSegmentedPackage(REQUIRED_TYPES.length + 1);
-      REQUIRED_TYPES.forEach((type, index) => {
-        built.verification.classify(
-          built.documents[index]!.id,
-          aClassification(type),
-        );
-      });
+      const built = aCompletePackage(1);
       built.verification.classify(
         built.documents.at(-1)!.id,
         Classification.outOfProfile(
@@ -1429,7 +1414,7 @@ describe('VerificationPackage', () => {
 
       expect(kindsOf(built.verification)).toEqual([
         'ExtraDocument',
-        'SupportingDocumentsRequired',
+        'IntegrationNotConnected',
       ]);
       expect(built.verification.report?.status.value).toBe('OK');
     });
@@ -1702,333 +1687,256 @@ describe('VerificationPackage', () => {
   });
 
   /*
-   * Which supporting documents this case needs, worked out from how tall the
-   * building is and what year it is dated by (ADR-0013).
+   * Which provision of Article 8 the case falls under, and what the package is
+   * held to because of it (ADR-0025).
    *
-   * The thresholds and the sets the assertions below name are the profile's
-   * provisional table — `supporting-documents.table.ts`, whose values are ours
-   * and not the customer's. What is under test is the mechanism: that the right
-   * band is chosen, that a figure nobody could read never chooses one, and that
-   * the message is told either way and counts against nothing.
+   * The table itself is held to the customer's acceptance contract in
+   * `provision.vo.spec.ts`, and the reading of the figures in
+   * `case-provision.service.spec.ts`. What is under test here is what the
+   * report says: the paper a provision asks for and the title every provision
+   * asks for, a title outside its window, a provision nobody could decide, and
+   * a paper confirmed through a system nobody connected.
    */
-  describe('the supporting documents it says the applicant must bring', () => {
-    function aValue(
-      key: string,
-      value: string,
-      confidence = 0.9,
-    ): ExtractedField {
+  describe('the provision of Article 8 it holds the package to', () => {
+    function aValue(key: string, value: string): ExtractedField {
       return ExtractedField.of(
         FieldKey.create(key),
         FieldValue.create(value),
-        Confidence.of(confidence),
+        Confidence.of(0.9),
         PageNumber.first(),
       );
     }
 
-    // A package holding one sketch design and whatever it was read to state,
-    // under whatever the office declared about it at the counter.
-    function aDesignStating(
-      fields: readonly (readonly [string, string, number?])[],
-      declared: DeclaredAtIntake = DeclaredAtIntake.none(),
-    ): VerificationPackage {
-      const built = aSegmentedPackage(1, { declared });
-      built.verification.classify(
-        built.document.id,
-        aClassification('sketch_project'),
-      );
-      if (fields.length > 0) {
-        built.verification.recordExtractedFields(
-          built.document.id,
-          fields.map(([key, value, confidence]) =>
-            aValue(key, value, confidence),
-          ),
-        );
-      }
-      built.verification.complete();
+    type Paper = readonly [string, Readonly<Record<string, string>>];
 
-      return built.verification;
-    }
+    // A package of these papers, one per sheet, each placed and read, taken in
+    // as built in `year`, and run to its report.
+    function aCase(year: number | null, ...papers: readonly Paper[]) {
+      const built = aSegmentedPackage(papers.length, {
+        declared: DeclaredAtIntake.of({ builtYear: year }),
+      });
 
-    function messageOf(verification: VerificationPackage): ValidationIssue {
-      const told = (verification.report?.issues ?? []).filter(
-        issue => issue.kind.value === 'SupportingDocumentsRequired',
-      );
+      papers.forEach(([type, fields], index) => {
+        const document = built.documents[index]!;
+        const values = Object.entries(fields);
 
-      expect(told).toHaveLength(1);
-
-      return told[0]!;
-    }
-
-    it('places a low house dated by a recent year in the band for one', () => {
-      const verification = aDesignStating([
-        ['building_height', '9,4 m'],
-        ['approval_date', '18.12.2025'],
-      ]);
-
-      expect(messageOf(verification).message).toContain('low_rise_recent');
-    });
-
-    it('places a low house dated before the notification regime in the band for one', () => {
-      const verification = aDesignStating([
-        ['building_height', '9,4 m'],
-        ['approval_date', '04.06.2005'],
-      ]);
-
-      expect(messageOf(verification).message).toContain('low_rise_legacy');
-    });
-
-    it('places a house tall enough to have needed a permit in the band for one', () => {
-      const verification = aDesignStating([
-        ['building_height', '18 m'],
-        ['approval_date', '18.12.2025'],
-      ]);
-
-      expect(messageOf(verification).message).toContain('mid_rise');
-    });
-
-    it('places a house tall enough to have needed the design examined in the band for one', () => {
-      const verification = aDesignStating([
-        ['building_height', '31 m'],
-        ['approval_date', '18.12.2025'],
-      ]);
-
-      expect(messageOf(verification).message).toContain('high_rise');
-    });
-
-    // A bound is inclusive at the bottom and exclusive at the top, so the two
-    // bands either side of twelve metres do not argue over twelve itself.
-    it('reads a height exactly on a threshold as the band the threshold opens', () => {
-      const verification = aDesignStating([
-        ['building_height', '12 m'],
-        ['approval_date', '18.12.2025'],
-      ]);
-
-      expect(messageOf(verification).message).toContain('mid_rise');
-    });
-
-    it('names the papers of the band it placed the case in', () => {
-      const verification = aDesignStating([
-        ['building_height', '18 m'],
-        ['approval_date', '18.12.2025'],
-      ]);
-
-      expect(messageOf(verification).message).toContain('Construction permit');
-      expect(messageOf(verification).message).toContain('Act of commissioning');
-    });
-
-    // A band that says nothing about the year answers whatever year is read,
-    // including none: a rule that holds in every year holds when nobody could
-    // read the year.
-    it('decides a band whose rule does not turn on the year without one', () => {
-      const verification = aDesignStating([['building_height', '18 m']]);
-
-      expect(messageOf(verification).message).toContain('mid_rise');
-    });
-
-    it('falls back to the next paper of the profile ordering for the year', () => {
-      const built = aSegmentedPackage(2);
-      built.verification.classify(
-        built.documents[0]!.id,
-        aClassification('sketch_project'),
-      );
-      built.verification.classify(
-        built.documents[1]!.id,
-        aClassification('disposal_order'),
-      );
-      built.verification.recordExtractedFields(built.documents[0]!.id, [
-        aValue('building_height', '9,4 m'),
-      ]);
-      built.verification.recordExtractedFields(built.documents[1]!.id, [
-        aValue('issue_date', '04.06.2005'),
-      ]);
-      built.verification.complete();
-
-      expect(messageOf(built.verification).message).toContain(
-        'low_rise_legacy',
-      );
-    });
-
-    it('files the message against the reading it was decided on', () => {
-      const built = aSegmentedPackage();
-      built.verification.classify(
-        built.document.id,
-        aClassification('sketch_project'),
-      );
-      built.verification.recordExtractedFields(built.document.id, [
-        aValue('building_height', '18 m', 0.82),
-        aValue('approval_date', '18.12.2025', 0.91),
-      ]);
-      built.verification.complete();
-
-      const told = messageOf(built.verification);
-      expect(told.documentId?.equals(built.document.id)).toBe(true);
-      expect(told.documentType?.value).toBe('sketch_project');
-      expect(told.fieldKey?.value).toBe('building_height');
-      // A set is only as certain as the least certain figure it was chosen on.
-      expect(told.confidence?.value).toBe(0.82);
-    });
-
-    /*
-     * The half that is easy to forget. A height nobody could read must not
-     * choose a band — the applicant would be sent for the wrong papers — but it
-     * must not silence the message either: the applicant still has papers to
-     * bring, and the inspector has to be able to see that the engine could not
-     * work out which.
-     */
-    it('decides no band when the height could not be read', () => {
-      const verification = aDesignStating([
-        // Storeys, not metres. Reading it as metres would place a two-storey
-        // house in the lowest band with a straight face.
-        ['building_height', '2 mərtəbə'],
-        ['approval_date', '18.12.2025'],
-      ]);
-
-      expect(messageOf(verification).message).toContain('could not be decided');
-      expect(messageOf(verification).message).toContain(
-        'the height of the building could not be read',
-      );
-    });
-
-    it('decides no band when the package states neither figure', () => {
-      const verification = aDesignStating([]);
-
-      expect(messageOf(verification).message).toContain(
-        'neither the height of the building nor the year',
-      );
-    });
-
-    it('decides no band when the year is needed and the package states none', () => {
-      const verification = aDesignStating([['building_height', '9,4 m']]);
-
-      expect(messageOf(verification).message).toContain('could not be decided');
-    });
-
-    // Undecided is not silent: which set applies is exactly what is unknown, so
-    // every set is named and the applicant learns what they may be asked for.
-    it('names every set when it could decide on none of them', () => {
-      const message = messageOf(aDesignStating([])).message;
-
-      for (const band of VerificationProfile.CADASTRE.supportingDocuments[0]!
-        .bands) {
-        expect(message).toContain(band.key);
-      }
-    });
-
-    /*
-     * What tells the two apart on the wire. A message that placed the case
-     * carries the reading it was placed on; one that could not carries no
-     * document, no sheet and no confidence — "we could not work this out" must
-     * never read like "we worked it out and all is well".
-     */
-    it('carries no reading when it could decide no band', () => {
-      const told = messageOf(aDesignStating([]));
-
-      expect(told.documentId).toBeNull();
-      expect(told.documentType).toBeNull();
-      expect(told.fieldKey).toBeNull();
-      expect(told.pageNumber).toBeNull();
-      expect(told.confidence).toBeNull();
-    });
-
-    it('is stated for the applicant and never against the package', () => {
-      const built = aSegmentedPackage(REQUIRED_TYPES.length);
-      REQUIRED_TYPES.forEach((type, index) => {
-        built.verification.classify(
-          built.documents[index]!.id,
-          aClassification(type),
-        );
+        built.verification.classify(document.id, aClassification(type));
+        if (values.length > 0) {
+          built.verification.recordExtractedFields(
+            document.id,
+            values.map(([key, value]) => aValue(key, value)),
+          );
+        }
       });
       built.verification.complete();
 
-      expect(messageOf(built.verification).kind.isInformational).toBe(true);
-      expect(built.verification.report?.status.value).toBe('OK');
+      return built;
+    }
+
+    function issuesOf(
+      verification: VerificationPackage,
+      kind: string,
+    ): readonly ValidationIssue[] {
+      return (verification.report?.issues ?? []).filter(
+        issue => issue.kind.value === kind,
+      );
+    }
+
+    const PLAN: Paper = [
+      'land_plot_plan',
+      { land_category: 'Fərdi yaşayış tikintisi üçün torpaq' },
+    ];
+    // Two storeys, 7.4 m and 4.2 m spans: inside the notification procedure.
+    const LOW_DESIGN: Paper = [
+      'sketch_project',
+      {
+        storeys: '2',
+        building_height: '7,4 m',
+        span_dimensions: 'A—B 4,20 m; B—C 3,60 m',
+      },
+    ];
+    const ORDER: Paper = ['disposal_order', {}];
+
+    it('holds a pre-2013 owned house to its title alone', () => {
+      const { verification } = aCase(2010, PLAN, LOW_DESIGN, [
+        'registration_certificate',
+        {},
+      ]);
+
+      const decision = verification.provision?.decision;
+      expect(decision?.outcome).toBe('Determined');
+      expect(
+        decision?.outcome === 'Determined' && decision.provision.provision,
+      ).toBe('8.0.9.1.2');
+      expect(verification.report?.status.value).toBe('OK');
     });
 
-    // Absence of data is not a violation: a package that is otherwise in order
-    // and whose height nobody could read still reads OK.
-    it('does not spoil the outcome when it could decide no band', () => {
-      const built = aSegmentedPackage(REQUIRED_TYPES.length);
-      REQUIRED_TYPES.forEach((type, index) => {
-        built.verification.classify(
-          built.documents[index]!.id,
-          aClassification(type),
-        );
-      });
-      built.verification.complete();
-
-      expect(messageOf(built.verification).message).toContain(
-        'could not be decided',
-      );
-      expect(built.verification.report?.status.value).toBe('OK');
-    });
-
-    /*
-     * The year the office declared at the counter, where no paper states one.
-     *
-     * The fallback is a fallback and not a second opinion: a figure printed on
-     * a paper is what the case rests on, and the declaration is only what
-     * somebody said about it. Where the papers state a year, they decide.
-     */
-    it('decides a band on the declared year when no paper of the package states one', () => {
-      const verification = aDesignStating(
-        [['building_height', '9,4 m']],
-        DeclaredAtIntake.of({ builtYear: 2005 }),
-      );
-
-      expect(messageOf(verification).message).toContain('low_rise_legacy');
-    });
-
-    // The reader has to be able to check the figure, and a year nobody read off
-    // a sheet is checked at the counter rather than in the file.
-    it('says the year it fell back on was declared at intake', () => {
-      const verification = aDesignStating(
-        [['building_height', '9,4 m']],
-        DeclaredAtIntake.of({ builtYear: 2005 }),
-      );
-
-      expect(messageOf(verification).message).toContain(
-        'dated 2005 as declared at intake',
-      );
-    });
-
-    it('reads the papers rather than the declaration where both state a year', () => {
-      const verification = aDesignStating(
-        [
-          ['building_height', '9,4 m'],
-          ['approval_date', '18.12.2025'],
-        ],
-        DeclaredAtIntake.of({ builtYear: 2005 }),
-      );
-
-      const told = messageOf(verification);
-      expect(told.message).toContain('low_rise_recent');
-      expect(told.message).not.toContain('as declared at intake');
-    });
-
-    // Nothing is declared about the height, so a declaration cannot rescue a
-    // sketch design nobody could read a height off.
-    it('still decides no band when the height could not be read, whatever was declared', () => {
-      const verification = aDesignStating(
-        [['building_height', '2 mərtəbə']],
-        DeclaredAtIntake.of({ builtYear: 2005 }),
-      );
-
-      expect(messageOf(verification).message).toContain('could not be decided');
-      expect(messageOf(verification).message).toContain(
-        'the height of the building could not be read',
-      );
-    });
-
-    // One message per branch the profile declares, and the profile declares
-    // one: a re-run works the report out from scratch, so this cannot double up.
-    it('tells it once per branch the profile declares', () => {
-      const verification = aDesignStating([['building_height', '18 m']]);
+    it('names each paper the provision asks for that the package does not carry', () => {
+      const { verification } = aCase(2014, PLAN, LOW_DESIGN, ORDER);
 
       expect(
-        (verification.report?.issues ?? []).filter(
-          issue => issue.kind.value === 'SupportingDocumentsRequired',
+        issuesOf(verification, 'MissingDocument').map(
+          issue => issue.documentType?.value,
         ),
-      ).toHaveLength(VerificationProfile.CADASTRE.supportingDocuments.length);
+      ).toEqual([
+        'architectural_planning_section',
+        'construction_completion_notice',
+      ]);
+      expect(verification.report?.status.value).toBe('IncompletePackage');
+    });
+
+    // "An approved design or an act of acceptance": naming the first would
+    // send the applicant for that one.
+    it('names no single paper for a group any of several papers answer', () => {
+      const { verification } = aCase(
+        2010,
+        PLAN,
+        ['sketch_project', { building_height: '8 m' }],
+        ORDER,
+      );
+
+      const [missing] = issuesOf(verification, 'MissingDocument');
+      expect(missing?.documentType).toBeNull();
+      expect(missing?.message).toContain('8.0.9.1.1');
+      expect(missing?.message).toContain('approved_design');
+      expect(missing?.message).toContain('operation_acceptance_act');
+    });
+
+    it('stops asking once any paper of the group is here', () => {
+      const { verification } = aCase(
+        2010,
+        PLAN,
+        ['sketch_project', { building_height: '8 m' }],
+        ORDER,
+        ['operation_acceptance_act', {}],
+      );
+
+      expect(issuesOf(verification, 'MissingDocument')).toEqual([]);
+    });
+
+    it('says the package carries no title to the land, and names none of the titles', () => {
+      const { verification } = aCase(2014, PLAN, LOW_DESIGN);
+
+      const [missing] = issuesOf(verification, 'MissingTitleDocument');
+      expect(missing?.documentType).toBeNull();
+      expect(missing?.kind.leavesPackageIncomplete).toBe(true);
+      expect(verification.report?.status.value).toBe('IncompletePackage');
+    });
+
+    // From 2026 the notification reaches the registry through the Urban
+    // Planning Committee's system, which nobody has connected: the package is
+    // not short of the letter, and the report says the check was not made.
+    it('does not ask for the notification of a house built from 2026, and says it was not checked', () => {
+      const { verification } = aCase(2026, PLAN, LOW_DESIGN, ORDER, [
+        'architectural_planning_section',
+        {},
+      ]);
+
+      expect(issuesOf(verification, 'MissingDocument')).toEqual([]);
+      const notice = issuesOf(verification, 'IntegrationNotConnected').find(
+        issue => issue.documentType?.value === 'construction_completion_notice',
+      );
+      expect(notice?.documentId).toBeNull();
+      expect(notice?.kind.isInformational).toBe(true);
+    });
+
+    it('asks the inspector which provision applies where a figure could not be read', () => {
+      const { verification } = aCase(
+        2014,
+        PLAN,
+        ['sketch_project', { storeys: '2' }],
+        ORDER,
+      );
+
+      const [undecided] = issuesOf(verification, 'ProvisionUndetermined');
+      expect(undecided?.message).toContain('height');
+      expect(undecided?.message).toContain('8.0.10.2');
+      expect(undecided?.message).toContain('8.0.10.1');
+      expect(undecided?.kind.isInformational).toBe(false);
+    });
+
+    // Which papers are owed is exactly what is unknown, and listing every
+    // candidate's papers as missing would ask for papers no provision of the
+    // case needs.
+    it('asks for no provision’s papers while it cannot say which provision applies', () => {
+      const { verification } = aCase(
+        2014,
+        PLAN,
+        ['sketch_project', { storeys: '2' }],
+        ORDER,
+      );
+
+      expect(issuesOf(verification, 'MissingDocument')).toEqual([]);
+    });
+
+    it('says no provision covers a case every row of the table rules out', () => {
+      const { verification } = aCase(
+        2010,
+        [
+          'land_plot_plan',
+          { land_category: 'Kənd təsərrüfatı təyinatlı torpaqlar' },
+        ],
+        ['sketch_project', { building_height: '8 m' }],
+        ['registration_certificate', {}],
+      );
+
+      const [undecided] = issuesOf(verification, 'ProvisionUndetermined');
+      expect(undecided?.message).toContain('No provision');
+      expect(undecided?.message).toContain('8.0.9.1.2 by purpose');
+    });
+
+    // TC-09 of the acceptance contract: a homestead allocation decision of
+    // 2003, where item 2.7 takes one issued before 2001.
+    it('holds a title to the window of dates it is a title in', () => {
+      const built = aCase(
+        2010,
+        PLAN,
+        ['sketch_project', { building_height: '8 m' }],
+        ['homestead_land_allocation_decision', { issue_date: '10.04.2003' }],
+      );
+
+      const [invalid] = issuesOf(built.verification, 'TitleDocumentInvalid');
+      expect(invalid?.documentId?.equals(built.documents[2]!.id)).toBe(true);
+      expect(invalid?.fieldKey?.value).toBe('issue_date');
+      expect(invalid?.message).toContain('item 2.7');
+      expect(invalid?.kind.isInformational).toBe(false);
+    });
+
+    it('takes a title dated inside its window', () => {
+      const { verification } = aCase(
+        2010,
+        PLAN,
+        ['sketch_project', { building_height: '8 m' }],
+        ['homestead_land_allocation_decision', { issue_date: '12.05.1995' }],
+      );
+
+      expect(issuesOf(verification, 'TitleDocumentInvalid')).toEqual([]);
+    });
+
+    it('says a paper confirmed through a system nobody connected was read and not confirmed', () => {
+      const built = aCase(2014, PLAN, LOW_DESIGN, ORDER);
+
+      const [plan] = issuesOf(built.verification, 'IntegrationNotConnected');
+      expect(plan?.documentType?.value).toBe('land_plot_plan');
+      expect(plan?.documentId?.equals(built.documents[0]!.id)).toBe(true);
+      expect(plan?.message).toContain('MQS');
+      expect(plan?.kind.isInformational).toBe(true);
+    });
+
+    it('says nothing of the kind about a paper that comes only in the envelope', () => {
+      const { verification } = aCase(2014, LOW_DESIGN, ORDER);
+
+      expect(issuesOf(verification, 'IntegrationNotConnected')).toEqual([]);
+    });
+
+    // Worked out from scratch on every run, so a re-run cannot leave a second
+    // copy of a finding behind.
+    it('publishes the provision it held the package to, before and after the report', () => {
+      const built = aSegmentedPackage(1, {
+        declared: DeclaredAtIntake.of({ builtYear: 2014 }),
+      });
+
+      expect(built.verification.provision?.decision.outcome).toBe('Ambiguous');
     });
   });
 
@@ -2056,20 +1964,21 @@ describe('VerificationPackage', () => {
       );
     }
 
-    // A package holding one sketch design stating a year, taken in under
-    // whatever the office declared about it.
+    // A package holding one act of acceptance into operation stating a date —
+    // the paper the case would be dated by had nothing been declared (ADR-0025)
+    // — taken in under whatever the office declared about it.
     function aCaseDated(
-      approvalDate: string | null,
+      actDate: string | null,
       declared: DeclaredAtIntake,
     ): VerificationPackage {
       const built = aSegmentedPackage(1, { declared });
       built.verification.classify(
         built.document.id,
-        aClassification('sketch_project'),
+        aClassification('operation_acceptance_act'),
       );
-      if (approvalDate !== null) {
+      if (actDate !== null) {
         built.verification.recordExtractedFields(built.document.id, [
-          aValue('approval_date', approvalDate, 0.77),
+          aValue('act_date', actDate, 0.77),
         ]);
       }
       built.verification.complete();
@@ -2162,8 +2071,8 @@ describe('VerificationPackage', () => {
       );
 
       const told = mismatchesOf(verification)[0]!;
-      expect(told.documentType?.value).toBe('sketch_project');
-      expect(told.fieldKey?.value).toBe('approval_date');
+      expect(told.documentType?.value).toBe('operation_acceptance_act');
+      expect(told.fieldKey?.value).toBe('act_date');
       expect(told.pageNumber?.value).toBe(1);
       expect(told.confidence?.value).toBe(0.77);
     });
@@ -2218,10 +2127,10 @@ describe('VerificationPackage', () => {
       });
       built.verification.classify(
         built.document.id,
-        aClassification('sketch_project'),
+        aClassification('operation_acceptance_act'),
       );
       built.verification.recordExtractedFields(built.document.id, [
-        aValue('approval_date', '18.12.2025'),
+        aValue('act_date', '18.12.2025'),
       ]);
       built.verification.complete();
 
@@ -2849,19 +2758,34 @@ describe('VerificationPackage', () => {
     );
   }
 
-  // Every required type, one per sheet, each placed and attested — the package
-  // an inspector should have nothing to be told about. The plan-scheme states
-  // the address, so the register has something to be asked about.
-  function aCompletePackage() {
-    const built = aSegmentedPackage(REQUIRED_TYPES.length);
-    built.documents.forEach((document, index) => {
-      built.verification.classify(
-        document.id,
-        aClassification(REQUIRED_TYPES[index]!),
-      );
+  /*
+   * A package an inspector should have nothing to be told about, each paper
+   * placed and attested: the plan of the plot and the sketch design every
+   * package carries, and a title to the land. Declared as built in 2010, with a
+   * design 7.4 m tall and a plot owned and designated for housing, the case
+   * falls under 8.0.9.1.2, which asks for nothing beyond the title (ADR-0025).
+   * The plan-scheme states the address, so the register has something to be
+   * asked about. `extraSheets` more are segmented and left unplaced, for a spec
+   * to do with as it needs.
+   */
+  function aCompletePackage(extraSheets = 0) {
+    const built = aSegmentedPackage(3 + extraSheets, {
+      declared: DeclaredAtIntake.of({ builtYear: 2010 }),
     });
-    built.verification.recordExtractedFields(built.document.id, [
+    const [plan, design, title] = built.documents;
+
+    built.verification.classify(plan!.id, aClassification('land_plot_plan'));
+    built.verification.classify(design!.id, aClassification('sketch_project'));
+    built.verification.classify(
+      title!.id,
+      aClassification('registration_certificate'),
+    );
+    built.verification.recordExtractedFields(plan!.id, [
       stated('property_address', 'Zığ qəsəbəsi, Əliyev küçəsi 12'),
+      stated('land_category', 'Fərdi yaşayış tikintisi üçün torpaq'),
+    ]);
+    built.verification.recordExtractedFields(design!.id, [
+      stated('building_height', '7,4 m'),
     ]);
 
     return built;
@@ -3709,15 +3633,9 @@ describe('VerificationPackage', () => {
     // package is not short of a paper, and there is a finding on it all the
     // same.
     it('sends a package with findings against it to the inspector', () => {
-      const built = aSegmentedPackage(REQUIRED_TYPES.length + 1);
-      REQUIRED_TYPES.forEach((type, index) => {
-        built.verification.classify(
-          built.documents[index]!.id,
-          aClassification(type),
-        );
-      });
+      const built = aCompletePackage(1);
       built.verification.classify(
-        built.documents[REQUIRED_TYPES.length]!.id,
+        built.documents[3]!.id,
         Classification.unplaced(Confidence.of(0.2)),
       );
 
@@ -3803,20 +3721,11 @@ describe('VerificationPackage', () => {
      * package, and a person still has the findings to resolve.
      */
     it('still sends a package with findings to the inspector once approved', () => {
-      const built = aSegmentedPackage(REQUIRED_TYPES.length + 1);
-      REQUIRED_TYPES.forEach((type, index) => {
-        built.verification.classify(
-          built.documents[index]!.id,
-          aClassification(type),
-        );
-      });
+      const built = aCompletePackage(1);
       built.verification.classify(
-        built.documents[REQUIRED_TYPES.length]!.id,
+        built.documents[3]!.id,
         Classification.unplaced(Confidence.of(0.2)),
       );
-      built.verification.recordExtractedFields(built.document.id, [
-        stated('property_address', 'Zığ qəsəbəsi, Əliyev küçəsi 12'),
-      ]);
       built.verification.recordRegistryCheck(
         anArchiveAnswer(built.verification),
       );
@@ -4054,14 +3963,17 @@ describe('VerificationPackage supplied with a document', () => {
   }
 
   describe('what it publishes', () => {
-    it('offers every required paper of a package that carries none', () => {
+    // The two papers every package carries, and — with nothing declared about
+    // the ground and no provision decided — every title to the land, since any
+    // of them answers the requirement (ADR-0025).
+    it('offers every required paper and every title of a package that carries none', () => {
       const { verification } = aPackage();
 
       expect(
         verification.gaps
           .filter(gap => gap.reason === 'MissingDocument')
           .map(gap => gap.expectedType.value),
-      ).toEqual(REQUIRED_TYPES);
+      ).toEqual([...REQUIRED_TYPES, ...TITLE_TYPES]);
     });
 
     it('offers the scan it read badly, named by the document it would replace', () => {

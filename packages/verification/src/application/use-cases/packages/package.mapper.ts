@@ -2,6 +2,7 @@ import type {
   ApprovedCheckDto,
   ArchiveSearchApprovalDto,
   ArchiveTallyDto,
+  CaseProvisionDto,
   CheckedValueDto,
   CrossCheckDto,
   DeclaredAtIntakeDto,
@@ -41,6 +42,7 @@ import type {
   PackageDetailView,
   PackagesOverviewView,
   PackageSummaryView,
+  ProvisionView,
   RegistryCheckView,
   ReportView,
   SourceFileView,
@@ -177,10 +179,68 @@ export function toDetailDto(view: PackageDetailView): PackageDetailDto {
     // The engine's own answer, carried across as it was worked out: a caller
     // draws these and decides none of them (COMM-80).
     gaps: view.gaps.map(toDocumentGapDto),
+    provision: view.provision ? toProvisionDto(view.provision) : null,
     crossChecks: view.crossChecks.map(toCrossCheckDto),
     registryChecks: view.registryChecks.map(toRegistryCheckDto),
     archiveSearchApprovals: view.archiveSearchApprovals.map(toApprovalDto),
     report: view.report ? toReportDto(view.report) : null,
+  };
+}
+
+/*
+ * The provision the case falls under, carried across as the domain service
+ * worked it out (ADR-0025). Every enumerated string here was written by the
+ * domain's own enumerations, which the contract names member for member.
+ */
+function toProvisionDto(view: ProvisionView): CaseProvisionDto {
+  type Parameter = CaseProvisionDto['parameters'][number]['parameter'];
+  type Right = NonNullable<
+    CaseProvisionDto['provisions'][number]['titleRight']
+  >;
+
+  return {
+    key: view.key,
+    outcome: view.outcome as CaseProvisionDto['outcome'],
+    provision: view.provision,
+    candidates: [...view.candidates],
+    undecidedOn: view.undecidedOn.map(parameter => parameter as Parameter),
+    parameters: view.parameters.map(parameter => ({
+      parameter: parameter.parameter as Parameter,
+      value: parameter.value,
+      source:
+        parameter.source as CaseProvisionDto['parameters'][number]['source'],
+      stated: parameter.stated,
+      from: parameter.from ? { ...parameter.from } : null,
+    })),
+    rules: view.rules.map(rule => ({
+      provision: rule.provision,
+      description: rule.description,
+      conditions: rule.conditions.map(condition => ({
+        parameter: condition.parameter as Parameter,
+        holds: condition.holds,
+      })),
+      excluded: rule.excluded,
+      holds: rule.holds,
+    })),
+    provisions: view.provisions.map(standing => ({
+      provision: standing.provision,
+      description: standing.description,
+      titleRight: standing.titleRight as Right | null,
+      requirements: standing.requirements.map(requirement => ({
+        anyOf: [...requirement.anyOf],
+        onlyBuiltBefore: requirement.onlyBuiltBefore,
+        applies: requirement.applies,
+        answered: requirement.answered,
+      })),
+    })),
+    titleDocuments: view.titleDocuments.map(title => ({
+      documentId: title.documentId,
+      documentType: title.documentType,
+      landRight: title.landRight as Right,
+      dated: title.dated ? { ...title.dated } : null,
+      withinWindow: title.withinWindow,
+      items: title.items.map(item => ({ ...item })),
+    })),
   };
 }
 

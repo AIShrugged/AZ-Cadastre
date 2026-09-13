@@ -18,6 +18,7 @@ export class ListProfilesHandler implements IQueryHandler<
           key: spec.type.value,
           required: spec.isRequired,
           fields: spec.schema.specs.map(field => field.key.value),
+          source: spec.source,
         })),
         // What an intake screen offers as the ground a right is claimed on.
         // Always a subset of the types above — the profile refuses to be built

@@ -180,22 +180,36 @@ describe('DocumentClassifierAdapter', () => {
     expect(classification.knownAs?.value).toBe('auction_results_protocol');
   });
 
-  it('names a ground under the Decree No. 439 list', async () => {
+  // A title to the land under the Decree No. 439 list is a type of the
+  // profile's own since ADR-0025: every provision asks for a title, so the
+  // paper is placed, read and answers the requirement.
+  it('places a title under the Decree No. 439 list as the profile type it is', async () => {
     const classification = await classify(
       ['TƏSƏRRÜFATBAŞINA KİTABINDAN ÇIXARIŞ', 'Kənd Soveti: Xırdalan'].join(
         '\n',
       ),
     );
 
-    expect(classification.knownAs?.value).toBe('household_book_extract');
+    expect(classification.type.value).toBe('household_book_extract');
   });
 
-  it('names a Soviet-era ground written in Cyrillic and in Russian', async () => {
+  it('places a Soviet-era title written in Cyrillic and in Russian', async () => {
     const classification = await classify(
       ['РЕШЕНИЕ ОБ ОТВОДЕ ЗЕМЕЛЬНЫХ УЧАСТКОВ', 'Исполком: Хырдалан'].join('\n'),
     );
 
-    expect(classification.knownAs?.value).toBe('land_allocation_decision');
+    expect(classification.type.value).toBe('land_allocation_decision');
+  });
+
+  it('still names a Decree No. 439 ground no provision reads', async () => {
+    const classification = await classify(
+      ['ПАСПОРТ ИНВЕНТАРИЗАЦИИ И ОЦЕНКИ', 'Год: 1964'].join('\n'),
+    );
+
+    expect(classification.type.value).toBe('out_of_profile');
+    expect(classification.knownAs?.value).toBe(
+      'house_inventory_valuation_passport',
+    );
   });
 
   it('names a paper of the application the profile does not ask for', async () => {
@@ -206,18 +220,18 @@ describe('DocumentClassifierAdapter', () => {
     expect(classification.knownAs?.value).toBe('power_of_attorney');
   });
 
-  // A profile heading contained INSIDE a catalogued one is the same words read
-  // short, not a rival reading: the profile is headed "паспорт" for an identity
-  // card and the catalogue "технический паспорт" for a building's, and a
-  // profile-first ask answered every technical passport with `identity_card`
-  // (ADR-0022). Guards that regression.
+  // A heading contained INSIDE a longer one is the same words read short, not a
+  // rival reading: the identity card is headed "паспорт" and the technical
+  // passport "технический паспорт", and an ask that took the shorter answered
+  // every technical passport with `identity_card` (ADR-0022). The technical
+  // passport is a title of the profile's own since ADR-0025; the regression
+  // guarded is the same.
   it('reads a technical passport as a technical passport and not as an identity card', async () => {
     const classification = await classify(
       ['ТЕХНИЧЕСКИЙ ПАСПОРТ', 'Год постройки: 1998'].join('\n'),
     );
 
-    expect(classification.type.value).toBe('out_of_profile');
-    expect(classification.knownAs?.value).toBe('technical_passport');
+    expect(classification.type.value).toBe('technical_passport');
   });
 
   it('still reads an identity card as one when nothing encloses its heading', async () => {

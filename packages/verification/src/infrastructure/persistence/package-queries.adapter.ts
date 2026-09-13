@@ -18,6 +18,7 @@ import type {
   PackageDetailView,
   PackagesOverviewView,
   PackageSummaryView,
+  ProvisionView,
   RegistryCheckView,
   ReportView,
   StatedValueView,
@@ -26,6 +27,8 @@ import type {
 import {
   attestationOf,
   gapsIn,
+  provisionOf,
+  type CaseProvision,
   type DocumentGap,
   type MarkExpectations,
   type ReadDocument,
@@ -466,12 +469,24 @@ export class PackageQueriesAdapter extends PackageQueries {
 
     if (!row) return null;
 
+    const documents = PackageQueriesAdapter.readDocumentsOf(row.sourceFiles);
+
     return {
       ...PackageQueriesAdapter.toSummary(row),
       // The engine's own rule, run over the rows this query already holds: what
       // the supply operation accepts is exactly what is published here, so the
       // read side must not answer it a second way (COMM-80).
-      gaps: PackageQueriesAdapter.gapsOf(row.profileKey, row.sourceFiles),
+      gaps: PackageQueriesAdapter.gapsOf(row.profileKey, documents, {
+        legalBasis: row.declaredLegalBasis,
+        builtYear: row.declaredBuiltYear,
+      }),
+      // The service the report was compiled with, over the same readings
+      // (ADR-0025).
+      provision: PackageQueriesAdapter.provisionFor(
+        row.profileKey,
+        row.declaredBuiltYear,
+        documents,
+      ),
       report: PackageQueriesAdapter.toReport(row.report),
       crossChecks: row.crossChecks.map(check =>
         PackageQueriesAdapter.toCrossCheck(check),
@@ -547,6 +562,130 @@ export class PackageQueriesAdapter extends PackageQueries {
    */
   private static gapsOf(
     profileKey: string,
+    documents: readonly ReadDocument[],
+    declared: {
+      readonly legalBasis: string | null;
+      readonly builtYear: number | null;
+    },
+  ): readonly DocumentGapView[] {
+    const profile = VerificationProfile.all.find(
+      candidate => candidate.key === profileKey,
+    );
+
+    if (!profile) return [];
+
+    return gapsIn(profile, documents, declared).map(
+      (gap: DocumentGap): DocumentGapView => ({
+        reason: gap.reason,
+        expectedType: gap.expectedType.value,
+        documentId: gap.documentId,
+        sourceFileId: gap.sourceFileId,
+      }),
+    );
+  }
+
+  /*
+   * Which provision of Article 8 the case falls under, off the documents this
+   * query already holds — the same answer the aggregate compiled the report on,
+   * because it is the same service over the same readings (ADR-0025).
+   *
+   * Null on a profile that declares no table, and on a profile this build no
+   * longer ships, for the reason the gaps are empty there.
+   */
+  private static provisionFor(
+    profileKey: string,
+    declaredYear: number | null,
+    documents: readonly ReadDocument[],
+  ): ProvisionView | null {
+    const provisions = VerificationProfile.all.find(
+      candidate => candidate.key === profileKey,
+    )?.provisions;
+
+    if (!provisions) return null;
+
+    return PackageQueriesAdapter.toProvisionView(
+      provisionOf(provisions, declaredYear, documents),
+    );
+  }
+
+  private static toProvisionView(answer: CaseProvision): ProvisionView {
+    const decision = answer.decision;
+
+    return {
+      key: answer.key,
+      outcome: decision.outcome,
+      provision:
+        decision.outcome === 'Determined' ? decision.provision.provision : null,
+      candidates:
+        decision.outcome === 'Ambiguous'
+          ? decision.candidates.map(rule => rule.provision)
+          : [],
+      undecidedOn:
+        decision.outcome === 'Ambiguous' ? [...decision.undecidedOn] : [],
+      parameters: answer.readings.map(reading => ({
+        parameter: reading.parameter,
+        value: answer.parameters[reading.parameter],
+        source: reading.source,
+        stated: reading.stated,
+        from: reading.from
+          ? {
+              documentId: reading.from.documentId,
+              documentType: reading.from.documentType,
+              fieldName: reading.from.fieldKey,
+              pageNumber: reading.from.pageNumber,
+              confidence: reading.from.confidence,
+            }
+          : null,
+      })),
+      rules: decision.evaluations.map(evaluation => ({
+        provision: evaluation.rule.provision,
+        description: evaluation.rule.description,
+        conditions: evaluation.conditions.map(condition => ({
+          parameter: condition.parameter,
+          holds: condition.holds,
+        })),
+        excluded: evaluation.excluded,
+        holds: evaluation.holds,
+      })),
+      provisions: answer.provisions.map(standing => ({
+        provision: standing.provision,
+        description: standing.description,
+        titleRight: standing.titleRight,
+        requirements: standing.requirements.map(requirement => ({
+          anyOf: [...requirement.anyOf],
+          onlyBuiltBefore: requirement.onlyBuiltBefore,
+          applies: requirement.applies,
+          answered: requirement.answered,
+        })),
+      })),
+      titleDocuments: answer.titleDocuments.map(title => ({
+        documentId: title.documentId,
+        documentType: title.documentType,
+        landRight: title.landRight,
+        dated: title.dated
+          ? {
+              fieldName: title.dated.fieldKey,
+              value: title.dated.value,
+              pageNumber: title.dated.pageNumber,
+              confidence: title.dated.confidence,
+            }
+          : null,
+        withinWindow: title.withinWindow,
+        items: title.items.map(item => ({ ...item })),
+      })),
+    };
+  }
+
+  /*
+   * The documents of the package as the domain's rules read them: placement,
+   * what was read off each and how well, and whether it is still in force.
+   *
+   * Only what was read off the paper itself. A value carried over from
+   * elsewhere in the package says the envelope is consistent and says nothing
+   * about this scan (ADR-0023), which is the same reading the aggregate gives
+   * the rules.
+   */
+  private static readDocumentsOf(
     files: readonly {
       readonly id: string;
       readonly documents: readonly {
@@ -556,42 +695,30 @@ export class PackageQueriesAdapter extends PackageQueries {
         readonly supersededAt: Date | null;
         readonly extractedFields: readonly {
           readonly name: string;
+          readonly value: string;
           readonly confidence: number;
+          readonly pageNumber: number | null;
           readonly origin: string;
         }[];
       }[];
     }[],
-  ): readonly DocumentGapView[] {
-    const profile = VerificationProfile.all.find(
-      candidate => candidate.key === profileKey,
-    );
-
-    if (!profile) return [];
-
-    const documents: ReadDocument[] = files.flatMap(file =>
+  ): readonly ReadDocument[] {
+    return files.flatMap(file =>
       file.documents.map(document => ({
         documentId: document.id,
         sourceFileId: file.id,
         type: document.type,
         classifiedAt: document.classificationConfidence,
-        // Only what was read off the paper itself. A value carried over from
-        // elsewhere in the package says the envelope is consistent and says
-        // nothing about this scan (ADR-0023), which is the same reading the
-        // aggregate gives the rule.
         readings: document.extractedFields
           .filter(field => PackageQueriesAdapter.wasReadHere(field.origin))
-          .map(field => ({ key: field.name, confidence: field.confidence })),
+          .map(field => ({
+            key: field.name,
+            value: field.value,
+            confidence: field.confidence,
+            pageNumber: field.pageNumber,
+          })),
         superseded: document.supersededAt !== null,
       })),
-    );
-
-    return gapsIn(profile, documents).map(
-      (gap: DocumentGap): DocumentGapView => ({
-        reason: gap.reason,
-        expectedType: gap.expectedType.value,
-        documentId: gap.documentId,
-        sourceFileId: gap.sourceFileId,
-      }),
     );
   }
 

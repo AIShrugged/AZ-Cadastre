@@ -16,6 +16,7 @@ import { gapsIn, type ReadDocument } from './document-gaps.service.js';
 
 const CADASTRE = VerificationProfile.CADASTRE;
 const REQUIRED = CADASTRE.requiredTypes.map(type => type.value);
+const TITLES = CADASTRE.provisions!.titleTypes.map(type => type.value);
 
 // Every field the profile asks of this type, read cleanly. The baseline a spec
 // spoils one thing about, so that what is under test is the one thing.
@@ -25,7 +26,12 @@ function readCleanly(
 ): ReadDocument['readings'] {
   return CADASTRE.schemaFor(
     CADASTRE.specs.find(spec => spec.type.value === type)!.type,
-  ).specs.map(spec => ({ key: spec.key.value, confidence }));
+  ).specs.map(spec => ({
+    key: spec.key.value,
+    value: 'read',
+    confidence,
+    pageNumber: 1,
+  }));
 }
 
 function aDocument(
@@ -43,10 +49,27 @@ function aDocument(
   };
 }
 
-// A package the run had nothing to say about: every required paper is there and
-// every one of them was read cleanly.
+// One document read with exactly these values, and nothing else.
+function aDocumentStating(
+  type: string,
+  values: Readonly<Record<string, string>>,
+): ReadDocument {
+  return aDocument(type, {
+    readings: Object.entries(values).map(([key, value]) => ({
+      key,
+      value,
+      confidence: 0.95,
+      pageNumber: 1,
+    })),
+  });
+}
+
+// A package the run had nothing to say about: every required paper, a title to
+// the land and a receipt for the duty, each read cleanly.
 function aWholePackage(): readonly ReadDocument[] {
-  return REQUIRED.map(type => aDocument(type));
+  return [...REQUIRED, 'registration_certificate', 'payment_receipt'].map(
+    type => aDocument(type),
+  );
 }
 
 function reasonsFor(
@@ -58,16 +81,21 @@ function reasonsFor(
     .map(gap => gap.reason);
 }
 
+function missingIn(
+  documents: readonly ReadDocument[],
+  declared?: Parameters<typeof gapsIn>[2],
+): readonly string[] {
+  return gapsIn(CADASTRE, documents, declared)
+    .filter(gap => gap.reason === 'MissingDocument')
+    .map(gap => gap.expectedType.value);
+}
+
 describe('gapsIn', () => {
   describe('a required paper nobody sent', () => {
     it('offers every required type a package holds none of', () => {
-      const gaps = gapsIn(CADASTRE, []);
-
-      expect(
-        gaps
-          .filter(gap => gap.reason === 'MissingDocument')
-          .map(gap => gap.expectedType.value),
-      ).toEqual(REQUIRED);
+      expect(missingIn([]).filter(type => REQUIRED.includes(type))).toEqual(
+        REQUIRED,
+      );
     });
 
     it('names no document, because there is nothing here to replace', () => {
@@ -78,17 +106,19 @@ describe('gapsIn', () => {
     });
 
     it('stops offering it once a document of that type is in force', () => {
-      expect(reasonsFor(aWholePackage(), 'application')).toEqual([]);
+      expect(reasonsFor(aWholePackage(), 'sketch_project')).toEqual([]);
     });
 
     it('offers it again once the document that answered it is replaced', () => {
       const documents = aWholePackage().map(document =>
-        document.type === 'application'
+        document.type === 'sketch_project'
           ? { ...document, superseded: true }
           : document,
       );
 
-      expect(reasonsFor(documents, 'application')).toEqual(['MissingDocument']);
+      expect(reasonsFor(documents, 'sketch_project')).toEqual([
+        'MissingDocument',
+      ]);
     });
 
     /*
@@ -98,68 +128,153 @@ describe('gapsIn', () => {
      */
     it('is not answered by a document the reader could not place', () => {
       const documents = [
-        aDocument('application', { type: 'out_of_profile', readings: [] }),
+        aDocument('sketch_project', { type: 'out_of_profile', readings: [] }),
       ];
 
-      expect(reasonsFor(documents, 'application')).toEqual(['MissingDocument']);
+      expect(reasonsFor(documents, 'sketch_project')).toEqual([
+        'MissingDocument',
+      ]);
+    });
+  });
+
+  /*
+   * The title to the land every provision asks for (ADR-0025). Any of the
+   * titles answers it, and a gap names one type, so which ones are offered is
+   * decided here: what was declared at intake, otherwise the class the
+   * provision rests on, otherwise all of them.
+   */
+  describe('a title to the land nobody sent', () => {
+    it('offers every title where nothing narrows which one', () => {
+      expect(missingIn([]).filter(type => TITLES.includes(type))).toEqual(
+        TITLES,
+      );
+    });
+
+    it('offers only the ground the office declared at intake', () => {
+      expect(
+        missingIn([], {
+          legalBasis: 'household_book_extract',
+          builtYear: null,
+        }).filter(type => TITLES.includes(type)),
+      ).toEqual(['household_book_extract']);
+    });
+
+    // 8.0.9.1.2 is registered on an ownership document: a lease document would
+    // not found the case, so it is not what the operator is asked for.
+    it('offers only the titles of the class the provision rests on', () => {
+      const documents = [
+        aDocumentStating('land_plot_plan', {
+          land_category: 'Fərdi yaşayış tikintisi üçün torpaq',
+          right_type: 'Mülkiyyət hüququ',
+        }),
+        aDocumentStating('sketch_project', { building_height: '8 m' }),
+      ];
+
+      expect(
+        missingIn(documents, { legalBasis: null, builtYear: 2010 }).filter(
+          type => TITLES.includes(type),
+        ),
+      ).toEqual([
+        'state_register_extract',
+        'land_right_state_act',
+        'registration_certificate',
+        'property_right_certificate',
+      ]);
+    });
+
+    it('offers no title once one is in force', () => {
+      expect(
+        missingIn(aWholePackage()).filter(type => TITLES.includes(type)),
+      ).toEqual([]);
+    });
+  });
+
+  describe('a paper the provision asks for that nobody sent', () => {
+    const POST_2013 = [
+      aDocumentStating('land_plot_plan', {
+        land_category: 'Fərdi yaşayış tikintisi üçün torpaq',
+      }),
+      aDocumentStating('sketch_project', {
+        storeys: '2',
+        building_height: '7,4 m',
+        span_dimensions: 'A—B 4,20 m',
+      }),
+      aDocument('disposal_order'),
+    ];
+
+    it('offers every paper of the provision the case was decided under', () => {
+      expect(
+        missingIn(POST_2013, { legalBasis: null, builtYear: 2014 }),
+      ).toEqual([
+        'architectural_planning_section',
+        'construction_completion_notice',
+      ]);
+    });
+
+    // Which papers are owed is the question the report asks the inspector;
+    // offering the union would ask for papers no provision of the case needs.
+    it('offers none while the provision is undecided', () => {
+      expect(
+        missingIn(POST_2013, { legalBasis: null, builtYear: null }),
+      ).toEqual([]);
     });
   });
 
   describe('a paper that is here and was read badly', () => {
     it('offers a document the profile asked a field of that its sheets did not yield', () => {
       const documents = aWholePackage().map(document =>
-        document.type === 'application'
+        document.type === 'sketch_project'
           ? { ...document, readings: document.readings.slice(1) }
           : document,
       );
 
-      expect(reasonsFor(documents, 'application')).toEqual(['UnusableScan']);
+      expect(reasonsFor(documents, 'sketch_project')).toEqual(['UnusableScan']);
     });
 
     it('offers a document with a reading under the floor, however little under', () => {
       const documents = aWholePackage().map(document =>
-        document.type === 'application'
+        document.type === 'sketch_project'
           ? {
               ...document,
               readings: readCleanly(
-                'application',
+                'sketch_project',
                 Confidence.FLOOR.value - 0.01,
               ),
             }
           : document,
       );
 
-      expect(reasonsFor(documents, 'application')).toEqual(['UnusableScan']);
+      expect(reasonsFor(documents, 'sketch_project')).toEqual(['UnusableScan']);
     });
 
     it('is content with a reading exactly at the floor', () => {
       const documents = aWholePackage().map(document =>
-        document.type === 'application'
+        document.type === 'sketch_project'
           ? {
               ...document,
-              readings: readCleanly('application', Confidence.FLOOR.value),
+              readings: readCleanly('sketch_project', Confidence.FLOOR.value),
             }
           : document,
       );
 
-      expect(reasonsFor(documents, 'application')).toEqual([]);
+      expect(reasonsFor(documents, 'sketch_project')).toEqual([]);
     });
 
     // A paper the classifier half-recognised is a paper an inspector cannot
     // rely on being the right one, whatever was read off it.
     it('offers a document placed under the floor even where every field read', () => {
       const documents = aWholePackage().map(document =>
-        document.type === 'application'
+        document.type === 'sketch_project'
           ? { ...document, classifiedAt: Confidence.FLOOR.value - 0.05 }
           : document,
       );
 
-      expect(reasonsFor(documents, 'application')).toEqual(['UnusableScan']);
+      expect(reasonsFor(documents, 'sketch_project')).toEqual(['UnusableScan']);
     });
 
     it('names the document and its file, so the offer can open the scan', () => {
       const documents = aWholePackage().map(document =>
-        document.type === 'application'
+        document.type === 'sketch_project'
           ? { ...document, readings: [] }
           : document,
       );
@@ -168,20 +283,22 @@ describe('gapsIn', () => {
         one => one.reason === 'UnusableScan',
       );
 
-      expect(gap?.documentId).toBe('document-application');
-      expect(gap?.sourceFileId).toBe('file-application');
+      expect(gap?.documentId).toBe('document-sketch_project');
+      expect(gap?.sourceFileId).toBe('file-sketch_project');
     });
 
     // The replaced scan is history. Offering it again would ask the operator to
     // better a paper the package no longer stands on.
     it('says nothing about a document a later arrival has replaced', () => {
       const documents = aWholePackage().map(document =>
-        document.type === 'application'
+        document.type === 'sketch_project'
           ? { ...document, readings: [], superseded: true }
           : document,
       );
 
-      expect(reasonsFor(documents, 'application')).toEqual(['MissingDocument']);
+      expect(reasonsFor(documents, 'sketch_project')).toEqual([
+        'MissingDocument',
+      ]);
     });
   });
 
@@ -193,13 +310,13 @@ describe('gapsIn', () => {
     });
 
     /*
-     * One entry and not two. The receipt is a required type as well, so a
-     * package that never carried one is short of it — and that is
-     * `MissingDocument`, which says the truer thing. Publishing both would put
-     * one type on the screen twice under two headings.
+     * The receipt is required of nobody since ADR-0025 — the duty is paid once
+     * the application is approved — so a package that never carried one is not
+     * short of it. It is offered once, as a paper the profile takes whenever it
+     * turns up.
      */
-    it('does not repeat a required paper the package is short of', () => {
-      expect(reasonsFor([], 'payment_receipt')).toEqual(['MissingDocument']);
+    it('offers it once, and as an offer, to a package that never carried one', () => {
+      expect(reasonsFor([], 'payment_receipt')).toEqual(['AlwaysAccepted']);
     });
 
     // Two offers here, and they are different offers: one replaces the scan

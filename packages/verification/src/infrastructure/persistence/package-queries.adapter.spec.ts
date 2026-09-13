@@ -71,6 +71,8 @@ function aRow(kinds: readonly string[] | null, options: RowOptions = {}): Row {
     id: PACKAGE_ID,
     status: options.status ?? 'Completed',
     profileKey: options.profileKey ?? 'cadastre',
+    declaredLegalBasis: null,
+    declaredBuiltYear: null,
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
     updatedAt: new Date('2026-01-02T00:00:00.000Z'),
     _count: {

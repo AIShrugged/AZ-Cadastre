@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { DocumentSourceSchema } from '../enums/document-source.enum.js';
+
 export const ProfileDocumentTypeDtoSchema = z.object({
   key: z.string(),
   // Whether a package under this profile is incomplete without one.
@@ -9,6 +11,10 @@ export const ProfileDocumentTypeDtoSchema = z.object({
   // is the difference between a policy surface listing seven words and one
   // stating what each document is asked to contribute.
   fields: z.array(z.string()),
+  // Where the policy expects a paper of this kind to come from — the envelope,
+  // or a state system that confirms it. A paper sourced from a system that is
+  // not connected is read and reported as not confirmed (ADR-0025).
+  source: DocumentSourceSchema,
 });
 export type ProfileDocumentTypeDto = z.infer<
   typeof ProfileDocumentTypeDtoSchema

@@ -5,6 +5,7 @@ import type {
   CrossCheck,
   CrossCheckKey,
 } from './cross-check.vo.js';
+import type { DocumentSource } from './document-source.vo.js';
 import { DocumentType as DocumentTypeRef } from './document-type.vo.js';
 import type { DocumentType } from './document-type.vo.js';
 import type { DocumentId, SourceFileId } from './entity-ids/index.js';
@@ -12,11 +13,30 @@ import type { FieldKey } from './field.vo.js';
 import { IssueKind } from './issue-kind.vo.js';
 import type { PageNumber } from './page-number.vo.js';
 import type { PageRange } from './page-range.vo.js';
+import type { CaseParameterKey } from './provision.vo.js';
 import type { RegistryCheck, RegistryDocument } from './registry-check.vo.js';
-import type {
-  RequirementBand,
-  SupportingDocumentsSpec,
-} from './verification-profile.vo.js';
+
+// A document a finding is filed against, and — where the finding is about one of
+// its lines — the line and the sheet it sits on.
+type Anchor = {
+  readonly documentId: DocumentId;
+  readonly sourceFileId: SourceFileId;
+  readonly documentType: DocumentType;
+  readonly fieldKey?: FieldKey | null;
+  readonly pageNumber?: PageNumber | null;
+  readonly confidence?: Confidence | null;
+};
+
+// The state systems a paper is confirmed through, named the way an audit line
+// names them.
+const SOURCE_NAMES: Record<DocumentSource, string> = {
+  Package: 'nothing outside the package',
+  Mqs: 'MQS',
+  LicencesPortal: 'the Licences and Permits Portal',
+  UrbanPlanningCommittee:
+    "the Urban Planning and Architecture Committee's information system",
+  NationalArchive: 'the National Archive Fund',
+};
 
 type Finding = {
   readonly kind: IssueKind;
@@ -310,97 +330,159 @@ export class ValidationIssue {
   }
 
   /*
-   * What the applicant must bring, for the case this package turned out to be.
+   * No document of the package is a title to the land (Article 10.2.1).
    *
-   * Filed against the value the branch was decided on, and carrying that
-   * reading's own confidence: a set chosen on a height read at 0.4 is a set
-   * chosen on a guess, and an inspector settling it opens the sheet the figure
-   * was read off. `decidedOn` is in the order the branch read the figures, so
-   * the first of them is the one the message is anchored to.
-   *
-   * Never a finding against the package. None of these papers is in the
-   * envelope and none of them was checked — the message says what to bring, and
-   * the report's own status is decided without it (ADR-0013).
+   * Names no type, because any of the titles would answer it and naming one
+   * would tell the applicant to bring that one. Which titles there are, and
+   * which of them the case's provision rests on, is the provision the detail
+   * view publishes beside the report (ADR-0025).
    */
-  static supportingDocuments(
-    band: RequirementBand,
-    decidedOn: readonly CheckedValue[],
-    // The year the branch used was the one the office declared at intake, no
-    // paper of this package having stated one. Said out loud in the message:
-    // the whole worth of the line is that a reader can check it, and a figure
-    // nobody read off a sheet is checked at the counter and not in the file.
-    declaredYear: number | null = null,
-  ): ValidationIssue {
-    const [anchor] = decidedOn;
-    const read = decidedOn.map(value => value.cited).join(', ');
-    const from = [
-      read && `read off ${read}`,
-      declaredYear !== null && `dated ${declaredYear} as declared at intake`,
-    ].filter(Boolean);
-
+  static missingTitleDocument(provision: string | null): ValidationIssue {
     return ValidationIssue.of({
-      kind: IssueKind.SUPPORTING_DOCUMENTS_REQUIRED,
+      kind: IssueKind.MISSING_TITLE_DOCUMENT,
       message:
-        `This case falls under "${band.key}" (${band.bounds})` +
-        `${from.length > 0 ? `, ${from.join(' and ')}` : ''}. The applicant ` +
-        `must bring: ${band.cited}.`,
-      documentId: anchor?.documentId,
-      documentType: anchor?.documentType,
-      fieldKey: anchor?.fieldKey,
-      pageNumber: anchor?.foundOn,
-      confidence: ValidationIssue.leastConfidentOf(decidedOn),
+        'The package carries no title to the land — no document Article ' +
+        '10.2.1 accepts as confirming the right over the plot' +
+        (provision === null
+          ? ', which every provision of Article 8 rests on.'
+          : `, which provision ${provision} rests on like every other.`),
     });
   }
 
   /*
-   * The same message where the case could not be placed: because a figure the
-   * branch turns on could not be read off the package, or because the profile's
-   * bands leave a hole this case fell into.
+   * A paper the provision of Article 8 this case falls under asks for, that no
+   * document of the package answers.
    *
-   * It still names the papers — every set of them, since which one applies is
-   * exactly what is unknown. An applicant learning that they must bring one of
-   * three sets is better served than one told nothing, and an inspector reading
-   * this knows the engine did not check rather than that it checked and was
-   * content.
-   *
-   * Carries no document, no sheet and no confidence, which is what a reader
-   * tells it apart by: there was no reading to file it against.
+   * The same kind as a missing required type, because to the applicant it is
+   * the same shortfall. A group answered by any of several papers names no
+   * single type — "an approved design or an act of acceptance", and a finding
+   * that named the first would send the applicant for that one (ADR-0025).
    */
-  static supportingDocumentsUndecided(
-    spec: SupportingDocumentsSpec,
-    read: { readonly metres: number | null; readonly year: number | null },
+  static missingForProvision(
+    provision: string,
+    anyOf: readonly DocumentType[],
   ): ValidationIssue {
-    const sets = spec.bands
-      .map(band => `"${band.key}" (${band.bounds}) — ${band.cited}`)
-      .join('; ');
+    const [only] = anyOf;
+    const named = anyOf.map(type => `"${type.value}"`).join(' or ');
 
     return ValidationIssue.of({
-      kind: IssueKind.SUPPORTING_DOCUMENTS_REQUIRED,
+      kind: IssueKind.MISSING_DOCUMENT,
       message:
-        `Which supporting documents this case needs could not be decided: ` +
-        `${ValidationIssue.whyUndecided(read)}. Whichever it is, the ` +
-        `applicant must bring one of these sets: ${sets}.`,
+        `Provision ${provision} of Article 8 asks for ${named}, and the ` +
+        `package carries ${anyOf.length === 1 ? 'none' : 'none of them'}.`,
+      documentType: anyOf.length === 1 ? only : null,
     });
   }
 
-  private static whyUndecided(read: {
-    readonly metres: number | null;
-    readonly year: number | null;
-  }): string {
-    if (read.metres === null && read.year === null) {
-      return 'neither the height of the building nor the year it is dated by could be read off this package';
-    }
-    if (read.metres === null) {
-      return 'the height of the building could not be read off this package';
-    }
-    if (read.year === null) {
-      return 'the year this case is dated by could not be read off this package';
-    }
+  /*
+   * A title the package carries, dated outside the window every item it is
+   * listed under gives it — a homestead allocation decision of 2003 where the
+   * Decree takes one issued before 2001.
+   *
+   * Filed against the date it was read off, with that reading's confidence: a
+   * date misread by one digit is the likeliest cause, and settling it is
+   * opening that sheet.
+   */
+  static titleDocumentOutOfWindow(
+    title: Anchor,
+    dated: string,
+    items: readonly { readonly item: string; readonly window: string }[],
+  ): ValidationIssue {
+    const windows = items
+      .map(one => `item ${one.item}: ${one.window}`)
+      .join('; ');
 
-    return (
-      `no band of this profile covers a building of ${read.metres} m dated ` +
-      `${read.year}`
-    );
+    return ValidationIssue.of({
+      kind: IssueKind.TITLE_DOCUMENT_INVALID,
+      message:
+        `The "${title.documentType.value}" is dated "${dated}", outside the ` +
+        `window of dates it is a title in (${windows}).`,
+      documentId: title.documentId,
+      sourceFileId: title.sourceFileId,
+      documentType: title.documentType,
+      fieldKey: title.fieldKey,
+      pageNumber: title.pageNumber,
+      confidence: title.confidence,
+    });
+  }
+
+  /*
+   * Which provision of Article 8 the case falls under could not be decided,
+   * because a figure the table turns on was not stated and the provisions it
+   * could have made the first are all still open.
+   *
+   * Names the figures whose reading would settle it and the candidates, so the
+   * inspector knows what to establish rather than only that something is
+   * unknown. Carries no document: what is missing is a figure, and a figure
+   * nobody read has no sheet.
+   */
+  static provisionAmbiguous(
+    candidates: readonly string[],
+    undecidedOn: readonly CaseParameterKey[],
+  ): ValidationIssue {
+    return ValidationIssue.of({
+      kind: IssueKind.PROVISION_UNDETERMINED,
+      message:
+        `Which provision of Article 8 this case falls under could not be ` +
+        `decided: ${undecidedOn.join(', ')} could not be established, and the ` +
+        `case falls under one of ${candidates.join(', ')}.`,
+    });
+  }
+
+  /*
+   * No provision of Article 8 covers the case: every row of the table is ruled
+   * out by a figure the package does state — a plot owned but designated for
+   * something other than housing, say.
+   *
+   * Says which figure ruled out which provision, because the likeliest cause is
+   * a figure read wrongly, and the inspector needs to know which one to check.
+   */
+  static provisionNotCovered(
+    ruledOut: readonly {
+      readonly provision: string;
+      readonly by: readonly CaseParameterKey[];
+    }[],
+  ): ValidationIssue {
+    const reasons = ruledOut
+      .map(one => `${one.provision} by ${one.by.join(', ')}`)
+      .join('; ');
+
+    return ValidationIssue.of({
+      kind: IssueKind.PROVISION_UNDETERMINED,
+      message: `No provision of Article 8 covers this case. Ruled out: ${reasons}.`,
+    });
+  }
+
+  /*
+   * A paper the policy confirms through a state system this one does not reach.
+   *
+   * Filed against the document where there is one, and against the type alone
+   * where the policy asks the system instead of the paper — a notification made
+   * after 2025 lives in the Urban Planning Committee's system and in no
+   * envelope. Never against the package (ADR-0025).
+   */
+  static integrationNotConnected(
+    type: DocumentType,
+    source: DocumentSource,
+    document: {
+      readonly documentId: DocumentId;
+      readonly sourceFileId: SourceFileId;
+    } | null = null,
+  ): ValidationIssue {
+    const what = document
+      ? `This "${type.value}" is confirmed through ${SOURCE_NAMES[source]}`
+      : `For this case the policy takes the "${type.value}" from ` +
+        `${SOURCE_NAMES[source]} rather than from the package`;
+
+    return ValidationIssue.of({
+      kind: IssueKind.INTEGRATION_NOT_CONNECTED,
+      message:
+        `${what}, which is not connected to this system: ` +
+        `${document ? 'it was read and not confirmed' : 'nothing was checked'}.`,
+      documentId: document?.documentId,
+      sourceFileId: document?.sourceFileId,
+      documentType: type,
+    });
   }
 
   /*
@@ -466,20 +548,6 @@ export class ValidationIssue {
       sourceFileId,
       documentType: expected,
     });
-  }
-
-  // A set is only as certain as the least certain reading it was chosen on. No
-  // reading at all is no claim, which is null rather than a confident nothing.
-  private static leastConfidentOf(
-    values: readonly CheckedValue[],
-  ): Confidence | null {
-    return values.reduce<Confidence | null>(
-      (lowest, value) =>
-        lowest === null || value.confidence.value < lowest.value
-          ? value.confidence
-          : lowest,
-      null,
-    );
   }
 
   static lowConfidenceType(

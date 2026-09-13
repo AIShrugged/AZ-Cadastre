@@ -66,6 +66,7 @@ import {
   PACKET_LINE_KEY,
   ProfileGlyph,
   profileName,
+  provisionSummary,
   readDeclaration,
   readDeclaredYear,
   readPacket,
@@ -74,7 +75,6 @@ import {
   STANDING_NOTE,
   StandingMark,
   suggestionLines,
-  supportingSetsOf,
   toDeclaredInput,
   toSuggestionRequest,
   useCreatePackageMutation,
@@ -705,7 +705,6 @@ export function CaseIntake() {
     () => (view === undefined ? [] : readPacket(view)),
     [view],
   );
-  const sets = useMemo(() => supportingSetsOf(view?.report ?? null), [view]);
 
   const at = caseId === null ? 0 : view?.report ? 2 : 1;
 
@@ -951,39 +950,23 @@ export function CaseIntake() {
                   <Group
                     icon={ScaleIcon}
                     title={t('intake.group.legal')}
-                    lead={t('supporting.lead')}
+                    lead={t('provision.lead')}
                   >
-                    {sets.length === 0 ? (
-                      <p className='text-[0.8125rem] text-muted-foreground'>
-                        {t('intake.group.legal_none')}
-                      </p>
-                    ) : (
-                      <ul className='flex flex-col gap-2'>
-                        {sets.map((set, index) => (
-                          <li
-                            key={`${set.placed}-${index}`}
-                            className='text-[0.8125rem] leading-relaxed'
-                          >
-                            <span className='text-foreground'>
-                              {t('supporting.bring')}
-                            </span>{' '}
-                            <span
-                              className={
-                                set.placed
-                                  ? 'text-muted-foreground'
-                                  : 'text-incomplete-ink'
-                              }
-                            >
-                              {t(
-                                set.placed
-                                  ? 'supporting.placed'
-                                  : 'supporting.unplaced',
-                              )}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+                    {/* Which provision of Article 8 the case falls under, as
+                        the server has worked it out so far; the detail page's
+                        fold says what it was decided on (ADR-0025). */}
+                    <p
+                      className={
+                        view.provision &&
+                        view.provision.outcome !== 'Determined'
+                          ? 'text-[0.8125rem] leading-relaxed text-incomplete-ink'
+                          : 'text-[0.8125rem] leading-relaxed text-foreground'
+                      }
+                    >
+                      {view.provision && view.report
+                        ? provisionSummary(t, view.provision)
+                        : t('provision.pending')}
+                    </p>
                   </Group>
 
                   <Group

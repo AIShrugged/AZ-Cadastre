@@ -100,8 +100,8 @@ export function gapsIn(
   profile: VerificationProfile,
   documents: readonly ReadDocument[],
   // What the office declared at intake: the ground names the title an operator
-  // is asked for, and the year is one of the figures the provision turns on.
-  declared: DeclaredForGaps = { legalBasis: null, builtYear: null },
+  // is asked for. The declared year dates nothing (ADR-0026).
+  declared: DeclaredForGaps = { legalBasis: null },
 ): readonly DocumentGap[] {
   const inForce = documents.filter(document => !document.superseded);
   const placed = inForce.flatMap(document => {
@@ -172,7 +172,6 @@ function wasReadBadly(
 
 export type DeclaredForGaps = {
   readonly legalBasis: string | null;
-  readonly builtYear: number | null;
 };
 
 /*
@@ -201,7 +200,7 @@ function shortOfProvision(
 
   if (!provisions) return [];
 
-  const answer = provisionOf(provisions, declared.builtYear, documents);
+  const answer = provisionOf(provisions, documents);
   const decided =
     answer.decision.outcome === 'Determined' ? answer.decision.provision : null;
 
@@ -217,6 +216,9 @@ function shortOfProvision(
       : provisions.titleTypes.filter(
           type =>
             decided?.titleRight == null ||
+            // A title whose kind confers no right founds either class on
+            // its words (ADR-0026).
+            provisions.rightConferredBy(type) === null ||
             provisions.rightConferredBy(type) === decided.titleRight,
         );
 

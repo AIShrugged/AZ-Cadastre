@@ -63,6 +63,8 @@ describe('DocumentCatalogue', () => {
       'technical_passport',
       'state_register_extract',
       'operation_acceptance_act',
+      'construction_permit_decision',
+      'construction_permit',
       'designer_licence',
     ]) {
       expect(keys).not.toContain(moved);

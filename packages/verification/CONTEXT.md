@@ -52,11 +52,11 @@ The provision of Article 8 of the Law a first registration falls under — 8.0.9
 _Avoid_: sub-case, scenario, category, ground (which is a Title Document)
 
 **Case Parameters**:
-The six figures an Article 8 Provision is decided on: the year the house was built, its storeys above ground, its height from ±0.000, its longest span, the right held over the land and what the land is designated for. Each carries where it came from — read off a sheet, declared at intake, or decided by the kind of Title Document the package carries — and a reading that could not be understood stays beside the figure it failed to give, so a refused reading never looks like a missing one. The year is what the office declared before it is anything a paper says (ADR-0025).
+The six figures an Article 8 Provision is decided on: the year the house was built, its storeys above ground, its height from ±0.000, its longest span, the right held over the land and what the land is designated for. Each carries where it came from — read off a sheet, or decided by the kind of Title Document the package carries — and a reading that could not be understood stays beside the figure it failed to give, so a refused reading never looks like a missing one. The year is what a paper says and never what the office declared; a case no paper dates is undecided on the year (ADR-0026).
 _Avoid_: attributes, inputs, features
 
 **Title Document**:
-A paper confirming the right over the land, which every Article 8 Provision asks for (Article 10.2.1): a state act, a household book extract, a Soviet-era allocation decision, the order allotting the parcel, the register extract. Any one of them answers the requirement. Its kind decides the right it confers — ownership or lease-or-use — and each is a title only within a window of dates its item of the Decree gives it; one dated outside every window is a finding against the package.
+A paper confirming the right over the land, which every Article 8 Provision asks for (Article 10.2.1): a state act, a household book extract, a Soviet-era allocation decision, the order allotting the parcel, the register extract. Any one of them answers the requirement. Its kind decides the right it confers — ownership or lease-or-use — except the order allotting the parcel, whose kind confers none and whose right is read off the wording of the register extract or the plan (ADR-0026). Each is a title only within a window of dates its item of the Decree gives it; one dated outside every window is a finding against the package and decides no right.
 _Avoid_: ground document, land document, legal basis (which is what the office declares at intake)
 
 **Document Source**:

@@ -614,6 +614,18 @@ const DECREE_439_FIELDS: Fields = [
   ['qr_code', 'QR code', QR_NOTE],
 ];
 
+// The passport is the one paper of a package that states when the house was
+// built, and the year is read off it before any act (ADR-0026).
+const TECHNICAL_PASSPORT_FIELDS: Fields = [
+  ...DECREE_439_FIELDS,
+  [
+    'built_year',
+    'Year of construction',
+    "the year the house was built, from the year column of the passport's " +
+      'table of buildings — not the date the passport was drawn up.',
+  ],
+];
+
 const REGISTER_EXTRACT_FIELDS: Fields = [
   ['holder_name', 'Person whose right is formalised'],
   ['property_type', 'Type of immovable property'],
@@ -669,6 +681,7 @@ const APPROVED_DESIGN_FIELDS: Fields = [
 const ACCEPTANCE_ACT_FIELDS: Fields = [
   ['approving_authority', 'Authority approving the act'],
   ['decision_no', 'Number of the decision approving the act'],
+  ['decision_date', 'Date of the decision approving the act'],
   [
     'act_date',
     'Date of the act',
@@ -686,9 +699,18 @@ const ACCEPTANCE_ACT_FIELDS: Fields = [
   ['contractor_representative', 'Representative of the contractor'],
 ];
 
-const PERMIT_FIELDS: Fields = [
-  ['decision_no', 'Number of the permit or decision'],
-  ['decision_date', 'Date of the permit or decision'],
+// The decision's own four items; "signature and seal" is how the paper is
+// attested, not a value read off it (ADR-0012).
+const PERMIT_DECISION_FIELDS: Fields = [
+  ['decision_no', 'Number of the decision'],
+  ['decision_date', 'Date of the decision'],
+  ['adopting_authority', 'Authority adopting the decision'],
+  ['property_address', 'Address of the object'],
+];
+
+const CONSTRUCTION_PERMIT_FIELDS: Fields = [
+  ['permit_no', 'Number of the permit'],
+  ['permit_date', 'Date of the permit'],
   ['issuing_authority', 'Issuing authority'],
   ['property_address', 'Address of the object'],
   ['client_name', 'Client'],
@@ -1186,17 +1208,46 @@ export class VerificationProfile {
         source: 'Package',
         fields: ACCEPTANCE_ACT_FIELDS,
       },
+      // Two papers and not one, as the acceptance contract has them: the
+      // decision an executive authority adopted for a building raised before
+      // 2013, which comes in the envelope, and the permit issued under the Code
+      // since, which the Urban Planning Committee confirms. One type for both
+      // read a decision as a paper the Committee confirms and asked 8.0.10.1
+      // for a decision nobody issues any more.
       {
         key: 'construction_permit_decision',
         description:
-          'Decision of the relevant executive authority permitting a building to ' +
-          'be constructed (Articles 8.0.9.2, 8.0.10.1). It permits work that has ' +
-          'not started; it says nothing about a finished building.',
+          'Decision of a local executive authority granting permission to ' +
+          'construct a building raised before 1 January 2013 (Article 8.0.9.2). ' +
+          'Headed as a decision and naming the body that adopted it. It permits ' +
+          'work that has not started and says nothing about a finished building; ' +
+          'the construction permit issued under the Urban Planning and ' +
+          'Construction Code is a different paper.',
         hints: [
+          'tikintiyə icazə verilməsi barədə qərar',
           'tikilinin inşa edilməsinə icazə barədə qərar',
           'tikintiyə icazə barədə qərar',
-          'tikinti icazəsi',
+          'решение о выдаче разрешения на строительство',
           'решение о разрешении на строительство',
+        ],
+        required: false,
+        alwaysAccepted: false,
+        expectsStamp: true,
+        expectsSignature: true,
+        source: 'Package',
+        fields: PERMIT_DECISION_FIELDS,
+      },
+      {
+        key: 'construction_permit',
+        description:
+          'Construction permit issued under the Urban Planning and Construction ' +
+          'Code for a building that needs one — built from 2013 outside the ' +
+          'notification procedure (Article 8.0.10.1, UPCC 80.1). A permit under ' +
+          'its own number, not a decision of an executive authority, and not the ' +
+          'permit for operation that closes the construction.',
+        hints: [
+          'tikintiyə icazə',
+          'tikinti icazəsi',
           'разрешение на строительство',
         ],
         required: false,
@@ -1204,7 +1255,7 @@ export class VerificationProfile {
         expectsStamp: true,
         expectsSignature: true,
         source: 'UrbanPlanningCommittee',
-        fields: PERMIT_FIELDS,
+        fields: CONSTRUCTION_PERMIT_FIELDS,
       },
       {
         key: 'architectural_planning_section',
@@ -1429,7 +1480,7 @@ export class VerificationProfile {
         expectsStamp: true,
         expectsSignature: true,
         source: 'NationalArchive',
-        fields: DECREE_439_FIELDS,
+        fields: TECHNICAL_PASSPORT_FIELDS,
       },
       {
         key: 'kolkhoz_allocation_decision',

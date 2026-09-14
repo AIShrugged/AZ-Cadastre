@@ -333,7 +333,7 @@ export type ProvisionStandingView = {
 export type TitleDocumentStandingView = {
   documentId: string;
   documentType: string;
-  landRight: string;
+  landRight: string | null;
   dated: {
     fieldName: string;
     value: string;

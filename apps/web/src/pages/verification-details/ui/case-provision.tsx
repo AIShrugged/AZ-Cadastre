@@ -666,12 +666,10 @@ function Titles({
                       `${t('provision.item', { item: item.item })}: ${windowOf(item)}`,
                   )
                   .join(' · ')}
-                {' · '}
-                {translateOr(
-                  t,
-                  `provision.value.${title.landRight}`,
-                  title.landRight,
-                )}
+                {/* A title whose kind confers no right — the order allotting
+                    the parcel — names none here (ADR-0026). */}
+                {title.landRight &&
+                  ` · ${translateOr(t, `provision.value.${title.landRight}`, title.landRight)}`}
               </p>
             </li>
           );

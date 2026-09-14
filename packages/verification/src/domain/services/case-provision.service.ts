@@ -38,8 +38,6 @@ import { landPurposeIn, landRightIn } from './land-title.service.js';
 export const PARAMETER_SOURCES = [
   // Read off a sheet of a document of this package.
   'ReadOffDocument',
-  // Typed at the counter when the submission was taken in.
-  'DeclaredAtIntake',
   // Decided by the kind of title document the package carries, not by anything
   // printed on it: a state act is an ownership document whatever its lines say.
   'TitleDocumentType',
@@ -90,7 +88,8 @@ export type ProvisionStanding = {
 export type TitleDocumentStanding = {
   readonly documentId: string;
   readonly documentType: string;
-  readonly landRight: LandRight;
+  // Null for a title whose kind confers no right (ADR-0026).
+  readonly landRight: LandRight | null;
   // The date the window is held against, where the document states one.
   readonly dated:
     | (Omit<FigureReading, 'fieldKey'> & {
@@ -132,7 +131,6 @@ type Placed = {
 
 export function provisionOf(
   spec: ProvisionsSpec,
-  declaredYear: number | null,
   documents: readonly ReadDocument[],
 ): CaseProvision {
   const placed: readonly Placed[] = documents.flatMap(document => {
@@ -143,7 +141,9 @@ export function provisionOf(
     return type.isKnown ? [{ document, type }] : [];
   });
 
-  const builtYear = yearOf(spec, declaredYear, placed);
+  // Off the papers alone, in the table's order, and never off what the office
+  // declared at intake (ADR-0026).
+  const builtYear = figure('builtYear', spec.builtIn, placed, yearIn);
   const storeys = figure('storeys', spec.storeys, placed, storeysIn);
   const height = figure('height', spec.height, placed, heightInMetres);
   const span = figure('span', spec.span, placed, spanInMetres);
@@ -217,42 +217,15 @@ type Established<T> = {
 };
 
 /*
- * The year the case is dated by: what the office declared at intake, and only
- * where it declared nothing, the first paper that closes the construction.
- *
- * The declaration first, unlike every other figure — and on purpose. The
- * contract takes the date of construction from historical satellite imagery
- * confirmed by the operator, not from a paper: no document of the package states
- * when the house was built, and the dates the papers do print are the dates of
- * acts about it. Until that integration exists the operator's word is the
- * nearest thing to the source the contract names; a paper that disagrees is
- * reported beside it, never silently preferred (ADR-0025).
- */
-function yearOf(
-  spec: ProvisionsSpec,
-  declaredYear: number | null,
-  placed: readonly Placed[],
-): Established<number> {
-  if (declaredYear !== null) {
-    return {
-      value: declaredYear,
-      reading: {
-        parameter: 'builtYear',
-        source: 'DeclaredAtIntake',
-        stated: String(declaredYear),
-        from: null,
-      },
-    };
-  }
-
-  return figure('builtYear', spec.builtIn, placed, yearIn);
-}
-
-/*
  * The right over the land. The kind of title document decides it where the
  * package carries one — "Ownership: extract, state act, 8.0.5 documents.
  * Lease/use: the remaining documents" — and only where it carries none is the
  * right read off how a plan or an extract words it.
+ *
+ * The order allotting the parcel is a title and confers no right by its kind
+ * (ADR-0026): which right it grants is in its words, and the customer's own
+ * orders and register extracts do not say the same. A package whose only title
+ * is an order is read off the wording of the extract or the plan.
  *
  * Two title documents of two different classes decide nothing: which of them
  * the case stands on is a question for the inspector, and the figure is left
@@ -264,8 +237,12 @@ function rightOf(
 ): Established<LandRight> {
   const titles = placed.flatMap(one => {
     const right = spec.rightConferredBy(one.type);
+    // A paper dated outside every window its items give it founds nothing, so
+    // its kind decides nothing either (ADR-0026): it is reported as invalid and
+    // not counted as the title the case stands on.
+    const outside = titleStandingOf(spec, one)[0]?.withinWindow === false;
 
-    return right ? [{ ...one, right }] : [];
+    return right && !outside ? [{ ...one, right }] : [];
   });
 
   const [first] = titles;

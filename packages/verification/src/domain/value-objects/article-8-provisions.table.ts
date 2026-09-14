@@ -29,11 +29,15 @@ export const ARTICLE_8_PROVISIONS: ProvisionsDeclaration = {
     'residential house falls under — decided on when it was built, its storeys, ' +
     'height and longest span, the right held over the land and what the land is ' +
     'designated for — and the papers that provision asks for.',
-  // The papers that close a construction, in the order they are believed. Not
+  // The papers that date a construction, in the order they are believed. Not
   // the design's approval date: a design approved in 2012 is a house built in
   // 2014 as often as not, and the regime turns on the building, not on the
-  // drawing. The year declared at intake is read before any of these.
+  // drawing. Nothing else dates a case: the year the office declared at intake
+  // decides nothing (ADR-0026).
   builtIn: [
+    // The one line that states when the house was built, rather than when an
+    // act about it was signed.
+    ['technical_passport', 'built_year'],
     ['operation_acceptance_act', 'act_date'],
     ['operation_permit', 'permit_date'],
     ['construction_completion_notice', 'notice_date'],
@@ -211,13 +215,14 @@ export const ARTICLE_8_PROVISIONS: ProvisionsDeclaration = {
     },
     // Not in the contract's list under this name. The order of an executive
     // authority allotting the parcel is the paper both of the customer's real
-    // submissions rest on, and it is an act on the lease or use of state land —
-    // Article 8.0.1. Filed as a lease-or-use title until the customer says
-    // otherwise; ADR-0025 names it as an open question.
+    // submissions rest on. It is a title, and its kind confers no right: filed
+    // as lease-or-use it sent both to 8.0.9.1.1, while their register extracts
+    // say ownership. Which right it grants is read off the wording of the
+    // extract or the plan (ADR-0026).
     {
       item: '8.0.1',
       type: 'disposal_order',
-      landRight: 'LeaseOrUse',
+      landRight: null,
       dateField: 'issue_date',
       issuedFrom: null,
       issuedBefore: null,
@@ -295,7 +300,9 @@ export const ARTICLE_8_PROVISIONS: ProvisionsDeclaration = {
         'section, and the permit for operation.',
       builtFrom: 2013,
       requires: [
-        { anyOf: ['construction_permit_decision'] },
+        // The permit under the Code, not the decision of 8.0.9.2 — the
+        // contract names them apart (`permit`, `permitDec`).
+        { anyOf: ['construction_permit'] },
         { anyOf: ['architectural_planning_section'] },
         { anyOf: ['operation_permit'] },
       ],

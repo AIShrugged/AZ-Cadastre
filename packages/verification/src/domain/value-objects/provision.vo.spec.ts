@@ -214,6 +214,30 @@ describe('ProvisionsSpec — the Article 8 decision table', () => {
       ).toBe(true);
     });
 
+    /*
+     * The decision granting construction permission and the construction
+     * permit were one type, which asked a post-2013 house for a decision and
+     * read a pre-2013 decision as a paper the Committee confirms. The contract
+     * names them apart; so does the table.
+     */
+    it('asks a pre-2013 tall house for the decision, and a permit-procedure house for the permit', () => {
+      const papers = (provision: string) =>
+        TABLE.ruleFor(provision)!.requirements.map(group =>
+          group.anyOf.map(type => type.value),
+        );
+
+      expect(papers('8.0.9.2')).toEqual([
+        ['approved_design'],
+        ['construction_permit_decision'],
+        ['operation_acceptance_act'],
+      ]);
+      expect(papers('8.0.10.1')).toEqual([
+        ['construction_permit'],
+        ['architectural_planning_section'],
+        ['operation_permit'],
+      ]);
+    });
+
     it('names the class of title the two pre-2013 low-rise provisions rest on', () => {
       expect(TABLE.ruleFor('8.0.9.1.1')?.titleRight).toBe('LeaseOrUse');
       expect(TABLE.ruleFor('8.0.9.1.2')?.titleRight).toBe('Ownership');

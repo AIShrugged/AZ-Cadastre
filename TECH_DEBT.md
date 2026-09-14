@@ -302,32 +302,34 @@ screen no longer needing that address does not close it. Nor does it publish the
 import: that endpoint stays outside the contract on purpose, and the paragraph
 about it above is the live half of this entry.
 
-## 11. The year a house was built is what the office says it is
+## 11. The year a house was built is the date of a paper about it
 
 **Not done.** Which provision of Article 8 a case falls under turns first on
 when the house was built (ADR-0025). The customer's acceptance contract takes
 that date from historical satellite imagery at the plot's coordinates,
-confirmed by the operator. There is no such integration, and no paper of the
-package states when a house was built. So the year is what the office declared
-at intake, and only where it declared nothing the date of a paper that closed
-the construction — the acceptance act, the permit for operation, the
-notification. It is a year, not a date: the intake has never asked for more.
+confirmed by the operator. There is no such integration, and for now the year is
+taken off the papers alone and never from the operator (ADR-0026): the year of
+construction a technical passport states, and after it the date of a paper that
+closed the construction — the acceptance act, the permit for operation, the
+notification. What the office typed at intake decides nothing; where it
+disagrees with the paper, the report says so (`DeclaredValueMismatch`).
 
 Two smaller guesses ride with it. The notification boundary is 1 June 2025, and
 a year cannot say which side of it a house built in 2025 falls on; the table
-reads 2025 on the letter's side. And the order of the papers the year falls
-back on is ours.
+reads 2025 on the letter's side. And the order of the papers is ours: the
+passport first, because it is the one line that states when the house was built
+rather than when an act about it was signed.
 
-**How it fires.** A year typed wrong at the counter places a house under the
-wrong regime — before 2013 or after it — and the report asks for the wrong
-papers with the same confidence as the right ones. Where a paper states a
-different year, the report says so (`DeclaredValueMismatch`); where no paper
-does, nothing does.
+**How it fires.** A package that carries none of those papers — both of the
+customer's real submissions, unless the technical passport is in the envelope —
+has no year, and every provision the year would decide stays a candidate: the
+report says `ProvisionUndetermined` and names the year as what would settle it.
+An act signed years after the house was finished places it under the wrong
+regime with the same confidence as the right one.
 
-**What to do.** Put the date of construction on the intake as a date, and when
-an imagery integration exists, read it as a source of its own with the
-operator's confirmation beside it. Nothing in the table changes: `builtIn` and
-the declared year are the only two places that would.
+**What to do.** When an imagery integration exists, read it as a source of its
+own with the operator's confirmation beside it. Nothing in the table changes:
+`builtIn` is the only place that would.
 
 ## 12. A summary count cannot be narrowed to the period it was counted over
 
@@ -410,16 +412,11 @@ QR links and whether the site may be read by a server at all.
 word its own workbooks use for it — `Dövlət aktı` for a state act, `Texniki
 Pasport`, `Şəhadətnamə`, `Müqavilə` (ADR-0025). The pairing is ours, read off
 the six workbooks' column headers; the customer has said the sections will be
-confirmed later. So is filing the executive order allotting a parcel as an
-Article 8.0.1 lease-or-use title, which the contract does not list under that
-name and both real submissions rest on.
+confirmed later.
 
 **How it fires.** A title asked about under a word the area's register never
 used comes back `Unknown` — silence, never a finding — and an original the
-archive does hold goes unconfirmed. An order that in fact conveyed ownership
-places a pre-2013 case under 8.0.9.1.1 instead of 8.0.9.1.2, and the report asks
-for an approved design or an acceptance act the case does not need.
+archive does hold goes unconfirmed.
 
 **What to do.** When the customer names the sections, change the pairs in
-`property_of_record` and, for the order, its row in
-`article-8-provisions.table.ts`. Nothing else reads either.
+`property_of_record`. Nothing else reads them.

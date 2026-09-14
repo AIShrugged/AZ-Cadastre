@@ -288,7 +288,6 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   get gaps(): readonly DocumentGap[] {
     return gapsIn(this.#profile, this.#documents.map(asRead), {
       legalBasis: this.#declared.legalBasis?.value ?? null,
-      builtYear: this.#declared.builtYear,
     });
   }
 
@@ -1184,11 +1183,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     const provisions = this.#profile.provisions;
 
     return provisions
-      ? provisionOf(
-          provisions,
-          this.#declared.builtYear,
-          this.#documents.map(asRead),
-        )
+      ? provisionOf(provisions, this.#documents.map(asRead))
       : null;
   }
 
@@ -1422,12 +1417,10 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     if (declaredYear === null || !provisions) return [];
 
     /*
-     * The first paper that closes the construction, in the table's order —
-     * the one the provision would have been dated by had nothing been
-     * declared. The provision is decided on the declaration (ADR-0025), which
-     * is exactly why a paper that says otherwise has to be told: the decision
-     * rests on the counter, and the inspector is the one who can see which
-     * side is right.
+     * The first paper that dates the construction, in the table's order — the
+     * one the provision is dated by. The declaration dates nothing (ADR-0026),
+     * and a counter that says otherwise is still worth telling: one of the
+     * two is wrong, and the inspector is the one who can see which.
      */
     const dated = this.firstStated(provisions.builtIn);
     const readYear = dated ? yearIn(dated.value.value) : null;

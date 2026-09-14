@@ -127,7 +127,10 @@ export type TitleDocumentDeclaration = {
   // for the extract the registry retrieves itself (Article 12.1).
   readonly item: string;
   readonly type: string;
-  readonly landRight: LandRight;
+  // The right its kind confers, or null for a paper whose kind confers none —
+  // the order allotting a parcel, whose own words say which right it grants
+  // (ADR-0026).
+  readonly landRight: LandRight | null;
   // The field of that document type the date of issue is read off.
   readonly dateField: string;
   // ISO dates. Inclusive at the bottom, exclusive at the top; null is open.
@@ -393,7 +396,7 @@ export class TitleDocumentEntry {
   private constructor(
     public readonly item: string,
     public readonly type: DocumentType,
-    public readonly landRight: LandRight,
+    public readonly landRight: LandRight | null,
     public readonly dateField: FieldKey,
     public readonly issuedFrom: string | null,
     public readonly issuedBefore: string | null,

@@ -81,10 +81,12 @@ const MOCK_VALUES: Record<string, string> = {
   // inside the window every item of the Decree gives it.
   holder_name: 'ELÇİN ƏLİYEV',
   decree_item: '2.7',
+  built_year: '1987',
   archive_reference: 'F. 12, siy. 3, iş 418, v. 7',
   property_type: 'Fərdi yaşayış evi',
   rightholders: 'ELÇİN ƏLİYEV — 1/1, RN-2025-004312, 27.09.2025',
   approving_authority: 'Bakı Şəhər İcra Hakimiyyəti',
+  adopting_authority: 'Bakı Şəhər İcra Hakimiyyəti',
   decision_no: 'R-2011/52',
   act_date: '14.03.2011',
   decision_date: '02.06.2010',

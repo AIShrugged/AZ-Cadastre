@@ -71,6 +71,19 @@ describe('looksLike', () => {
     );
   });
 
+  /*
+   * The construction permit and the decision granting one were one type until
+   * the contract's two were told apart, and the permit's heading is the first
+   * words of the decision's. A decision read as a permit would answer 8.0.10.1
+   * with the paper of 8.0.9.2.
+   */
+  it('reads a decision granting construction permission as the decision, not the permit', () => {
+    expect(typeOf('TİKİNTİYƏ İCAZƏ VERİLMƏSİ BARƏDƏ QƏRAR № 52')).toBe(
+      'construction_permit_decision',
+    );
+    expect(typeOf('TİKİNTİYƏ İCAZƏ № İ-2014/77')).toBe('construction_permit');
+  });
+
   it('finds nothing on a page that names no type', () => {
     expect(typeOf('bir məktub')).toBeNull();
   });

@@ -60,28 +60,19 @@ function aPlan(): ReadDocument {
   });
 }
 
+// An act of acceptance into operation of that year: a paper the case is dated
+// by, and one no provision from 2013 asks for.
+function anActOf(year: number): ReadDocument {
+  return aDocument('operation_acceptance_act', { act_date: `14.03.${year}` });
+}
+
 describe('provisionOf', () => {
   describe('the year the case is dated by', () => {
-    it('takes what the office declared at intake before any paper', () => {
+    it('reads it off the paper that closed the construction', () => {
       const acceptance = aDocument('operation_acceptance_act', {
         act_date: '14.03.2011',
       });
-      const answer = provisionOf(TABLE, 2014, [acceptance]);
-
-      expect(answer.parameters.builtYear).toBe(2014);
-      expect(answer.readings[0]).toMatchObject({
-        parameter: 'builtYear',
-        source: 'DeclaredAtIntake',
-        stated: '2014',
-        from: null,
-      });
-    });
-
-    it('reads it off the paper that closed the construction where nothing was declared', () => {
-      const acceptance = aDocument('operation_acceptance_act', {
-        act_date: '14.03.2011',
-      });
-      const answer = provisionOf(TABLE, null, [acceptance]);
+      const answer = provisionOf(TABLE, [acceptance]);
 
       expect(answer.parameters.builtYear).toBe(2011);
       expect(answer.readings[0]?.source).toBe('ReadOffDocument');
@@ -92,21 +83,48 @@ describe('provisionOf', () => {
       });
     });
 
+    it('takes the year a technical passport states before the date of any act', () => {
+      const acceptance = aDocument('operation_acceptance_act', {
+        act_date: '14.03.2011',
+      });
+      const passport = aDocument('technical_passport', { built_year: '1987' });
+      const answer = provisionOf(TABLE, [acceptance, passport]);
+
+      expect(answer.parameters.builtYear).toBe(1987);
+      expect(answer.readings[0]?.from).toMatchObject({
+        documentId: passport.documentId,
+        fieldKey: 'built_year',
+      });
+    });
+
+    /*
+     * The year declared at intake used to date the case before any paper did
+     * (ADR-0025); the year is read off the papers alone now (ADR-0026). A case
+     * no paper dates stays undecided on the year rather than being dated by
+     * the counter.
+     */
+    it('stays unstated where no paper dates the case', () => {
+      expect(provisionOf(TABLE, [aDesign(), aPlan()]).readings[0]).toEqual({
+        parameter: 'builtYear',
+        source: null,
+        stated: null,
+        from: null,
+      });
+    });
+
     // A design approved in 2012 is a house built in 2014 as often as not.
     it('does not date the case by the design’s approval', () => {
       const design = aDocument('sketch_project', {
         approval_date: '18.12.2012',
       });
 
-      expect(provisionOf(TABLE, null, [design]).parameters.builtYear).toBe(
-        null,
-      );
+      expect(provisionOf(TABLE, [design]).parameters.builtYear).toBe(null);
     });
   });
 
   describe('a figure read off a paper', () => {
     it('is believed from the first paper of the profile’s order that states it', () => {
-      const answer = provisionOf(TABLE, 2014, [aDesign(), aPlan()]);
+      const answer = provisionOf(TABLE, [aDesign(), aPlan(), anActOf(2014)]);
 
       expect(answer.parameters).toEqual({
         builtYear: 2014,
@@ -131,7 +149,7 @@ describe('provisionOf', () => {
       const approved = aDocument('approved_design', {
         building_height: '7,4 m',
       });
-      const answer = provisionOf(TABLE, 2014, [approved, design]);
+      const answer = provisionOf(TABLE, [approved, design]);
 
       expect(answer.parameters.height).toBeNull();
       expect(
@@ -146,20 +164,20 @@ describe('provisionOf', () => {
         { superseded: true },
       );
 
-      expect(provisionOf(TABLE, 2014, [replaced]).parameters.height).toBeNull();
+      expect(provisionOf(TABLE, [replaced]).parameters.height).toBeNull();
     });
 
     it('is not read off a document the classifier could not place', () => {
       const unplaced = aDocument('unknown', { building_height: '15 m' });
 
-      expect(provisionOf(TABLE, 2014, [unplaced]).parameters.height).toBeNull();
+      expect(provisionOf(TABLE, [unplaced]).parameters.height).toBeNull();
     });
   });
 
   describe('the right over the land', () => {
     it('is decided by the kind of title document the package carries', () => {
       const act = aDocument('land_right_state_act', { issue_date: '1995' });
-      const answer = provisionOf(TABLE, 2010, [act]);
+      const answer = provisionOf(TABLE, [act]);
 
       expect(answer.parameters.landRight).toBe('Ownership');
       expect(
@@ -178,9 +196,9 @@ describe('provisionOf', () => {
         issue_date: '1987',
       });
 
-      expect(
-        provisionOf(TABLE, 2010, [plan, household]).parameters.landRight,
-      ).toBe('LeaseOrUse');
+      expect(provisionOf(TABLE, [plan, household]).parameters.landRight).toBe(
+        'LeaseOrUse',
+      );
     });
 
     it('is read off the wording where the package carries no title document', () => {
@@ -188,9 +206,7 @@ describe('provisionOf', () => {
         right_type: 'Mülkiyyət hüququ',
       });
 
-      expect(provisionOf(TABLE, 2010, [plan]).parameters.landRight).toBe(
-        'Ownership',
-      );
+      expect(provisionOf(TABLE, [plan]).parameters.landRight).toBe('Ownership');
     });
 
     // Which of two titles of different classes the case stands on is the
@@ -198,7 +214,7 @@ describe('provisionOf', () => {
     it('is left unstated where two title documents confer different rights', () => {
       const act = aDocument('land_right_state_act');
       const household = aDocument('household_book_extract');
-      const answer = provisionOf(TABLE, 2010, [act, household]);
+      const answer = provisionOf(TABLE, [act, household]);
 
       expect(answer.parameters.landRight).toBeNull();
       expect(
@@ -208,9 +224,75 @@ describe('provisionOf', () => {
     });
   });
 
+  /*
+   * The order allotting the parcel was a lease-or-use title by its kind. Both of
+   * the customer's real submissions rest on one, and both went to 8.0.9.1.1 —
+   * and were asked for a design or an acceptance act — while their register
+   * extracts say ownership. Its kind decides nothing now (ADR-0026).
+   */
+  describe('a title whose kind decides no right', () => {
+    it('leaves the order allotting the parcel to the wording of the plan', () => {
+      const order = aDocument('disposal_order', { issue_date: '15.04.1999' });
+      const plan = aDocument('land_plot_plan', {
+        right_type: 'Mülkiyyət hüququ',
+      });
+      const answer = provisionOf(TABLE, [order, plan]);
+
+      expect(answer.parameters.landRight).toBe('Ownership');
+      expect(
+        answer.readings.find(reading => reading.parameter === 'landRight'),
+      ).toMatchObject({
+        source: 'ReadOffDocument',
+        from: { documentId: plan.documentId, fieldKey: 'right_type' },
+      });
+    });
+
+    it('lets a title that does confer a right decide beside an order', () => {
+      const order = aDocument('disposal_order');
+      const extract = aDocument('state_register_extract');
+
+      expect(provisionOf(TABLE, [order, extract]).parameters.landRight).toBe(
+        'Ownership',
+      );
+    });
+
+    it('leaves the right unstated where only an order speaks and nothing words it', () => {
+      expect(
+        provisionOf(TABLE, [aDocument('disposal_order')]).parameters.landRight,
+      ).toBeNull();
+    });
+
+    it('still counts the order as a title, one that names no right', () => {
+      const [standing] = provisionOf(TABLE, [
+        aDocument('disposal_order'),
+      ]).titleDocuments;
+
+      expect(standing).toMatchObject({
+        documentType: 'disposal_order',
+        landRight: null,
+      });
+    });
+
+    // A technical passport drawn up in 2026 is no title under item 2.4, which
+    // takes one drawn up before 2001; counting its kind would send an owned plot
+    // to lease or use on a paper that founds nothing.
+    it('is not decided by a title dated outside every window it has', () => {
+      const passport = aDocument('technical_passport', {
+        issue_date: '17.04.2026',
+      });
+      const plan = aDocument('land_plot_plan', {
+        right_type: 'Mülkiyyət hüququ',
+      });
+
+      expect(provisionOf(TABLE, [passport, plan]).parameters.landRight).toBe(
+        'Ownership',
+      );
+    });
+  });
+
   describe('what the provision asks for', () => {
     it('shows the requirements of the provision the case was decided under', () => {
-      const answer = provisionOf(TABLE, 2014, [aDesign(), aPlan()]);
+      const answer = provisionOf(TABLE, [aDesign(), aPlan(), anActOf(2014)]);
 
       expect(answer.decision.outcome).toBe('Determined');
       expect(answer.provisions.map(one => one.provision)).toEqual(['8.0.10.2']);
@@ -234,9 +316,9 @@ describe('provisionOf', () => {
       const lease = aDocument('homestead_land_allocation_decision', {
         issue_date: '12.05.1995',
       });
-      const acceptance = aDocument('operation_acceptance_act');
+      const acceptance = anActOf(2010);
       const design = aDocument('sketch_project', { building_height: '8 m' });
-      const answer = provisionOf(TABLE, 2010, [lease, acceptance, design]);
+      const answer = provisionOf(TABLE, [lease, acceptance, design]);
 
       expect(answer.provisions.map(one => one.provision)).toEqual([
         '8.0.9.1.1',
@@ -247,13 +329,13 @@ describe('provisionOf', () => {
     // From 2026 the notification reaches the registry through the Urban
     // Planning Committee's system and not on paper.
     it('does not ask for the notification letter of a house built from 2026', () => {
-      const answer = provisionOf(TABLE, 2026, [aDesign(), aPlan()]);
+      const answer = provisionOf(TABLE, [aDesign(), aPlan(), anActOf(2026)]);
 
       expect(answer.provisions[0]?.requirements[1]?.applies).toBe(false);
     });
 
     it('shows every candidate’s requirements where the case is ambiguous', () => {
-      const answer = provisionOf(TABLE, 2014, [aPlan()]);
+      const answer = provisionOf(TABLE, [aPlan(), anActOf(2014)]);
 
       expect(answer.decision.outcome).toBe('Ambiguous');
       expect(answer.provisions.map(one => one.provision)).toEqual([
@@ -268,7 +350,7 @@ describe('provisionOf', () => {
         right_type: 'Mülkiyyət hüququ',
       });
       const design = aDocument('sketch_project', { building_height: '8 m' });
-      const answer = provisionOf(TABLE, 2010, [plan, design]);
+      const answer = provisionOf(TABLE, [plan, design, anActOf(2010)]);
 
       expect(answer.decision.outcome).toBe('Undetermined');
       expect(answer.provisions).toEqual([]);
@@ -281,7 +363,7 @@ describe('provisionOf', () => {
       const decision = aDocument('homestead_land_allocation_decision', {
         issue_date: '12.05.1995',
       });
-      const [standing] = provisionOf(TABLE, 2010, [decision]).titleDocuments;
+      const [standing] = provisionOf(TABLE, [decision]).titleDocuments;
 
       expect(standing).toMatchObject({
         documentId: decision.documentId,
@@ -297,7 +379,7 @@ describe('provisionOf', () => {
       });
 
       expect(
-        provisionOf(TABLE, 2010, [decision]).titleDocuments[0]?.withinWindow,
+        provisionOf(TABLE, [decision]).titleDocuments[0]?.withinWindow,
       ).toBe(false);
     });
 
@@ -306,7 +388,7 @@ describe('provisionOf', () => {
       const decision = aDocument('land_allocation_decision', {
         issue_date: '03.03.1999',
       });
-      const [standing] = provisionOf(TABLE, 2010, [decision]).titleDocuments;
+      const [standing] = provisionOf(TABLE, [decision]).titleDocuments;
 
       expect(standing?.withinWindow).toBe(true);
       expect(standing?.items).toEqual([
@@ -329,14 +411,14 @@ describe('provisionOf', () => {
 
     it('cannot say for a title whose date went unread', () => {
       const decision = aDocument('homestead_land_allocation_decision');
-      const [standing] = provisionOf(TABLE, 2010, [decision]).titleDocuments;
+      const [standing] = provisionOf(TABLE, [decision]).titleDocuments;
 
       expect(standing?.withinWindow).toBeNull();
       expect(standing?.dated).toBeNull();
     });
 
     it('lists no standing for a paper that is no title', () => {
-      expect(provisionOf(TABLE, 2010, [aDesign()]).titleDocuments).toEqual([]);
+      expect(provisionOf(TABLE, [aDesign()]).titleDocuments).toEqual([]);
     });
   });
 });

@@ -236,7 +236,7 @@ function toProvisionDto(view: ProvisionView): CaseProvisionDto {
     titleDocuments: view.titleDocuments.map(title => ({
       documentId: title.documentId,
       documentType: title.documentType,
-      landRight: title.landRight as Right,
+      landRight: title.landRight as Right | null,
       dated: title.dated ? { ...title.dated } : null,
       withinWindow: title.withinWindow,
       items: title.items.map(item => ({ ...item })),

@@ -154,7 +154,6 @@ describe('gapsIn', () => {
       expect(
         missingIn([], {
           legalBasis: 'household_book_extract',
-          builtYear: null,
         }).filter(type => TITLES.includes(type)),
       ).toEqual(['household_book_extract']);
     });
@@ -168,17 +167,18 @@ describe('gapsIn', () => {
           right_type: 'Mülkiyyət hüququ',
         }),
         aDocumentStating('sketch_project', { building_height: '8 m' }),
+        aDocumentStating('operation_permit', { permit_date: '20.04.2010' }),
       ];
 
       expect(
-        missingIn(documents, { legalBasis: null, builtYear: 2010 }).filter(
-          type => TITLES.includes(type),
-        ),
+        missingIn(documents).filter(type => TITLES.includes(type)),
       ).toEqual([
         'state_register_extract',
         'land_right_state_act',
         'registration_certificate',
         'property_right_certificate',
+        // Its kind confers no right, so it founds either class (ADR-0026).
+        'disposal_order',
       ]);
     });
 
@@ -201,11 +201,14 @@ describe('gapsIn', () => {
       }),
       aDocument('disposal_order'),
     ];
+    // Dated by its act of acceptance into operation (ADR-0026).
+    const DATED = [
+      ...POST_2013,
+      aDocumentStating('operation_acceptance_act', { act_date: '14.03.2014' }),
+    ];
 
     it('offers every paper of the provision the case was decided under', () => {
-      expect(
-        missingIn(POST_2013, { legalBasis: null, builtYear: 2014 }),
-      ).toEqual([
+      expect(missingIn(DATED)).toEqual([
         'architectural_planning_section',
         'construction_completion_notice',
       ]);
@@ -214,9 +217,7 @@ describe('gapsIn', () => {
     // Which papers are owed is the question the report asks the inspector;
     // offering the union would ask for papers no provision of the case needs.
     it('offers none while the provision is undecided', () => {
-      expect(
-        missingIn(POST_2013, { legalBasis: null, builtYear: null }),
-      ).toEqual([]);
+      expect(missingIn(POST_2013)).toEqual([]);
     });
   });
 

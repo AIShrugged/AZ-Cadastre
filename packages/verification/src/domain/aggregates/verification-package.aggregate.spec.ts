@@ -1332,7 +1332,7 @@ describe('VerificationPackage', () => {
 
     it('flags a value the engine is unsure of, and says how unsure', () => {
       const { verification } = aCompletePackage();
-      const title = verification.documents.at(-1)!;
+      const title = verification.documents[2]!;
       verification.recordExtractedFields(title.id, [
         aField('document_no', 0.42),
       ]);
@@ -1348,7 +1348,7 @@ describe('VerificationPackage', () => {
 
     it('leaves a value it is sure of out of the report', () => {
       const { verification } = aCompletePackage();
-      const title = verification.documents.at(-1)!;
+      const title = verification.documents[2]!;
       verification.recordExtractedFields(title.id, [
         aField('document_no', 0.95),
       ]);
@@ -1709,12 +1709,17 @@ describe('VerificationPackage', () => {
 
     type Paper = readonly [string, Readonly<Record<string, string>>];
 
-    // A package of these papers, one per sheet, each placed and read, taken in
-    // as built in `year`, and run to its report.
-    function aCase(year: number | null, ...papers: readonly Paper[]) {
-      const built = aSegmentedPackage(papers.length, {
-        declared: DeclaredAtIntake.of({ builtYear: year }),
-      });
+    // A package of these papers, one per sheet, each placed and read, run to
+    // its report — and, where a year is given, one paper more dating the case
+    // (ADR-0026): the permit for operation before 2013 and the acceptance act
+    // from it, each a paper no provision on that side of the line asks for.
+    function aCase(year: number | null, ...given: readonly Paper[]) {
+      const dated: Paper =
+        year !== null && year < 2013
+          ? ['operation_permit', { permit_date: `20.04.${year}` }]
+          : ['operation_acceptance_act', { act_date: `14.03.${year}` }];
+      const papers = year === null ? given : [...given, dated];
+      const built = aSegmentedPackage(papers.length);
 
       papers.forEach(([type, fields], index) => {
         const document = built.documents[index]!;
@@ -1756,6 +1761,12 @@ describe('VerificationPackage', () => {
       },
     ];
     const ORDER: Paper = ['disposal_order', {}];
+    // A lease-or-use title by its kind: the order confers no right by its own,
+    // and a pre-2013 case on it alone is undecided (ADR-0026).
+    const LEASE: Paper = [
+      'homestead_land_allocation_decision',
+      { issue_date: '12.05.1995' },
+    ];
 
     it('holds a pre-2013 owned house to its title alone', () => {
       const { verification } = aCase(2010, PLAN, LOW_DESIGN, [
@@ -1792,7 +1803,7 @@ describe('VerificationPackage', () => {
         2010,
         PLAN,
         ['sketch_project', { building_height: '8 m' }],
-        ORDER,
+        LEASE,
       );
 
       const [missing] = issuesOf(verification, 'MissingDocument');
@@ -1807,7 +1818,7 @@ describe('VerificationPackage', () => {
         2010,
         PLAN,
         ['sketch_project', { building_height: '8 m' }],
-        ORDER,
+        LEASE,
         ['operation_acceptance_act', {}],
       );
 
@@ -1929,6 +1940,20 @@ describe('VerificationPackage', () => {
       expect(issuesOf(verification, 'IntegrationNotConnected')).toEqual([]);
     });
 
+    /*
+     * The year the office typed at intake used to date the case before any
+     * paper did (ADR-0025). It dates nothing now (ADR-0026): a case no paper
+     * dates stays undecided on the year.
+     */
+    it('does not date the case by the year the office declared at intake', () => {
+      const built = aSegmentedPackage(1, {
+        declared: DeclaredAtIntake.of({ builtYear: 2010 }),
+      });
+
+      expect(built.verification.provision?.parameters.builtYear).toBeNull();
+      expect(built.verification.provision?.readings[0]?.source).toBeNull();
+    });
+
     // Worked out from scratch on every run, so a re-run cannot leave a second
     // copy of a finding behind.
     it('publishes the provision it held the package to, before and after the report', () => {
@@ -1965,8 +1990,8 @@ describe('VerificationPackage', () => {
     }
 
     // A package holding one act of acceptance into operation stating a date —
-    // the paper the case would be dated by had nothing been declared (ADR-0025)
-    // — taken in under whatever the office declared about it.
+    // the paper the case is dated by (ADR-0026) — taken in under whatever the
+    // office declared about it.
     function aCaseDated(
       actDate: string | null,
       declared: DeclaredAtIntake,
@@ -2102,8 +2127,7 @@ describe('VerificationPackage', () => {
     });
 
     // A declaration nothing contradicts is silence. A package whose papers
-    // state no year is one the declaration was useful for, not one it argues
-    // with.
+    // state no year has nothing to set the declaration against.
     it('says nothing where the papers state no year at all', () => {
       const verification = aCaseDated(
         null,
@@ -2761,7 +2785,8 @@ describe('VerificationPackage', () => {
   /*
    * A package an inspector should have nothing to be told about, each paper
    * placed and attested: the plan of the plot and the sketch design every
-   * package carries, and a title to the land. Declared as built in 2010, with a
+   * package carries, a title to the land, and the act of acceptance into
+   * operation that dates it. Accepted in 2010, with a
    * design 7.4 m tall and a plot owned and designated for housing, the case
    * falls under 8.0.9.1.2, which asks for nothing beyond the title (ADR-0025).
    * The plan-scheme states the address, so the register has something to be
@@ -2769,10 +2794,8 @@ describe('VerificationPackage', () => {
    * to do with as it needs.
    */
   function aCompletePackage(extraSheets = 0) {
-    const built = aSegmentedPackage(3 + extraSheets, {
-      declared: DeclaredAtIntake.of({ builtYear: 2010 }),
-    });
-    const [plan, design, title] = built.documents;
+    const built = aSegmentedPackage(4 + extraSheets);
+    const [plan, design, title, act] = built.documents;
 
     built.verification.classify(plan!.id, aClassification('land_plot_plan'));
     built.verification.classify(design!.id, aClassification('sketch_project'));
@@ -2786,6 +2809,13 @@ describe('VerificationPackage', () => {
     ]);
     built.verification.recordExtractedFields(design!.id, [
       stated('building_height', '7,4 m'),
+    ]);
+    built.verification.classify(
+      act!.id,
+      aClassification('operation_acceptance_act'),
+    );
+    built.verification.recordExtractedFields(act!.id, [
+      stated('act_date', '14.03.2010'),
     ]);
 
     return built;
@@ -3635,7 +3665,7 @@ describe('VerificationPackage', () => {
     it('sends a package with findings against it to the inspector', () => {
       const built = aCompletePackage(1);
       built.verification.classify(
-        built.documents[3]!.id,
+        built.documents[4]!.id,
         Classification.unplaced(Confidence.of(0.2)),
       );
 
@@ -3723,7 +3753,7 @@ describe('VerificationPackage', () => {
     it('still sends a package with findings to the inspector once approved', () => {
       const built = aCompletePackage(1);
       built.verification.classify(
-        built.documents[3]!.id,
+        built.documents[4]!.id,
         Classification.unplaced(Confidence.of(0.2)),
       );
       built.verification.recordRegistryCheck(

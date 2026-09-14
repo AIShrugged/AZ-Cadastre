@@ -478,15 +478,10 @@ export class PackageQueriesAdapter extends PackageQueries {
       // read side must not answer it a second way (COMM-80).
       gaps: PackageQueriesAdapter.gapsOf(row.profileKey, documents, {
         legalBasis: row.declaredLegalBasis,
-        builtYear: row.declaredBuiltYear,
       }),
       // The service the report was compiled with, over the same readings
       // (ADR-0025).
-      provision: PackageQueriesAdapter.provisionFor(
-        row.profileKey,
-        row.declaredBuiltYear,
-        documents,
-      ),
+      provision: PackageQueriesAdapter.provisionFor(row.profileKey, documents),
       report: PackageQueriesAdapter.toReport(row.report),
       crossChecks: row.crossChecks.map(check =>
         PackageQueriesAdapter.toCrossCheck(check),
@@ -563,10 +558,7 @@ export class PackageQueriesAdapter extends PackageQueries {
   private static gapsOf(
     profileKey: string,
     documents: readonly ReadDocument[],
-    declared: {
-      readonly legalBasis: string | null;
-      readonly builtYear: number | null;
-    },
+    declared: { readonly legalBasis: string | null },
   ): readonly DocumentGapView[] {
     const profile = VerificationProfile.all.find(
       candidate => candidate.key === profileKey,
@@ -594,7 +586,6 @@ export class PackageQueriesAdapter extends PackageQueries {
    */
   private static provisionFor(
     profileKey: string,
-    declaredYear: number | null,
     documents: readonly ReadDocument[],
   ): ProvisionView | null {
     const provisions = VerificationProfile.all.find(
@@ -604,7 +595,7 @@ export class PackageQueriesAdapter extends PackageQueries {
     if (!provisions) return null;
 
     return PackageQueriesAdapter.toProvisionView(
-      provisionOf(provisions, declaredYear, documents),
+      provisionOf(provisions, documents),
     );
   }
 

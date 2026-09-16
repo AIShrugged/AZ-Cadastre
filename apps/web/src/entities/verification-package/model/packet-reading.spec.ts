@@ -38,6 +38,7 @@ const document = (id: string, fields: DocumentDto['fields']): DocumentDto => ({
   fields,
   // In force: this module picks between readings, and a replaced scan is not a
   // reading the package stands on.
+  archiveQrCheck: null,
   supersededById: null,
   supersededAt: null,
 });

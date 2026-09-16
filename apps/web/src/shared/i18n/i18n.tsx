@@ -344,6 +344,7 @@ const en: Dict = {
   'detail.sec.title_invalid': 'Title dated outside its window',
   'detail.sec.provision_undetermined': 'Article 8 provision not decided',
   'detail.sec.not_connected': 'Not confirmed: integration not connected',
+  'detail.sec.archive_qr_mismatch': 'Disagrees with the National Archive copy',
   'detail.f.title_missing_sub': 'Any document Article 10.2.1 accepts',
   'detail.f.title_invalid_sub': 'Dated outside the window it is a title in',
   'detail.f.provision_ambiguous_sub': 'Several provisions could apply: {n}',
@@ -1378,6 +1379,7 @@ const ru: Dict = {
   'detail.sec.title_invalid': 'Документ на землю вне допустимых дат',
   'detail.sec.provision_undetermined': 'Пункт статьи 8 не определён',
   'detail.sec.not_connected': 'Не подтверждено: интеграция не подключена',
+  'detail.sec.archive_qr_mismatch': 'Расходится с копией Национального архива',
   'detail.f.title_missing_sub': 'Подходит любой документ по ст. 10.2.1',
   'detail.f.title_invalid_sub':
     'Дата вне периода, в котором документ действителен',
@@ -2372,6 +2374,7 @@ const az: Dict = {
   'detail.sec.title_invalid': 'Torpaq sənədinin tarixi həddən kənardır',
   'detail.sec.provision_undetermined': 'Maddə 8 üzrə bənd müəyyən edilmədi',
   'detail.sec.not_connected': 'Təsdiqlənmədi: inteqrasiya qoşulmayıb',
+  'detail.sec.archive_qr_mismatch': 'Milli Arxivin nüsxəsi ilə uyğun gəlmir',
   'detail.f.title_missing_sub': 'Maddə 10.2.1 üzrə istənilən sənəd',
   'detail.f.title_invalid_sub': 'Sənədin qüvvədə olduğu dövrdən kənar tarix',
   'detail.f.provision_ambiguous_sub': 'Bir neçə bənd uyğun ola bilər: {n}',

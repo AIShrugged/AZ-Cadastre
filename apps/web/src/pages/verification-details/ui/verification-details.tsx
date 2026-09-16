@@ -1680,6 +1680,13 @@ const SECTIONS: Record<IssueKind, { heading: string; tone: SectionTone }> = {
     heading: ISSUE_KIND_KEY.RegistryDocumentMissing,
     tone: 'finding',
   },
+  // A finding: the National Archive's own copy of a Decree 439 paper, found by
+  // its QR code, does not bear the paper out (ADR-0028). The per-line view of
+  // the answer is `DocumentDto.archiveQrCheck`; this is only its section.
+  ArchiveQrMismatch: {
+    heading: ISSUE_KIND_KEY.ArchiveQrMismatch,
+    tone: 'finding',
+  },
   // Beside the other shortfalls in the package itself and before the reading
   // ones: the sheet was read perfectly well, and what it was read to hold is a
   // paper without the seal or the hand that makes it valid (ADR-0012).

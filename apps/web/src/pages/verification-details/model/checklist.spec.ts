@@ -34,6 +34,7 @@ const doc = (id: string, type: string, supersededAt: string | null = null) =>
     classificationConfidence: 0.99,
     attestation: null,
     fields: [],
+    archiveQrCheck: null,
     supersededById: null,
     supersededAt,
   }) as DocumentDto;

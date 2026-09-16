@@ -60,11 +60,17 @@ model RegistryDocument {
   /// The order the register lists them in.
   position Int
 
+  legacyRow   LegacyRow? @relation(fields: [legacyRowId], references: [id], onDelete: SetNull)
+  legacyRowId String?    @db.Uuid
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // One answer per kind of paper per object: a register that recorded a kind
-  // twice recorded it once badly.
-  @@unique([objectId, name])
+  // Not one row per kind of paper per object any more. That held for the
+  // presence registers, which answer `+` or `-` once per column; it does not
+  // hold for the history tables, where one object collects an order, then a
+  // decree extract, then another order over forty years (ADR-0027).
+  @@index([objectId, name])
+  @@index([legacyRowId])
   @@map("registry_documents")
 }

@@ -25,6 +25,27 @@ model RegistryAddress {
   kind  AddressKind
   value String
 
+  // ── the parts, where the register kept them apart ────────────────────────
+  // Most of the legacy registers do not write an address in one cell: the
+  // individual-house inventories head `Qəsəbə | Küçə | Ev | dal/dön`, the
+  // apartment-building lists `Küçə adı | Ev № | JEK №`, the dacha table
+  // `RAYON | NAME_OF_ME | N_DACH | ADRESS`. `value` is always the whole spelling,
+  // joined as the register would read it aloud, and it is what matching reads;
+  // the parts are what the register itself distinguished and nothing more —
+  // never split out of a one-cell address on the way in.
+  district   String?
+  settlement String?
+  /// `Bağ massivi` / `NAME_OF_ME` — the massif a garden or dacha plot lies in.
+  massif     String?
+  street     String?
+  house      String?
+  /// `dal/dön`, `dalan`, `döngə` — the dead end or turning off the street.
+  lane       String?
+  apartment  String?
+  /// `Bağ nömrəsi`, `N_DACH`, `sahə 5-862` — a plot number in place of a house.
+  plotNo     String?
+  postalCode String?
+
   /// Which register this spelling was read out of, for the same reason the
   /// object records it: two registers write one address two ways, and a lookup
   /// that resolved through the odd one should be able to say so.
@@ -34,8 +55,12 @@ model RegistryAddress {
   /// within its kind.
   position Int
 
+  legacyRow   LegacyRow? @relation(fields: [legacyRowId], references: [id], onDelete: SetNull)
+  legacyRowId String?    @db.Uuid
+
   createdAt DateTime @default(now())
 
   @@index([objectId])
+  @@index([legacyRowId])
   @@map("registry_addresses")
 }

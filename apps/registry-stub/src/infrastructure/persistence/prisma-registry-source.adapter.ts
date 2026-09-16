@@ -28,7 +28,7 @@ const WHOLE_RECORD = {
   addresses: { orderBy: { position: 'asc' } },
   rightHolders: { orderBy: { position: 'asc' } },
   documents: { orderBy: { position: 'asc' } },
-  location: true,
+  locations: { orderBy: { position: 'asc' } },
 } as const satisfies Prisma.RegistryObjectInclude;
 
 /**
@@ -236,9 +236,7 @@ function toRecord(object: ObjectRow): ArchiveRecordDto {
     ownerName: object.rightHolders[0]?.name ?? null,
     cadastralNumber: object.cadastralNumber,
     plotArea: object.plotArea,
-    location: object.location
-      ? { folder: object.location.folder, pages: object.location.pages }
-      : null,
+    location: caseLocation(object),
     documents: object.documents.map(document => toDocument(document, object)),
   };
 }
@@ -259,8 +257,26 @@ function toDocument(
     location:
       document.folder !== null && document.pages !== null
         ? { folder: document.folder, pages: document.pages }
-        : object.location
-          ? { folder: object.location.folder, pages: object.location.pages }
-          : null,
+        : caseLocation(object),
   };
+}
+
+/**
+ * The folder and page range the whole case sits in — the one locator the
+ * published record has room for.
+ *
+ * The register holds several (ADR-0027): a register book, a technical passport
+ * book, an inventory list, a box. The contract names a folder and its pages
+ * because that is what an inspector walks to the shelf with, so the first
+ * locator of that shape answers and the others stay in the database until the
+ * contract can say them.
+ */
+function caseLocation(object: ObjectRow): ArchiveDocumentDto['location'] {
+  for (const location of object.locations) {
+    if (location.folder !== null && location.pages !== null) {
+      return { folder: location.folder, pages: location.pages };
+    }
+  }
+
+  return null;
 }

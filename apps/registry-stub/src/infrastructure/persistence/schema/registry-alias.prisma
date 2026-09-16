@@ -18,6 +18,12 @@ enum AliasKind {
   Certificate // `Şəhadətnamə` — the privatisation certificate number
   TechnicalPassport // `Paspоrt nömrəsi` of the technical passport
   Application // `Müraciət №` — the application the case came in under
+  CaseFile // `NOMKV` — the case number of `mulk.DBF` and every table keyed on it
+  Order // `Orderin nömrəsi` / `ORDER` — the housing or garden-plot order
+  Contract // `N_DOGOVOR`, `Müqavilə №` — a sale or lease contract
+  Decision // `N_RESH`, `Qərar` — the executive decision the plot was allotted by
+  PlotNumber // `Bağ nömrəsi`, `N_DACH`
+  LegacyId // `IDENT_COD`, `Əvvəlki ID` — a key of a system that no longer runs
 }
 
 model RegistryAlias {
@@ -36,9 +42,13 @@ model RegistryAlias {
 
   position Int
 
+  legacyRow   LegacyRow? @relation(fields: [legacyRowId], references: [id], onDelete: SetNull)
+  legacyRowId String?    @db.Uuid
+
   createdAt DateTime @default(now())
 
   @@index([objectId])
   @@index([kind, value])
+  @@index([legacyRowId])
   @@map("registry_aliases")
 }

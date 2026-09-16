@@ -1,0 +1,38 @@
+// Whatever a legacy row says about an object that no column of the spine holds.
+//
+// `mulk.DBF` carries 34 fields and `ident3.dbf` 25, and a third of them have no
+// name anybody has explained yet — `NAZAR`, `OZAL`, `TEX1`, `TEX2`, `DTIK`,
+// `PEREHOD`, `CHERT_1`. A spine with a column for each would be a schema of
+// guesses; a spine with a column for none would drop them on the way in, and a
+// value dropped at ingest is a value nobody can ask about later. So a mapped
+// row writes every value the spine has no place for here, under the name its
+// register gave it, and a field that turns out to matter is promoted to a
+// column by a migration that reads it back out of this table (ADR-0027).
+//
+// Values of somebody's papers, all of them — never logged (ADR-0008).
+
+model RegistryAttribute {
+  id       String         @id @default(uuid()) @db.Uuid
+  objectId String         @db.Uuid
+  object   RegistryObject @relation(fields: [objectId], references: [id], onDelete: Cascade)
+
+  /// The lexicon's field where it named one, otherwise the source's own column
+  /// name as `register:COLUMN` — `mulk:NAZAR`.
+  key   String
+  /// The header or field name exactly as the source wrote it.
+  label String
+  value String
+
+  sourceDatabase String
+  position       Int
+
+  legacyRow   LegacyRow? @relation(fields: [legacyRowId], references: [id], onDelete: SetNull)
+  legacyRowId String?    @db.Uuid
+
+  createdAt DateTime @default(now())
+
+  @@index([objectId])
+  @@index([key])
+  @@index([legacyRowId])
+  @@map("registry_attributes")
+}

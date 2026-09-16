@@ -1,5 +1,7 @@
 import type {
   ApprovedCheckDto,
+  ArchiveQrCheckDto,
+  ArchiveQrFieldCheckDto,
   ArchiveSearchApprovalDto,
   ArchiveTallyDto,
   CaseProvisionDto,
@@ -392,11 +394,33 @@ function toDocumentDto(view: DocumentView): DocumentDto {
       origin: field.origin as FieldDto['origin'],
       takenFrom: field.takenFrom,
     })),
+    archiveQrCheck: toArchiveQrCheckDto(view.archiveQrCheck),
     // History and not a paper the case rests on: a replaced document stays in
     // the package, and nothing the package states is worked out from it
     // (COMM-80).
     supersededById: view.supersededById,
     supersededAt: view.supersededAt?.toISOString() ?? null,
+  };
+}
+
+function toArchiveQrCheckDto(
+  view: DocumentView['archiveQrCheck'],
+): ArchiveQrCheckDto | null {
+  if (view === null) return null;
+
+  return {
+    // Only ever decided by the domain's own enumerations, so the strings are
+    // ones the contract names.
+    status: view.status as ArchiveQrCheckDto['status'],
+    qrReference: view.qrReference,
+    checkedAt: view.checkedAt.toISOString(),
+    issuingAuthorityCompetent: view.issuingAuthorityCompetent,
+    fields: view.fields.map(field => ({
+      name: field.name as ArchiveQrFieldCheckDto['name'],
+      documentValue: field.documentValue,
+      archiveValue: field.archiveValue,
+      verdict: field.verdict as ArchiveQrFieldCheckDto['verdict'],
+    })),
   };
 }
 

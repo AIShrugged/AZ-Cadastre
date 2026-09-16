@@ -4,14 +4,20 @@
  * which type a text looks like by the profile's own headings, how a set of
  * document starts becomes ranges that tile a file, what height, span, storeys,
  * right over the land and year a paper states, which provision of Article 8 a
- * case falls under, and what a document's sheets say about the seal and the
- * signature an office attests it with.
+ * case falls under, what a document's sheets say about the seal and the
+ * signature an office attests it with, and what the National Archive's copy of
+ * a paper makes of the paper.
  *
  * They live here, not in `infrastructure/`, because they decide domain
  * questions and import nothing but domain vocabulary. The offline adapters
  * happen to run on them entirely, and the model-backed ones check their answers
  * against them — but neither owns them.
  */
+export {
+  archiveQrCheckOf,
+  isHeldAgainstTheArchiveByQr,
+  type ArchivedPaper,
+} from './archive-qr-verdict.service.js';
 export {
   dateSpanIn,
   EARLIEST_YEAR,

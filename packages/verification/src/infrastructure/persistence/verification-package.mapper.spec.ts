@@ -84,6 +84,7 @@ function aDocumentRow(overrides: Partial<DocumentRow> = {}): DocumentRow {
     knownAs: null,
     supersededById: null,
     supersededAt: null,
+    archiveQrCheck: null,
     extractedFields: [
       aFieldRow({ name: 'first_name', value: 'ELCHIN', confidence: 0.92 }),
     ],
@@ -610,6 +611,70 @@ describe('VerificationPackageMapper', () => {
           fields: extractedFields.map(field => ({ ...field })),
         })),
       );
+    });
+
+    // What the National Archive Fund said about a paper has to come back on the
+    // paper it was said about, every line in its place (ADR-0028).
+    it('gives back what the National Archive said about a paper, line by line', () => {
+      const names = [
+        'document_no',
+        'issue_date',
+        'issuing_authority',
+        'holder_name',
+        'property_address',
+        'plot_area',
+        'decree_item',
+        'archive_reference',
+      ];
+      const archiveQrCheck = {
+        status: 'Differs',
+        qrReference: 'https://qr.esd.milliarxiv.gov.az/F130-S1-I476-V98',
+        checkedAt: new Date('2026-09-16T12:00:00.000Z'),
+        issuingAuthorityCompetent: true,
+        fields: names.map(name =>
+          name === 'plot_area'
+            ? {
+                name,
+                documentValue: '400,0 kv.m',
+                archiveValue: '0,05 ha',
+                verdict: 'Mismatch',
+              }
+            : name === 'decree_item'
+              ? {
+                  name,
+                  documentValue: '2.7',
+                  archiveValue: null,
+                  verdict: 'NotStated',
+                }
+              : {
+                  name,
+                  documentValue: 'x',
+                  archiveValue: 'x',
+                  verdict: 'Match',
+                },
+        ),
+      };
+      const original = aPackageRow({
+        documents: [
+          aDocumentRow({
+            type: 'homestead_land_allocation_decision',
+            extractedFields: [],
+            archiveQrCheck,
+          }),
+        ],
+      });
+
+      const [written] = VerificationPackageMapper.toRow(
+        VerificationPackageMapper.toDomain(original),
+      ).documents;
+
+      expect(written?.archiveQrCheck).toEqual({
+        ...archiveQrCheck,
+        fields: archiveQrCheck.fields.map((field, position) => ({
+          ...field,
+          position,
+        })),
+      });
     });
 
     /*

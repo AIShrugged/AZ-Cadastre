@@ -11,6 +11,10 @@ import {
   type SourceFile,
 } from '../../../../domain/entities/index.js';
 import {
+  archiveQrCheckOf,
+  type ArchivedPaper,
+} from '../../../../domain/services/index.js';
+import {
   Confidence,
   CrossCheck,
   FailureReason,
@@ -37,9 +41,11 @@ import {
   DocumentSegmenter,
   FieldExtractor,
   IdGenerator,
+  NationalArchivePort,
   OcrProvider,
   PdfSplitter,
   VerificationPackageRepository,
+  type ArchivedDocument,
 } from '../../../ports/outbound/index.js';
 
 import { RunVerificationCommand } from './run-verification.command.js';
@@ -68,6 +74,7 @@ export class RunVerificationHandler implements ICommandHandler<
     @Inject(FieldExtractor) private readonly extractor: FieldExtractor,
     @Inject(CrossChecker) private readonly crossChecker: CrossChecker,
     @Inject(ArchiveRegistryPort) private readonly registry: ArchiveRegistryPort,
+    @Inject(NationalArchivePort) private readonly archive: NationalArchivePort,
   ) {
     this.logger = logger.child({ scope: RunVerificationHandler.name });
   }
@@ -160,6 +167,21 @@ export class RunVerificationHandler implements ICommandHandler<
       await this.despite('confirm', { packageId }, () =>
         this.confirm(packageId),
       );
+
+      // Each Decree 439 paper against the National Archive Fund's copy of it,
+      // one paper at a time: every one names its own file in the archive, and
+      // an archive that fails to answer for one has said nothing about the
+      // next (ADR-0028). After the register for the reason the register is
+      // last — it leaves the submission — and before gathering, because a value
+      // carried over from another paper must never be what a paper is held to.
+      for (const document of (await this.load(packageId))
+        .awaitingArchiveQrCheck) {
+        await this.despite(
+          'archive-qr',
+          { packageId, documentId: document.id.value },
+          () => this.askTheArchive(packageId, document.id),
+        );
+      }
 
       /*
        * Last of the reading stages, and deliberately after the two that compare
@@ -780,6 +802,60 @@ export class RunVerificationHandler implements ICommandHandler<
     });
   }
 
+  /*
+   * One Decree 439 paper held against the National Archive Fund, asked by the
+   * QR reference printed on it.
+   *
+   * The archive answers with its copy and no verdict; which lines agree and
+   * whether the issuer was competent are the domain's (ADR-0028). A paper with
+   * no QR reference read off it is not a question anyone can put, and is
+   * recorded as exactly that rather than left looking unasked. An archive that
+   * throws leaves the paper unchecked, and the report says it was not
+   * confirmed.
+   */
+  private async askTheArchive(
+    packageId: PackageId,
+    documentId: DocumentId,
+  ): Promise<void> {
+    const verification = await this.load(packageId);
+
+    if (verification.documentWith(documentId).archiveQrCheck) return;
+
+    const question = verification.archiveQrQuestionOf(documentId);
+    const startedAt = Date.now();
+    const answer =
+      question.qrReference === null
+        ? null
+        : await this.archive.lookupByQr(question.qrReference);
+    const check = archiveQrCheckOf({
+      type: question.type,
+      stated: question.stated,
+      qrReference: question.qrReference,
+      archived:
+        answer?.outcome === 'Found' ? archivedPaperOf(answer.document) : null,
+      checkedAt: new Date(),
+    });
+
+    verification.recordArchiveQrCheck(documentId, check);
+    await this.packages.save(verification);
+
+    this.logger.log('Archive QR check made', {
+      packageId: packageId.value,
+      documentId: documentId.value,
+      type: question.type.value,
+      status: check.status,
+      competent: check.issuingAuthorityCompetent,
+      // The lines and how each stood, never the values: they are read off
+      // somebody's papers (ADR-0008).
+      fields: check.fields.map(field => ({
+        name: field.name,
+        verdict: field.verdict,
+      })),
+      note: answer?.note ?? null,
+      durationMs: Date.now() - startedAt,
+    });
+  }
+
   private async change(
     packageId: PackageId,
     change: (verification: VerificationPackage) => void,
@@ -845,6 +921,24 @@ function outcomeOf(
   return documents.some(document => document.isMissing)
     ? RegistryOutcome.INCOMPLETE
     : RegistryOutcome.CONFIRMED;
+}
+
+// The archive's copy in the domain's own terms: one value per line the paper is
+// compared on, and the kind of body that issued it.
+function archivedPaperOf(document: ArchivedDocument): ArchivedPaper {
+  return {
+    lines: {
+      document_no: document.documentNo,
+      issue_date: document.issuedOn,
+      issuing_authority: document.issuingAuthority.name,
+      holder_name: document.holderName,
+      property_address: document.propertyAddress,
+      plot_area: document.plotArea,
+      decree_item: document.decreeItem,
+      archive_reference: document.archiveReference,
+    },
+    issuingAuthorityKind: document.issuingAuthority.kind,
+  };
 }
 
 // Where the paper is, in one line for the audit trail. Folder and page stay

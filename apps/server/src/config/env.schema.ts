@@ -110,6 +110,11 @@ export const EnvironmentSchema = z
     // A register that does not answer must not hold up a verification: the
     // stage is abandoned and the report says the property was not confirmed.
     REGISTRY_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
+
+    // The National Archive Fund, asked by the QR reference a Decree 439 paper
+    // prints (ADR-0028). `mock` is the only value: no archive is connected, and
+    // the stand-in built into the context holds one paper.
+    NATIONAL_ARCHIVE_PROVIDER: z.enum(['mock']).default('mock'),
   })
   .transform(env => ({
     service: {
@@ -189,6 +194,9 @@ export const EnvironmentSchema = z
         provider: env.REGISTRY_PROVIDER,
         url: env.REGISTRY_URL,
         timeoutMs: env.REGISTRY_TIMEOUT_MS,
+      },
+      nationalArchive: {
+        provider: env.NATIONAL_ARCHIVE_PROVIDER,
       },
     } satisfies VerificationModuleOptions,
   }));

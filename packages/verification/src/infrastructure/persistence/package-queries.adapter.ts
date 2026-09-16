@@ -460,6 +460,25 @@ export class PackageQueriesAdapter extends PackageQueries {
                     sourcePageNumber: true,
                   },
                 },
+                // What the National Archive Fund said about the paper, where
+                // it was asked (ADR-0028).
+                archiveQrCheck: {
+                  select: {
+                    status: true,
+                    qrReference: true,
+                    checkedAt: true,
+                    issuingAuthorityCompetent: true,
+                    fields: {
+                      orderBy: { position: 'asc' },
+                      select: {
+                        name: true,
+                        documentValue: true,
+                        archiveValue: true,
+                        verdict: true,
+                      },
+                    },
+                  },
+                },
               },
             },
           },
@@ -536,6 +555,7 @@ export class PackageQueriesAdapter extends PackageQueries {
             origin: field.origin,
             takenFrom: PackageQueriesAdapter.toFieldSource(field),
           })),
+          archiveQrCheck: document.archiveQrCheck,
           supersededById: document.supersededById,
           supersededAt: document.supersededAt,
         })),

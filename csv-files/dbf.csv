@@ -1,0 +1,236 @@
+﻿Путь;Имя файла;Версия;Формат;Изменена (по заголовку);Записей;Из них удалённых;Полей;Длина записи;Длина заголовка;Кодовая страница;Memo-файл;Индекс;База данных (DBC);Проверка размера
+ARXIV/INVEN/inv/ADRES.DBF;ADRES.DBF;0x30;Visual FoxPro;2010-03-10;4;0;2;56;360;1251 Windows Russian;;adres.CDX;;ok
+ARXIV/INVEN/inv/ARXIV.DBF;ARXIV.DBF;0x8B;dBase IV с memo (.dbt);2010-03-10;46;0;2;21;97;1252 Windows ANSI;arxiv.DBT;arxiv.MDX;;ok
+ARXIV/INVEN/inv/FIO.DBF;FIO.DBF;0x30;Visual FoxPro;2022-10-26;1;0;2;36;360;1252 Windows ANSI;;;;ok
+ARXIV/INVEN/inv/FIOARXIV.DBF;FIOARXIV.DBF;0x30;Visual FoxPro;2010-03-17;15231;0;2;46;360;1251 Windows Russian;;fioarxiv.CDX;;ok
+ARXIV/INVEN/inv/FOXUSER.DBF;FOXUSER.DBF;0x30;Visual FoxPro;2004-11-18;7;0;7;48;520;1252 Windows ANSI;FOXUSER.FPT;;;ok
+ARXIV/INVEN/inv/MULK2.DBF;MULK2.DBF;0x30;Visual FoxPro;2011-03-10;0;0;34;367;1384;1252 Windows ANSI;;mulk2.CDX;;ok
+ARXIV/INVEN/inv/MULKB.DBF;MULKB.DBF;0x04;dBase 7;2012-12-10;0;0;33;382;1653;не указана;;MULKB.MDX;;ok
+ARXIV/INVEN/inv/MULKN.DBF;MULKN.DBF;0x30;Visual FoxPro;2005-10-15;47;37;1;21;328;1252 Windows ANSI;;;;ok
+ARXIV/INVEN/inv/NOV.DBF;NOV.DBF;0x30;Visual FoxPro;2005-10-21;94;67;1;26;328;1252 Windows ANSI;;;;ok
+ARXIV/INVEN/inv/RAYON.DBF;RAYON.DBF;0x30;Visual FoxPro;2005-10-08;77;66;1;16;328;1252 Windows ANSI;;;;ok
+ARXIV/INVEN/inv/SVADRES.DBF;SVADRES.DBF;0x30;Visual FoxPro;2010-03-10;8;0;2;56;360;1251 Windows Russian;;svadres.CDX;;ok
+ARXIV/INVEN/inv/TARIX2.DBF;TARIX2.DBF;0x30;Visual FoxPro;2011-03-10;0;0;9;116;584;1252 Windows ANSI;;tarix2.CDX;;ok
+ARXIV/INVEN/inv/TARIXB.DBF;TARIXB.DBF;0x30;Visual FoxPro;2005-10-13;0;0;10;126;616;1252 Windows ANSI;;;;ok
+ARXIV/INVEN/inv/YENI.DBF;YENI.DBF;0x30;Visual FoxPro;2004-11-18;16542;0;30;338;1256;1252 Windows ANSI;;;;ok
+ARXIV/INVEN/inv/_QSQL000.DBF;_QSQL000.DBF;0x03;dBase III / FoxPro без memo;2005-09-07;0;0;30;348;993;1252 Windows ANSI;;;;ok
+ARXIV/INVEN/inv/_QSQL149.DBF;_QSQL149.DBF;0x03;dBase III / FoxPro без memo;2006-02-14;0;0;31;356;1025;1252 Windows ANSI;;;;ok
+ARXIV/INVEN/inv/_QSQL189.DBF;_QSQL189.DBF;0x03;dBase III / FoxPro без memo;2006-03-09;0;0;31;356;1025;1252 Windows ANSI;;;;ok
+ARXIV/INVEN/inv/_QSQL383.DBF;_QSQL383.DBF;0x03;dBase III / FoxPro без memo;2008-01-10;0;0;33;376;1089;1252 Windows ANSI;;;;ok
+ARXIV/INVEN/inv/_QSQL390.DBF;_QSQL390.DBF;0x03;dBase III / FoxPro без memo;2006-03-09;0;0;31;356;1025;1252 Windows ANSI;;;;ok
+ARXIV/INVEN/inv/_QSQL395.DBF;_QSQL395.DBF;0x03;dBase III / FoxPro без memo;2006-02-23;0;0;31;356;1025;1252 Windows ANSI;;;;ok
+ARXIV/INVEN/inv/_QSQL813.DBF;_QSQL813.DBF;0x03;dBase III / FoxPro без memo;2008-02-29;0;0;33;376;1089;1252 Windows ANSI;;;;ok
+ARXIV/INVEN/inv/_QSQL840.DBF;_QSQL840.DBF;0x03;dBase III / FoxPro без memo;2006-02-22;0;0;31;356;1025;1252 Windows ANSI;;;;ok
+ARXIV/INVEN/inv/_QSQL876.DBF;_QSQL876.DBF;0x03;dBase III / FoxPro без memo;2006-02-22;0;0;31;356;1025;1252 Windows ANSI;;;;в конце лишних байт: 16376
+ARXIV/INVEN/inv/_QSQL973.DBF;_QSQL973.DBF;0x03;dBase III / FoxPro без memo;2006-02-14;0;0;31;356;1025;1252 Windows ANSI;;;;ok
+ARXIV/INVEN/inv/__KYT982.DBF;__KYT982.DBF;0x04;dBase 7;2006-02-08;0;0;2;25;165;не указана;;;;ok
+ARXIV/INVEN/inv/mulk.BAK;mulk.BAK;0x30;Visual FoxPro;2007-01-26;357516;0;31;346;1288;1252 Windows ANSI;;mulk.CDX;;ok
+ARXIV/INVEN/inv/mulk.DBF;mulk.DBF;0x30;Visual FoxPro;2011-03-02;357739;0;33;366;1352;1252 Windows ANSI;;mulk.CDX;;ok
+ARXIV/INVEN/inv/tarix.BAK;tarix.BAK;0x30;Visual FoxPro;2005-10-15;399987;161;8;108;552;1252 Windows ANSI;;tarix.CDX;;ok
+ARXIV/INVEN/inv/tarix.DBF;tarix.DBF;0x30;Visual FoxPro;2007-05-04;419637;0;9;116;584;1252 Windows ANSI;;tarix.CDX;;ok
+ARXIV/INVEN/inv/ulk.DBF;ulk.DBF;0x30;Visual FoxPro;2006-12-21;357739;0;31;346;1288;1252 Windows ANSI;;нет (в заголовке отмечен);;ok
+ARXIV/INVEN/inv/ARXIV/FIO.DBF;FIO.DBF;0x30;Visual FoxPro;2005-09-28;1;0;2;51;360;1251 Windows Russian;;;;ok
+ARXIV/INVEN/inv/BDE/FIO.DBF;FIO.DBF;0x30;Visual FoxPro;2001-12-27;1;0;2;36;360;1252 Windows ANSI;;;;ok
+ARXIV/UDH3/UDH3/FOXUSER.DBF;FOXUSER.DBF;0x30;Visual FoxPro;2007-05-31;15;0;7;48;520;1252 Windows ANSI;FOXUSER.FPT;;;ok
+ARXIV/UDH3/UDH3/RAYON.DBF;RAYON.DBF;0x30;Visual FoxPro;2002-11-20;6;0;2;33;360;1251 Windows Russian;;RAYON.CDX;basa3.dbc;ok
+ARXIV/UDH3/UDH3/UKAZ.DBF;UKAZ.DBF;0x30;Visual FoxPro;2003-09-20;7;0;2;103;360;1251 Windows Russian;;ukaz.CDX;basa3.dbc;ok
+ARXIV/UDH3/UDH3/buh.BAK;buh.BAK;0x30;Visual FoxPro;2003-11-12;10553;0;41;396;1608;1251 Windows Russian;;;basa3.dbc;ok
+ARXIV/UDH3/UDH3/buh.dbf;buh.dbf;0x30;Visual FoxPro;2025-08-23;11544;319;43;416;1672;1251 Windows Russian;;;basa3.dbc;ok
+ARXIV/UDH3/UDH3/buhtmp.dbf;buhtmp.dbf;0x30;Visual FoxPro;2003-11-09;406;0;40;506;1576;1251 Windows Russian;;;;ok
+ARXIV/UDH3/UDH3/ident3.BAK;ident3.BAK;0x30;Visual FoxPro;2004-01-14;26869;0;24;399;1064;1251 Windows Russian;;IDENT3.CDX;basa3.dbc;ok
+ARXIV/UDH3/UDH3/ident3.dbf;ident3.dbf;0x30;Visual FoxPro;2025-09-10;38584;630;25;407;1096;1251 Windows Russian;;IDENT3.CDX;basa3.dbc;ok
+ARXIV/UDH3/UDH3/local!buhtmp.dbf;local!buhtmp.dbf;0x30;Visual FoxPro;2003-11-12;135;0;48;607;1832;1251 Windows Russian;;;;ok
+ARXIV/UDH3/UDH3/nameofmest.dbf;nameofmest.dbf;0x30;Visual FoxPro;2003-11-13;24;0;3;43;392;1251 Windows Russian;;;basa3.dbc;ok
+ARXIV/UDH3/UDH3/otchet.dbf;otchet.dbf;0x30;Visual FoxPro;2021-07-14;51;0;14;79;744;1251 Windows Russian;;;local.dbc;ok
+ARXIV/UDH3/UDH3/pict1.dbf;pict1.dbf;0x30;Visual FoxPro;2004-05-18;1;0;7;150;520;1251 Windows Russian;pict1.FPT;;local.dbc;ok
+ARXIV/UDH3/UDH3/prim.dbf;prim.dbf;0x30;Visual FoxPro;2015-09-08;27;0;1;31;328;1251 Windows Russian;;;basa3.dbc;ok
+ARXIV/UDH3/UDH3/search.dbf;search.dbf;0x30;Visual FoxPro;2025-09-11;191;17;5;621;456;1251 Windows Russian;;;local.dbc;ok
+ARXIV/UDH3/UDH3/sss2.DBF;sss2.DBF;0x30;Visual FoxPro;2004-06-18;1;0;25;407;1096;1251 Windows Russian;;;;ok
+ARXIV/UDH3/UDH3/user.BAK;user.BAK;0x30;Visual FoxPro;2003-11-09;4;0;4;28;424;1251 Windows Russian;;;basa3.dbc;ok
+ARXIV/UDH3/UDH3/user.dbf;user.dbf;0x30;Visual FoxPro;2021-04-29;2;0;4;28;424;1251 Windows Russian;;;basa3.dbc;ok
+ARXIV/UDH3/UDH3/uslsearch.dbf;uslsearch.dbf;0x30;Visual FoxPro;2004-01-14;23;0;11;209;648;1251 Windows Russian;;;local.dbc;ok
+ARXIV/UDH3/UDH3/none/FOXUSER.DBF;FOXUSER.DBF;0x30;Visual FoxPro;2007-05-31;15;0;7;48;520;1252 Windows ANSI;FOXUSER.FPT;;;ok
+ARXIV/UDH3/UDH3/none/RAYON.DBF;RAYON.DBF;0x30;Visual FoxPro;2002-11-20;6;0;2;33;360;1251 Windows Russian;;RAYON.CDX;basa3.dbc;ok
+ARXIV/UDH3/UDH3/none/UKAZ.DBF;UKAZ.DBF;0x30;Visual FoxPro;2003-09-20;7;0;2;103;360;1251 Windows Russian;;ukaz.CDX;basa3.dbc;ok
+ARXIV/UDH3/UDH3/none/buh.BAK;buh.BAK;0x30;Visual FoxPro;2003-11-12;10553;0;41;396;1608;1251 Windows Russian;;;basa3.dbc;ok
+ARXIV/UDH3/UDH3/none/buh.dbf;buh.dbf;0x30;Visual FoxPro;2007-08-17;10439;222;43;416;1672;1251 Windows Russian;;;basa3.dbc;ok
+ARXIV/UDH3/UDH3/none/buhtmp.dbf;buhtmp.dbf;0x30;Visual FoxPro;2003-11-09;406;0;40;506;1576;1251 Windows Russian;;;;ok
+ARXIV/UDH3/UDH3/none/ident3.BAK;ident3.BAK;0x30;Visual FoxPro;2004-01-14;26869;0;24;399;1064;1251 Windows Russian;;IDENT3.CDX;basa3.dbc;ok
+ARXIV/UDH3/UDH3/none/ident3.dbf;ident3.dbf;0x30;Visual FoxPro;2007-08-17;27478;0;25;407;1096;1251 Windows Russian;;IDENT3.CDX;basa3.dbc;ok
+ARXIV/UDH3/UDH3/none/local!buhtmp.dbf;local!buhtmp.dbf;0x30;Visual FoxPro;2003-11-12;135;0;48;607;1832;1251 Windows Russian;;;;ok
+ARXIV/UDH3/UDH3/none/nameofmest.dbf;nameofmest.dbf;0x30;Visual FoxPro;2003-11-13;24;0;3;43;392;1251 Windows Russian;;;basa3.dbc;ok
+ARXIV/UDH3/UDH3/none/otchet.dbf;otchet.dbf;0x30;Visual FoxPro;2004-04-15;51;0;14;79;744;1251 Windows Russian;;;local.dbc;ok
+ARXIV/UDH3/UDH3/none/pict1.dbf;pict1.dbf;0x30;Visual FoxPro;2004-05-18;1;0;7;150;520;1251 Windows Russian;pict1.FPT;;local.dbc;ok
+ARXIV/UDH3/UDH3/none/prim.dbf;prim.dbf;0x30;Visual FoxPro;2004-06-16;26;0;1;31;328;1251 Windows Russian;;;basa3.dbc;ok
+ARXIV/UDH3/UDH3/none/search.dbf;search.dbf;0x30;Visual FoxPro;2007-07-05;29;17;5;621;456;1251 Windows Russian;;;local.dbc;ok
+ARXIV/UDH3/UDH3/none/sss2.DBF;sss2.DBF;0x30;Visual FoxPro;2004-06-18;1;0;25;407;1096;1251 Windows Russian;;;;ok
+ARXIV/UDH3/UDH3/none/user.BAK;user.BAK;0x30;Visual FoxPro;2003-11-09;4;0;4;28;424;1251 Windows Russian;;;basa3.dbc;ok
+ARXIV/UDH3/UDH3/none/user.dbf;user.dbf;0x30;Visual FoxPro;2007-08-17;2;0;4;28;424;1251 Windows Russian;;;basa3.dbc;ok
+ARXIV/UDH3/UDH3/none/uslsearch.dbf;uslsearch.dbf;0x30;Visual FoxPro;2004-01-14;23;0;11;209;648;1251 Windows Russian;;;local.dbc;ok
+ARXIV/UDH3/Vfp98/FOXUSER.DBF;FOXUSER.DBF;0x30;Visual FoxPro;2019-10-28;219;1;7;48;520;1251 Windows Russian;FOXUSER.FPT;;;ok
+ARXIV/UDH3/Vfp98/LABELS.DBF;LABELS.DBF;0xF5;FoxPro 2.x с memo (.fpt);1995-01-05;86;0;7;74;257;1252 Windows ANSI;LABELS.FPT;;;ok
+ARXIV/UDH3/Vfp98/ccc2.dbf;ccc2.dbf;0x30;Visual FoxPro;2006-03-30;262;0;5;117;456;1251 Windows Russian;;;;ok
+ARXIV/UDH3/Vfp98/ccc3.dbf;ccc3.dbf;0x30;Visual FoxPro;2006-03-30;262;0;5;117;456;1251 Windows Russian;;;;ok
+ARXIV/UDH3/Vfp98/ssf2.DBF;ssf2.DBF;0x30;Visual FoxPro;2005-02-22;68;0;25;407;1096;1251 Windows Russian;;;;ok
+ARXIV/UDH3/Vfp98/ssf4.dbf;ssf4.dbf;0x30;Visual FoxPro;2005-02-15;1;0;25;407;1096;1251 Windows Russian;;;..\..\..\udh3\basa3.dbc;ok
+ARXIV/UDH3/Vfp98/sss2.dbf;sss2.dbf;0x30;Visual FoxPro;2019-10-30;7;0;25;407;1096;1251 Windows Russian;;;;ok
+ARXIV/UDH3/Vfp98/sss4.dbf;sss4.dbf;0x30;Visual FoxPro;2005-02-15;51;0;25;407;1096;1251 Windows Russian;;;..\..\..\udh3\basa3.dbc;ok
+ARXIV/UDH3/Vfp98/Api/Samples/EXAMPLES.DBF;EXAMPLES.DBF;0x30;Visual FoxPro;1997-09-03;178;0;7;27;520;1252 Windows ANSI;EXAMPLES.FPT;;;ok
+ARXIV/UDH3/Vfp98/Distrib.src/COMPRESS.DBF;COMPRESS.DBF;0x03;dBase III / FoxPro без memo;1997-12-17;95;0;16;306;545;1252 Windows ANSI;;;;ok
+ARXIV/UDH3/Vfp98/Filespec/26FRX.DBF;26FRX.DBF;0x30;Visual FoxPro;1995-03-24;74;0;15;180;776;1252 Windows ANSI;26FRX.FPT;;;ok
+ARXIV/UDH3/Vfp98/Filespec/26MNX.DBF;26MNX.DBF;0x30;Visual FoxPro;1995-04-26;23;0;5;61;456;1252 Windows ANSI;;;;ok
+ARXIV/UDH3/Vfp98/Filespec/26PJX.DBF;26PJX.DBF;0x30;Visual FoxPro;1995-04-26;31;0;16;186;808;1252 Windows ANSI;;;;ok
+ARXIV/UDH3/Vfp98/Filespec/26SCX.DBF;26SCX.DBF;0x30;Visual FoxPro;1995-04-26;79;0;20;224;936;1252 Windows ANSI;;;;ok
+ARXIV/UDH3/Vfp98/Filespec/60DBC.DBF;60DBC.DBF;0x30;Visual FoxPro;1998-01-12;8;0;11;110;648;1252 Windows ANSI;60DBC.FPT;;;ok
+ARXIV/UDH3/Vfp98/Filespec/60DBCPRO.DBF;60DBCPRO.DBF;0x30;Visual FoxPro;1995-03-27;49;0;9;41;584;1252 Windows ANSI;;;;ok
+ARXIV/UDH3/Vfp98/Filespec/60FRX.DBF;60FRX.DBF;0x30;Visual FoxPro;1998-03-30;75;0;21;471;968;1252 Windows ANSI;60FRX.FPT;;;ok
+ARXIV/UDH3/Vfp98/Filespec/60MNX.DBF;60MNX.DBF;0x30;Visual FoxPro;1998-01-12;23;0;7;199;520;1252 Windows ANSI;60MNX.FPT;;;ok
+ARXIV/UDH3/Vfp98/Filespec/60PJX.DBF;60PJX.DBF;0x30;Visual FoxPro;1998-01-12;28;0;22;288;1000;1252 Windows ANSI;60PJX.FPT;;;ok
+ARXIV/UDH3/Vfp98/Filespec/60SCX.DBF;60SCX.DBF;0x30;Visual FoxPro;1998-01-12;23;0;28;259;1192;1252 Windows ANSI;60SCX.FPT;;;ok
+ARXIV/UDH3/Vfp98/Gallery/KEYWORDS.DBF;KEYWORDS.DBF;0x30;Visual FoxPro;1997-07-09;136;0;1;31;328;1252 Windows ANSI;;;;ok
+ARXIV/UDH3/Vfp98/Gallery/VFPGLRY.DBF;VFPGLRY.DBF;0x30;Visual FoxPro;1998-02-10;26;0;24;119;1064;1252 Windows ANSI;VFPGLRY.FPT;;;ok
+ARXIV/UDH3/Vfp98/Gallery/activex catalog.dbf;activex catalog.dbf;0x30;Visual FoxPro;1998-02-05;10;0;24;119;1064;1252 Windows ANSI;activex catalog.fpt;;;ok
+ARXIV/UDH3/Vfp98/Gallery/favorites.dbf;favorites.dbf;0x30;Visual FoxPro;1998-01-15;1;0;24;119;1064;1252 Windows ANSI;favorites.fpt;;;ok
+ARXIV/UDH3/Vfp98/Gallery/media catalog.dbf;media catalog.dbf;0x30;Visual FoxPro;1998-02-05;14;0;24;119;1064;1252 Windows ANSI;media catalog.fpt;;;ok
+ARXIV/UDH3/Vfp98/Gallery/my classes catalog.dbf;my classes catalog.dbf;0x30;Visual FoxPro;1997-10-30;1;0;24;119;1064;1252 Windows ANSI;my classes catalog.fpt;;;ok
+ARXIV/UDH3/Vfp98/Gallery/samples catalog.dbf;samples catalog.dbf;0x30;Visual FoxPro;1998-04-24;34;0;24;119;1064;1252 Windows ANSI;samples catalog.fpt;;;ok
+ARXIV/UDH3/Vfp98/Gallery/vfp catalog.dbf;vfp catalog.dbf;0x30;Visual FoxPro;1998-04-02;154;0;24;119;1064;1252 Windows ANSI;vfp catalog.fpt;;;ok
+ARXIV/UDH3/Vfp98/Gallery/www catalog.dbf;www catalog.dbf;0x30;Visual FoxPro;1998-04-16;102;0;24;119;1064;1252 Windows ANSI;www catalog.fpt;;;ok
+ARXIV/UDH3/Vfp98/Tools/Addlabel/LABELS.DBF;LABELS.DBF;0xF5;FoxPro 2.x с memo (.fpt);1995-01-05;86;0;7;74;257;1252 Windows ANSI;LABELS.FPT;;;ok
+ARXIV/UDH3/Vfp98/Tools/Inetwiz/TEMPFLDS.DBF;TEMPFLDS.DBF;0x30;Visual FoxPro;1996-07-12;10;0;4;150;424;1252 Windows ANSI;TEMPFLDS.FPT;TEMPFLDS.CDX;;ok
+ARXIV/UDH3/Vfp98/Tools/Inetwiz/TEMPSTYL.DBF;TEMPSTYL.DBF;0x30;Visual FoxPro;1996-01-31;2;0;4;46;424;1252 Windows ANSI;TEMPSTYL.FPT;TEMPSTYL.CDX;;ok
+ARXIV/UDH3/Vfp98/Tools/Inetwiz/Server/QUERYLOG.DBF;QUERYLOG.DBF;0x30;Visual FoxPro;1996-02-02;0;0;3;45;392;1252 Windows ANSI;QUERYLOG.FPT;;;ok
+ARXIV/UDH3/Vfp98/Tools/Transfrm/Samples/FONT2MAC.DBF;FONT2MAC.DBF;0x30;Visual FoxPro;1996-03-27;1;0;1;255;328;1252 Windows ANSI;;;;ok
+ARXIV/UDH3/Vfp98/Tools/Transfrm/Samples/FONT2WIN.DBF;FONT2WIN.DBF;0x30;Visual FoxPro;1996-04-02;1;0;1;255;328;1252 Windows ANSI;;;;ok
+ARXIV/UDH3/Vfp98/Tools/Transfrm/Samples/REDBTTNS.DBF;REDBTTNS.DBF;0x30;Visual FoxPro;1996-04-02;1;0;1;255;328;1252 Windows ANSI;;;;ok
+ARXIV/UDH3/Vfp98/Tools/Transfrm/Samples/ZOOMBOX.DBF;ZOOMBOX.DBF;0x30;Visual FoxPro;1996-04-02;1;0;1;255;328;1252 Windows ANSI;;;;ok
+ARXIV/UDH3/Vfp98/Wizards/APPWIZ.DBF;APPWIZ.DBF;0x30;Visual FoxPro;1997-11-03;32;0;3;30;392;1252 Windows ANSI;APPWIZ.FPT;;;ok
+ARXIV/UDH3/Vfp98/Wizards/BLDSTRUC.DBF;BLDSTRUC.DBF;0x30;Visual FoxPro;1997-10-02;23;0;16;302;808;1252 Windows ANSI;BLDSTRUC.FPT;;;ok
+ARXIV/UDH3/Vfp98/Wizards/BUILDER.DBF;BUILDER.DBF;0x30;Visual FoxPro;1997-02-28;11;0;8;90;552;1252 Windows ANSI;BUILDER.FPT;;;ok
+ARXIV/UDH3/Vfp98/Wizards/BUILDERD.DBF;BUILDERD.DBF;0x30;Visual FoxPro;1998-03-26;116;0;23;121;1032;1252 Windows ANSI;BUILDERD.FPT;BUILDERD.CDX;;ok
+ARXIV/UDH3/Vfp98/Wizards/FDKEYWRD.DBF;FDKEYWRD.DBF;0x03;dBase III / FoxPro без memo;1998-01-09;1966;0;2;28;97;1252 Windows ANSI;;FDKEYWRD.CDX;;ok
+ARXIV/UDH3/Vfp98/Wizards/FRMSTYL2.DBF;FRMSTYL2.DBF;0x30;Visual FoxPro;1997-12-17;14;0;10;103;616;1252 Windows ANSI;FRMSTYL2.FPT;;;ok
+ARXIV/UDH3/Vfp98/Wizards/RPTSTYLE.DBF;RPTSTYLE.DBF;0x30;Visual FoxPro;1997-07-22;2;0;7;45;520;1252 Windows ANSI;RPTSTYLE.FPT;;;ok
+ARXIV/UDH3/Vfp98/Wizards/WIZARD.DBF;WIZARD.DBF;0x30;Visual FoxPro;1998-04-10;31;0;8;90;552;1252 Windows ANSI;WIZARD.FPT;;;ok
+ARXIV/UDH3/Vfp98/Wizards/_FRAMEWK.DBF;_FRAMEWK.DBF;0x30;Visual FoxPro;1998-04-17;18;0;3;29;392;1252 Windows ANSI;_FRAMEWK.FPT;;;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Address Book/Data/addresses.dbf;addresses.dbf;0x30;Visual FoxPro;1997-06-09;5;0;17;472;840;1252 Windows ANSI;addresses.fpt;addresses.cdx;address book.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Asset Tracking/Data/ASSETS.DBF;ASSETS.DBF;0x30;Visual FoxPro;1997-06-09;5;0;18;265;872;1252 Windows ANSI;ASSETS.FPT;ASSETS.CDX;asset tracking.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Asset Tracking/Data/STATUS.DBF;STATUS.DBF;0x30;Visual FoxPro;1997-06-09;3;0;2;25;360;1252 Windows ANSI;;STATUS.CDX;asset tracking.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Asset Tracking/Data/asset categories.dbf;asset categories.dbf;0x30;Visual FoxPro;1997-06-09;5;0;2;55;360;1252 Windows ANSI;;asset categories.cdx;asset tracking.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Asset Tracking/Data/depreciation.dbf;depreciation.dbf;0x30;Visual FoxPro;1997-06-09;9;0;4;25;424;1252 Windows ANSI;;depreciation.cdx;asset tracking.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Asset Tracking/Data/employees.dbf;employees.dbf;0x30;Visual FoxPro;1997-06-09;5;0;7;235;520;1252 Windows ANSI;;employees.cdx;asset tracking.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Asset Tracking/Data/maintenance.dbf;maintenance.dbf;0x30;Visual FoxPro;1997-06-09;2;0;6;79;488;1252 Windows ANSI;maintenance.fpt;maintenance.cdx;asset tracking.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Books/Data/AUTHORS.DBF;AUTHORS.DBF;0x30;Visual FoxPro;1996-07-25;5;0;11;230;648;1252 Windows ANSI;AUTHORS.FPT;AUTHORS.CDX;books.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Books/Data/AUTO_IDS.DBF;AUTO_IDS.DBF;0x30;Visual FoxPro;1996-07-25;3;0;2;55;360;1252 Windows ANSI;;AUTO_IDS.CDX;books.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Books/Data/BOOKAUTH.DBF;BOOKAUTH.DBF;0x30;Visual FoxPro;1996-07-25;11;0;2;9;360;1252 Windows ANSI;;BOOKAUTH.CDX;books.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Books/Data/BOOKS.DBF;BOOKS.DBF;0x30;Visual FoxPro;1996-07-25;10;0;11;217;648;1252 Windows ANSI;BOOKS.FPT;BOOKS.CDX;books.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Books/Data/TOPICS.DBF;TOPICS.DBF;0x30;Visual FoxPro;1996-07-25;7;0;2;55;360;1252 Windows ANSI;;TOPICS.CDX;books.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Contact/Data/CALLS.DBF;CALLS.DBF;0x30;Visual FoxPro;1996-07-18;16;0;6;283;488;1252 Windows ANSI;CALLS.FPT;CALLS.CDX;contacts.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Contact/Data/CONTACTS.DBF;CONTACTS.DBF;0x30;Visual FoxPro;1996-07-18;5;0;29;1845;1224;1252 Windows ANSI;CONTACTS.FPT;CONTACTS.CDX;contacts.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Contact/Data/SETUP.DBF;SETUP.DBF;0x30;Visual FoxPro;1996-06-27;3;0;2;55;360;1252 Windows ANSI;;SETUP.CDX;contacts.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Contact/Data/TYPES.DBF;TYPES.DBF;0x30;Visual FoxPro;1996-03-27;2;0;2;55;360;1252 Windows ANSI;;TYPES.CDX;contacts.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Donation/Data/CAMPAIGN.DBF;CAMPAIGN.DBF;0x30;Visual FoxPro;1996-07-23;1;0;8;123;552;1252 Windows ANSI;CAMPAIGN.FPT;CAMPAIGN.CDX;campaign.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Donation/Data/CHARITY.DBF;CHARITY.DBF;0x30;Visual FoxPro;1996-07-23;6;0;3;13;392;1252 Windows ANSI;CHARITY.FPT;;;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Donation/Data/DONORS.DBF;DONORS.DBF;0x30;Visual FoxPro;1996-07-23;5;0;16;445;808;1252 Windows ANSI;DONORS.FPT;DONORS.CDX;campaign.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Donation/Data/PLEDGES.DBF;PLEDGES.DBF;0x30;Visual FoxPro;1996-07-23;25;0;8;39;552;1252 Windows ANSI;;PLEDGES.CDX;campaign.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Event Management/Data/EVENTS.DBF;EVENTS.DBF;0x30;Visual FoxPro;1997-06-09;4;0;15;136;776;1252 Windows ANSI;EVENTS.FPT;EVENTS.CDX;event management.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Event Management/Data/PAYMENTS.DBF;PAYMENTS.DBF;0x30;Visual FoxPro;1997-06-09;10;0;8;117;552;1252 Windows ANSI;;PAYMENTS.CDX;event management.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Event Management/Data/attendees.dbf;attendees.dbf;0x30;Visual FoxPro;1997-06-09;5;0;12;389;680;1252 Windows ANSI;attendees.fpt;attendees.cdx;event management.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Event Management/Data/employees.dbf;employees.dbf;0x30;Visual FoxPro;1997-06-09;5;0;7;265;520;1252 Windows ANSI;;employees.cdx;event management.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Event Management/Data/event types.dbf;event types.dbf;0x30;Visual FoxPro;1997-06-09;4;0;2;55;360;1252 Windows ANSI;;Event Types.CDX;event management.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Event Management/Data/fee schedules.dbf;fee schedules.dbf;0x30;Visual FoxPro;1997-06-09;9;0;4;47;424;1252 Windows ANSI;;Fee Schedules.CDX;event management.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Event Management/Data/my company information.dbf;my company information.dbf;0x30;Visual FoxPro;1997-06-09;1;0;12;275;680;1252 Windows ANSI;my company information.FPT;My Company Information.CDX;event management.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Event Management/Data/payment methods.dbf;payment methods.dbf;0x30;Visual FoxPro;1997-06-09;5;0;3;56;392;1252 Windows ANSI;;Payment Methods.CDX;event management.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Event Management/Data/registration.dbf;registration.dbf;0x30;Visual FoxPro;1997-06-09;14;0;9;75;584;1252 Windows ANSI;;registration.cdx;event management.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Expenses/Data/employees.dbf;employees.dbf;0x30;Visual FoxPro;1997-06-09;3;0;16;523;808;1252 Windows ANSI;employees.fpt;employees.cdx;expenses.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Expenses/Data/expense categories.dbf;expense categories.dbf;0x30;Visual FoxPro;1997-06-09;5;0;3;59;392;1252 Windows ANSI;;Expense Categories.CDX;expenses.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Expenses/Data/expense details.dbf;expense details.dbf;0x30;Visual FoxPro;1997-06-09;6;0;6;79;488;1252 Windows ANSI;;Expense Details.CDX;expenses.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Expenses/Data/expense reports.dbf;expense reports.dbf;0x30;Visual FoxPro;1997-06-09;3;0;9;140;584;1252 Windows ANSI;expense reports.FPT;Expense Reports.CDX;expenses.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Household Inventory/Data/ROOMS.DBF;ROOMS.DBF;0x30;Visual FoxPro;1997-06-09;6;0;2;55;360;1252 Windows ANSI;;ROOMS.CDX;household inventory.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Household Inventory/Data/categories.dbf;categories.dbf;0x30;Visual FoxPro;1997-06-09;7;0;2;55;360;1252 Windows ANSI;;categories.cdx;household inventory.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Household Inventory/Data/household inventory.dbf;household inventory.dbf;0x30;Visual FoxPro;1997-06-09;10;0;15;300;776;1252 Windows ANSI;household inventory.FPT;Household Inventory.CDX;household inventory.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Inventory Control/Data/PRODUCTS.DBF;PRODUCTS.DBF;0x30;Visual FoxPro;1997-06-09;5;0;9;156;584;1252 Windows ANSI;PRODUCTS.FPT;PRODUCTS.CDX;inventory control.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Inventory Control/Data/categories.dbf;categories.dbf;0x30;Visual FoxPro;1997-06-09;8;0;2;55;360;1252 Windows ANSI;;categories.cdx;inventory control.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Inventory Control/Data/employees.dbf;employees.dbf;0x30;Visual FoxPro;1997-06-09;5;0;7;265;520;1252 Windows ANSI;;employees.cdx;inventory control.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Inventory Control/Data/inventory transactions.dbf;inventory transactions.dbf;0x30;Visual FoxPro;1997-06-09;20;0;10;49;616;1252 Windows ANSI;inventory transactions.FPT;Inventory Transactions.CDX;inventory control.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Inventory Control/Data/my company information.dbf;my company information.dbf;0x30;Visual FoxPro;1997-06-09;1;0;9;259;584;1252 Windows ANSI;my company information.FPT;My Company Information.CDX;inventory control.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Inventory Control/Data/purchase orders.dbf;purchase orders.dbf;0x30;Visual FoxPro;1997-06-09;5;0;11;91;648;1252 Windows ANSI;purchase orders.FPT;Purchase Orders.CDX;inventory control.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Inventory Control/Data/shipping methods.dbf;shipping methods.dbf;0x30;Visual FoxPro;1997-06-09;2;0;2;25;360;1252 Windows ANSI;;Shipping Methods.CDX;inventory control.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Inventory Control/Data/suppliers.dbf;suppliers.dbf;0x30;Visual FoxPro;1997-06-09;5;0;14;417;744;1252 Windows ANSI;suppliers.fpt;suppliers.cdx;inventory control.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Ledger/Data/ACCOUNTS.DBF;ACCOUNTS.DBF;0x30;Visual FoxPro;1997-06-17;9;0;4;109;424;1252 Windows ANSI;;ACCOUNTS.CDX;ledger.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Ledger/Data/account types.dbf;account types.dbf;0x30;Visual FoxPro;1997-06-17;4;0;2;55;360;1252 Windows ANSI;;account types.CDX;ledger.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Ledger/Data/transactions.dbf;transactions.dbf;0x30;Visual FoxPro;1997-06-17;23;0;8;42;552;1252 Windows ANSI;transactions.fpt;transactions.cdx;ledger.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Membership/Data/MEMBERS.DBF;MEMBERS.DBF;0x30;Visual FoxPro;1997-06-09;12;0;23;634;1032;1252 Windows ANSI;MEMBERS.FPT;MEMBERS.CDX;membership.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Membership/Data/PAYMENTS.DBF;PAYMENTS.DBF;0x30;Visual FoxPro;1997-06-09;14;0;8;117;552;1252 Windows ANSI;;PAYMENTS.CDX;membership.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Membership/Data/committeemembers.dbf;committeemembers.dbf;0x30;Visual FoxPro;1997-06-09;10;0;4;43;424;1252 Windows ANSI;;committeemembers.cdx;membership.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Membership/Data/committees.dbf;committees.dbf;0x30;Visual FoxPro;1997-06-09;2;0;3;59;392;1252 Windows ANSI;committees.fpt;committees.cdx;membership.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Membership/Data/membertypes.dbf;membertypes.dbf;0x30;Visual FoxPro;1997-06-09;3;0;3;63;392;1252 Windows ANSI;;membertypes.cdx;membership.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Membership/Data/my organization information.dbf;my organization information.dbf;0x30;Visual FoxPro;1997-06-09;1;0;11;267;648;1252 Windows ANSI;my organization information.FPT;My Organization Information.CDX;membership.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Membership/Data/payment methods.dbf;payment methods.dbf;0x30;Visual FoxPro;1997-06-09;4;0;3;56;392;1252 Windows ANSI;;Payment Methods.CDX;membership.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Music Collection/Data/TRACKS.DBF;TRACKS.DBF;0x30;Visual FoxPro;1997-06-09;12;0;5;83;456;1252 Windows ANSI;;TRACKS.CDX;music collection.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Music Collection/Data/music categories.dbf;music categories.dbf;0x30;Visual FoxPro;1997-06-09;5;0;2;55;360;1252 Windows ANSI;;Music Categories.CDX;music collection.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Music Collection/Data/recording artists.dbf;recording artists.dbf;0x30;Visual FoxPro;1997-06-09;4;0;7;129;520;1252 Windows ANSI;recording artists.FPT;Recording Artists.CDX;music collection.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Music Collection/Data/recordings.dbf;recordings.dbf;0x30;Visual FoxPro;1997-06-09;7;0;11;131;648;1252 Windows ANSI;recordings.fpt;recordings.cdx;music collection.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Order Entry/Data/ORDERS.DBF;ORDERS.DBF;0x30;Visual FoxPro;1997-06-09;15;0;16;333;808;1252 Windows ANSI;ORDERS.FPT;ORDERS.CDX;order entry.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Order Entry/Data/PAYMENTS.DBF;PAYMENTS.DBF;0x30;Visual FoxPro;1997-06-09;14;0;8;117;552;1252 Windows ANSI;;PAYMENTS.CDX;order entry.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Order Entry/Data/PRODUCTS.DBF;PRODUCTS.DBF;0x30;Visual FoxPro;1997-06-09;10;0;3;63;392;1252 Windows ANSI;;PRODUCTS.CDX;order entry.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Order Entry/Data/customers.dbf;customers.dbf;0x30;Visual FoxPro;1997-06-09;3;0;12;389;680;1252 Windows ANSI;customers.fpt;customers.cdx;order entry.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Order Entry/Data/employees.dbf;employees.dbf;0x30;Visual FoxPro;1997-06-09;5;0;6;215;488;1252 Windows ANSI;;employees.cdx;order entry.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Order Entry/Data/my company information.dbf;my company information.dbf;0x30;Visual FoxPro;1997-06-09;1;0;12;275;680;1252 Windows ANSI;my company information.FPT;My Company Information.CDX;order entry.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Order Entry/Data/order details.dbf;order details.dbf;0x30;Visual FoxPro;1997-06-09;34;0;6;37;488;1252 Windows ANSI;;Order Details.CDX;order entry.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Order Entry/Data/payment methods.dbf;payment methods.dbf;0x30;Visual FoxPro;1997-06-09;4;0;3;56;392;1252 Windows ANSI;;Payment Methods.CDX;order entry.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Order Entry/Data/shipping methods.dbf;shipping methods.dbf;0x30;Visual FoxPro;1997-06-09;4;0;2;25;360;1252 Windows ANSI;;Shipping Methods.CDX;order entry.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Picture Library/Data/photo locations.dbf;photo locations.dbf;0x30;Visual FoxPro;1997-06-09;5;0;2;55;360;1252 Windows ANSI;;Photo Locations.CDX;picture library.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Picture Library/Data/photographs.dbf;photographs.dbf;0x30;Visual FoxPro;1997-06-09;25;0;16;418;808;1252 Windows ANSI;photographs.fpt;photographs.cdx;picture library.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Picture Library/Data/rolls of film.dbf;rolls of film.dbf;0x30;Visual FoxPro;1997-06-09;5;0;10;226;616;1252 Windows ANSI;rolls of film.FPT;Rolls of Film.CDX;picture library.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Recipes/Data/AUTO_IDS.DBF;AUTO_IDS.DBF;0x30;Visual FoxPro;1996-07-16;3;0;2;61;360;1252 Windows ANSI;;AUTO_IDS.CDX;recipes.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Recipes/Data/FOODCAT.DBF;FOODCAT.DBF;0x30;Visual FoxPro;1996-06-18;6;0;2;55;360;1252 Windows ANSI;;FOODCAT.CDX;recipes.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Recipes/Data/INGREDIE.DBF;INGREDIE.DBF;0x30;Visual FoxPro;1996-06-18;30;0;2;55;360;1252 Windows ANSI;;INGREDIE.CDX;recipes.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Recipes/Data/RECINGRD.DBF;RECINGRD.DBF;0x30;Visual FoxPro;1996-07-16;29;0;5;275;456;1252 Windows ANSI;;RECINGRD.CDX;recipes.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Recipes/Data/RECIPES.DBF;RECIPES.DBF;0x30;Visual FoxPro;1996-07-16;5;0;12;934;680;1252 Windows ANSI;RECIPES.FPT;RECIPES.CDX;recipes.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Resource Scheduling/Data/SCHEDULE.DBF;SCHEDULE.DBF;0x30;Visual FoxPro;1997-06-10;5;0;3;17;392;1252 Windows ANSI;;SCHEDULE.CDX;resource scheduling.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Resource Scheduling/Data/customers.dbf;customers.dbf;0x30;Visual FoxPro;1997-06-10;5;0;13;419;712;1252 Windows ANSI;customers.fpt;customers.cdx;resource scheduling.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Resource Scheduling/Data/resource types.dbf;resource types.dbf;0x30;Visual FoxPro;1997-06-10;6;0;2;55;360;1252 Windows ANSI;;Resource Types.CDX;resource scheduling.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Resource Scheduling/Data/resources.dbf;resources.dbf;0x30;Visual FoxPro;1997-06-10;6;0;4;63;424;1252 Windows ANSI;resources.fpt;resources.cdx;resource scheduling.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Resource Scheduling/Data/schedule details.dbf;schedule details.dbf;0x30;Visual FoxPro;1997-06-10;26;0;6;30;488;1252 Windows ANSI;;Schedule Details.CDX;resource scheduling.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Service Call Management/Data/PARTS.DBF;PARTS.DBF;0x30;Visual FoxPro;1997-06-10;5;0;4;67;424;1252 Windows ANSI;PARTS.FPT;PARTS.CDX;service call management.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Service Call Management/Data/PAYMENTS.DBF;PAYMENTS.DBF;0x30;Visual FoxPro;1997-06-10;9;0;8;117;552;1252 Windows ANSI;;PAYMENTS.CDX;service call management.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Service Call Management/Data/customers.dbf;customers.dbf;0x30;Visual FoxPro;1997-06-10;5;0;13;393;712;1252 Windows ANSI;customers.fpt;customers.cdx;service call management.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Service Call Management/Data/employees.dbf;employees.dbf;0x30;Visual FoxPro;1997-06-10;5;0;7;223;520;1252 Windows ANSI;;employees.cdx;service call management.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Service Call Management/Data/my company information.dbf;my company information.dbf;0x30;Visual FoxPro;1997-06-10;1;0;12;275;680;1252 Windows ANSI;my company information.FPT;My Company Information.CDX;service call management.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Service Call Management/Data/payment methods.dbf;payment methods.dbf;0x30;Visual FoxPro;1997-06-10;5;0;3;56;392;1252 Windows ANSI;;Payment Methods.CDX;service call management.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Service Call Management/Data/workorder labor.dbf;workorder labor.dbf;0x30;Visual FoxPro;1997-06-10;11;0;6;33;488;1252 Windows ANSI;workorder labor.FPT;Workorder Labor.CDX;service call management.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Service Call Management/Data/workorder parts.dbf;workorder parts.dbf;0x30;Visual FoxPro;1997-06-10;14;0;5;29;456;1252 Windows ANSI;;Workorder Parts.CDX;service call management.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Service Call Management/Data/workorders.dbf;workorders.dbf;0x30;Visual FoxPro;1997-06-10;9;0;12;187;680;1252 Windows ANSI;workorders.fpt;workorders.cdx;service call management.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Students And Classes/Data/CLASSES.DBF;CLASSES.DBF;0x30;Visual FoxPro;1997-06-16;3;0;11;159;648;1252 Windows ANSI;CLASSES.FPT;CLASSES.CDX;students and classes.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Students And Classes/Data/RESULTS.DBF;RESULTS.DBF;0x30;Visual FoxPro;1997-06-16;70;0;5;22;456;1252 Windows ANSI;;RESULTS.CDX;students and classes.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Students And Classes/Data/STUDENTS.DBF;STUDENTS.DBF;0x30;Visual FoxPro;1997-06-16;7;0;13;413;712;1252 Windows ANSI;STUDENTS.FPT;STUDENTS.CDX;students and classes.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Students And Classes/Data/assignments.dbf;assignments.dbf;0x30;Visual FoxPro;1997-06-16;14;0;6;30;488;1252 Windows ANSI;assignments.fpt;assignments.cdx;students and classes.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Students And Classes/Data/departments.dbf;departments.dbf;0x30;Visual FoxPro;1997-06-16;5;0;5;139;456;1252 Windows ANSI;;departments.cdx;students and classes.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Students And Classes/Data/instructors.dbf;instructors.dbf;0x30;Visual FoxPro;1997-06-16;5;0;5;165;456;1252 Windows ANSI;;instructors.cdx;students and classes.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Students And Classes/Data/students and classes.dbf;students and classes.dbf;0x30;Visual FoxPro;1997-06-16;15;0;4;43;424;1252 Windows ANSI;;students and classes.CDX;students and classes.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Time And Billing/Data/CLIENTS.DBF;CLIENTS.DBF;0x30;Visual FoxPro;1997-06-18;2;0;15;445;776;1252 Windows ANSI;CLIENTS.FPT;CLIENTS.CDX;time and billing.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Time And Billing/Data/PAYMENTS.DBF;PAYMENTS.DBF;0x30;Visual FoxPro;1997-06-18;5;0;10;149;616;1252 Windows ANSI;;PAYMENTS.CDX;time and billing.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Time And Billing/Data/PROJECTS.DBF;PROJECTS.DBF;0x30;Visual FoxPro;1997-06-18;4;0;10;123;616;1252 Windows ANSI;PROJECTS.FPT;PROJECTS.CDX;time and billing.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Time And Billing/Data/employees.dbf;employees.dbf;0x30;Visual FoxPro;1997-06-18;5;0;16;479;808;1252 Windows ANSI;employees.fpt;employees.cdx;time and billing.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Time And Billing/Data/expense codes.dbf;expense codes.dbf;0x30;Visual FoxPro;1997-06-18;5;0;3;36;392;1252 Windows ANSI;;expense codes.CDX;time and billing.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Time And Billing/Data/my company information.dbf;my company information.dbf;0x30;Visual FoxPro;1997-06-18;1;0;12;269;680;1252 Windows ANSI;my company information.FPT;my company information.CDX;time and billing.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Time And Billing/Data/payment methods.dbf;payment methods.dbf;0x30;Visual FoxPro;1997-06-18;4;0;4;57;424;1252 Windows ANSI;;payment methods.CDX;time and billing.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Time And Billing/Data/time card expenses.dbf;time card expenses.dbf;0x30;Visual FoxPro;1997-06-18;8;0;8;38;552;1252 Windows ANSI;time card expenses.FPT;time card expenses.CDX;time and billing.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Time And Billing/Data/time card hours.dbf;time card hours.dbf;0x30;Visual FoxPro;1997-06-18;21;0;9;46;584;1252 Windows ANSI;time card hours.FPT;time card hours.CDX;time and billing.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Time And Billing/Data/time cards.dbf;time cards.dbf;0x30;Visual FoxPro;1997-06-18;5;0;4;18;424;1252 Windows ANSI;;time cards.CDX;time and billing.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Time And Billing/Data/work codes.dbf;work codes.dbf;0x30;Visual FoxPro;1997-06-18;5;0;3;36;392;1252 Windows ANSI;;work codes.CDX;time and billing.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Video Collection/Data/ACTORS.DBF;ACTORS.DBF;0x30;Visual FoxPro;1997-06-16;12;0;4;113;424;1252 Windows ANSI;;ACTORS.CDX;video collection.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Video Collection/Data/program types.dbf;program types.dbf;0x30;Visual FoxPro;1997-06-16;7;0;2;55;360;1252 Windows ANSI;;program types.CDX;video collection.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Video Collection/Data/programactorjoin.dbf;programactorjoin.dbf;0x30;Visual FoxPro;1997-06-16;11;0;3;13;392;1252 Windows ANSI;;programactorjoin.cdx;video collection.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Video Collection/Data/video programs.dbf;video programs.dbf;0x30;Visual FoxPro;1997-06-16;6;0;18;281;872;1252 Windows ANSI;video programs.FPT;video programs.CDX;video collection.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Video Collection/Data/videotapes.dbf;videotapes.dbf;0x30;Visual FoxPro;1997-06-16;5;0;2;9;360;1252 Windows ANSI;videotapes.fpt;videotapes.cdx;video collection.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Wine List/Data/wine list.dbf;wine list.dbf;0x30;Visual FoxPro;1997-06-16;5;0;14;295;744;1252 Windows ANSI;wine list.FPT;wine list.CDX;wine list.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Wine List/Data/wine purchases.dbf;wine purchases.dbf;0x30;Visual FoxPro;1997-06-16;26;0;8;95;552;1252 Windows ANSI;wine purchases.FPT;wine purchases.CDX;wine list.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Wine List/Data/wine types.dbf;wine types.dbf;0x30;Visual FoxPro;1997-06-16;4;0;2;55;360;1252 Windows ANSI;;wine types.CDX;wine list.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Workout/Data/UNITS.DBF;UNITS.DBF;0x30;Visual FoxPro;1997-06-16;5;0;2;35;360;1252 Windows ANSI;;UNITS.CDX;workout.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Workout/Data/WORKOUTS.DBF;WORKOUTS.DBF;0x30;Visual FoxPro;1997-06-16;5;0;3;17;392;1252 Windows ANSI;WORKOUTS.FPT;WORKOUTS.CDX;workout.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Workout/Data/exercise types.dbf;exercise types.dbf;0x30;Visual FoxPro;1997-06-16;4;0;2;55;360;1252 Windows ANSI;;exercise types.CDX;workout.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Workout/Data/exercises.dbf;exercises.dbf;0x30;Visual FoxPro;1997-06-16;20;0;8;91;552;1252 Windows ANSI;exercises.fpt;exercises.cdx;workout.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Workout/Data/workout details.dbf;workout details.dbf;0x30;Visual FoxPro;1997-06-16;28;0;7;41;520;1252 Windows ANSI;;workout details.CDX;workout.dbc;ok
+ARXIV/UDH3/Vfp98/Wizards/Template/Workout/Data/workout history.dbf;workout history.dbf;0x30;Visual FoxPro;1997-06-16;6;0;4;21;424;1252 Windows ANSI;workout history.FPT;workout history.CDX;workout.dbc;ok

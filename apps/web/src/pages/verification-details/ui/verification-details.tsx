@@ -26,6 +26,7 @@ import {
   FileTextIcon,
   HistoryIcon,
   ImageIcon,
+  ListChecksIcon,
   MinusIcon,
   PlusIcon,
   PrinterIcon,
@@ -84,6 +85,12 @@ import { cn } from '@/shared/lib/cn';
 import type { Jump } from '@/shared/lib/jump';
 import { Button } from '@/shared/ui/button';
 import { InfoHint } from '@/shared/ui/info-hint';
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetTrigger,
+} from '@/shared/ui/sheet';
 import { Skeleton } from '@/shared/ui/skeleton';
 import { SurfaceBody, SurfacePage } from '@/shared/ui/surface';
 import { CONFIDENCE_FLOOR } from '@cadastre/api-contracts/verification';
@@ -106,8 +113,10 @@ import type {
   StatedValueDto,
 } from '@cadastre/api-contracts/verification';
 
+import { findingKey } from '../model/checklist';
 import { PANEL, panelForHash, type PanelId } from '../model/panels';
 
+import { CaseChecklist, type FindingGroup } from './case-checklist';
 import { CaseProvisionPanel } from './case-provision';
 
 type Translate = (
@@ -3355,6 +3364,10 @@ export function VerificationDetails() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const { id } = useParams();
+  // Whether the checklist is open as a sheet on a screen too narrow to keep it
+  // beside the case. Up here because the page returns early while the package
+  // loads.
+  const [checklistOpen, setChecklistOpen] = useState(false);
 
   // Poll while the pipeline is still working; stop once it settles. The toggle
   // is adjusted during render (no effect) from the data we just received.
@@ -3555,41 +3568,138 @@ export function VerificationDetails() {
     });
   };
 
+  // The sheet is shut before the jump, or the reader lands on evidence hidden
+  // behind the very panel that sent them there.
+  const jumpFromSheet: Jump = (docId, anchor) => event => {
+    setChecklistOpen(false);
+    jump(docId, anchor)(event);
+  };
+
+  // The remarks the checklist lists: the worklist's own findings, named by
+  // the worklist's own `findingOf`, so a line in the rail and a line in the fold
+  // are one line. Archive answers go to the rail's archive block, on the rule
+  // that keeps them out of the worklist.
+  const report = pkg.report;
+  const named = pkg.files.length > 1;
+  const repeats = new Map<string, number>();
+  const findingGroups: FindingGroup[] = report
+    ? ISSUE_SECTIONS.filter(([kind]) => !isArchiveFinding(kind)).flatMap(
+        ([kind, { heading }]) => {
+          const issues = report.issues.filter(issue => issue.kind === kind);
+          if (issues.length === 0) return [];
+          return [
+            {
+              kind,
+              heading,
+              lines: issues.map(issue => {
+                // Two findings the report cannot tell apart are numbered, so
+                // each keeps a key of its own.
+                const base = findingKey(issue);
+                const seen = repeats.get(base) ?? 0;
+                repeats.set(base, seen + 1);
+                return {
+                  ...findingOf(t, issue, pkg, named),
+                  key: seen === 0 ? base : `${base}#${seen}`,
+                  confidence: issue.confidence,
+                };
+              }),
+            },
+          ];
+        },
+      )
+    : [];
+  const remarks = findingGroups.flatMap(group => group.lines).length;
+
+  const checklist = (onRailJump: Jump) => (
+    <CaseChecklist
+      pkg={pkg}
+      profile={profile}
+      settled={classified}
+      running={running}
+      findings={findingGroups}
+      onJump={onRailJump}
+    />
+  );
+
   return (
     <SurfacePage>
       <SurfaceBody className='motion-safe:scroll-smooth'>
-        <div className='mx-auto flex w-full max-w-[64rem] flex-col gap-4 px-4 py-6 md:px-8 md:py-8'>
-          {/* Back to the register, on the sheet's own page rather than in the
-              chrome — this surface is a document, and the way out of a document
-              is a line at the top of it. */}
-          <Button
-            variant='ghost'
-            size='sm'
-            nativeButton={false}
-            className='-ml-2 self-start text-muted-foreground print:hidden'
-            render={<Link to={paths.cases} />}
-          >
-            <ArrowLeftIcon /> {t('detail.back')}
-          </Button>
+        {/* A container and not the viewport decides whether the checklist
+            stands beside the case: the room it has is the window less the
+            sidebar, and the sidebar folds. Below the line the checklist opens
+            as a sheet from the top of the case instead. */}
+        <div className='@container'>
+          <div className='mx-auto grid w-full max-w-[64rem] gap-6 px-4 py-6 md:px-8 md:py-8 print:block @min-[72rem]:max-w-[86rem] @min-[72rem]:grid-cols-[minmax(0,1fr)_18.5rem]'>
+            <div className='flex min-w-0 flex-col gap-4'>
+              {/* Back to the register, on the sheet's own page rather than in
+                  the chrome — this surface is a document, and the way out of
+                  a document is a line at the top of it. */}
+              <div className='flex items-center justify-between gap-3 print:hidden'>
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  nativeButton={false}
+                  className='-ml-2 text-muted-foreground'
+                  render={<Link to={paths.cases} />}
+                >
+                  <ArrowLeftIcon /> {t('detail.back')}
+                </Button>
+                <Sheet open={checklistOpen} onOpenChange={setChecklistOpen}>
+                  <SheetTrigger
+                    render={
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        className='@min-[72rem]:hidden'
+                      />
+                    }
+                  >
+                    <ListChecksIcon /> {t('rail.title')}
+                    {remarks > 0 && (
+                      <span
+                        data-mono
+                        className='rounded-full bg-issues/14 px-1.5 text-[0.6875rem] font-medium tabular-nums text-issues-ink'
+                      >
+                        {remarks}
+                      </span>
+                    )}
+                  </SheetTrigger>
+                  <SheetContent
+                    side='right'
+                    // Focus goes back to the trigger by default, and the
+                    // trigger is at the top of the case: the page would scroll
+                    // back up over the evidence the jump just landed on.
+                    finalFocus={false}
+                    // The sheet's own width is set under `data-[side=right]`,
+                    // which a plain width class does not outrank.
+                    className='gap-0 overflow-y-auto px-5 pb-5 pt-4 data-[side=right]:w-[min(22rem,92vw)]'
+                  >
+                    <SheetTitle className='pb-2 text-[0.9375rem] font-semibold tracking-[-0.01em] text-foreground'>
+                      {t('rail.title')}
+                    </SheetTitle>
+                    {checklist(jumpFromSheet)}
+                  </SheetContent>
+                </Sheet>
+              </div>
 
-          {/* ── The sheet ── */}
-          <CaseSheet
-            pkg={pkg}
-            view={view}
-            profile={profile}
-            stages={stages}
-            running={running}
-            failed={failed}
-            stageRunning={stageRunning}
-            missing={missing}
-            required={required}
-            settled={classified}
-            onAddFiles={accepting ? goToAddFiles : null}
-            onApprove={goToApproval}
-            onJump={jump}
-          />
+              {/* ── The sheet ── */}
+              <CaseSheet
+                pkg={pkg}
+                view={view}
+                profile={profile}
+                stages={stages}
+                running={running}
+                failed={failed}
+                stageRunning={stageRunning}
+                missing={missing}
+                required={required}
+                settled={classified}
+                onAddFiles={accepting ? goToAddFiles : null}
+                onApprove={goToApproval}
+                onJump={jump}
+              />
 
-          {/* ── The case file ──
+              {/* ── The case file ──
               The evidence the sheet is drawn from, filed under it. Each fold
               says what is inside before it is opened, so the stack is readable
               shut; the two the inspector actually works — what wants attention,
@@ -3599,71 +3709,73 @@ export function VerificationDetails() {
               one, and this system has nothing to put in it: the inspector
               decides, off this screen, and a form that recorded a verdict would
               be this product claiming a judgement it never makes. */}
-          <StagePanel
-            id={PANEL.attention}
-            title={t('detail.attention')}
-            summary={
-              pkg.report
-                ? reviewCount === 0
-                  ? t('detail.attention_none')
-                  : t('findings.noted', { n: reviewCount })
-                : running
-                  ? t('detail.review_preparing')
-                  : t('status.failed')
-            }
-            open={panels[PANEL.attention] ?? (reviewCount > 0 || !pkg.report)}
-            onOpenChange={open => foldPanel(PANEL.attention, open)}
-          >
-            {pkg.report ? (
-              <Worklist report={pkg.report} pkg={pkg} onJump={jump} />
-            ) : (
-              <PendingReview running={running} />
-            )}
-          </StagePanel>
+              <StagePanel
+                id={PANEL.attention}
+                title={t('detail.attention')}
+                summary={
+                  pkg.report
+                    ? reviewCount === 0
+                      ? t('detail.attention_none')
+                      : t('findings.noted', { n: reviewCount })
+                    : running
+                      ? t('detail.review_preparing')
+                      : t('status.failed')
+                }
+                open={
+                  panels[PANEL.attention] ?? (reviewCount > 0 || !pkg.report)
+                }
+                onOpenChange={open => foldPanel(PANEL.attention, open)}
+              >
+                {pkg.report ? (
+                  <Worklist report={pkg.report} pkg={pkg} onJump={jump} />
+                ) : (
+                  <PendingReview running={running} />
+                )}
+              </StagePanel>
 
-          <StagePanel
-            id={PANEL.provision}
-            title={t('panel.provision')}
-            summary={
-              pkg.provision
-                ? provisionShort(t, pkg.provision)
-                : t('provision.pending')
-            }
-            // Open by itself once the run has finished and the provision is not
-            // settled: which papers the package owes turns on it, and that is
-            // the next thing the inspector has to look at.
-            open={
-              panels[PANEL.provision] ??
-              (pkg.report !== null &&
-                pkg.provision !== null &&
-                pkg.provision.outcome !== 'Determined')
-            }
-            onOpenChange={open => foldPanel(PANEL.provision, open)}
-          >
-            {pkg.provision ? (
-              <CaseProvisionPanel
-                provision={pkg.provision}
-                profile={profile}
-                onJump={jump}
-              />
-            ) : (
-              <p className='text-[0.8125rem] text-muted-foreground'>
-                {t('provision.pending')}
-              </p>
-            )}
-          </StagePanel>
+              <StagePanel
+                id={PANEL.provision}
+                title={t('panel.provision')}
+                summary={
+                  pkg.provision
+                    ? provisionShort(t, pkg.provision)
+                    : t('provision.pending')
+                }
+                // Open by itself once the run has finished and the provision is not
+                // settled: which papers the package owes turns on it, and that is
+                // the next thing the inspector has to look at.
+                open={
+                  panels[PANEL.provision] ??
+                  (pkg.report !== null &&
+                    pkg.provision !== null &&
+                    pkg.provision.outcome !== 'Determined')
+                }
+                onOpenChange={open => foldPanel(PANEL.provision, open)}
+              >
+                {pkg.provision ? (
+                  <CaseProvisionPanel
+                    provision={pkg.provision}
+                    profile={profile}
+                    onJump={jump}
+                  />
+                ) : (
+                  <p className='text-[0.8125rem] text-muted-foreground'>
+                    {t('provision.pending')}
+                  </p>
+                )}
+              </StagePanel>
 
-          <StagePanel
-            id={PANEL.documents}
-            title={t('panel.scanned')}
-            summary={t('detail.docs_count', {
-              d: pkg.classifiedCount,
-              r: pkg.documentsCount,
-            })}
-            open={panels[PANEL.documents] ?? true}
-            onOpenChange={open => foldPanel(PANEL.documents, open)}
-          >
-            {/* Ahead of the register of documents: this is what the inspector
+              <StagePanel
+                id={PANEL.documents}
+                title={t('panel.scanned')}
+                summary={t('detail.docs_count', {
+                  d: pkg.classifiedCount,
+                  r: pkg.documentsCount,
+                })}
+                open={panels[PANEL.documents] ?? true}
+                onOpenChange={open => foldPanel(PANEL.documents, open)}
+              >
+                {/* Ahead of the register of documents: this is what the inspector
                 opened the fold for when the package is short of a paper, and a
                 dropzone below sixteen entries is one nobody scrolls to.
 
@@ -3672,117 +3784,140 @@ export function VerificationDetails() {
                 that answers it is what the operator is here to do, and "more
                 files, answering nothing in particular" is the fallback for what
                 the list does not cover. */}
-            <div className='pb-8'>
-              <DocumentGaps pkg={pkg} profiles={profiles ?? []} onJump={jump} />
-            </div>
-
-            <div id='add-files' className='scroll-mt-16 pb-8'>
-              <AddFiles
-                packageId={pkg.id}
-                status={pkg.status}
-                reported={pkg.report !== null}
-              />
-            </div>
-
-            <section id='documents' className='scroll-mt-16'>
-              {counts.all > 1 && (
-                <div className='-mx-1 flex items-stretch gap-0.5 overflow-x-auto px-1'>
-                  {SEGMENTS.map(seg => {
-                    const active = segment === seg;
-                    return (
-                      <button
-                        key={seg}
-                        onClick={() => setPickedSegment(seg)}
-                        aria-pressed={active}
-                        disabled={counts[seg] === 0}
-                        className={cn(
-                          'relative flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2.5 py-2 text-[0.8125rem] transition-colors',
-                          'after:absolute after:inset-x-2 after:bottom-0 after:h-[2px] after:bg-transparent',
-                          'disabled:pointer-events-none disabled:opacity-40',
-                          active
-                            ? 'font-medium text-foreground after:bg-foreground'
-                            : 'text-muted-foreground hover:text-foreground',
-                        )}
-                      >
-                        {t(SEGMENT_KEY[seg])}
-                        <span
-                          data-mono
-                          className={cn(
-                            'text-[0.6875rem] tabular-nums',
-                            active
-                              ? 'text-foreground/60'
-                              : 'text-muted-foreground/60',
-                          )}
-                        >
-                          {counts[seg]}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              <div className='mt-5 flex flex-col gap-10'>
-                {pkg.files.map(file => (
-                  <FileGroup
-                    key={file.id}
-                    file={file}
-                    files={pkg.files}
-                    failed={view.disposition === 'failed'}
-                    segment={segment}
+                <div className='pb-8'>
+                  <DocumentGaps
+                    pkg={pkg}
+                    profiles={profiles ?? []}
                     onJump={jump}
                   />
-                ))}
-              </div>
-            </section>
-          </StagePanel>
+                </div>
 
-          <StagePanel
-            id={PANEL.checks}
-            title={t('detail.checks')}
-            summary={
-              pkg.crossChecks.length === 0
-                ? t('checks.none')
-                : unmatchedChecks === 0
-                  ? t('checks.all_match')
-                  : t('findings.noted', { n: unmatchedChecks })
-            }
-            open={panels[PANEL.checks] ?? false}
-            onOpenChange={open => foldPanel(PANEL.checks, open)}
-          >
-            <DocumentComparisons
-              checks={pkg.crossChecks}
-              running={running}
-              onJump={jump}
-            />
-          </StagePanel>
+                <div id='add-files' className='scroll-mt-16 pb-8'>
+                  <AddFiles
+                    packageId={pkg.id}
+                    status={pkg.status}
+                    reported={pkg.report !== null}
+                  />
+                </div>
 
-          <StagePanel
-            id={PANEL.archive}
-            title={t('detail.archive_comparison')}
-            summary={
-              pkg.registryChecks.length === 0
-                ? t('registry.none')
-                : unconfirmedRegistry === 0
-                  ? t('registry.all_confirmed')
-                  : t('findings.noted', { n: unconfirmedRegistry })
-            }
-            open={
-              panels[PANEL.archive] ??
-              pkg.standing === 'AwaitingArchiveApproval'
-            }
-            onOpenChange={open => foldPanel(PANEL.archive, open)}
-          >
-            <RegistryChecks
-              checks={pkg.registryChecks}
-              running={running}
-              onJump={jump}
-            />
-            {/* Under the answers and not over them: the conclusion is drawn
+                <section id='documents' className='scroll-mt-16'>
+                  {counts.all > 1 && (
+                    <div className='-mx-1 flex items-stretch gap-0.5 overflow-x-auto px-1'>
+                      {SEGMENTS.map(seg => {
+                        const active = segment === seg;
+                        return (
+                          <button
+                            key={seg}
+                            onClick={() => setPickedSegment(seg)}
+                            aria-pressed={active}
+                            disabled={counts[seg] === 0}
+                            className={cn(
+                              'relative flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2.5 py-2 text-[0.8125rem] transition-colors',
+                              'after:absolute after:inset-x-2 after:bottom-0 after:h-[2px] after:bg-transparent',
+                              'disabled:pointer-events-none disabled:opacity-40',
+                              active
+                                ? 'font-medium text-foreground after:bg-foreground'
+                                : 'text-muted-foreground hover:text-foreground',
+                            )}
+                          >
+                            {t(SEGMENT_KEY[seg])}
+                            <span
+                              data-mono
+                              className={cn(
+                                'text-[0.6875rem] tabular-nums',
+                                active
+                                  ? 'text-foreground/60'
+                                  : 'text-muted-foreground/60',
+                              )}
+                            >
+                              {counts[seg]}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <div className='mt-5 flex flex-col gap-10'>
+                    {pkg.files.map(file => (
+                      <FileGroup
+                        key={file.id}
+                        file={file}
+                        files={pkg.files}
+                        failed={view.disposition === 'failed'}
+                        segment={segment}
+                        onJump={jump}
+                      />
+                    ))}
+                  </div>
+                </section>
+              </StagePanel>
+
+              <StagePanel
+                id={PANEL.checks}
+                title={t('detail.checks')}
+                summary={
+                  pkg.crossChecks.length === 0
+                    ? t('checks.none')
+                    : unmatchedChecks === 0
+                      ? t('checks.all_match')
+                      : t('findings.noted', { n: unmatchedChecks })
+                }
+                open={panels[PANEL.checks] ?? false}
+                onOpenChange={open => foldPanel(PANEL.checks, open)}
+              >
+                <DocumentComparisons
+                  checks={pkg.crossChecks}
+                  running={running}
+                  onJump={jump}
+                />
+              </StagePanel>
+
+              <StagePanel
+                id={PANEL.archive}
+                title={t('detail.archive_comparison')}
+                summary={
+                  pkg.registryChecks.length === 0
+                    ? t('registry.none')
+                    : unconfirmedRegistry === 0
+                      ? t('registry.all_confirmed')
+                      : t('findings.noted', { n: unconfirmedRegistry })
+                }
+                open={
+                  panels[PANEL.archive] ??
+                  pkg.standing === 'AwaitingArchiveApproval'
+                }
+                onOpenChange={open => foldPanel(PANEL.archive, open)}
+              >
+                <RegistryChecks
+                  checks={pkg.registryChecks}
+                  running={running}
+                  onJump={jump}
+                />
+                {/* Under the answers and not over them: the conclusion is drawn
                 from what the register said, so it is signed at the foot of what
                 was read rather than above it. */}
-            <ApproveArchiveSearch pkg={pkg} />
-          </StagePanel>
+                <ApproveArchiveSearch pkg={pkg} />
+              </StagePanel>
+            </div>
+
+            {/* ── The checklist ──
+                Flat, like the register it indexes: a rail that rose off the
+                page would read as a thing to act on before the case itself. It
+                stays in view as the case scrolls, and scrolls on its own when
+                it is longer than the window. */}
+            <aside
+              aria-label={t('rail.title')}
+              className='hidden print:hidden @min-[72rem]:block'
+            >
+              <div className='sticky top-8 max-h-[calc(100dvh-8rem)] overflow-y-auto overscroll-contain rounded-xl border border-rule bg-card px-4 pb-2 pt-4'>
+                <h2 className='pb-2 text-[0.9375rem] font-semibold tracking-[-0.01em] text-foreground'>
+                  {t('rail.title')}
+                </h2>
+                {checklist(jump)}
+              </div>
+            </aside>
+          </div>
         </div>
       </SurfaceBody>
     </SurfacePage>

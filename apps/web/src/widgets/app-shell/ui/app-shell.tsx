@@ -218,10 +218,17 @@ export function AppShell() {
         <SidebarRail />
       </Sidebar>
 
-      <SidebarInset className='h-svh min-w-0 overflow-hidden bg-background print:h-auto print:overflow-visible'>
+      {/* `overflow-clip` and not `overflow-hidden`, here and on the wrapper
+          below. A hidden box still scrolls from script, and a jump to an anchor
+          scrolls every ancestor of the target: a finding pointing into a case
+          scrolled this frame 64px, pushed the app bar off the top, and left a
+          gap the reader could not scroll back — the wheel does not reach a
+          hidden box. A clipped one cannot be scrolled at all, so only the
+          surface's own body moves. */}
+      <SidebarInset className='h-svh min-w-0 overflow-clip bg-background print:h-auto print:overflow-visible'>
         <AppBar slotRef={setHeaderSlot} />
         <HeaderSlotContext.Provider value={headerSlot}>
-          <div className='flex min-h-0 flex-1 flex-col overflow-hidden'>
+          <div className='flex min-h-0 flex-1 flex-col overflow-clip'>
             <Outlet />
           </div>
         </HeaderSlotContext.Provider>

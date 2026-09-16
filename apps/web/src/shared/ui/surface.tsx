@@ -15,7 +15,11 @@ import { cn } from '@/shared/lib/cn';
 
 /** Fills the region below the global app bar. Heading + footer stay fixed; the
  *  body scrolls. Forwards div props so a surface can attach page-level handlers
- *  (e.g. drag-and-drop). */
+ *  (e.g. drag-and-drop).
+ *
+ *  Clipped rather than hidden: a hidden box is still scrolled by a jump to an
+ *  anchor inside it, which shifts the heading off the top with no way to scroll
+ *  it back. Only `SurfaceBody` may move. */
 export function SurfacePage({
   className,
   children,
@@ -23,7 +27,7 @@ export function SurfacePage({
 }: ComponentProps<'div'>) {
   return (
     <div
-      className={cn('flex h-full min-h-0 flex-col overflow-hidden', className)}
+      className={cn('flex h-full min-h-0 flex-col overflow-clip', className)}
       {...props}
     >
       {children}

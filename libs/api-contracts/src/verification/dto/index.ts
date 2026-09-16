@@ -44,6 +44,8 @@ export {
 } from './list-profiles.dto.js';
 export {
   ApprovedCheckDtoSchema,
+  ArchiveQrCheckDtoSchema,
+  ArchiveQrFieldCheckDtoSchema,
   ArchiveSearchApprovalDtoSchema,
   CaseParameterDtoSchema,
   CaseProvisionDtoSchema,
@@ -76,6 +78,8 @@ export {
   SuppliedForDtoSchema,
   TitleDocumentStandingDtoSchema,
   type ApprovedCheckDto,
+  type ArchiveQrCheckDto,
+  type ArchiveQrFieldCheckDto,
   type ArchiveSearchApprovalDto,
   type CaseParameterDto,
   type CaseProvisionDto,

@@ -1,0 +1,142 @@
+// A sheet of a workbook or a FoxPro table — the unit a register is read in.
+//
+// Both are here and not in two models because to the register they are the
+// same thing: a header naming columns and records under it. What differs is
+// what the file format says about them, and each keeps its own columns for
+// that — visibility and header row for a sheet, version, code page and deletion
+// count for a table (`csv-files/sheets.csv`, `csv-files/dbf.csv`).
+//
+// The unit of *processing* is also this one and not the file. `order.xlsx` is
+// one sheet of 219 429 rows beside a chart; `Ozallasma-abş-reg- yeni.xls` is 38
+// sheets of five different kinds. A worker that failed on sheet 23 lands the
+// other 37, and the status says which one did not.
+
+enum LegacyTableKind {
+  Worksheet
+  Chartsheet // no cells; recorded so a workbook's sheet count adds up
+  DbfTable
+}
+
+enum SheetVisibility {
+  Visible
+  Hidden
+  VeryHidden
+}
+
+enum HeaderStatus {
+  Found
+  /// The top rows are data. Five sheets of the inventory, `Pasport ƏMDK-əsas`
+  /// `Лист2` among them: their columns are unnamed, not unreadable.
+  NotFound
+  Empty
+}
+
+enum LegacyTableStatus {
+  Pending // its header is recorded, its rows are not
+  Landed // every row is in `legacy_rows`
+  Mapped // every landed row has been put through the catalogue and the lexicon
+  Skipped // `statusReason` says why
+  Failed
+}
+
+/// Who said which register a table belongs to. The same three authorities the
+/// import report names, plus the one a person is.
+enum ClassifiedBy {
+  Rule
+  Model
+  Operator
+}
+
+model LegacyTable {
+  id String @id @default(uuid()) @db.Uuid
+
+  file   LegacyFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  fileId String     @db.Uuid
+
+  kind LegacyTableKind
+
+  /// The sheet's place in the workbook, from 1. A table file holds one table and
+  /// it is 1.
+  ordinal Int
+  /// The sheet name, or the table's file name without its extension.
+  name    String
+
+  // ── a worksheet ───────────────────────────────────────────────────────────
+  visibility SheetVisibility?
+  /// The row the header was found on. Not always 1: it is 15 on `1 rüb`, below a
+  /// title block, and a sheet can head its columns twice.
+  headerRow  Int?
+  /// The used range as the file states it — `A1:AJ219429`. Text, because it is
+  /// the file's claim and a range of `A1:IV25072` on a sheet of 7 columns is a
+  /// thing the file says and not a thing to compute from.
+  usedRange  String?
+
+  headerStatus HeaderStatus?
+
+  // ── a table ───────────────────────────────────────────────────────────────
+  /// The version byte and what it means — `0x30 Visual FoxPro`.
+  dbfVersion    String?
+  /// The last-update date the table header carries.
+  dbfModifiedOn DateTime? @db.Date
+  /// Records flagged deleted in the table. They are landed and never mapped:
+  /// `tarix.BAK` holds 161 of them, and a deleted history entry is still a
+  /// history entry somebody once wrote.
+  deletedCount  Int?
+  /// As the header declares it — `1251 Windows Russian`, `1252 Windows ANSI`, or
+  /// nothing at all. A declaration and not a fact: `mulk.DBF` declares 1252 and
+  /// holds Azerbaijani names and addresses, which 1252 cannot spell, and two of
+  /// the registers ADR-0012 reads are in the Azerbaijani Cyrillic code page.
+  /// `codePageUsed` is what the reader actually
+  /// decoded with, so a wrong guess is a query away from being re-decoded.
+  codePage      String?
+  codePageUsed  String?
+  /// The memo, index and database container the header names.
+  memoFile      String?
+  indexFile     String?
+  container     String?
+  /// Whether the file's length agrees with its header. `_QSQL876.DBF` carries
+  /// 16 376 bytes the header does not account for.
+  sizeCheck     String?
+
+  // ── both ──────────────────────────────────────────────────────────────────
+  columnCount Int
+  /// Rows under the header — or records in the table — as the reader counted.
+  rowCount    Int?
+
+  /// A hash of the folded headers in order. Sheets with one signature are one
+  /// shape wherever they are filed: the settlement presence registers are
+  /// copied across `Təhvil Abşeron/` and into `Şəhadətnamələrin siyahısı.xlsx`,
+  /// and this is how the copies are found without reading their rows.
+  headerSignature String?
+
+  /// The catalogue entry this table was taken for, and what the canonical rows
+  /// read out of it carry as `sourceDatabase` (`EMDK:Mulkuyat`).
+  register     String?
+  source       String?
+  classifiedBy ClassifiedBy?
+  /// 0 to 1, where the classifier gives one.
+  confidence   Float?
+
+  status       LegacyTableStatus @default(Pending)
+  statusReason String?
+
+  /// The catalogue and lexicon revision the rows were mapped with. A lexicon that
+  /// learns a spelling is a reason to map again, and this is how the tables that
+  /// need it are found.
+  mappingVersion String?
+
+  landedAt DateTime?
+  mappedAt DateTime?
+
+  columns LegacyColumn[]
+  rows    LegacyRow[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([fileId, ordinal])
+  @@index([headerSignature])
+  @@index([register])
+  @@index([status])
+  @@map("legacy_tables")
+}

@@ -13,6 +13,17 @@ enum RightHolderKind {
   LegalEntity
 }
 
+/// Whether the register holds this person as the holder now or held them once.
+/// `tarix.DBF` — `tarix`, history — is 419 637 entries keyed on the case number
+/// `NOMKV` with a name, a date and a ground each, which reads as one row per
+/// holder the case ever had; a register that could only say "the owner" would
+/// have to throw all but the last of them away.
+enum RightHolderStanding {
+  Current
+  Former
+  Unknown
+}
+
 model RegistryRightHolder {
   id       String         @id @default(uuid()) @db.Uuid
   objectId String         @db.Uuid
@@ -24,6 +35,15 @@ model RegistryRightHolder {
   /// forgive the spelling.
   name String
   kind RightHolderKind
+
+  /// The parts, where the source kept them apart — `FAMILY`, `F_NAME`, `L_NAME`
+  /// in the dacha table. `name` is still the whole, joined in the source's order;
+  /// the parts are never split out of a one-cell name.
+  surname    String?
+  givenName  String?
+  patronymic String?
+
+  standing RightHolderStanding @default(Current)
 
   /// `Payı` — "Tam" for the whole, otherwise a fraction as written.
   share String?
@@ -39,14 +59,24 @@ model RegistryRightHolder {
   /// known to have rewritten, which is why it is kept rather than overwritten.
   previousOwner String?
 
+  /// When this holder's right began and ended, as written, and on what ground
+  /// — `ASAS`, `Hansı yol ilə özəlləşib`. Text for the reason `registeredOn` is.
+  acquiredOn String?
+  endedOn    String?
+  basis      String?
+
   /// VÖEN for a legal entity, identity document for a person, where the source
   /// carried one.
   taxOrDocumentNo String?
 
   position Int
 
+  legacyRow   LegacyRow? @relation(fields: [legacyRowId], references: [id], onDelete: SetNull)
+  legacyRowId String?    @db.Uuid
+
   createdAt DateTime @default(now())
 
   @@index([objectId])
+  @@index([legacyRowId])
   @@map("registry_right_holders")
 }

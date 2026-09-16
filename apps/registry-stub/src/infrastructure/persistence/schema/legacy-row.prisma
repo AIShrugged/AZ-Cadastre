@@ -1,0 +1,60 @@
+// One record of a legacy register, exactly as it was read.
+//
+// This is the layer the canonical records are derived from, and the reason it
+// exists is that the derivation is going to be wrong. The lexicon learns a
+// spelling, the catalogue learns a register, somebody finds that `DATAR` is not
+// the registration date — and every one of those is a re-mapping of rows the
+// register already holds, not a re-upload of a file nobody can find again.
+//
+// Values are text as decoded. A FoxPro `N(7,2)` is "48.50", a `D` is "20070504"
+// and a memo is its text, because what the canonical record may say about a
+// value is decided above this table and a cast here would decide it early.
+
+enum LegacyRowStatus {
+  Pending
+  Mapped // at least one canonical row carries it as provenance
+  Skipped // `reason` says why: a blank row, a sheet's own documentation, a deleted record
+  Refused // the mapping could not place it; `reason` says what was missing
+}
+
+model LegacyRow {
+  id String @id @default(uuid()) @db.Uuid
+
+  table   LegacyTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  tableId String      @db.Uuid
+
+  /// The row number the sheet shows, or the record number of the table, from 1.
+  /// A finding is only useful if the row can be opened at.
+  rowNumber Int
+
+  /// The record's deletion flag in a dBase table. Always false on a sheet.
+  deleted Boolean @default(false)
+
+  /// The values by column ordinal, as a JSON array of strings with `null` for
+  /// a blank. An array and not an object keyed by header, because two columns of
+  /// `ozəl-ham` are both headed `Müq.` and two more are both `Qovluq`.
+  cells Json
+
+  /// A hash of `cells`, for finding the same record filed twice — the 38-sheet
+  /// workbook stored under two names, `mulk.DBF` beside `mulk.BAK` and `ulk.DBF`.
+  contentHash String
+
+  status LegacyRowStatus @default(Pending)
+  reason String?
+
+  objects      RegistryObject[]
+  addresses    RegistryAddress[]
+  rightHolders RegistryRightHolder[]
+  documents    RegistryDocument[]
+  aliases      RegistryAlias[]
+  locations    ArchiveLocation[]
+  attributes   RegistryAttribute[]
+  collectives  RegistryCollective[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([tableId, rowNumber])
+  @@index([contentHash])
+  @@index([tableId, status])
+  @@map("legacy_rows")
+}

@@ -1,0 +1,66 @@
+// What the object store said happened, as it said it — the worker's inbox.
+//
+// The legacy archive is loaded by putting its files into a RustFS bucket, and
+// the bucket tells the register through S3 event notifications. A notification
+// is delivered at least once and not in order: the same PUT can arrive twice,
+// and the DELETE of a file can arrive before the PUT it undoes. So the event is
+// written down before anything is done about it, deduplicated on the key the
+// store gives it, and the worker claims rows from here rather than acting inside
+// the webhook request — a register file is 357 739 records (`mulk.DBF`) and no
+// webhook caller waits for that (ADR-0027).
+
+enum StorageEventKind {
+  ObjectCreated // s3:ObjectCreated:* — a file arrived or was overwritten
+  ObjectRemoved // s3:ObjectRemoved:* — a file was deleted from the bucket
+}
+
+enum StorageEventStatus {
+  Received // written down, nobody has claimed it
+  Processing // claimed by a worker until `lockedUntil`
+  Processed
+  Ignored // superseded by a later event on the same key before it was claimed
+  Failed // `attempts` exhausted; `lastError` says why
+}
+
+model StorageEvent {
+  id String @id @default(uuid()) @db.Uuid
+
+  kind StorageEventKind
+
+  /// The store's own name for it — `s3:ObjectCreated:Put` — kept whole because
+  /// `CompleteMultipartUpload` and `Copy` are the same kind and not the same
+  /// story.
+  eventName String
+
+  bucket    String
+  objectKey String
+  versionId String?
+  etag      String?
+  size      BigInt?
+
+  /// The S3 `sequencer`: a hex string that orders events on one key. It is the
+  /// only ordering the store promises, and it is what makes a late DELETE
+  /// recognisable as late.
+  sequencer String
+
+  /// The notification body, untouched. What the store sent is the evidence when
+  /// the worker's reading of it turns out to be wrong.
+  payload Json
+
+  status      StorageEventStatus @default(Received)
+  attempts    Int                @default(0)
+  lockedUntil DateTime?
+  lastError   String?
+
+  receivedAt  DateTime  @default(now())
+  processedAt DateTime?
+
+  file   LegacyFile? @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  fileId String?     @db.Uuid
+
+  // At-least-once delivery collapses here: the second copy of an event is an
+  // insert that does nothing.
+  @@unique([bucket, objectKey, sequencer])
+  @@index([status, receivedAt])
+  @@map("storage_events")
+}

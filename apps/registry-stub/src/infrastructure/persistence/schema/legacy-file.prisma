@@ -1,0 +1,112 @@
+// One file of the legacy archive's file store, as the bucket holds it.
+//
+// The inventory of that store (`csv-files/files.csv`) is 1 848 files, and most
+// of them are not records. The `ARXIV/UDH3/Vfp98` tree is a Visual FoxPro 98
+// installation — its wizards, samples and 167 template tables; beside the data
+// sit the programs that kept it (`.exe`, `.app`, `.prg`, `.scx`), their memo
+// and index companions (`.fpt`, `.dbt`, `.cdx`, `.mdx`), Excel lock files
+// (`~$…`), shortcuts, two workbooks under a password, and `.BAK` copies of the
+// big tables. What is data is a few dozen workbooks and a handful of FoxPro
+// tables — `INVEN/inv/mulk.DBF` and `tarix.DBF` hold 357 739 objects and
+// 419 637 history entries between them.
+//
+// So every file is recorded, and what it *is* is recorded beside it rather than
+// decided by whether it got a row: a file that was skipped says why, and an
+// operator asking "did you get `order.xlsx`" is answered by this table and not
+// by the absence of its records (ADR-0027).
+
+enum LegacyFileFormat {
+  Xls // BIFF8
+  Xlsx
+  Xlsm
+  Dbf // dBase III / IV / 7 and Visual FoxPro tables alike; the header says which
+  DbfMemo // .fpt / .dbt — read as part of the table that names it
+  DbfIndex // .cdx / .mdx / .idx — never read; the table is scanned whole
+  DbfContainer // .dbc — a FoxPro database container
+  Other
+}
+
+enum LegacyFileStatus {
+  Pending // recorded, not yet opened
+  Inspected // its sheets or its table header are recorded; no rows yet
+  Landed // every table it holds is landed or skipped
+  Skipped // `skipReason` says why; nothing below it is read
+  Failed // `statusReason` says what broke
+  Removed // the bucket no longer holds it; its rows are gone, its record is not
+}
+
+/// Why a file holds nothing the register reads. Each of these is a kind the
+/// inventory actually contains, not a guess at what might turn up.
+enum LegacyFileSkipReason {
+  Program // runtimes, forms, reports, libraries: `.exe`, `.dll`, `.scx`, `.prg`…
+  Companion // a memo or index file, read through the table it belongs to
+  Temporary // an Excel lock file, `~$Name.xlsx`
+  Shortcut // `.lnk`
+  Encrypted // a workbook under a password; its structure cannot be read
+  Duplicate // byte-identical to `duplicateOf`
+  Credentials // a table of user names and passwords — never landed, see ADR-0027
+  Unsupported // a format nobody reads yet: `.rar`, `.arj`, `.db` (Paradox)
+}
+
+model LegacyFile {
+  id String @id @default(uuid()) @db.Uuid
+
+  bucket    String
+  objectKey String
+
+  /// The path in the archive's own file store — `ARXIV/INVEN/inv/mulk.DBF` —
+  /// which is the object key without whatever prefix the upload put in front.
+  /// Kept apart from the key because the path is what the archive's staff call
+  /// the file, and two copies of it under two prefixes are one file to them.
+  legacyPath String
+  directory  String
+  fileName   String
+  /// Lowercased, with the dot: `.dbf`. The inventory has `.DBF`, `.dbf` and
+  /// `.BAK` tables whose header is a FoxPro table all the same.
+  extension  String
+
+  size       BigInt
+  /// When the file was last written in the legacy store — carried as object
+  /// metadata, because the bucket's own timestamp is the upload's.
+  modifiedAt DateTime?
+
+  etag      String
+  versionId String?
+  /// Content hash. `Ozallasma-abş-reg- yeni.xls` and
+  /// `Qeydiyyat/Şəhadətnamələrin siyahısı.xlsx` carry the same 38 sheets and
+  /// are *not* byte-identical; this catches only true copies, and the header
+  /// signature on `LegacyTable` catches the rest.
+  sha256    String?
+
+  format       LegacyFileFormat
+  /// What the content says it is, in the reader's words — "Visual FoxPro",
+  /// "xls (BIFF8)", "dBase IV с memo (.dbt)". An extension is a claim; the
+  /// first bytes are the fact.
+  formatDetail String?
+
+  status       LegacyFileStatus      @default(Pending)
+  skipReason   LegacyFileSkipReason?
+  statusReason String?
+
+  duplicateOf   LegacyFile?  @relation("LegacyFileDuplicate", fields: [duplicateOfId], references: [id], onDelete: SetNull)
+  duplicateOfId String?      @db.Uuid
+  duplicates    LegacyFile[] @relation("LegacyFileDuplicate")
+
+  /// The table a memo or index file belongs to — `arxiv.DBT` to `ARXIV.DBF`.
+  companionOf   LegacyFile?  @relation("LegacyFileCompanion", fields: [companionOfId], references: [id], onDelete: SetNull)
+  companionOfId String?      @db.Uuid
+  companions    LegacyFile[] @relation("LegacyFileCompanion")
+
+  tables LegacyTable[]
+  events StorageEvent[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  removedAt DateTime?
+
+  @@unique([bucket, objectKey])
+  @@index([legacyPath])
+  @@index([sha256])
+  @@index([status])
+  @@map("legacy_files")
+}

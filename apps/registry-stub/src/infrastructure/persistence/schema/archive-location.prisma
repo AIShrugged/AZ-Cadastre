@@ -6,23 +6,45 @@
 // is written in Russian in the older files ("Ф.11165, оп.1, ед.хр.159") and in
 // Azerbaijani in the newer ones ("Fond-130, siy.1, i-476, var.98"). A column
 // headed "page (to)" is not always a page.
+//
+// Several per object, and not one. The legacy file store shows paper filed four
+// ways, often for the same case: a folder and page range (`Qovluq | Səhifə`),
+// a register book and page (`KITAB | SAHIFA` beside `KITABT | SAHIFAT` in one
+// row of `mulk.DBF`), an inventory list (`Opis` of the individual-house
+// registers) and a box (`Köhnə Texniki-pasportlar (qutuda olanlar)` — "the ones
+// in the box"). Choosing one of them would drop where the others are (ADR-0027).
+
+enum LocationKind {
+  Folder // `Qovluq` and `Səhifə`
+  RegisterBook // `KITAB` / `SAHIFA`, `reyestr kitabı` and `vərəq`
+  TechnicalPassportBook // `KITABT` / `SAHIFAT`, `k/səhifə`
+  InventoryList // `Opis` — the numbered list a box of passports was handed over with
+  Box // filed in a box, not in a folder
+  ArchiveFund // fund, inventory and file in the National Archive Fund
+}
 
 model ArchiveLocation {
   id       String         @id @default(uuid()) @db.Uuid
-  objectId String         @unique @db.Uuid
+  objectId String         @db.Uuid
   object   RegistryObject @relation(fields: [objectId], references: [id], onDelete: Cascade)
 
+  kind LocationKind @default(Folder)
+
   /// `Qovluq`.
-  folder String
+  folder String?
 
   /// `Səhifə (başlanğıc)` and `(son)`, as one range in the register's own
   /// wording. Kept whole rather than as two columns because half of the sources
   /// write it as one.
-  pages String
+  pages String?
 
   /// The register book and sheet, where the case was entered into one.
-  bookNo    String?
-  sheetNo   String?
+  bookNo  String?
+  sheetNo String?
+
+  /// `Opis` — the list number, and the box it went into where the register says.
+  inventoryList String?
+  box           String?
 
   /// Fund, inventory and file in the National Archive Fund — what Decree 439 §7
   /// makes the original of a title document answer to.
@@ -30,8 +52,17 @@ model ArchiveLocation {
 
   sourceDatabase String
 
+  /// The order the register lists them in: the first `Folder` is the one the
+  /// published record names.
+  position Int @default(0)
+
+  legacyRow   LegacyRow? @relation(fields: [legacyRowId], references: [id], onDelete: SetNull)
+  legacyRowId String?    @db.Uuid
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([objectId])
+  @@index([legacyRowId])
   @@map("archive_locations")
 }

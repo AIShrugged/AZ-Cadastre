@@ -40,6 +40,17 @@ model RegistryObject {
 
   district String?
 
+  /// `Qəsəbə` / `Ərazi` — the settlement inside the district. The legacy
+  /// registers file by it before anything else: the individual-house inventories
+  /// are one workbook per settlement and the handover registers one sheet per
+  /// settlement.
+  settlement String?
+
+  /// The garden association, dacha massif or sovkhoz the object belongs to,
+  /// where its register files it under one.
+  collective   RegistryCollective? @relation(fields: [collectiveId], references: [id], onDelete: SetNull)
+  collectiveId String?             @db.Uuid
+
   // ── what is on the ground ───────────────────────────────────────────────
   // All four as written, with the unit the source wrote them in. The same
   // parcel is 0.0309 ha in the register extract and 500.0m² in the engineer's
@@ -55,6 +66,15 @@ model RegistryObject {
   floors String?
 
   buildYear Int?
+
+  /// `OTAG` in `mulk.DBF` — `otaq`, rooms, by its name; nobody has read a
+  /// value of it yet. Text for the reason `floors` is.
+  rooms String?
+
+  /// `Təyin` — what the land or the building is for, in the register's words.
+  /// Not `propertyType`: `Pirsagi-Kurdexani` heads both `Təyin` and `Kateqoriya`
+  /// on one sheet.
+  purpose String?
 
   // ── what the right is ───────────────────────────────────────────────────
   // The four columns the state register extract prints above the areas —
@@ -78,15 +98,24 @@ model RegistryObject {
   /// they disagree somebody has to be told which one said what (ADR-0010).
   sourceDatabase String
 
+  /// The legacy record this object was first keyed from. Its child rows name
+  /// their own: an object is assembled out of several registers, and each fact
+  /// on it answers to the row that stated it (ADR-0027).
+  legacyRow   LegacyRow? @relation(fields: [legacyRowId], references: [id], onDelete: SetNull)
+  legacyRowId String?    @db.Uuid
+
   addresses    RegistryAddress[]
   rightHolders RegistryRightHolder[]
   documents    RegistryDocument[]
   aliases      RegistryAlias[]
-  location     ArchiveLocation?
+  locations    ArchiveLocation[]
+  attributes   RegistryAttribute[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([territorialOffice, registerNo])
+  @@index([inventoryNo])
+  @@index([legacyRowId])
   @@map("registry_objects")
 }

@@ -1,0 +1,52 @@
+// One column of a sheet or one field of a table, and what the lexicon took it
+// to mean.
+//
+// The inventory heads a column in some two hundred ways across 219 sheets
+// (`csv-files/headers.csv`) and names 2 655 fields across the tables
+// (`csv-files/dbf_fields.csv`) — `NOMKV`, `KITAB`, `SAHIFA`, `FIO`, `ADRES`,
+// `IDENT_COD`, `N_DACH`. The mapping of each onto a field the register knows is
+// recorded per column, with who made it, so that a column read wrongly is found
+// by a query and not by reading every record it produced.
+
+model LegacyColumn {
+  id String @id @default(uuid()) @db.Uuid
+
+  table   LegacyTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  tableId String      @db.Uuid
+
+  /// From 1, in the order the sheet or the table header lists them.
+  ordinal Int
+
+  /// The column letter of a sheet — `AJ`. Null for a table.
+  letter String?
+
+  /// The header as written, or the field name of a table. Null for a column a
+  /// sheet carries values in and no name for.
+  header       String?
+  /// As `foldHeader` keys it. Stored so the lexicon can be joined against in
+  /// SQL when somebody asks which spellings it has never seen.
+  headerFolded String?
+
+  // ── a table field ─────────────────────────────────────────────────────────
+  /// The one-letter dBase type — `C`, `N`, `D`, `L`, `M`, `G` — and its name.
+  fieldType     String?
+  fieldTypeName String?
+  length        Int?
+  decimals      Int?
+  /// FoxPro's own nullable flag and its system columns (`_NullFlags`), which
+  /// are read by the reader and never mapped.
+  nullable      Boolean?
+  system        Boolean  @default(false)
+
+  // ── what it means ─────────────────────────────────────────────────────────
+  /// The lexicon's field — `registerNo`, `holderName` — or null where no
+  /// spelling it knows matched. Text rather than an enum: the lexicon grows by
+  /// a line of code, and a migration per spelling would make it grow slower.
+  field    String?
+  mappedBy ClassifiedBy?
+
+  @@unique([tableId, ordinal])
+  @@index([headerFolded])
+  @@index([field])
+  @@map("legacy_columns")
+}

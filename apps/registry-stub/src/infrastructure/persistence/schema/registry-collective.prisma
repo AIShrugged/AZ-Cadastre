@@ -1,0 +1,53 @@
+// A garden association, a dacha massif or a sovkhoz — the body a whole list of
+// plots was allotted through.
+//
+// A large part of the legacy file store is not about one property at a time but
+// about these. `BAğ-HESABAT(Bağçılığlar).xls` is 570 associations with the
+// papers in each one's folder and the number of citizens on its list;
+// `YOLDASHLIQ SIYAHISI.xls` names the enterprise, the massif, the member count
+// and the decision; `order.xlsx` is 219 429 plot orders naming the association
+// (`BTK`) and the plot number; the dacha table `ident3.dbf` files 38 584 plots
+// under 24 massifs. A plot found in any of them answers "which association"
+// before it answers "which address", so the association is a record of its own
+// and the plot points at it (ADR-0027).
+
+enum CollectiveKind {
+  GardenAssociation // `bağçılıq`, `yoldaşlıq`, `BTK`
+  DachaMassif // `NAME_OF_ME` of the dacha table
+  Sovkhoz // the sovkhoz lists of `Təhvil Abşeron`
+  Other
+}
+
+model RegistryCollective {
+  id String @id @default(uuid()) @db.Uuid
+
+  kind CollectiveKind
+  /// As the register writes it. Not unique: two registers spell one association
+  /// two ways, and which spellings are one body is matching's question.
+  name String
+
+  district   String?
+  settlement String?
+  massif     String?
+
+  /// `Qərar` — the decision it was formed or allotted land by, as written.
+  decision    String?
+  /// `Üzvlərin sayı`, `Siyahıda olan vətəndaşların sayı`. Text: the column holds
+  /// a count, and a count the register wrote, not one anybody computed.
+  memberCount String?
+  note        String?
+
+  sourceDatabase String
+
+  legacyRow   LegacyRow? @relation(fields: [legacyRowId], references: [id], onDelete: SetNull)
+  legacyRowId String?    @db.Uuid
+
+  objects RegistryObject[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([kind, name])
+  @@index([legacyRowId])
+  @@map("registry_collectives")
+}

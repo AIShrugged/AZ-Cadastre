@@ -132,6 +132,13 @@ adapter, or the shared primitives move into `libs/shared` and both sides build
 on them. Not the third option, which is to leave it and remember: this entry
 exists because nobody will.
 
+Since ADR-0028 there is a third copy of one piece of it: the table of area
+units — m², kv.m, sot, hektar — in
+`packages/verification/src/domain/services/archive-qr-verdict.service.ts`,
+because the archive's copy of a Decree 439 paper states a plot in hectares
+where the paper says square metres. Whichever home the folding gets, the units
+go with it.
+
 ## 8. The archive locator reaches the trilingual surface in English
 
 **Not done.** `RegistryCheck.reference` is one string, composed by the register
@@ -383,28 +390,39 @@ listed beneath its bar with its own mark, its name, its count and its share, so
 no value is ever carried by a fill alone — and the archive's five answers each
 carry a distinct glyph on top of that.
 
-## 14. Four checks the policy names are declared and not made
+## 14. Three checks the policy names are declared and not made, and the fourth is a stand-in
 
 **Not done.** Every paper declares where the policy expects it to come from
 (ADR-0025): the package, MQS, the Licences Portal, the Urban Planning
 Committee's system or the National Archive. None of the four systems is
-connected. A paper sourced from one is read like any other and reported as
-`IntegrationNotConnected`; so is a fact the policy takes from a system rather
-than a paper — the notification of a house built from 2026. The QR code on an
-archival reference is read as the text printed beside it and never decoded or
-followed.
+connected. A paper sourced from MQS, the Licences Portal or the committee is
+read like any other and reported as `IntegrationNotConnected`; so is a fact the
+policy takes from a system rather than a paper — the notification of a house
+built from 2026.
+
+The National Archive has a port since ADR-0028, and **only a mock behind it**
+(`NATIONAL_ARCHIVE_PROVIDER=mock`, the only value). A Decree 439 paper is held
+against the archive's copy of it by the text printed for its QR code, never by
+decoding the picture: the stand-in holds the one paper of the Rusadze case, and
+every other reference comes back `NotFound` (`RegistryUnconfirmed`,
+informational). The archive certificate, which carries no QR code, is still
+`IntegrationNotConnected`.
 
 **How it fires.** Every report on a package carrying a plan of the plot holds
 at least one such line, because the plan is sourced from MQS. A design licence
-that has been revoked, a permit the committee never issued, an archival
-reference that was forged — each reads exactly as a valid one does, and the
-report says only that it was not checked.
+that has been revoked, a permit the committee never issued — each reads exactly
+as a valid one does, and the report says only that it was not checked. A forged
+archival reference now reads as not found rather than as not checked, which is
+no better evidence: the stand-in knows one paper. And on `mock` every Decree 439
+paper reads as the Rusadze order, so a demo run confirms a paper whatever the
+envelope holds.
 
-**What to do.** One outbound port per system, behind the same shape the archive
-register has (ADR-0009), answering facts and never verdicts. Connecting one
-turns its `IntegrationNotConnected` lines into answers; the source declarations
-do not move. For the National Archive the first thing needed is a sample of real
-QR links and whether the site may be read by a server at all.
+**What to do.** One outbound port per remaining system, behind the same shape
+the archive register has (ADR-0009), answering facts and never verdicts.
+Connecting one turns its `IntegrationNotConnected` lines into answers; the
+source declarations do not move. For the National Archive the port, the verdict
+and the report are done: what is missing is a sample of real QR links, whether
+the site may be read by a server at all, and an adapter behind the port.
 
 ## 15. Which section of the archive keeps which title is our reading
 

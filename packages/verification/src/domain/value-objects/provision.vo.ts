@@ -127,10 +127,9 @@ export type TitleDocumentDeclaration = {
   // for the extract the registry retrieves itself (Article 12.1).
   readonly item: string;
   readonly type: string;
-  // The right its kind confers, or null for a paper whose kind confers none —
-  // the order allotting a parcel, whose own words say which right it grants
-  // (ADR-0026).
-  readonly landRight: LandRight | null;
+  // The right its kind confers. Every title confers one, and the class of the
+  // paper decides it whatever another paper words (ADR-0028).
+  readonly landRight: LandRight;
   // The field of that document type the date of issue is read off.
   readonly dateField: string;
   // ISO dates. Inclusive at the bottom, exclusive at the top; null is open.
@@ -396,7 +395,7 @@ export class TitleDocumentEntry {
   private constructor(
     public readonly item: string,
     public readonly type: DocumentType,
-    public readonly landRight: LandRight | null,
+    public readonly landRight: LandRight,
     public readonly dateField: FieldKey,
     public readonly issuedFrom: string | null,
     public readonly issuedBefore: string | null,
@@ -411,6 +410,15 @@ export class TitleDocumentEntry {
       declaration.issuedFrom,
       declaration.issuedBefore,
     );
+  }
+
+  /*
+   * The extract the registry retrieves from MQS: the register's own record of
+   * the right, and not a paper an applicant chose the class of. The contract
+   * never holds it to the class of a provision.
+   */
+  get isRegisterRecord(): boolean {
+    return this.item === 'MQS';
   }
 
   get isBoundedByDate(): boolean {
@@ -543,6 +551,7 @@ export class ProvisionsSpec {
     return this.#titleDocuments.filter(entry => entry.type.equals(type));
   }
 
+  // Null for a paper that is no title.
   rightConferredBy(type: DocumentType): LandRight | null {
     return this.entriesFor(type)[0]?.landRight ?? null;
   }

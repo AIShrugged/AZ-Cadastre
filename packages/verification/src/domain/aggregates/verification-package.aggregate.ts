@@ -1243,14 +1243,10 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
 
   /*
    * What the table of provisions has to say against the case: that which
-   * provision it falls under could not be decided, and that a title the package
-   * carries is dated outside the window it is a title in.
-   *
-   * The class of a title is not checked against the provision here, and on
-   * purpose: the right over the land is read off the class of the title the
-   * package carries, so a case decided under a provision always rests on a
-   * title of the class that provision takes. Two titles of different classes
-   * leave the right unstated and the provision undecided, which is said above.
+   * provision it falls under could not be decided, that a title the package
+   * carries is dated outside the window it is a title in, and that a title is of
+   * the other class than a provision the case falls under, or would fall under
+   * on the right an extract or a plan words, rests on (ADR-0028).
    */
   private againstTheProvision(
     provision: CaseProvision | null,
@@ -1310,7 +1306,31 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       ];
     });
 
-    return [...undecided, ...outOfWindow];
+    const wrongClass = provision.titleDocuments.flatMap(standing => {
+      if (standing.wrongClassFor.length === 0) return [];
+
+      const document = this.documentsInForce.find(
+        one => one.id.value === standing.documentId,
+      );
+      const type = document?.classification?.type;
+
+      if (!document || !type) return [];
+
+      return [
+        ValidationIssue.titleDocumentOfWrongClass(
+          {
+            documentId: document.id,
+            sourceFileId: document.sourceFileId,
+            documentType: type,
+          },
+          standing.landRight,
+          standing.items.map(one => one.item),
+          standing.wrongClassFor,
+        ),
+      ];
+    });
+
+    return [...undecided, ...outOfWindow, ...wrongClass];
   }
 
   /*

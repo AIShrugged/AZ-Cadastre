@@ -845,7 +845,6 @@ const en: Dict = {
   'sheet.foot_mark': 'AZ · case sheet',
   // ── Checklist rail beside the case ─────────────────────────────────────────
   'rail.title': 'Checklist',
-  'rail.hide': 'Hide checklist',
   'rail.completeness': 'Completeness',
   'rail.completeness_more': 'The rest depends on the Article 8 provision',
   'rail.provision': 'Article {code}',
@@ -1867,7 +1866,6 @@ const ru: Dict = {
   'sheet.foot_mark': 'AZ · лист дела',
   // ── Checklist rail beside the case ─────────────────────────────────────────
   'rail.title': 'Чек-лист',
-  'rail.hide': 'Скрыть чек-лист',
   'rail.completeness': 'Комплектность',
   'rail.completeness_more': 'Остальное зависит от пункта статьи 8',
   'rail.provision': 'Статья {code}',
@@ -2865,7 +2863,6 @@ const az: Dict = {
   'sheet.foot_mark': 'AZ · iş vərəqi',
   // ── Checklist rail beside the case ─────────────────────────────────────────
   'rail.title': 'Yoxlama siyahısı',
-  'rail.hide': 'Yoxlama siyahısını gizlət',
   'rail.completeness': 'Tamlıq',
   'rail.completeness_more': 'Qalanı 8-ci maddənin bəndindən asılıdır',
   'rail.provision': 'Maddə {code}',

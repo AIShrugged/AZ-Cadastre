@@ -9,9 +9,9 @@
  * can be ticked or changed. A tick kept in one browser was a mark that looked
  * like a record and recorded nothing.
  *
- * Folded by default where there is nothing left for the eye. A group whose
- * every row agreed is its heading and a tally — the inspector still sees the
- * comparison was made — and the groups with work in them are the ones open.
+ * Every fold starts shut: the rail opens as four headings, each with its mark
+ * and tally, so what needs work is read off the headings and unfolded on
+ * demand rather than laid out down the side of the case (COMM-109).
  */
 import {
   CheckIcon,
@@ -149,10 +149,10 @@ export function CaseChecklist({
   const archive = archiveRows(t, pkg);
   const lines = findings.flatMap(group => group.lines);
 
-  const fold = (id: SectionId, byDefault: boolean) => ({
-    open: folds[id] ?? byDefault,
+  const fold = (id: SectionId) => ({
+    open: folds[id] ?? false,
     onToggle: () =>
-      setFolds(current => ({ ...current, [id]: !(current[id] ?? byDefault) })),
+      setFolds(current => ({ ...current, [id]: !(current[id] ?? false) })),
   });
 
   return (
@@ -166,7 +166,7 @@ export function CaseChecklist({
             pending={completeness === null && running}
           />
         }
-        {...fold('documents', completeness === null || !isSettled(paperRows))}
+        {...fold('documents')}
       >
         <Group
           title={t('rail.completeness')}
@@ -221,7 +221,7 @@ export function CaseChecklist({
         status={
           <RowsStatus rows={checks} pending={checks.length === 0 && running} />
         }
-        {...fold('checks', checks.length > 0 && !isSettled(checks))}
+        {...fold('checks')}
       >
         {checks.length === 0 ? (
           <Quiet>
@@ -241,7 +241,7 @@ export function CaseChecklist({
             pending={pkg.registryChecks.length === 0 && running}
           />
         }
-        {...fold('archive', archive.length > 0 && !isSettled(archive))}
+        {...fold('archive')}
       >
         {archive.length === 0 ? (
           <Quiet>
@@ -261,7 +261,7 @@ export function CaseChecklist({
             pending={!pkg.report && running}
           />
         }
-        {...fold('findings', lines.length > 0)}
+        {...fold('findings')}
       >
         {!pkg.report ? (
           <Quiet>

@@ -28,19 +28,12 @@ import {
   ImageIcon,
   ListChecksIcon,
   MinusIcon,
-  PanelRightCloseIcon,
   PlusIcon,
   PrinterIcon,
   StampIcon,
   TriangleAlertIcon,
 } from 'lucide-react';
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import {
@@ -3400,17 +3393,6 @@ export function VerificationDetails() {
   // beside the case. Up here because the page returns early while the package
   // loads.
   const [checklistOpen, setChecklistOpen] = useState(false);
-  // Whether the checklist stands beside the case on a screen wide enough for
-  // it. Shut until asked for: the case is what the inspector opened the page
-  // to read, and the rail is an index to it (COMM-109).
-  const [railOpen, setRailOpen] = useState(false);
-  const railToggle = useRef<HTMLButtonElement>(null);
-  const hideRail = () => {
-    setRailOpen(false);
-    // The hide button goes with the rail; focus goes back to the button that
-    // brings it out, rather than to the top of the document.
-    requestAnimationFrame(() => railToggle.current?.focus());
-  };
 
   // Poll while the pipeline is still working; stop once it settles. The toggle
   // is adjusted during render (no effect) from the data we just received.
@@ -3672,13 +3654,7 @@ export function VerificationDetails() {
             sidebar, and the sidebar folds. Below the line the checklist opens
             as a sheet from the top of the case instead. */}
         <div className='@container'>
-          <div
-            className={cn(
-              'mx-auto grid w-full max-w-[64rem] gap-6 px-4 py-6 md:px-8 md:py-8 print:block',
-              railOpen &&
-                '@min-[72rem]:max-w-[86rem] @min-[72rem]:grid-cols-[minmax(0,1fr)_18.5rem]',
-            )}
-          >
+          <div className='mx-auto grid w-full max-w-[64rem] gap-6 px-4 py-6 md:px-8 md:py-8 print:block @min-[72rem]:max-w-[86rem] @min-[72rem]:grid-cols-[minmax(0,1fr)_18.5rem]'>
             <div className='flex min-w-0 flex-col gap-4'>
               {/* Back to the register, on the sheet's own page rather than in
                   the chrome — this surface is a document, and the way out of
@@ -3693,22 +3669,6 @@ export function VerificationDetails() {
                 >
                   <ArrowLeftIcon /> {t('detail.back')}
                 </Button>
-                {/* Wide enough for the rail: the same button unfolds it beside
-                    the case, and is gone while the rail is out. */}
-                <Button
-                  ref={railToggle}
-                  variant='outline'
-                  size='sm'
-                  aria-expanded={railOpen}
-                  onClick={() => setRailOpen(true)}
-                  className={cn(
-                    'hidden',
-                    !railOpen && '@min-[72rem]:inline-flex',
-                  )}
-                >
-                  <ListChecksIcon /> {t('rail.title')}
-                  <RemarksCount remarks={remarks} />
-                </Button>
                 <Sheet open={checklistOpen} onOpenChange={setChecklistOpen}>
                   <SheetTrigger
                     render={
@@ -3720,7 +3680,14 @@ export function VerificationDetails() {
                     }
                   >
                     <ListChecksIcon /> {t('rail.title')}
-                    <RemarksCount remarks={remarks} />
+                    {remarks > 0 && (
+                      <span
+                        data-mono
+                        className='rounded-full bg-issues/14 px-1.5 text-[0.6875rem] font-medium tabular-nums text-issues-ink'
+                      >
+                        {remarks}
+                      </span>
+                    )}
                   </SheetTrigger>
                   <SheetContent
                     side='right'
@@ -3964,49 +3931,20 @@ export function VerificationDetails() {
                 page would read as a thing to act on before the case itself. It
                 stays in view as the case scrolls, and scrolls on its own when
                 it is longer than the window. */}
-            {railOpen && (
-              <aside
-                aria-label={t('rail.title')}
-                className='hidden print:hidden @min-[72rem]:block'
-              >
-                <div className='sticky top-8 max-h-[calc(100dvh-8rem)] overflow-y-auto overscroll-contain rounded-xl border border-rule bg-card px-4 pb-2 pt-4'>
-                  <div className='flex items-center justify-between gap-2 pb-2'>
-                    <h2 className='text-[0.9375rem] font-semibold tracking-[-0.01em] text-foreground'>
-                      {t('rail.title')}
-                    </h2>
-                    <Button
-                      variant='ghost'
-                      size='icon-sm'
-                      aria-expanded
-                      aria-label={t('rail.hide')}
-                      title={t('rail.hide')}
-                      onClick={hideRail}
-                      className='-mr-1.5 text-muted-foreground'
-                    >
-                      <PanelRightCloseIcon />
-                    </Button>
-                  </div>
-                  {checklist(jump)}
-                </div>
-              </aside>
-            )}
+            <aside
+              aria-label={t('rail.title')}
+              className='hidden print:hidden @min-[72rem]:block'
+            >
+              <div className='sticky top-8 max-h-[calc(100dvh-8rem)] overflow-y-auto overscroll-contain rounded-xl border border-rule bg-card px-4 pb-2 pt-4'>
+                <h2 className='pb-2 text-[0.9375rem] font-semibold tracking-[-0.01em] text-foreground'>
+                  {t('rail.title')}
+                </h2>
+                {checklist(jump)}
+              </div>
+            </aside>
           </div>
         </div>
       </SurfaceBody>
     </SurfacePage>
-  );
-}
-
-/** How many remarks the report makes, on the button that opens the checklist. */
-function RemarksCount({ remarks }: { remarks: number }) {
-  if (remarks === 0) return null;
-
-  return (
-    <span
-      data-mono
-      className='rounded-full bg-issues/14 px-1.5 text-[0.6875rem] font-medium tabular-nums text-issues-ink'
-    >
-      {remarks}
-    </span>
   );
 }

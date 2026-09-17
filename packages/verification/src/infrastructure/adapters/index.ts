@@ -8,6 +8,7 @@ import {
   DocumentClassifier,
   DocumentSegmenter,
   FieldExtractor,
+  NationalArchivePort,
   ObjectStorage,
   OcrProvider,
   PdfSplitter,
@@ -23,6 +24,7 @@ import { DocumentClassifierAdapter } from './document-classifier.adapter.js';
 import { DocumentSegmenterAdapter } from './document-segmenter.adapter.js';
 import { FieldExtractorAdapter } from './field-extractor.adapter.js';
 import { HttpArchiveRegistryAdapter } from './http-archive-registry.adapter.js';
+import { NationalArchiveAdapter } from './national-archive.adapter.js';
 import { ObjectStorageAdapter } from './object-storage.adapter.js';
 import { OcrProviderAdapter } from './ocr-provider.adapter.js';
 import {
@@ -40,6 +42,7 @@ export { HttpArchiveRegistryAdapter } from './http-archive-registry.adapter.js';
 export { DocumentClassifierAdapter } from './document-classifier.adapter.js';
 export { DocumentSegmenterAdapter } from './document-segmenter.adapter.js';
 export { FieldExtractorAdapter } from './field-extractor.adapter.js';
+export { NationalArchiveAdapter } from './national-archive.adapter.js';
 export { ObjectStorageAdapter } from './object-storage.adapter.js';
 export { OcrProviderAdapter } from './ocr-provider.adapter.js';
 export {
@@ -137,5 +140,21 @@ export const VERIFICATION_ADAPTERS: Provider[] = [
         ? new HttpArchiveRegistryAdapter(options, logger)
         : new ArchiveRegistryAdapter(),
     inject: [VERIFICATION_OPTIONS, Logger],
+  },
+  /*
+   * The National Archive Fund, asked by the QR reference a Decree 439 paper
+   * prints (ADR-0028). Only the offline stand-in exists: there is no archive
+   * to point it at yet, and the option is here so connecting one is a binding
+   * and not a change to the stage.
+   */
+  {
+    provide: NationalArchivePort,
+    useFactory: (options: VerificationModuleOptions): NationalArchivePort => {
+      switch (options.nationalArchive.provider) {
+        case 'mock':
+          return new NationalArchiveAdapter();
+      }
+    },
+    inject: [VERIFICATION_OPTIONS],
   },
 ];

@@ -1,3 +1,4 @@
+export { ArchiveQrCheckMade } from './archive-qr-check-made.event.js';
 export { ArchiveSearchApprovalSpent } from './archive-search-approval-spent.event.js';
 export { ArchiveSearchApproved } from './archive-search-approved.event.js';
 export { CrossCheckMade } from './cross-check-made.event.js';

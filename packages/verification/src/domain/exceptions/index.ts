@@ -5,6 +5,7 @@ export { CrossCheckMustCompareTwoDocumentsException } from './cross-check-must-c
 export { CrossCheckNotInProfileException } from './cross-check-not-in-profile.exception.js';
 export { DocumentAlreadyClassifiedException } from './document-already-classified.exception.js';
 export { DocumentNotClassifiedException } from './document-not-classified.exception.js';
+export { DocumentNotHeldAgainstTheArchiveException } from './document-not-held-against-the-archive.exception.js';
 export { DocumentNotInPackageException } from './document-not-in-package.exception.js';
 export { DocumentTypeNotInProfileException } from './document-type-not-in-profile.exception.js';
 export { DocumentsMustCoverEverySheetException } from './documents-must-cover-every-sheet.exception.js';
@@ -14,6 +15,7 @@ export { FieldNotInSchemaException } from './field-not-in-schema.exception.js';
 export { FileTooLargeException } from './file-too-large.exception.js';
 export { InvalidApprovalCommentException } from './invalid-approval-comment.exception.js';
 export { InvalidApprovalSummaryException } from './invalid-approval-summary.exception.js';
+export { InvalidArchiveQrCheckException } from './invalid-archive-qr-check.exception.js';
 export { InvalidConfidenceException } from './invalid-confidence.exception.js';
 export { InvalidCrossCheckKeyException } from './invalid-cross-check-key.exception.js';
 export { InvalidCrossCheckVerdictException } from './invalid-cross-check-verdict.exception.js';
@@ -54,5 +56,5 @@ export { SourceFileNotSplitException } from './source-file-not-split.exception.j
 export { TitleDocumentRightConflictException } from './title-document-right-conflict.exception.js';
 export { UnclassifiableDocumentException } from './unclassifiable-document.exception.js';
 export { UnknownProfileException } from './unknown-profile.exception.js';
-export { UntargetedSupplyException } from './untargeted-supply.exception.js';
 export { UnsupportedContentTypeException } from './unsupported-content-type.exception.js';
+export { UntargetedSupplyException } from './untargeted-supply.exception.js';

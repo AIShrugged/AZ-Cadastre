@@ -5,6 +5,7 @@ import {
 } from '../exceptions/index.js';
 import { Supersession } from '../value-objects/index.js';
 import type {
+  ArchiveQrCheck,
   Classification,
   DocumentId,
   FieldKey,
@@ -26,6 +27,10 @@ export class Document {
     // What pushed this document out of force, and when. Null on every document
     // an operator has not replaced, which is nearly all of them (COMM-80).
     public readonly superseded: Supersession | null,
+    // What the National Archive Fund said about this paper, asked by the QR
+    // reference printed on it. Null on every paper that is not a Decree 439
+    // title, and on one the check has not been made for yet (ADR-0028).
+    public readonly archiveQrCheck: ArchiveQrCheck | null,
   ) {
     this.#fields = [...fields];
   }
@@ -35,7 +40,7 @@ export class Document {
     sourceFileId: SourceFileId,
     pages: PageRange,
   ): Document {
-    return new Document(id, sourceFileId, pages, null, [], null);
+    return new Document(id, sourceFileId, pages, null, [], null, null);
   }
 
   static restore(state: {
@@ -45,6 +50,7 @@ export class Document {
     classification: Classification | null;
     fields: readonly ExtractedField[];
     superseded?: Supersession | null;
+    archiveQrCheck?: ArchiveQrCheck | null;
   }): Document {
     return new Document(
       state.id,
@@ -53,6 +59,7 @@ export class Document {
       state.classification,
       state.fields,
       state.superseded ?? null,
+      state.archiveQrCheck ?? null,
     );
   }
 
@@ -177,10 +184,27 @@ export class Document {
     });
   }
 
+  /*
+   * The same document with what the National Archive Fund said about it.
+   *
+   * Replaced rather than kept beside the last one, for the reason a registry
+   * check is: the package holds one answer per paper, not a history of them.
+   * Kept when a file arrives and the rest of the package is re-read, because it
+   * is about what this paper says and nothing another paper changes.
+   */
+  withArchiveQrCheck(check: ArchiveQrCheck): Document {
+    if (!this.classification?.isPlaced) {
+      throw new DocumentNotClassifiedException(this.id.value);
+    }
+
+    return this.with({ archiveQrCheck: check });
+  }
+
   private with(changes: {
     classification?: Classification;
     fields?: readonly ExtractedField[];
     superseded?: Supersession;
+    archiveQrCheck?: ArchiveQrCheck;
   }): Document {
     return new Document(
       this.id,
@@ -189,6 +213,7 @@ export class Document {
       changes.classification ?? this.classification,
       changes.fields ?? this.#fields,
       changes.superseded ?? this.superseded,
+      changes.archiveQrCheck ?? this.archiveQrCheck,
     );
   }
 }

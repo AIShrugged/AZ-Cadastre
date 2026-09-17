@@ -227,6 +227,7 @@ export const ISSUE_KIND_KEY: Record<IssueKind, string> = {
   TitleDocumentInvalid: 'detail.sec.title_invalid',
   ProvisionUndetermined: 'detail.sec.provision_undetermined',
   IntegrationNotConnected: 'detail.sec.not_connected',
+  ArchiveQrMismatch: 'detail.sec.archive_qr_mismatch',
 };
 
 export type FindingRank = {

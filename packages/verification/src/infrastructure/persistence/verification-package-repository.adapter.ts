@@ -35,7 +35,10 @@ const WHOLE_AGGREGATE = {
   },
   documents: {
     orderBy: { firstPage: 'asc' },
-    include: { extractedFields: { orderBy: { createdAt: 'asc' } } },
+    include: {
+      extractedFields: { orderBy: { createdAt: 'asc' } },
+      archiveQrCheck: { include: { fields: { orderBy: { position: 'asc' } } } },
+    },
   },
   crossChecks: {
     orderBy: { key: 'asc' },
@@ -294,7 +297,37 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
       });
     }
 
+    await this.writeArchiveQrCheck(tx, stored.id, document.archiveQrCheck);
+
     return stored.id;
+  }
+
+  // One answer per paper, replaced whole on a re-run: half of an old comparison
+  // beside a new one would be a comparison that never happened. A document the
+  // aggregate holds no answer for has none on file either (ADR-0028).
+  private async writeArchiveQrCheck(
+    tx: Prisma.TransactionClient,
+    documentId: string,
+    check: DocumentWrite['archiveQrCheck'],
+  ): Promise<void> {
+    if (!check) {
+      await tx.archiveQrCheck.deleteMany({ where: { documentId } });
+      return;
+    }
+
+    const { fields, ...answer } = check;
+    const stored = await tx.archiveQrCheck.upsert({
+      where: { documentId },
+      create: { documentId, ...answer },
+      update: answer,
+    });
+
+    await tx.archiveQrCheckField.deleteMany({
+      where: { archiveQrCheckId: stored.id },
+    });
+    await tx.archiveQrCheckField.createMany({
+      data: fields.map(field => ({ ...field, archiveQrCheckId: stored.id })),
+    });
   }
 
   /*

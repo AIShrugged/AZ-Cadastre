@@ -41,9 +41,11 @@ import {
   DocumentSegmenter,
   FieldExtractor,
   IdGenerator,
+  NationalArchivePort,
   OcrProvider,
   PdfSplitter,
   VerificationPackageRepository,
+  type ArchiveQrAnswer,
   type ClassificationRequest,
   type CrossCheckAnswer,
   type CrossCheckRequest,
@@ -229,6 +231,22 @@ class RecordingCrossChecker extends CrossChecker {
 }
 
 /**
+ * An archive that holds nothing and remembers what it was asked. None of these
+ * packages carries a Decree 439 paper, so the stage has nothing to ask it; the
+ * archive's own answers are the domain service's specs and the integration
+ * set's (ADR-0028).
+ */
+class RecordingArchive extends NationalArchivePort {
+  readonly asked: string[] = [];
+
+  async lookupByQr(qrReference: string): Promise<ArchiveQrAnswer> {
+    this.asked.push(qrReference);
+
+    return { outcome: 'NotFound', note: 'Nothing is held here.' };
+  }
+}
+
+/**
  * A register that answers whatever the spec needs, and remembers what it was
  * asked. It answers facts and no verdict, like the real one: what the outcome
  * means is worked out by the stage under test (ADR-0009).
@@ -332,6 +350,7 @@ function pipelineOver(
     extractor,
     crossChecker,
     registry,
+    new RecordingArchive(),
   );
 
   return {
@@ -583,6 +602,7 @@ describe('RunVerificationHandler', () => {
       new NoFields(),
       new RecordingCrossChecker(),
       new RecordingRegistry(),
+      new RecordingArchive(),
     );
 
     await handler.execute(new RunVerificationCommand(PACKAGE_ID));
@@ -710,6 +730,7 @@ describe('RunVerificationHandler', () => {
         new NoFields(),
         new RecordingCrossChecker(),
         new RecordingRegistry(),
+        new RecordingArchive(),
       );
 
       await handler.execute(new RunVerificationCommand(PACKAGE_ID));
@@ -867,6 +888,7 @@ describe('RunVerificationHandler', () => {
         new NamesOnTheDocument(),
         crossChecker,
         new RecordingRegistry(),
+        new RecordingArchive(),
       );
 
       await handler.execute(new RunVerificationCommand(PACKAGE_ID));

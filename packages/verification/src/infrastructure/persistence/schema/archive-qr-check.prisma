@@ -1,0 +1,75 @@
+// Output of the archive QR stage (ADR-0028): one Decree 439 paper held against
+// the National Archive Fund's copy of it, found by the QR reference printed on
+// the paper.
+//
+// One per document and not one per package, which is what sets it apart from a
+// registry check: every such paper names its own file in the archive, and the
+// answer is about that paper. Kept whole rather than reduced to its findings,
+// for the reason a registry check is — a paper the archive bore out is what the
+// inspector does not have to look up.
+
+/// What came of it. `NotFound` and `NoQrCode` are absences of evidence and never
+/// a fault in the package.
+enum ArchiveQrCheckStatus {
+  Confirmed // found, every line both sides state agrees, and the issuer was competent
+  Differs // found, and a line differs or the issuer had no competence
+  NotFound // the archive holds nothing under the reference
+  NoQrCode // no QR reference was read off the paper, so nothing was asked
+}
+
+/// How one line of the paper stood against the archive's copy. `NotStated` is
+/// silence on either side, never a disagreement.
+enum ArchiveQrFieldVerdict {
+  Match
+  Mismatch
+  NotStated
+}
+
+model ArchiveQrCheck {
+  id         String   @id @default(uuid()) @db.Uuid
+  /// Cascade: the check is about what this paper says, and a paper that is gone
+  /// has nothing left for it to be about.
+  documentId String   @unique @db.Uuid
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  status ArchiveQrCheckStatus
+
+  /// The text of the QR code as it was read off the paper. Null on `NoQrCode`.
+  qrReference String?
+
+  /// When the archive was asked — or, on `NoQrCode`, when the stage found there
+  /// was nothing to ask.
+  checkedAt DateTime
+
+  /// Whether the body the archive files the paper under could issue a paper of
+  /// this kind. Null where there was nothing to judge it by.
+  issuingAuthorityCompetent Boolean?
+
+  fields ArchiveQrCheckField[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("archive_qr_checks")
+}
+
+/// One line of the paper beside the archive's copy of it. Empty for a check that
+/// found nothing to hold the paper against.
+model ArchiveQrCheckField {
+  id               String         @id @default(uuid()) @db.Uuid
+  archiveQrCheckId String         @db.Uuid
+  archiveQrCheck   ArchiveQrCheck @relation(fields: [archiveQrCheckId], references: [id], onDelete: Cascade)
+
+  /// The profile field key: "document_no" | "issue_date" | … | "archive_reference".
+  name String
+
+  documentValue String?
+  archiveValue  String?
+  verdict       ArchiveQrFieldVerdict
+
+  // The order the contract publishes the lines in.
+  position Int
+
+  @@index([archiveQrCheckId])
+  @@map("archive_qr_check_fields")
+}

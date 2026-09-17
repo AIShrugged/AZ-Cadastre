@@ -1,4 +1,12 @@
 export {
+  ArchiveQrCheckStatusSchema,
+  ArchiveQrFieldNameSchema,
+  ArchiveQrFieldVerdictSchema,
+  type ArchiveQrCheckStatus,
+  type ArchiveQrFieldName,
+  type ArchiveQrFieldVerdict,
+} from './archive-qr-check.enum.js';
+export {
   ArchiveHoldingSchema,
   type ArchiveHolding,
 } from './archive-holding.enum.js';

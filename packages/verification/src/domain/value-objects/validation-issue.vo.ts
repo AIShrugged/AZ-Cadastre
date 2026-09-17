@@ -1,3 +1,4 @@
+import type { ArchiveQrCheck } from './archive-qr-check.vo.js';
 import type { Confidence } from './confidence.vo.js';
 import { CrossCheckVerdict } from './cross-check-verdict.vo.js';
 import type {
@@ -507,6 +508,85 @@ export class ValidationIssue {
         `${document ? 'it was read and not confirmed' : 'nothing was checked'}.`,
       documentId: document?.documentId,
       sourceFileId: document?.sourceFileId,
+      documentType: type,
+    });
+  }
+
+  /*
+   * A Decree 439 paper the National Archive Fund's copy does not bear out.
+   *
+   * Names every line that differs, with both sides, and says so separately when
+   * the issuing body had no competence to issue a paper of this kind — the two
+   * are different doubts, and a paper can carry either without the other. Filed
+   * against the document: the finding is about the paper, and which lines
+   * agreed is its `archiveQrCheck` (ADR-0028).
+   */
+  static archiveQrMismatch(
+    document: {
+      readonly documentId: DocumentId;
+      readonly sourceFileId: SourceFileId;
+    },
+    type: DocumentType,
+    check: ArchiveQrCheck,
+  ): ValidationIssue {
+    const lines = check.mismatched.map(
+      field =>
+        `${field.name} reads "${field.documentValue}" and the archive has ` +
+        `"${field.archiveValue}"`,
+    );
+    const reasons = [
+      ...(lines.length > 0 ? [lines.join('; ')] : []),
+      ...(check.issuingAuthorityCompetent === false
+        ? [
+            `the body the archive files it under had no competence to issue ` +
+              `a "${type.value}"`,
+          ]
+        : []),
+    ];
+
+    return ValidationIssue.of({
+      kind: IssueKind.ARCHIVE_QR_MISMATCH,
+      message:
+        `The National Archive Fund's copy of this "${type.value}", found by ` +
+        `its QR reference ${check.qrReference}, does not bear it out: ` +
+        `${reasons.join('. Also, ')}.`,
+      documentId: document.documentId,
+      sourceFileId: document.sourceFileId,
+      documentType: type,
+    });
+  }
+
+  /*
+   * A Decree 439 paper the National Archive Fund could not be asked about, or
+   * answered nothing for.
+   *
+   * RegistryUnconfirmed and not a kind of its own: it is the same absence of
+   * evidence — an archive whose electronic copies are partial says nothing
+   * about a paper by not holding it — and it is told to the inspector and never
+   * held against the package (ADR-0028). A paper nobody read a QR code off is
+   * here for the same reason: it was not confirmed, and the inspector has to
+   * know that rather than read silence as a pass.
+   */
+  static archiveQrUnconfirmed(
+    document: {
+      readonly documentId: DocumentId;
+      readonly sourceFileId: SourceFileId;
+    },
+    type: DocumentType,
+    check: ArchiveQrCheck,
+  ): ValidationIssue {
+    const why =
+      check.status === 'NoQrCode'
+        ? 'no QR reference was read off it, so the archive was not asked'
+        : `the archive holds nothing under its QR reference ${check.qrReference}`;
+
+    return ValidationIssue.of({
+      kind: IssueKind.REGISTRY_UNCONFIRMED,
+      message:
+        `The National Archive Fund did not confirm this "${type.value}": ` +
+        `${why}.`,
+      documentId: document.documentId,
+      sourceFileId: document.sourceFileId,
       documentType: type,
     });
   }

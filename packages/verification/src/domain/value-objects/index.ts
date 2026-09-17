@@ -4,6 +4,16 @@ export {
   ApprovedCheck,
   ArchiveSearchApproval,
 } from './archive-search-approval.vo.js';
+export {
+  ARCHIVE_QR_FIELDS,
+  ARCHIVE_QR_STATUSES,
+  ARCHIVE_QR_VERDICTS,
+  ArchiveQrCheck,
+  ArchiveQrFieldCheck,
+  type ArchiveQrField,
+  type ArchiveQrStatus,
+  type ArchiveQrVerdict,
+} from './archive-qr-check.vo.js';
 export { Classification } from './classification.vo.js';
 export { DeclaredAtIntake } from './declared-at-intake.vo.js';
 export { Confidence } from './confidence.vo.js';
@@ -30,6 +40,11 @@ export {
   SourceFileId,
 } from './entity-ids/index.js';
 export { IssueKind } from './issue-kind.vo.js';
+export {
+  ISSUING_AUTHORITY_KINDS,
+  IssuingCompetence,
+  type IssuingAuthorityKind,
+} from './issuing-competence.table.js';
 export { OcrResult } from './ocr-result.vo.js';
 export {
   PackageStanding,

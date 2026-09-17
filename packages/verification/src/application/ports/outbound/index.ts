@@ -27,6 +27,11 @@ export {
   type PutObjectRequest,
   type StoredObject,
 } from './object-storage.port.js';
+export {
+  NationalArchivePort,
+  type ArchiveQrAnswer,
+  type ArchivedDocument,
+} from './national-archive.port.js';
 export { OcrProvider } from './ocr-provider.port.js';
 export {
   PackageQueries,

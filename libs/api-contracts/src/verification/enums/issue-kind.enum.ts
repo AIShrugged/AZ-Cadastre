@@ -84,5 +84,11 @@ export const IssueKindSchema = z.enum([
   // applicant is not answerable for an integration nobody built. Which system
   // is the profile's `source` of `documentType`.
   'IntegrationNotConnected',
+  // A Decree 439 paper held against the National Archive Fund by its QR
+  // reference, and the archive's copy says something else — a line differs, or
+  // the body that issued it had no competence to issue a paper of that kind.
+  // Held against the package, and filed against the document; which lines
+  // differed is the document's `archiveQrCheck` (ADR-0028).
+  'ArchiveQrMismatch',
 ]);
 export type IssueKind = z.infer<typeof IssueKindSchema>;

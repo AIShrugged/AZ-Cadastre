@@ -5,6 +5,7 @@ import {
   type ExtractionRequest,
 } from '../../application/ports/outbound/index.js';
 import { ExtractedField } from '../../domain/entities/index.js';
+import { isHeldAgainstTheArchiveByQr } from '../../domain/services/index.js';
 import {
   Confidence,
   FieldValue,
@@ -109,6 +110,33 @@ const MOCK_VALUES: Record<string, string> = {
   area: '642 m²',
 };
 
+/*
+ * A Decree 439 paper is read as the one such paper the repository has a real
+ * case for: the 1998 allotment order in Rusadze Vera Vladimirovna's package, as
+ * the archive's certified copy prints it (ADR-0028). Only the lines the
+ * archive's copy is compared on and the QR code it is found by — anything else
+ * a title declares, the year a passport states among it, is MOCK_VALUES'.
+ *
+ * Its values are the offline archive's on purpose: HELD in
+ * national-archive.adapter.ts. A run on `mock` then confirms the paper rather
+ * than always failing to find it — and dated 1998, the order sits inside the
+ * window item 2.7 gives a homestead allotment.
+ */
+const DECREE_439_VALUES: Record<string, string> = {
+  document_no: '1471',
+  issue_date: '29.10.1998',
+  issuing_authority: 'Sabunçu Rayon İcra Hakimiyyəti',
+  // The spelling of the 1998 order, which order 396 of 2021 later corrected.
+  holder_name: 'Qusadze Vera Vladimirovna',
+  property_address:
+    'Sabunçu rayonu, 1-ci Zabrat qəsəbəsindən yeni məhəlləyə gedən yolun ' +
+    'solunda',
+  plot_area: '400,0 kv.m',
+  decree_item: '2.7',
+  archive_reference: 'Fond-130, siy.1, i-476, vər.98',
+  qr_code: 'https://qr.esd.milliarxiv.gov.az/F130-S1-I476-V98',
+};
+
 const MOCK_CONFIDENCE = 0.92;
 
 @Injectable()
@@ -116,8 +144,12 @@ export class FieldExtractorAdapter extends FieldExtractor {
   async extract(
     request: ExtractionRequest,
   ): Promise<readonly ExtractedField[]> {
+    const values = isHeldAgainstTheArchiveByQr(request.spec)
+      ? { ...MOCK_VALUES, ...DECREE_439_VALUES }
+      : MOCK_VALUES;
+
     return request.spec.schema.specs.flatMap(spec => {
-      const value = MOCK_VALUES[spec.key.value];
+      const value = values[spec.key.value];
 
       return value
         ? [

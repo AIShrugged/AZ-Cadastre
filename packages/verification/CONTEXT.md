@@ -56,12 +56,16 @@ The six figures an Article 8 Provision is decided on: the year the house was bui
 _Avoid_: attributes, inputs, features
 
 **Title Document**:
-A paper confirming the right over the land, which every Article 8 Provision asks for (Article 10.2.1): a state act, a household book extract, a Soviet-era allocation decision, the order allotting the parcel, the register extract. Any one of them answers the requirement. Its kind decides the right it confers — ownership or lease-or-use — except the order allotting the parcel, whose kind confers none and whose right is read off the wording of the register extract or the plan (ADR-0026). Each is a title only within a window of dates its item of the Decree gives it; one dated outside every window is a finding against the package and decides no right.
+A paper confirming the right over the land, which every Article 8 Provision asks for (Article 10.2.1): a state act, a household book extract, a Soviet-era allocation decision, the order allotting the parcel, the register extract. Any one of them answers the requirement. Its kind decides the right it confers — ownership (the register extract, the state act, the 8.0.5 papers) or lease-or-use (everything else, the order allotting the parcel under items 1.4 and 2.7 included) — whatever another paper words; a title of the other class than the provision the case falls under rests on is a finding against the package (ADR-0028). Each is a title only within a window of dates its item of the Decree gives it; one dated outside every window is a finding against the package and decides no right.
 _Avoid_: ground document, land document, legal basis (which is what the office declares at intake)
 
 **Document Source**:
-Where the policy expects a paper of a Document Type to come from: the envelope, or a state system that confirms it — MQS, the Licences Portal, the Urban Planning Committee, the National Archive. None of the systems is connected, and none is imitated: a paper sourced from one is read like any other and reported as read and not confirmed, so reading never passes for confirmation (ADR-0025).
+Where the policy expects a paper of a Document Type to come from: the envelope, or a state system that confirms it — MQS, the Licences Portal, the Urban Planning Committee, the National Archive. None of the systems is connected. A paper sourced from one is read like any other and reported as read and not confirmed, so reading never passes for confirmation (ADR-0025) — except a Decree 439 paper, which is put to an Archive QR Check against a stand-in for the archive (ADR-0028).
 _Avoid_: integration flag, origin (which is a Field Origin)
+
+**Archive QR Check**:
+One Decree 439 paper held against the National Archive Fund's copy of it, found by the text printed for the paper's QR code. The archive states its copy and the kind of body that issued it; the check judges eight lines — Match, Mismatch or NotStated — and, as a fact of its own, whether that body was competent to issue a paper of that kind. It comes to Confirmed, Differs, NotFound or NoQrCode, and belongs to the Document, not to the package (ADR-0028). No archive is connected: only the offline stand-in answers.
+_Avoid_: QR decoding (the picture is never decoded), registry check (which is about the property, not a paper)
 
 **Supporting Documents**:
 No longer part of the language. What papers a case needs beyond its envelope was a table of height bands we invented (ADR-0013); since ADR-0025 it is the Article 8 Provision the case falls under, and the papers it names are papers of the package. Reports written before carry the old finding, and it still reads the way it did.

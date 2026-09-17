@@ -225,58 +225,150 @@ describe('provisionOf', () => {
   });
 
   /*
-   * The order allotting the parcel was a lease-or-use title by its kind. Both of
-   * the customer's real submissions rest on one, and both went to 8.0.9.1.1 —
-   * and were asked for a design or an acceptance act — while their register
-   * extracts say ownership. Its kind decides nothing now (ADR-0026).
+   * The order allotting the parcel is a lease-or-use title under items 1.4 and
+   * 2.7 — the customer's answer of 2026-09-16 — and the class of a title
+   * decides the right whatever an extract or a plan words (ADR-0028, which
+   * supersedes decision 3 of ADR-0026).
    */
-  describe('a title whose kind decides no right', () => {
-    it('leaves the order allotting the parcel to the wording of the plan', () => {
+  describe('the order of an executive authority allotting the parcel', () => {
+    // A two-storey house of 7.4 m, built in 2010, on a plot for housing.
+    function aPre2013Case(...titles: readonly ReadDocument[]) {
+      return provisionOf(TABLE, [
+        aDesign(),
+        aPlan(),
+        aDocument('operation_permit', { permit_date: '20.04.2010' }),
+        ...titles,
+      ]);
+    }
+
+    it('is a lease-or-use title, listed under items 1.4 and 2.7', () => {
       const order = aDocument('disposal_order', { issue_date: '15.04.1999' });
-      const plan = aDocument('land_plot_plan', {
-        right_type: 'Mülkiyyət hüququ',
-      });
-      const answer = provisionOf(TABLE, [order, plan]);
-
-      expect(answer.parameters.landRight).toBe('Ownership');
-      expect(
-        answer.readings.find(reading => reading.parameter === 'landRight'),
-      ).toMatchObject({
-        source: 'ReadOffDocument',
-        from: { documentId: plan.documentId, fieldKey: 'right_type' },
-      });
-    });
-
-    it('lets a title that does confer a right decide beside an order', () => {
-      const order = aDocument('disposal_order');
-      const extract = aDocument('state_register_extract');
-
-      expect(provisionOf(TABLE, [order, extract]).parameters.landRight).toBe(
-        'Ownership',
-      );
-    });
-
-    it('leaves the right unstated where only an order speaks and nothing words it', () => {
-      expect(
-        provisionOf(TABLE, [aDocument('disposal_order')]).parameters.landRight,
-      ).toBeNull();
-    });
-
-    it('still counts the order as a title, one that names no right', () => {
-      const [standing] = provisionOf(TABLE, [
-        aDocument('disposal_order'),
-      ]).titleDocuments;
+      const [standing] = provisionOf(TABLE, [order]).titleDocuments;
 
       expect(standing).toMatchObject({
         documentType: 'disposal_order',
-        landRight: null,
+        landRight: 'LeaseOrUse',
+        withinWindow: true,
       });
+      expect(standing?.items.map(one => one.item)).toEqual(['1.4', '2.7']);
     });
 
-    // A technical passport drawn up in 2026 is no title under item 2.4, which
-    // takes one drawn up before 2001; counting its kind would send an owned plot
-    // to lease or use on a paper that founds nothing.
-    it('is not decided by a title dated outside every window it has', () => {
+    it('sends a pre-2013 case of no more than 12 m on it alone to 8.0.9.1.1, which asks for a design or an acceptance act', () => {
+      const order = aDocument('disposal_order', { issue_date: '15.04.1999' });
+      const answer = aPre2013Case(order);
+
+      expect(answer.parameters.landRight).toBe('LeaseOrUse');
+      expect(
+        answer.readings.find(reading => reading.parameter === 'landRight'),
+      ).toMatchObject({
+        source: 'TitleDocumentType',
+        from: { documentId: order.documentId, fieldKey: null },
+      });
+      expect(answer.decision.outcome).toBe('Determined');
+      expect(answer.provisions.map(one => one.provision)).toEqual([
+        '8.0.9.1.1',
+      ]);
+      expect(answer.provisions[0]?.requirements).toEqual([
+        {
+          anyOf: ['approved_design', 'operation_acceptance_act'],
+          onlyBuiltBefore: null,
+          applies: true,
+          answered: false,
+        },
+      ]);
+      expect(answer.titleDocuments[0]?.wrongClassFor).toEqual([]);
+    });
+
+    // Item 1.4 runs to the Law, item 2.7 to 2001: a paper either admits is a
+    // title.
+    it('is a title while either of its items admits its date', () => {
+      const [standing] = provisionOf(TABLE, [
+        aDocument('disposal_order', { issue_date: '03.03.2004' }),
+      ]).titleDocuments;
+
+      expect(standing?.withinWindow).toBe(true);
+      expect(standing?.items.map(one => one.admits)).toEqual([true, false]);
+    });
+
+    it('is no title once dated after both its windows, and decides no right', () => {
+      const order = aDocument('disposal_order', { issue_date: '12.09.2011' });
+      const answer = provisionOf(TABLE, [order]);
+
+      expect(answer.titleDocuments[0]?.withinWindow).toBe(false);
+      expect(answer.parameters.landRight).toBeNull();
+    });
+
+    it('decides the right before anything a plan words', () => {
+      const plan = aDocument('land_plot_plan', {
+        right_type: 'Mülkiyyət hüququ',
+      });
+
+      expect(
+        provisionOf(TABLE, [aDocument('disposal_order'), plan]).parameters
+          .landRight,
+      ).toBe('LeaseOrUse');
+    });
+
+    // The case the wording would make one of 8.0.9.1.2 rests on an ownership
+    // title, and an order is not one: the mismatch is named, not settled.
+    it('is of the wrong class for 8.0.9.1.2 where a plan words ownership', () => {
+      const answer = aPre2013Case(
+        aDocument('disposal_order', { issue_date: '15.04.1999' }),
+        aDocument('land_plot_plan', { right_type: 'Mülkiyyət hüququ' }),
+      );
+
+      expect(answer.parameters.landRight).toBe('LeaseOrUse');
+      expect(answer.provisions.map(one => one.provision)).toEqual([
+        '8.0.9.1.1',
+      ]);
+      expect(answer.titleDocuments[0]?.wrongClassFor).toEqual(['8.0.9.1.2']);
+    });
+
+    /*
+     * The customer's two real submissions: an order beside a register extract
+     * stating ownership. Two titles of two classes decide no right, so the case
+     * is left between 8.0.9.1.1 and 8.0.9.1.2 for the inspector, and the order
+     * is named as of the wrong class for 8.0.9.1.2. The extract is the
+     * register's own record and is never held to a class.
+     */
+    it('leaves a case beside a register extract stating ownership to the inspector, and names the order as the mismatch', () => {
+      const extract = aDocument('state_register_extract', {
+        right_type: 'Mülkiyyət hüququ',
+      });
+      const answer = aPre2013Case(
+        aDocument('disposal_order', { issue_date: '15.04.1999' }),
+        extract,
+      );
+
+      expect(answer.parameters.landRight).toBeNull();
+      expect(answer.decision.outcome).toBe('Ambiguous');
+      expect(answer.provisions.map(one => one.provision)).toEqual([
+        '8.0.9.1.1',
+        '8.0.9.1.2',
+      ]);
+      expect(
+        answer.titleDocuments.map(one => [one.documentType, one.wrongClassFor]),
+      ).toEqual([
+        ['disposal_order', ['8.0.9.1.2']],
+        ['state_register_extract', []],
+      ]);
+    });
+
+    it('names no class a title outside its window is of', () => {
+      const answer = aPre2013Case(
+        aDocument('disposal_order', { issue_date: '12.09.2011' }),
+        aDocument('land_right_state_act', { issue_date: '1995' }),
+      );
+
+      expect(answer.titleDocuments[0]?.wrongClassFor).toEqual([]);
+    });
+  });
+
+  // A technical passport drawn up in 2026 is no title under item 2.4, which
+  // takes one drawn up before 2001; counting its kind would send an owned plot
+  // to lease or use on a paper that founds nothing (ADR-0026).
+  describe('a title outside every window it has', () => {
+    it('does not decide the right', () => {
       const passport = aDocument('technical_passport', {
         issue_date: '17.04.2026',
       });

@@ -133,6 +133,18 @@ export const ARTICLE_8_PROVISIONS: ProvisionsDeclaration = {
       issuedFrom: null,
       issuedBefore: LAW_IN_FORCE,
     },
+    // Not in the contract's list under this name. The order of an executive
+    // authority allotting a parcel is a decision on allocating a plot, and the
+    // customer has filed it under items 1.4 and 2.7: a lease-or-use title by its
+    // kind, whatever an extract beside it words (ADR-0028).
+    {
+      item: '1.4',
+      type: 'disposal_order',
+      landRight: 'LeaseOrUse',
+      dateField: 'issue_date',
+      issuedFrom: null,
+      issuedBefore: LAW_IN_FORCE,
+    },
     {
       item: '2.2',
       type: 'land_allocation_decision',
@@ -198,6 +210,14 @@ export const ARTICLE_8_PROVISIONS: ProvisionsDeclaration = {
       issuedBefore: BEFORE_2001,
     },
     {
+      item: '2.7',
+      type: 'disposal_order',
+      landRight: 'LeaseOrUse',
+      dateField: 'issue_date',
+      issuedFrom: null,
+      issuedBefore: BEFORE_2001,
+    },
+    {
       item: '2.8',
       type: 'apartment_demolition_decision',
       landRight: 'LeaseOrUse',
@@ -209,20 +229,6 @@ export const ARTICLE_8_PROVISIONS: ProvisionsDeclaration = {
       item: '8.0.1',
       type: 'state_property_disposal_act',
       landRight: 'LeaseOrUse',
-      dateField: 'issue_date',
-      issuedFrom: null,
-      issuedBefore: null,
-    },
-    // Not in the contract's list under this name. The order of an executive
-    // authority allotting the parcel is the paper both of the customer's real
-    // submissions rest on. It is a title, and its kind confers no right: filed
-    // as lease-or-use it sent both to 8.0.9.1.1, while their register extracts
-    // say ownership. Which right it grants is read off the wording of the
-    // extract or the plan (ADR-0026).
-    {
-      item: '8.0.1',
-      type: 'disposal_order',
-      landRight: null,
       dateField: 'issue_date',
       issuedFrom: null,
       issuedBefore: null,

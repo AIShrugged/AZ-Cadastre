@@ -177,9 +177,25 @@ describe('gapsIn', () => {
         'land_right_state_act',
         'registration_certificate',
         'property_right_certificate',
-        // Its kind confers no right, so it founds either class (ADR-0026).
-        'disposal_order',
+        // A lease-or-use title, and not offered for a case of ownership
+        // (ADR-0028).
       ]);
+    });
+
+    // Items 1.4 and 2.7: the order is a lease-or-use title (ADR-0028).
+    it('offers the order allotting the parcel for a case of lease or use', () => {
+      const documents = [
+        aDocumentStating('land_plot_plan', {
+          land_category: 'Fərdi yaşayış tikintisi üçün torpaq',
+          right_type: 'İstifadə hüququ',
+        }),
+        aDocumentStating('sketch_project', { building_height: '8 m' }),
+        aDocumentStating('operation_permit', { permit_date: '20.04.2010' }),
+      ];
+
+      expect(
+        missingIn(documents).filter(type => TITLES.includes(type)),
+      ).toContain('disposal_order');
     });
 
     it('offers no title once one is in force', () => {

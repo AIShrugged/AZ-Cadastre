@@ -154,6 +154,19 @@ export class IssueKind {
    */
   static readonly QR_CODE_UNAVAILABLE = new IssueKind('QrCodeUnavailable');
 
+  /*
+   * A Decree 439 paper held against the National Archive Fund by the QR
+   * reference printed on it, and the archive's copy says something else: a line
+   * of the paper differs from it, or the body that issued the paper had no
+   * competence to issue a paper of that kind (ADR-0028).
+   *
+   * Not REGISTRY_MISMATCH, which is the property against the register's record
+   * of it: this is one paper against the archive's copy of that paper, and the
+   * question it answers is whether the paper is what it says it is. Held
+   * against the package for that reason.
+   */
+  static readonly ARCHIVE_QR_MISMATCH = new IssueKind('ArchiveQrMismatch');
+
   private constructor(public readonly value: string) {}
 
   static get all(): readonly IssueKind[] {
@@ -176,6 +189,7 @@ export class IssueKind {
       IssueKind.PROVISION_UNDETERMINED,
       IssueKind.INTEGRATION_NOT_CONNECTED,
       IssueKind.QR_CODE_UNAVAILABLE,
+      IssueKind.ARCHIVE_QR_MISMATCH,
     ];
   }
 

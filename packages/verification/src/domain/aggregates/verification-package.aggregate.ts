@@ -7,6 +7,7 @@ import {
   type SourceFile,
 } from '../entities/index.js';
 import {
+  ArchiveQrCheckMade,
   ArchiveSearchApprovalSpent,
   ArchiveSearchApproved,
   CrossCheckMade,
@@ -31,6 +32,7 @@ import {
   ArchiveSearchNotAskedException,
   ArchiveSearchNotSettledException,
   CrossCheckNotInProfileException,
+  DocumentNotHeldAgainstTheArchiveException,
   DocumentNotInPackageException,
   DocumentsMustCoverEverySheetException,
   DocumentTypeNotInProfileException,
@@ -54,6 +56,7 @@ import {
 import {
   attestationOf,
   gapsIn,
+  isHeldAgainstTheArchiveByQr,
   looksLikeTheSameValue,
   provisionOf,
   yearIn,
@@ -70,6 +73,7 @@ import {
   DeclaredAtIntake,
   DocumentType as DocumentTypeValue,
   FailureReason,
+  FieldKey as FieldKeyValue,
   PackageId,
   PackageStanding,
   PackageStatus,
@@ -78,6 +82,8 @@ import {
   VerificationReport,
   type ApprovalComment,
   type ApprovalSummary,
+  type ArchiveQrCheck,
+  type ArchiveQrField,
   type Classification,
   type CrossCheck,
   type CrossCheckKey,
@@ -924,6 +930,81 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   }
 
   /*
+   * The documents in force that are to be held against the National Archive
+   * Fund by their QR code and have not been yet (ADR-0028).
+   *
+   * Only placed documents whose type the profile sources from the archive with
+   * every line the check compares — `isHeldAgainstTheArchiveByQr`. A paper
+   * already answered for is not asked again: what it says has not changed, and
+   * a file arriving elsewhere in the package does not change it either.
+   */
+  get awaitingArchiveQrCheck(): readonly Document[] {
+    return this.documentsInForce.filter(
+      document =>
+        document.archiveQrCheck === null &&
+        this.isHeldAgainstTheArchive(document),
+    );
+  }
+
+  /*
+   * What a Decree 439 paper is asked about by, and what it states on each line
+   * the archive's copy is compared on.
+   *
+   * Read off this paper alone. A value carried over from another paper of the
+   * package is the envelope agreeing with itself, and holding it against the
+   * archive's copy of this one would confirm a line this paper never printed
+   * (ADR-0023).
+   */
+  archiveQrQuestionOf(documentId: DocumentId): {
+    readonly type: DocumentType;
+    readonly qrReference: string | null;
+    readonly stated: (field: ArchiveQrField) => string | null;
+  } {
+    const document = this.documentWith(documentId);
+    const type = document.classification?.type;
+
+    if (!type || !this.isHeldAgainstTheArchive(document)) {
+      throw new DocumentNotHeldAgainstTheArchiveException(
+        documentId.value,
+        type?.value ?? null,
+      );
+    }
+
+    const readHere = (key: string): string | null =>
+      document.fieldsReadHere.find(field =>
+        field.key.equals(FieldKeyValue.create(key)),
+      )?.value.value ?? null;
+
+    return { type, qrReference: readHere('qr_code'), stated: readHere };
+  }
+
+  recordArchiveQrCheck(documentId: DocumentId, check: ArchiveQrCheck): void {
+    this.guardUnderWay();
+
+    const document = this.documentWith(documentId);
+
+    if (!this.isHeldAgainstTheArchive(document)) {
+      throw new DocumentNotHeldAgainstTheArchiveException(
+        documentId.value,
+        document.classification?.type.value ?? null,
+      );
+    }
+
+    this.replaceDocument(document.withArchiveQrCheck(check));
+    this.apply(new ArchiveQrCheckMade(this.id, documentId, check.status));
+  }
+
+  private isHeldAgainstTheArchive(document: Document): boolean {
+    const classification = document.classification;
+
+    return (
+      classification !== null &&
+      classification.isPlaced &&
+      isHeldAgainstTheArchiveByQr(this.#profile.specFor(classification.type))
+    );
+  }
+
+  /*
    * Lay the archive register's agreement onto the readings it agreed with.
    *
    * The register is asked about attributes of the property — the owner of
@@ -1161,6 +1242,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       ...this.unattested(),
       ...this.alsoInThePackage(),
       ...this.againstTheRecord(),
+      ...this.againstTheArchive(),
       ...this.againstTheDeclaration(),
       ...this.unconfirmedOutside(provision),
       ...this.withoutAQrCode(),
@@ -1244,14 +1326,10 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
 
   /*
    * What the table of provisions has to say against the case: that which
-   * provision it falls under could not be decided, and that a title the package
-   * carries is dated outside the window it is a title in.
-   *
-   * The class of a title is not checked against the provision here, and on
-   * purpose: the right over the land is read off the class of the title the
-   * package carries, so a case decided under a provision always rests on a
-   * title of the class that provision takes. Two titles of different classes
-   * leave the right unstated and the provision undecided, which is said above.
+   * provision it falls under could not be decided, that a title the package
+   * carries is dated outside the window it is a title in, and that a title is of
+   * the other class than a provision the case falls under, or would fall under
+   * on the right an extract or a plan words, rests on (ADR-0028).
    */
   private againstTheProvision(
     provision: CaseProvision | null,
@@ -1311,7 +1389,31 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       ];
     });
 
-    return [...undecided, ...outOfWindow];
+    const wrongClass = provision.titleDocuments.flatMap(standing => {
+      if (standing.wrongClassFor.length === 0) return [];
+
+      const document = this.documentsInForce.find(
+        one => one.id.value === standing.documentId,
+      );
+      const type = document?.classification?.type;
+
+      if (!document || !type) return [];
+
+      return [
+        ValidationIssue.titleDocumentOfWrongClass(
+          {
+            documentId: document.id,
+            sourceFileId: document.sourceFileId,
+            documentType: type,
+          },
+          standing.landRight,
+          standing.items.map(one => one.item),
+          standing.wrongClassFor,
+        ),
+      ];
+    });
+
+    return [...undecided, ...outOfWindow, ...wrongClass];
   }
 
   /*
@@ -1327,21 +1429,26 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   private unconfirmedOutside(
     provision: CaseProvision | null,
   ): readonly ValidationIssue[] {
-    const read = this.documentsInForce.flatMap(document => {
+    const placed = this.documentsInForce.flatMap(document => {
       const classification = document.classification;
 
-      if (!classification?.isPlaced) return [];
+      return classification?.isPlaced
+        ? [{ document, type: classification.type }]
+        : [];
+    });
 
-      const source = this.#profile.specFor(classification.type).source;
+    // A paper the archive was asked about has an answer, and the answer is
+    // what the report says of it — `againstTheArchive` (ADR-0028).
+    const read = placed.flatMap(({ document, type }) => {
+      const source = this.#profile.specFor(type).source;
 
-      return source === 'Package'
+      return source === 'Package' || document.archiveQrCheck !== null
         ? []
         : [
-            ValidationIssue.integrationNotConnected(
-              classification.type,
-              source,
-              { documentId: document.id, sourceFileId: document.sourceFileId },
-            ),
+            ValidationIssue.integrationNotConnected(type, source, {
+              documentId: document.id,
+              sourceFileId: document.sourceFileId,
+            }),
           ];
     });
 
@@ -1354,7 +1461,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       .filter(
         spec =>
           spec.source !== 'Package' &&
-          !read.some(issue => issue.documentType?.equals(spec.type)),
+          !placed.some(({ type }) => type.equals(spec.type)),
       )
       .map(spec =>
         ValidationIssue.integrationNotConnected(spec.type, spec.source),
@@ -1436,6 +1543,39 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
 
         return [ValidationIssue.registryUnconfirmed(check)];
       });
+  }
+
+  /*
+   * What the National Archive Fund made of the Decree 439 papers it was asked
+   * about by their QR codes (ADR-0028).
+   *
+   * One finding per paper and never one per package: each names its own file in
+   * the archive. A copy that differs, or an issuer with no competence to issue
+   * the paper, is a finding against the package. No copy under the reference,
+   * or no reference read, is told to the inspector and counts for nothing —
+   * the archive's electronic copies are partial, like the register's records.
+   * A confirmed paper needs nothing said: the check itself is on the document.
+   */
+  private againstTheArchive(): readonly ValidationIssue[] {
+    return this.documentsInForce.flatMap(document => {
+      const check = document.archiveQrCheck;
+      const type = document.classification?.type;
+
+      if (!check || !type) return [];
+
+      const anchor = {
+        documentId: document.id,
+        sourceFileId: document.sourceFileId,
+      };
+
+      if (check.differs) {
+        return [ValidationIssue.archiveQrMismatch(anchor, type, check)];
+      }
+
+      return check.isUnanswered
+        ? [ValidationIssue.archiveQrUnconfirmed(anchor, type, check)]
+        : [];
+    });
   }
 
   /*

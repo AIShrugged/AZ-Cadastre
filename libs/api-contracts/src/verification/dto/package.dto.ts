@@ -2,6 +2,9 @@ import { z } from 'zod';
 
 import {
   ArchiveHoldingSchema,
+  ArchiveQrCheckStatusSchema,
+  ArchiveQrFieldNameSchema,
+  ArchiveQrFieldVerdictSchema,
   CaseParameterSchema,
   CrossCheckVerdictSchema,
   DocumentContentTypeSchema,
@@ -292,6 +295,42 @@ export const SuppliedForDtoSchema = z.object({
 });
 export type SuppliedForDto = z.infer<typeof SuppliedForDtoSchema>;
 
+// ─── The National Archive Fund, by QR reference ──────────────────────────────
+// A Decree 439 paper held against the archive's own copy of it, found by the QR
+// reference printed on the paper (ADR-0028). One per document and not one per
+// package: each paper names its own file in the archive.
+
+export const ArchiveQrFieldCheckDtoSchema = z.object({
+  name: ArchiveQrFieldNameSchema,
+  // What the paper states, as it was read off it. Null where it was not read.
+  documentValue: z.string().nullable(),
+  // What the archive's copy states. Null where the archive gives no value.
+  archiveValue: z.string().nullable(),
+  // `NotStated` where either side is null: silence is not a disagreement.
+  verdict: ArchiveQrFieldVerdictSchema,
+});
+export type ArchiveQrFieldCheckDto = z.infer<
+  typeof ArchiveQrFieldCheckDtoSchema
+>;
+
+export const ArchiveQrCheckDtoSchema = z.object({
+  status: ArchiveQrCheckStatusSchema,
+  // The text of the QR code as it was read off the paper. Null on `NoQrCode`.
+  qrReference: z.string().nullable(),
+  // ISO-8601. When the archive was asked, or — on `NoQrCode` — when the check
+  // found there was nothing to ask.
+  checkedAt: z.string().datetime(),
+  // Whether the body that issued the paper was competent to issue a paper of
+  // that kind. A fact of its own and not a string comparison: the name can
+  // match the archive and the body still have had no such power. Null where
+  // there was nothing to judge it by (`NotFound`, `NoQrCode`).
+  issuingAuthorityCompetent: z.boolean().nullable(),
+  // Every line held against the archive, in the order `ArchiveQrFieldName`
+  // names them. Empty on `NotFound` and `NoQrCode`.
+  fields: z.array(ArchiveQrFieldCheckDtoSchema),
+});
+export type ArchiveQrCheckDto = z.infer<typeof ArchiveQrCheckDtoSchema>;
+
 export const DocumentDtoSchema = z.object({
   id: z.string(),
   // The sheets of the containing file this document occupies, 1-based and
@@ -308,6 +347,10 @@ export const DocumentDtoSchema = z.object({
   // expected of.
   attestation: DocumentAttestationDtoSchema.nullable(),
   fields: z.array(FieldDtoSchema),
+  // What the National Archive Fund said about this paper, by the QR reference
+  // printed on it (ADR-0028). Null on a document that is not a Decree 439 paper
+  // and on one the check has not been made for yet.
+  archiveQrCheck: ArchiveQrCheckDtoSchema.nullable(),
   /*
    * The document that replaced this one, and when — null on a document in force,
    * which is nearly all of them (COMM-80).
@@ -592,8 +635,8 @@ export type ProvisionStandingDto = z.infer<typeof ProvisionStandingDtoSchema>;
 export const TitleDocumentStandingDtoSchema = z.object({
   documentId: z.string(),
   documentType: z.string(),
-  // Null for a title whose kind confers no right — the order allotting the
-  // parcel, whose right is read off the extract or the plan (ADR-0026).
+  // Every title names a right since ADR-0028; kept nullable so the contract
+  // does not move.
   landRight: LandRightSchema.nullable(),
   dated: z
     .object({

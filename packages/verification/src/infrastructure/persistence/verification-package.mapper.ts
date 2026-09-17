@@ -9,6 +9,8 @@ import {
   ApprovalComment,
   ApprovalSummary,
   ApprovedCheck,
+  ArchiveQrCheck,
+  ArchiveQrFieldCheck,
   ArchiveSearchApproval,
   CheckedValue,
   Classification,
@@ -51,6 +53,8 @@ import {
 
 import {
   ArchiveHolding as ArchiveHoldingColumn,
+  ArchiveQrCheckStatus as ArchiveQrCheckStatusColumn,
+  ArchiveQrFieldVerdict as ArchiveQrFieldVerdictColumn,
   CrossCheckVerdict as CrossCheckVerdictColumn,
   FieldOrigin as FieldOriginColumn,
   IssueKind as IssueKindColumn,
@@ -187,6 +191,24 @@ export type DocumentRow = {
   readonly supersededById: string | null;
   readonly supersededAt: Date | null;
   readonly extractedFields: readonly FieldRow[];
+  // What the National Archive Fund said about the paper, where it was asked
+  // (ADR-0028).
+  readonly archiveQrCheck: ArchiveQrCheckRow | null;
+};
+
+export type ArchiveQrCheckRow = {
+  readonly status: string;
+  readonly qrReference: string | null;
+  readonly checkedAt: Date;
+  readonly issuingAuthorityCompetent: boolean | null;
+  readonly fields: readonly ArchiveQrFieldRow[];
+};
+
+export type ArchiveQrFieldRow = {
+  readonly name: string;
+  readonly documentValue: string | null;
+  readonly archiveValue: string | null;
+  readonly verdict: string;
 };
 
 export type PageRow = {
@@ -340,6 +362,21 @@ export type DocumentWrite = {
   readonly supersededById: string | null;
   readonly supersededAt: Date | null;
   readonly fields: readonly FieldWrite[];
+  readonly archiveQrCheck: ArchiveQrCheckWrite | null;
+};
+
+export type ArchiveQrCheckWrite = {
+  readonly status: ArchiveQrCheckStatusColumn;
+  readonly qrReference: string | null;
+  readonly checkedAt: Date;
+  readonly issuingAuthorityCompetent: boolean | null;
+  readonly fields: readonly {
+    readonly name: string;
+    readonly documentValue: string | null;
+    readonly archiveValue: string | null;
+    readonly verdict: ArchiveQrFieldVerdictColumn;
+    readonly position: number;
+  }[];
 };
 
 export type PageWrite = {
@@ -451,6 +488,9 @@ export class VerificationPackageMapper {
           sourceFieldName: field.takenFrom?.fieldKey.value ?? null,
           sourcePageNumber: field.takenFrom?.foundOn.value ?? null,
         })),
+        archiveQrCheck: VerificationPackageMapper.archiveQrCheckRow(
+          document.archiveQrCheck,
+        ),
       })),
       crossChecks: aggregate.crossChecks.map(check => ({
         key: check.key.value,
@@ -782,7 +822,60 @@ export class VerificationPackageMapper {
           takenFrom: VerificationPackageMapper.sourceToDomain(field),
         }),
       ),
+      archiveQrCheck: row.archiveQrCheck
+        ? ArchiveQrCheck.restore({
+            status: row.archiveQrCheck.status,
+            qrReference: row.archiveQrCheck.qrReference,
+            checkedAt: row.archiveQrCheck.checkedAt,
+            issuingAuthorityCompetent:
+              row.archiveQrCheck.issuingAuthorityCompetent,
+            fields: row.archiveQrCheck.fields.map(field =>
+              ArchiveQrFieldCheck.of(field),
+            ),
+          })
+        : null,
     });
+  }
+
+  private static archiveQrCheckRow(
+    check: ArchiveQrCheck | null,
+  ): ArchiveQrCheckWrite | null {
+    if (!check) return null;
+
+    return {
+      status: VerificationPackageMapper.columnOf(
+        ArchiveQrCheckStatusColumn,
+        check.status,
+      ),
+      qrReference: check.qrReference,
+      checkedAt: check.checkedAt,
+      issuingAuthorityCompetent: check.issuingAuthorityCompetent,
+      fields: check.fields.map((field, position) => ({
+        name: field.name,
+        documentValue: field.documentValue,
+        archiveValue: field.archiveValue,
+        verdict: VerificationPackageMapper.columnOf(
+          ArchiveQrFieldVerdictColumn,
+          field.verdict,
+        ),
+        position,
+      })),
+    };
+  }
+
+  // The generated enum member a domain value is stored as. Both sides spell the
+  // members the same way, which is what the schema was written to.
+  private static columnOf<Column extends string>(
+    columns: Record<string, Column>,
+    value: string,
+  ): Column {
+    const column = Object.values(columns).find(
+      candidate => candidate === value,
+    );
+
+    if (!column) throw new RangeError(`No column for ${value}`);
+
+    return column;
   }
 
   /*

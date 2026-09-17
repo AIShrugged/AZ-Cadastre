@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  DocumentDtoSchema,
   PackageDetailDtoSchema,
   PackageDtoSchema,
   PackagesOverviewResponseSchema,
@@ -96,6 +97,7 @@ function aDocumentView(overrides: Partial<DocumentView> = {}): DocumentView {
     fields: [
       aFieldView({ name: 'first_name', value: 'ELCHIN', confidence: 0.92 }),
     ],
+    archiveQrCheck: null,
     supersededById: null,
     supersededAt: null,
     ...overrides,
@@ -710,6 +712,60 @@ describe('toDetailDto', () => {
     );
 
     expect(dto.files[0]?.documents[0]?.fields).toEqual([]);
+  });
+
+  // The contract the screen draws the archive's answer from (ADR-0028).
+  it('renders what the National Archive said about a paper, with the instant it was asked', () => {
+    const dto = toDetailDto(
+      aDetailView({
+        files: [
+          aFileView({
+            documents: [
+              aDocumentView({
+                archiveQrCheck: {
+                  status: 'Confirmed',
+                  qrReference: 'https://qr.esd.milliarxiv.gov.az/F130',
+                  checkedAt: new Date('2026-09-16T12:00:00.000Z'),
+                  issuingAuthorityCompetent: true,
+                  fields: [
+                    {
+                      name: 'plot_area',
+                      documentValue: '400,0 kv.m',
+                      archiveValue: '0,04 ha',
+                      verdict: 'Match',
+                    },
+                  ],
+                },
+              }),
+            ],
+          }),
+        ],
+      }),
+    );
+
+    expect(dto.files[0]?.documents[0]?.archiveQrCheck).toEqual({
+      status: 'Confirmed',
+      qrReference: 'https://qr.esd.milliarxiv.gov.az/F130',
+      checkedAt: '2026-09-16T12:00:00.000Z',
+      issuingAuthorityCompetent: true,
+      fields: [
+        {
+          name: 'plot_area',
+          documentValue: '400,0 kv.m',
+          archiveValue: '0,04 ha',
+          verdict: 'Match',
+        },
+      ],
+    });
+    expect(
+      DocumentDtoSchema.safeParse(dto.files[0]?.documents[0]).success,
+    ).toBe(true);
+  });
+
+  it('renders a paper the archive was never asked about with no answer', () => {
+    const dto = toDetailDto(aDetailView());
+
+    expect(dto.files[0]?.documents[0]?.archiveQrCheck).toBeNull();
   });
 
   it('renders each extracted field with its key, value, confidence, page and origin', () => {

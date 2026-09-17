@@ -47,6 +47,7 @@ const doc = (over: Partial<DocumentDto> = {}): DocumentDto => ({
   classificationConfidence: 0.96,
   attestation: null,
   fields: [],
+  archiveQrCheck: null,
   supersededById: null,
   supersededAt: null,
   ...over,

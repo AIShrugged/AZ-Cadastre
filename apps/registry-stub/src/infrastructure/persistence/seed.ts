@@ -58,6 +58,20 @@ type DocumentSeed = {
   pages?: string;
 };
 
+/**
+ * A value off one of the case's papers that no column of the spine holds. The
+ * key is `<document type>:<field>` in the verification lexicon's own words —
+ * `land_plot_plan:turning_points`, `designer_licence:licensee_tax_id` — so the
+ * paper a value came off can be told from the key alone; the label is the
+ * paper's own wording for it, and where the paper prints no heading at all it
+ * says what the value is in square brackets rather than invent one.
+ */
+type AttributeSeed = {
+  key: string;
+  label: string;
+  value: string;
+};
+
 type AliasSeed = {
   kind: AliasKind;
   value: string;
@@ -90,6 +104,7 @@ type ObjectSeed = {
   rightHolders: readonly RightHolderSeed[];
   documents: readonly DocumentSeed[];
   aliases?: readonly AliasSeed[];
+  attributes?: readonly AttributeSeed[];
   location?: {
     folder: string;
     pages: string;
@@ -119,6 +134,15 @@ const RECORDS: readonly ObjectSeed[] = [
    * cadastral number for it, which is not a gap in the seed: the extract does
    * not carry the column, and a lookup that asks about one is answered with
    * silence rather than with a disagreement.
+   *
+   * The papers of the submission itself — `Example application and other
+   * document- Vera Vladimirovna.pdf` — add the documents after the first five
+   * and every attribute below. That PDF carries no register extract, no
+   * construction permit and no occupancy permit: the house was built under the
+   * notification regime, which replaces the permit, and the extract is the
+   * register's answer rather than part of the package. So the object columns
+   * and the right holder stay what the extract says, and nothing here was
+   * filled in to stand for a paper the package does not carry.
    */
   {
     registerNo: '005013055966-10301',
@@ -162,8 +186,8 @@ const RECORDS: readonly ObjectSeed[] = [
       /*
        * How the parcel is described on the papers of the submission itself,
        * before it had a street: the plan-scheme and the sketch design place it
-       * by the road it lies beside, and the 396 decree that allotted it says
-       * the same thing the other way round. Both are in here because both are
+       * by the road it lies beside, and the 396 decree correcting the order
+       * that allotted it says the same thing the other way round. Both are in here because both are
        * what the register is actually asked — a stand-in that could not be
        * reached by the address on the surveyed drawing would be a stand-in for
        * nothing.
@@ -198,7 +222,13 @@ const RECORDS: readonly ObjectSeed[] = [
         issuedOn: '28.01.2026',
         issuingAuthority: BAKU_1,
       },
-      // The act that allotted the parcel, as the submission carries it.
+      /*
+       * Not the act that allotted the parcel: 396 corrects the surname
+       * `Qusadze` to `Rusadze` in order 1471 of 29.10.1998, which did. It stays
+       * the first `Sərəncam çıxarışı` row because it is the paper the confirmed
+       * case was proven against, and a caller asking about the kind reads the
+       * first row of it; 1471 follows below.
+       */
       {
         name: 'Sərəncam çıxarışı',
         holding: 'Held',
@@ -218,17 +248,295 @@ const RECORDS: readonly ObjectSeed[] = [
       },
       { name: 'Texniki Pasport', holding: 'Held' },
       { name: 'Müayinə aktı', holding: 'Held' },
+      // The order that allotted the 400 m² for the house, as the archive's
+      // certified copy of it reads (PDF p. 5): the National Archive Fund
+      // original Decree 439 asks after.
+      {
+        name: 'Sərəncam çıxarışı',
+        holding: 'Held',
+        taxonomyRef: '439:2.3',
+        number: '1471',
+        issuedOn: '29.10.1998',
+        issuingAuthority:
+          'Bakı Şəhər Sabunçu Rayon İcra Hakimiyyətinin Başçısı',
+      },
+      /*
+       * The plan-scheme (PDF p. 8) carries no number and no date of its own.
+       * These are of the letter that sent it approved (p. 7) — the only number
+       * and date the scheme answers to, and not a date the scheme was drawn.
+       */
+      {
+        name: 'Torpaq sahəsinin yerləşmə sxemi',
+        holding: 'Held',
+        number: '5-18/2-R-20/2-091/2-t/1/2023',
+        issuedOn: '11.05.2023',
+        issuingAuthority:
+          'Bakı şəhəri Sabunçu Rayon İcra Hakimiyyətinin başçısının I müavini',
+      },
+      // The design licence and its appendix (pp. 11–12).
+      {
+        name: 'Lisenziya',
+        holding: 'Held',
+        number: 'EL-306/2022',
+        issuedOn: '13.05.2022',
+        issuingAuthority: 'Azərbaycan Respublikasının İqtisadiyyat Nazirliyi',
+      },
+      {
+        name: 'Lisenziyanın əlavəsi',
+        holding: 'Held',
+        number: 'EL-306/2022/2',
+        issuedOn: '23.08.2023',
+        issuingAuthority: 'Azərbaycan Respublikasının İqtisadiyyat Nazirliyi',
+      },
+      // The notification (p. 9): signed and dated by the applicant, and
+      // addressed to an authority rather than issued by one — which is why it
+      // has no issuing authority and its addressee is an attribute.
+      {
+        name: 'Məlumatlandırma icraatı haqqında ərizə',
+        holding: 'Held',
+        issuedOn: '28.01.2026',
+      },
+      // The sketch design (pp. 10, 13–19). `İnvertar nömrəsi` is the only number
+      // it prints, misspelling and all.
+      {
+        name: 'Eskiz layihəsi',
+        holding: 'Held',
+        number: '5648/F',
+        issuingAuthority: 'MAX CONSULTING',
+      },
     ],
     aliases: [
       { kind: 'Application', value: '1126027871', issuingOffice: BAKU_1 },
       { kind: 'Registration', value: '1126027871', issuingOffice: BAKU_1 },
+    ],
+    /*
+     * Off the PDF of the submission, page by page. What it does not carry is
+     * absent rather than blank: no plan date, no scale and no actual area on
+     * the plan-scheme, one coordinate pair and not a list of turning points, no
+     * easements, no plot size on the notification, and no construction or
+     * occupancy permit at all.
+     */
+    attributes: [
+      // ── Plan-scheme of the plot (p. 8) ──────────────────────────────────
+      {
+        key: 'land_plot_plan:property_address',
+        label: 'torpaq sahəsinin yerləşmə sxemi',
+        value:
+          '1 - ci Zabrat qəsəbəsinindən yeni məhəlləyə gedən yolun solunda',
+      },
+      {
+        key: 'land_plot_plan:owner_name',
+        label: 'torpaq sahəsinin yerləşmə sxemi',
+        value: 'Rusadze Vera Vladimirovnaya',
+      },
+      {
+        key: 'land_plot_plan:land_category',
+        label: 'torpaq sahəsinin yerləşmə sxemi',
+        value: 'fərdi yaşayış evinin tikintisi üçün',
+      },
+      {
+        key: 'land_plot_plan:plot_area',
+        label: 'Ayrılmış torpaq sahəsi',
+        value: 'S = 400.0 kv.m.',
+      },
+      // One pair, printed under the drawing without saying which corner it is.
+      {
+        key: 'land_plot_plan:turning_points',
+        label: '[coordinates printed under the drawing]',
+        value: 'X - 409598, 27; Y - 4481830, 29',
+      },
+      {
+        key: 'land_plot_plan:side_lengths',
+        label: '[dimension lines, clockwise from the top edge]',
+        value: '19.40; 18.60; 0.60; 5.90; 4.60; 7.80; 23.00',
+      },
+      // The 7.80 and 4.60 sides lie along it.
+      {
+        key: 'land_plot_plan:adjoining',
+        label: '[written along the bottom edge]',
+        value: 'DALAN',
+      },
+      {
+        key: 'land_plot_plan:plan_basis',
+        label: 'torpaq sahəsinin yerləşmə sxemi',
+        value:
+          'Sabunçu rayon İcra Hakimiyyəti başçısının 1471 saylı ' +
+          '29. 10. 1998 - ci il tarixli sərəncamı',
+      },
+      {
+        key: 'land_plot_plan:issuing_authority',
+        label: '[signature block]',
+        value:
+          'Sabunçu Rayon İcra Hakimiyyəti Rayon təsərrüfatı şöbəsinin müdiri',
+      },
+      {
+        key: 'land_plot_plan:signing_official',
+        label: '[signature block]',
+        value: 'E. Mikayılov',
+      },
+      // ── The 1998 sketch scheme of the allotment, archive copy (p. 6) ────
+      // In the Azerbaijani Cyrillic of its day; only what is legible.
+      {
+        key: 'soviet_land_record:plot_area',
+        label: '[sketch scheme]',
+        value: 'S=400кв.м',
+      },
+      {
+        key: 'soviet_land_record:side_lengths',
+        label: '[sketch scheme]',
+        value: '24м; 16,6м',
+      },
+      {
+        key: 'soviet_land_record:archive_reference',
+        label: 'ƏSAS',
+        value: 'Fond-130, siy.1, iş-476, vər.101',
+      },
+      // ── Order 1471 and the archive certificate (pp. 4–5) ────────────────
+      {
+        key: 'disposal_order:archive_reference',
+        label: 'ƏSAS',
+        value: 'Fond-130, siy.1, iş-476 vər.98',
+      },
+      // ── Design licence (pp. 11–12) ──────────────────────────────────────
+      {
+        key: 'designer_licence:issuing_authority_address',
+        label: 'lisenziya verən orqanın ünvanı',
+        value:
+          'Bakı şəhəri, Nizami rayonu, Keşlə qəsəbəsi, Heydər Əliyev prospekti 155',
+      },
+      {
+        key: 'designer_licence:activity_type',
+        label: 'lisenziya verilən fəaliyyət növü',
+        value:
+          'Tikintisinə icazə tələb olunan və barəsində məlumatlandırma icraatı ' +
+          'tətbiq olunan bina və qurğuların layihələndirilməsi',
+      },
+      {
+        key: 'designer_licence:licensee_name',
+        label: 'Lisenziya verilib',
+        value: '"MAX CONSULTING" Məhdud Məsuliyyətli Cəmiyyətinə',
+      },
+      {
+        key: 'designer_licence:licensee_address',
+        label: 'hüquqi ünvanı',
+        value: 'Bakı şəhəri, Yasamal rayonu, Mətbuat prospekti, ev 12B',
+      },
+      {
+        key: 'designer_licence:licensee_tax_id',
+        label: 'VÖEN',
+        value: '1306641541',
+      },
+      {
+        key: 'designer_licence:signing_official',
+        label: 'Lisenziyanı imzalayan vəzifəli şəxs',
+        value: 'NİYAZİ SƏFƏROV',
+      },
+      {
+        key: 'designer_licence:signing_official_position',
+        label: 'Vəzifəsi',
+        value: 'NAZİR MÜAVİNİ',
+      },
+      {
+        key: 'designer_licence:licensed_works',
+        label: 'Lisenziyanın əlavəsi — SİYAHISI',
+        value:
+          '2. Tikinti obyektlərinin memarlıq layihələndirilməsi; ' +
+          '2.1. bina və qurğuların memarlıq layihələndirilməsi; ' +
+          '3. İnşaat konstruksiyalarının layihələndirilməsi; ' +
+          '8. Layihələrin xüsusi bölmələrinin işlənilməsi; ' +
+          '8.1. tikintinin təşkilinin layihələndirilməsi; ' +
+          '8.2. smetaların tərtib edilməsi',
+      },
+      {
+        key: 'designer_licence:appendix_signing_official',
+        label: 'Lisenziyanın əlavəsi',
+        value:
+          'Azərbaycan Respublikası iqtisadiyyat nazirinin birinci müavini ' +
+          'Elnur Əliyev',
+      },
+      // ── Notification to the executive authority (p. 9) ──────────────────
+      // Handwritten into a printed form; the form's own words are the labels.
+      {
+        key: 'construction_completion_notice:addressee_authority',
+        label: '[addressee line]',
+        value: 'Sabunçu Rayon İcra Hakimiyyətinə',
+      },
+      {
+        key: 'construction_completion_notice:applicant_name',
+        label: 'ünvanında qeydiyyatda olan',
+        value: 'Rusadze Vera Vladimirovna',
+      },
+      {
+        key: 'construction_completion_notice:property_address',
+        label: 'ünvanında yerləşən',
+        value: 'Bakı şəh, Sabunçu rayonu, 1-ci Zabrat qəsəbəsi',
+      },
+      {
+        key: 'construction_completion_notice:building_type',
+        label: 'olan fərdi yaşayış (bağ) evini inşa etmişəm',
+        value: 'fərdi yaşayış (bağ) evi',
+      },
+      {
+        key: 'construction_completion_notice:building_height',
+        label: 'hündürlüyü',
+        value: '4,1 m',
+      },
+      {
+        key: 'construction_completion_notice:storeys',
+        label: 'mərtəbəliliyi',
+        value: '1+mansard',
+      },
+      // Signed in the applicant's hand beside `İmza:`; the value says so and no
+      // more, since a signature has no text to copy.
+      {
+        key: 'construction_completion_notice:signature',
+        label: 'İmza',
+        value: 'signed',
+      },
+      {
+        key: 'construction_completion_notice:notice_date',
+        label: 'Tarix',
+        value: '28.01.2026',
+      },
+      // ── Sketch design (pp. 10, 13–19) ───────────────────────────────────
+      {
+        key: 'sketch_project:client_name',
+        label: 'Sifarişçi',
+        value: 'Rusadze Vera Vladimirovna',
+      },
+      {
+        key: 'sketch_project:property_address',
+        label: 'ünvanında yerləşən',
+        value:
+          'Bakı şəhəri, Sabunçu rayonu, 1-ci Zabrat qəsəbəsindən yeni ' +
+          'məhəlləyə gedən yolun solunda',
+      },
+      {
+        key: 'sketch_project:designer_director',
+        label: 'Direktor',
+        value: 'Hüseynov X.',
+      },
+      {
+        key: 'sketch_project:drawing_scale',
+        label: 'Miqyas',
+        value: 'M 1:100',
+      },
+      {
+        key: 'sketch_project:project_composition',
+        label: 'ƏSAS KOMPLEKTİN CİZGİLƏRİN CƏDVƏLİ',
+        value:
+          'MH-1 Ümumi məlumat; BP-2 Baş plan; MH-3 Zirzəminin planı; ' +
+          'MH-4 1-ci Mərtəbənin planı; MH-5 Mansardın planı; ' +
+          'MH-6 "1 - 1" kəsiyi; MH-7 Ön Fasad',
+      },
     ],
     location: {
       folder: '246',
       pages: '01-dən 44',
       bookNo: '805',
       sheetNo: '64',
-      fundReference: 'Fond-130, siy.1, i-476, var.98',
+      // `ƏSAS:` under the archive's copy of order 1471, letter for letter.
+      fundReference: 'Fond-130, siy.1, iş-476 vər.98',
       sourceDatabase: 'Bakı Əİ arxivi',
     },
   },
@@ -578,6 +886,7 @@ async function write(prisma: PrismaClient, record: ObjectSeed): Promise<void> {
     rightHolders,
     documents,
     aliases = [],
+    attributes = [],
     location,
     ...object
   } = record;
@@ -603,6 +912,7 @@ async function write(prisma: PrismaClient, record: ObjectSeed): Promise<void> {
   await prisma.registryDocument.deleteMany({ where: { objectId: stored.id } });
   await prisma.registryAlias.deleteMany({ where: { objectId: stored.id } });
   await prisma.archiveLocation.deleteMany({ where: { objectId: stored.id } });
+  await prisma.registryAttribute.deleteMany({ where: { objectId: stored.id } });
 
   await prisma.registryAddress.createMany({
     data: addresses.map((address, position) => ({
@@ -629,6 +939,14 @@ async function write(prisma: PrismaClient, record: ObjectSeed): Promise<void> {
   await prisma.registryAlias.createMany({
     data: aliases.map((alias, position) => ({
       ...alias,
+      objectId: stored.id,
+      sourceDatabase: record.sourceDatabase,
+      position,
+    })),
+  });
+  await prisma.registryAttribute.createMany({
+    data: attributes.map((attribute, position) => ({
+      ...attribute,
       objectId: stored.id,
       sourceDatabase: record.sourceDatabase,
       position,

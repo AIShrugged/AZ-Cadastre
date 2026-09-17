@@ -7,6 +7,7 @@ import {
   SourceFile,
 } from '../entities/index.js';
 import {
+  ArchiveQrCheckMade,
   DocumentClassified,
   FieldsExtracted,
   FilesAdded,
@@ -25,6 +26,7 @@ import {
   CrossCheckNotInProfileException,
   DocumentAlreadyClassifiedException,
   DocumentNotClassifiedException,
+  DocumentNotHeldAgainstTheArchiveException,
   DocumentNotInPackageException,
   DocumentsMustCoverEverySheetException,
   DocumentTypeNotInProfileException,
@@ -52,6 +54,9 @@ import {
 import {
   ApprovalComment,
   ApprovalSummary,
+  ARCHIVE_QR_FIELDS,
+  ArchiveQrCheck,
+  ArchiveQrFieldCheck,
   Classification,
   Confidence,
   ContentType,
@@ -1840,9 +1845,8 @@ describe('VerificationPackage', () => {
         span_dimensions: 'A—B 4,20 m; B—C 3,60 m',
       },
     ];
+    // A lease-or-use title under items 1.4 and 2.7 (ADR-0028).
     const ORDER: Paper = ['disposal_order', {}];
-    // A lease-or-use title by its kind: the order confers no right by its own,
-    // and a pre-2013 case on it alone is undecided (ADR-0026).
     const LEASE: Paper = [
       'homestead_land_allocation_decision',
       { issue_date: '12.05.1995' },
@@ -1991,6 +1995,49 @@ describe('VerificationPackage', () => {
       expect(invalid?.fieldKey?.value).toBe('issue_date');
       expect(invalid?.message).toContain('item 2.7');
       expect(invalid?.kind.isInformational).toBe(false);
+    });
+
+    // The customer's answer of 2026-09-16: a title of the other class than
+    // the provision is a mismatch (ADR-0028).
+    it('says a lease-or-use title does not found a case a plan words as ownership', () => {
+      const built = aCase(
+        2010,
+        [
+          'land_plot_plan',
+          {
+            land_category: 'Fərdi yaşayış tikintisi üçün torpaq',
+            right_type: 'Mülkiyyət hüququ',
+          },
+        ],
+        ['sketch_project', { building_height: '8 m' }],
+        ['disposal_order', { issue_date: '15.04.1999' }],
+      );
+
+      const [invalid] = issuesOf(built.verification, 'TitleDocumentInvalid');
+      expect(invalid?.documentId?.equals(built.documents[2]!.id)).toBe(true);
+      expect(invalid?.fieldKey).toBeNull();
+      expect(invalid?.message).toContain('LeaseOrUse');
+      expect(invalid?.message).toContain('item 1.4, 2.7');
+      expect(invalid?.message).toContain('8.0.9.1.2');
+      expect(invalid?.kind.isInformational).toBe(false);
+    });
+
+    it('holds an order alone to 8.0.9.1.1, and finds nothing wrong with its class', () => {
+      const { verification } = aCase(
+        2010,
+        PLAN,
+        ['sketch_project', { building_height: '8 m' }],
+        ['disposal_order', { issue_date: '15.04.1999' }],
+      );
+
+      const decision = verification.provision?.decision;
+      expect(
+        decision?.outcome === 'Determined' && decision.provision.provision,
+      ).toBe('8.0.9.1.1');
+      expect(issuesOf(verification, 'TitleDocumentInvalid')).toEqual([]);
+      expect(issuesOf(verification, 'MissingDocument')[0]?.message).toContain(
+        '8.0.9.1.1',
+      );
     });
 
     it('takes a title dated inside its window', () => {
@@ -4370,6 +4417,238 @@ describe('VerificationPackage supplied with a document', () => {
           issue.kind.equals(IssueKind.WRONG_DOCUMENT_SUPPLIED),
         ),
       ).toEqual([]);
+    });
+  });
+
+  /*
+   * ADR-0028. The archive's answer is made by the stage and the domain service;
+   * what is asked of the aggregate is that it keeps the answer on the paper,
+   * takes it only for a paper the check is for, and says what it means in the
+   * report — in place of the line that says the archive was never asked.
+   */
+  describe('when a Decree 439 paper is held against the National Archive by its QR code', () => {
+    const QR = 'https://qr.esd.milliarxiv.gov.az/F130-S1-I476-V98';
+    const CHECKED_AT = new Date('2026-09-16T12:00:00.000Z');
+
+    function aReading(key: string, value: string): ExtractedField {
+      return ExtractedField.of(
+        FieldKey.create(key),
+        FieldValue.create(value),
+        Confidence.of(0.9),
+        PageNumber.first(),
+      );
+    }
+
+    // One homestead allotment order, placed and read, with its QR code among
+    // the lines — or the paper of another type where one is named.
+    function aTitle(type = 'homestead_land_allocation_decision') {
+      const built = aSegmentedPackage(1);
+
+      built.verification.classify(built.document.id, aClassification(type));
+      built.verification.recordExtractedFields(
+        built.document.id,
+        type === 'archive_certificate'
+          ? [aReading('certificate_no', 'ARX-2025-0417')]
+          : [
+              aReading('document_no', '1471'),
+              aReading('issue_date', '29.10.1998'),
+              aReading('qr_code', QR),
+            ],
+      );
+      built.verification.commit();
+
+      return built;
+    }
+
+    function agreeingLines(): readonly ArchiveQrFieldCheck[] {
+      return ARCHIVE_QR_FIELDS.map(name =>
+        ArchiveQrFieldCheck.of({
+          name,
+          documentValue: 'x',
+          archiveValue: 'x',
+          verdict: 'Match',
+        }),
+      );
+    }
+
+    function found(
+      competent = true,
+      lines: readonly ArchiveQrFieldCheck[] = agreeingLines(),
+    ): ArchiveQrCheck {
+      return ArchiveQrCheck.found({
+        qrReference: QR,
+        checkedAt: CHECKED_AT,
+        issuingAuthorityCompetent: competent,
+        fields: lines,
+      });
+    }
+
+    function issuesOf(
+      verification: VerificationPackage,
+      kind: string,
+    ): readonly ValidationIssue[] {
+      return (verification.report?.issues ?? []).filter(
+        issue => issue.kind.value === kind,
+      );
+    }
+
+    it('waits on a placed Decree 439 paper until the archive has answered for it', () => {
+      const { verification, document } = aTitle();
+
+      expect(verification.awaitingArchiveQrCheck.map(one => one.id)).toEqual([
+        document.id,
+      ]);
+
+      verification.recordArchiveQrCheck(document.id, found());
+
+      expect(verification.awaitingArchiveQrCheck).toEqual([]);
+    });
+
+    it('asks by the QR code read off the paper, and gives each line as the paper states it', () => {
+      const { verification, document } = aTitle();
+
+      const question = verification.archiveQrQuestionOf(document.id);
+
+      expect(question.type.value).toBe('homestead_land_allocation_decision');
+      expect(question.qrReference).toBe(QR);
+      expect(question.stated('document_no')).toBe('1471');
+      expect(question.stated('holder_name')).toBeNull();
+    });
+
+    it('keeps the answer on the document and says it was made', () => {
+      const { verification, document } = aTitle();
+
+      verification.recordArchiveQrCheck(document.id, found());
+
+      expect(
+        verification.documentWith(document.id).archiveQrCheck?.status,
+      ).toBe('Confirmed');
+      expect(typesOf(verification)).toEqual([
+        'verification.ArchiveQrCheckMade',
+      ]);
+      expect(verification.getUncommittedEvents()[0]).toBeInstanceOf(
+        ArchiveQrCheckMade,
+      );
+    });
+
+    // The archive certificate is sourced from the archive too, but it carries
+    // no QR code and none of the Decree's lines: there is nothing to ask by.
+    it('refuses an answer for a paper the check is not made for', () => {
+      const { verification, document } = aTitle('archive_certificate');
+
+      expect(verification.awaitingArchiveQrCheck).toEqual([]);
+      expect(() =>
+        verification.recordArchiveQrCheck(document.id, found()),
+      ).toThrow(DocumentNotHeldAgainstTheArchiveException);
+    });
+
+    it('reports nothing against a paper the archive bore out, and no longer says it was not asked', () => {
+      const { verification, document } = aTitle();
+
+      verification.recordArchiveQrCheck(document.id, found());
+      verification.complete();
+
+      expect(issuesOf(verification, 'ArchiveQrMismatch')).toEqual([]);
+      expect(
+        issuesOf(verification, 'IntegrationNotConnected').filter(issue =>
+          issue.documentId?.equals(document.id),
+        ),
+      ).toEqual([]);
+    });
+
+    it('says a paper nobody asked the archive about was read and not confirmed, as before', () => {
+      const { verification, document } = aTitle();
+
+      verification.complete();
+
+      const [unasked] = issuesOf(verification, 'IntegrationNotConnected');
+      expect(unasked?.documentId?.equals(document.id)).toBe(true);
+      expect(unasked?.message).toContain('National Archive Fund');
+    });
+
+    it('files a line the archive differs on against the package, naming both sides', () => {
+      const { verification, document } = aTitle();
+      const lines = agreeingLines().map(line =>
+        line.name === 'holder_name'
+          ? ArchiveQrFieldCheck.of({
+              name: 'holder_name',
+              documentValue: 'Qusadze Vera Vladimirovna',
+              archiveValue: 'Məmmədova Aynur Rəşid qızı',
+              verdict: 'Mismatch',
+            })
+          : line,
+      );
+
+      verification.recordArchiveQrCheck(document.id, found(true, lines));
+      verification.complete();
+
+      const [mismatch] = issuesOf(verification, 'ArchiveQrMismatch');
+      expect(mismatch?.documentId?.equals(document.id)).toBe(true);
+      expect(mismatch?.documentType?.value).toBe(
+        'homestead_land_allocation_decision',
+      );
+      expect(mismatch?.message).toContain('holder_name');
+      expect(mismatch?.message).toContain('Qusadze Vera Vladimirovna');
+      expect(mismatch?.message).toContain('Məmmədova Aynur Rəşid qızı');
+      expect(mismatch?.message).not.toContain('competence');
+      expect(mismatch?.kind.isInformational).toBe(false);
+      expect(issuesOf(verification, 'IntegrationNotConnected')).toEqual([]);
+    });
+
+    it('files an issuer with no competence to issue the paper, even where every line agrees', () => {
+      const { verification, document } = aTitle();
+
+      verification.recordArchiveQrCheck(document.id, found(false));
+      verification.complete();
+
+      const [mismatch] = issuesOf(verification, 'ArchiveQrMismatch');
+      expect(mismatch?.message).toContain('no competence');
+      expect(mismatch?.kind.isInformational).toBe(false);
+    });
+
+    it('tells the inspector the archive held nothing under the reference, and holds nothing against the package', () => {
+      const { verification, document } = aTitle();
+
+      verification.recordArchiveQrCheck(
+        document.id,
+        ArchiveQrCheck.notFound(QR, CHECKED_AT),
+      );
+      verification.complete();
+
+      const [unconfirmed] = issuesOf(verification, 'RegistryUnconfirmed');
+      expect(unconfirmed?.documentId?.equals(document.id)).toBe(true);
+      expect(unconfirmed?.message).toContain(QR);
+      expect(unconfirmed?.kind.isInformational).toBe(true);
+      expect(issuesOf(verification, 'ArchiveQrMismatch')).toEqual([]);
+      expect(issuesOf(verification, 'IntegrationNotConnected')).toEqual([]);
+    });
+
+    it('tells the inspector a paper with no QR code read off it was not confirmed', () => {
+      const { verification, document } = aTitle();
+
+      verification.recordArchiveQrCheck(
+        document.id,
+        ArchiveQrCheck.noQrCode(CHECKED_AT),
+      );
+      verification.complete();
+
+      const [unconfirmed] = issuesOf(verification, 'RegistryUnconfirmed');
+      expect(unconfirmed?.message).toContain('no QR reference');
+      expect(unconfirmed?.kind.isInformational).toBe(true);
+    });
+
+    // The answer is about what the paper says, and a file arriving elsewhere
+    // does not change what this paper says (ADR-0013).
+    it('keeps the answer when another file arrives', () => {
+      const { verification, document } = aTitle();
+
+      verification.recordArchiveQrCheck(document.id, found());
+      verification.complete();
+      verification.addFiles([aFile()]);
+
+      expect(
+        verification.documentWith(document.id).archiveQrCheck?.status,
+      ).toBe('Confirmed');
     });
   });
 });

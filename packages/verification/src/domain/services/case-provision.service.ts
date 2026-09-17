@@ -88,8 +88,7 @@ export type ProvisionStanding = {
 export type TitleDocumentStanding = {
   readonly documentId: string;
   readonly documentType: string;
-  // Null for a title whose kind confers no right (ADR-0026).
-  readonly landRight: LandRight | null;
+  readonly landRight: LandRight;
   // The date the window is held against, where the document states one.
   readonly dated:
     | (Omit<FigureReading, 'fieldKey'> & {
@@ -111,6 +110,14 @@ export type TitleDocumentStanding = {
     readonly issuedBefore: string | null;
     readonly admits: boolean | null;
   }[];
+  /*
+   * The provisions this case falls under, or would fall under on the right an
+   * extract or a plan words, that rest on the other class of title — a
+   * lease-or-use title beside a case of 8.0.9.1.2. Empty for a title the case
+   * can stand on, for the register's own extract, and for a title outside its
+   * window, which founds nothing already (ADR-0028).
+   */
+  readonly wrongClassFor: readonly string[];
 };
 
 export type CaseProvision = {
@@ -161,6 +168,13 @@ export function provisionOf(
 
   const decision = spec.decide(parameters);
   const types = placed.map(one => one.type);
+  const worded = figure('landRight', spec.landRight, placed, landRightIn).value;
+  const heldTo = [
+    ...provisionsOf(decision),
+    ...(worded !== null && worded !== parameters.landRight
+      ? provisionsOf(spec.decide({ ...parameters, landRight: worded }))
+      : []),
+  ];
 
   return {
     key: spec.key,
@@ -177,7 +191,7 @@ export function provisionOf(
     provisions: provisionsOf(decision).map(rule =>
       standingOf(rule, parameters.builtYear, types),
     ),
-    titleDocuments: placed.flatMap(one => titleStandingOf(spec, one)),
+    titleDocuments: placed.flatMap(one => titleStandingOf(spec, one, heldTo)),
   };
 }
 
@@ -217,15 +231,13 @@ type Established<T> = {
 };
 
 /*
- * The right over the land. The kind of title document decides it where the
- * package carries one — "Ownership: extract, state act, 8.0.5 documents.
- * Lease/use: the remaining documents" — and only where it carries none is the
- * right read off how a plan or an extract words it.
- *
- * The order allotting the parcel is a title and confers no right by its kind
- * (ADR-0026): which right it grants is in its words, and the customer's own
- * orders and register extracts do not say the same. A package whose only title
- * is an order is read off the wording of the extract or the plan.
+ * The right over the land. The class of title document decides it where the
+ * package carries one — "Ownership: register extract, state act, 8.0.5
+ * documents. Lease/use: 1.1, 1.4, 1.6, 2.2, 2.3, 2.4, 2.5, 2.5-1, 2.7, 2.8,
+ * 8.0.1" — and only where it carries none is the right read off how a plan or
+ * an extract words it. Wording beside a title decides nothing: a title of the
+ * other class than the wording is a mismatch, and is reported as one
+ * (ADR-0028).
  *
  * Two title documents of two different classes decide nothing: which of them
  * the case stands on is a question for the inspector, and the figure is left
@@ -240,7 +252,7 @@ function rightOf(
     // A paper dated outside every window its items give it founds nothing, so
     // its kind decides nothing either (ADR-0026): it is reported as invalid and
     // not counted as the title the case stands on.
-    const outside = titleStandingOf(spec, one)[0]?.withinWindow === false;
+    const outside = titleStandingOf(spec, one, [])[0]?.withinWindow === false;
 
     return right && !outside ? [{ ...one, right }] : [];
   });
@@ -317,6 +329,7 @@ function figure<T>(
 function titleStandingOf(
   spec: ProvisionsSpec,
   { document, type }: Placed,
+  heldTo: readonly ProvisionRule[],
 ): readonly TitleDocumentStanding[] {
   const entries = spec.entriesFor(type);
   const [first] = entries;
@@ -358,6 +371,17 @@ function titleStandingOf(
         : null,
       withinWindow,
       items,
+      wrongClassFor:
+        withinWindow === false || entries.some(entry => entry.isRegisterRecord)
+          ? []
+          : heldTo
+              .filter(
+                rule =>
+                  rule.titleRight !== null &&
+                  rule.titleRight !== first.landRight,
+              )
+              .map(rule => rule.provision)
+              .filter((one, index, all) => all.indexOf(one) === index),
     },
   ];
 }

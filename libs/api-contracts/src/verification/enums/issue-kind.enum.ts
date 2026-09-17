@@ -91,5 +91,11 @@ export const IssueKindSchema = z.enum([
   // Never counted against the package, and never to read as a finding either —
   // it says "nothing to check this with", not "something is wrong" (ADR-0028).
   'QrCodeUnavailable',
+  // A Decree 439 paper held against the National Archive Fund by its QR
+  // reference, and the archive's copy says something else — a line differs, or
+  // the body that issued it had no competence to issue a paper of that kind.
+  // Held against the package, and filed against the document; which lines
+  // differed is the document's `archiveQrCheck` (ADR-0028).
+  'ArchiveQrMismatch',
 ]);
 export type IssueKind = z.infer<typeof IssueKindSchema>;

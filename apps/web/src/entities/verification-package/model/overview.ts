@@ -228,6 +228,7 @@ export const ISSUE_KIND_KEY: Record<IssueKind, string> = {
   ProvisionUndetermined: 'detail.sec.provision_undetermined',
   IntegrationNotConnected: 'detail.sec.not_connected',
   QrCodeUnavailable: 'detail.sec.qr_unavailable',
+  ArchiveQrMismatch: 'detail.sec.archive_qr_mismatch',
 };
 
 export type FindingRank = {

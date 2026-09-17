@@ -241,6 +241,24 @@ export type SuppliedForView = {
   replacesDocumentId: string | null;
 };
 
+/**
+ * What the National Archive Fund said about one Decree 439 paper, asked by the
+ * QR reference printed on it (ADR-0028). Statuses and verdicts are the domain's
+ * `ArchiveQrStatus` and `ArchiveQrVerdict`, in strings.
+ */
+export type ArchiveQrCheckView = {
+  status: string;
+  qrReference: string | null;
+  checkedAt: Date;
+  issuingAuthorityCompetent: boolean | null;
+  fields: readonly {
+    name: string;
+    documentValue: string | null;
+    archiveValue: string | null;
+    verdict: string;
+  }[];
+};
+
 export type DocumentView = {
   id: string;
   firstPage: number;
@@ -252,6 +270,9 @@ export type DocumentView = {
   // specification, and so no answer about what was expected of the paper.
   attestation: DocumentAttestationView | null;
   fields: readonly FieldView[];
+  // Null on a paper that is not a Decree 439 title, and on one the archive has
+  // not been asked about yet.
+  archiveQrCheck: ArchiveQrCheckView | null;
   // What replaced this document and when, or null while it is in force. A
   // replaced document stays in the package and stays readable; nothing the
   // package states is worked out from it (COMM-80).

@@ -63,6 +63,12 @@ export type VerificationModuleOptions = {
     url: string;
     timeoutMs: number;
   };
+  // The National Archive Fund, asked by the QR reference a Decree 439 paper
+  // prints (ADR-0028). `mock` is the only answer there is: no archive is
+  // connected, and the stand-in built into the context holds one paper.
+  nationalArchive: {
+    provider: 'mock';
+  };
 };
 
 /** How `VerificationModule.forRootAsync` is handed that shape. */

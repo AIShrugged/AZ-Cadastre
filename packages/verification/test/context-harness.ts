@@ -232,6 +232,7 @@ export function testOptions(databaseUrl: string): VerificationModuleOptions {
     // No register process in this set: the stand-in built into the context
     // answers unless a spec overrides the port with one of its own.
     registry: { provider: 'mock', url: '', timeoutMs: 1000 },
+    nationalArchive: { provider: 'mock' },
   };
 }
 

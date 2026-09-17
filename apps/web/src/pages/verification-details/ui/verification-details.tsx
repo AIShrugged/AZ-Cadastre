@@ -3654,59 +3654,60 @@ export function VerificationDetails() {
             sidebar, and the sidebar folds. Below the line the checklist opens
             as a sheet from the top of the case instead. */}
         <div className='@container'>
-          <div className='mx-auto grid w-full max-w-[64rem] gap-6 px-4 py-6 md:px-8 md:py-8 print:block @min-[72rem]:max-w-[86rem] @min-[72rem]:grid-cols-[minmax(0,1fr)_18.5rem]'>
-            <div className='flex min-w-0 flex-col gap-4'>
-              {/* Back to the register, on the sheet's own page rather than in
-                  the chrome — this surface is a document, and the way out of
-                  a document is a line at the top of it. */}
-              <div className='flex items-center justify-between gap-3 print:hidden'>
-                <Button
-                  variant='ghost'
-                  size='sm'
-                  nativeButton={false}
-                  className='-ml-2 text-muted-foreground'
-                  render={<Link to={paths.cases} />}
+          <div className='mx-auto grid w-full max-w-[64rem] gap-x-6 gap-y-4 px-4 py-6 md:px-8 md:py-8 print:block @min-[72rem]:max-w-[86rem] @min-[72rem]:grid-cols-[minmax(0,1fr)_18.5rem]'>
+            {/* Back to the register, on the sheet's own page rather than in
+                the chrome — this surface is a document, and the way out of
+                a document is a line at the top of it. A row of its own, over
+                both columns, so the case and the checklist start level. */}
+            <div className='flex items-center justify-between gap-3 print:hidden @min-[72rem]:col-span-2'>
+              <Button
+                variant='ghost'
+                size='sm'
+                nativeButton={false}
+                className='-ml-2 text-muted-foreground'
+                render={<Link to={paths.cases} />}
+              >
+                <ArrowLeftIcon /> {t('detail.back')}
+              </Button>
+              <Sheet open={checklistOpen} onOpenChange={setChecklistOpen}>
+                <SheetTrigger
+                  render={
+                    <Button
+                      variant='outline'
+                      size='sm'
+                      className='@min-[72rem]:hidden'
+                    />
+                  }
                 >
-                  <ArrowLeftIcon /> {t('detail.back')}
-                </Button>
-                <Sheet open={checklistOpen} onOpenChange={setChecklistOpen}>
-                  <SheetTrigger
-                    render={
-                      <Button
-                        variant='outline'
-                        size='sm'
-                        className='@min-[72rem]:hidden'
-                      />
-                    }
-                  >
-                    <ListChecksIcon /> {t('rail.title')}
-                    {remarks > 0 && (
-                      <span
-                        data-mono
-                        className='rounded-full bg-issues/14 px-1.5 text-[0.6875rem] font-medium tabular-nums text-issues-ink'
-                      >
-                        {remarks}
-                      </span>
-                    )}
-                  </SheetTrigger>
-                  <SheetContent
-                    side='right'
-                    // Focus goes back to the trigger by default, and the
-                    // trigger is at the top of the case: the page would scroll
-                    // back up over the evidence the jump just landed on.
-                    finalFocus={false}
-                    // The sheet's own width is set under `data-[side=right]`,
-                    // which a plain width class does not outrank.
-                    className='gap-0 overflow-y-auto px-5 pb-5 pt-4 data-[side=right]:w-[min(22rem,92vw)]'
-                  >
-                    <SheetTitle className='pb-2 text-[0.9375rem] font-semibold tracking-[-0.01em] text-foreground'>
-                      {t('rail.title')}
-                    </SheetTitle>
-                    {checklist(jumpFromSheet)}
-                  </SheetContent>
-                </Sheet>
-              </div>
+                  <ListChecksIcon /> {t('rail.title')}
+                  {remarks > 0 && (
+                    <span
+                      data-mono
+                      className='rounded-full bg-issues/14 px-1.5 text-[0.6875rem] font-medium tabular-nums text-issues-ink'
+                    >
+                      {remarks}
+                    </span>
+                  )}
+                </SheetTrigger>
+                <SheetContent
+                  side='right'
+                  // Focus goes back to the trigger by default, and the
+                  // trigger is at the top of the case: the page would scroll
+                  // back up over the evidence the jump just landed on.
+                  finalFocus={false}
+                  // The sheet's own width is set under `data-[side=right]`,
+                  // which a plain width class does not outrank.
+                  className='gap-0 overflow-y-auto px-5 pb-5 pt-4 data-[side=right]:w-[min(22rem,92vw)]'
+                >
+                  <SheetTitle className='pb-2 text-[0.9375rem] font-semibold tracking-[-0.01em] text-foreground'>
+                    {t('rail.title')}
+                  </SheetTitle>
+                  {checklist(jumpFromSheet)}
+                </SheetContent>
+              </Sheet>
+            </div>
 
+            <div className='flex min-w-0 flex-col gap-4'>
               {/* ── The sheet ── */}
               <CaseSheet
                 pkg={pkg}

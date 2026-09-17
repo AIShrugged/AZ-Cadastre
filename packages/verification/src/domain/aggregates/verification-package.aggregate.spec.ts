@@ -1760,9 +1760,8 @@ describe('VerificationPackage', () => {
         span_dimensions: 'A—B 4,20 m; B—C 3,60 m',
       },
     ];
+    // A lease-or-use title under items 1.4 and 2.7 (ADR-0028).
     const ORDER: Paper = ['disposal_order', {}];
-    // A lease-or-use title by its kind: the order confers no right by its own,
-    // and a pre-2013 case on it alone is undecided (ADR-0026).
     const LEASE: Paper = [
       'homestead_land_allocation_decision',
       { issue_date: '12.05.1995' },
@@ -1911,6 +1910,49 @@ describe('VerificationPackage', () => {
       expect(invalid?.fieldKey?.value).toBe('issue_date');
       expect(invalid?.message).toContain('item 2.7');
       expect(invalid?.kind.isInformational).toBe(false);
+    });
+
+    // The customer's answer of 2026-09-16: a title of the other class than
+    // the provision is a mismatch (ADR-0028).
+    it('says a lease-or-use title does not found a case a plan words as ownership', () => {
+      const built = aCase(
+        2010,
+        [
+          'land_plot_plan',
+          {
+            land_category: 'Fərdi yaşayış tikintisi üçün torpaq',
+            right_type: 'Mülkiyyət hüququ',
+          },
+        ],
+        ['sketch_project', { building_height: '8 m' }],
+        ['disposal_order', { issue_date: '15.04.1999' }],
+      );
+
+      const [invalid] = issuesOf(built.verification, 'TitleDocumentInvalid');
+      expect(invalid?.documentId?.equals(built.documents[2]!.id)).toBe(true);
+      expect(invalid?.fieldKey).toBeNull();
+      expect(invalid?.message).toContain('LeaseOrUse');
+      expect(invalid?.message).toContain('item 1.4, 2.7');
+      expect(invalid?.message).toContain('8.0.9.1.2');
+      expect(invalid?.kind.isInformational).toBe(false);
+    });
+
+    it('holds an order alone to 8.0.9.1.1, and finds nothing wrong with its class', () => {
+      const { verification } = aCase(
+        2010,
+        PLAN,
+        ['sketch_project', { building_height: '8 m' }],
+        ['disposal_order', { issue_date: '15.04.1999' }],
+      );
+
+      const decision = verification.provision?.decision;
+      expect(
+        decision?.outcome === 'Determined' && decision.provision.provision,
+      ).toBe('8.0.9.1.1');
+      expect(issuesOf(verification, 'TitleDocumentInvalid')).toEqual([]);
+      expect(issuesOf(verification, 'MissingDocument')[0]?.message).toContain(
+        '8.0.9.1.1',
+      );
     });
 
     it('takes a title dated inside its window', () => {

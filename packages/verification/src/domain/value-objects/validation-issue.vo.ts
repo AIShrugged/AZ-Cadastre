@@ -407,6 +407,32 @@ export class ValidationIssue {
   }
 
   /*
+   * A title the package carries of the other class than a provision the case
+   * falls under rests on — a lease-or-use title where the case is, or by the
+   * wording of its extract would be, one of 8.0.9.1.2 (ADR-0028).
+   *
+   * Filed against the document and no field of it: the class is its kind, and
+   * nothing on its sheets could be misread into another.
+   */
+  static titleDocumentOfWrongClass(
+    title: Anchor,
+    landRight: string,
+    items: readonly string[],
+    provisions: readonly string[],
+  ): ValidationIssue {
+    return ValidationIssue.of({
+      kind: IssueKind.TITLE_DOCUMENT_INVALID,
+      message:
+        `The "${title.documentType.value}" is a ${landRight} title ` +
+        `(item ${items.join(', ')}), and provision ${provisions.join(', ')} ` +
+        `of Article 8 does not rest on a title of that class.`,
+      documentId: title.documentId,
+      sourceFileId: title.sourceFileId,
+      documentType: title.documentType,
+    });
+  }
+
+  /*
    * Which provision of Article 8 the case falls under could not be decided,
    * because a figure the table turns on was not stated and the provisions it
    * could have made the first are all still open.

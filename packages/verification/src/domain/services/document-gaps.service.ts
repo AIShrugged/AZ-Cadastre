@@ -216,9 +216,8 @@ function shortOfProvision(
       : provisions.titleTypes.filter(
           type =>
             decided?.titleRight == null ||
-            // A title whose kind confers no right founds either class on
-            // its words (ADR-0026).
-            provisions.rightConferredBy(type) === null ||
+            // The order allotting a parcel is a lease-or-use title and is not
+            // offered for a case of ownership (ADR-0028).
             provisions.rightConferredBy(type) === decided.titleRight,
         );
 

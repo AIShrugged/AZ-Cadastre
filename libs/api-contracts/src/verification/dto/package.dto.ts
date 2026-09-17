@@ -592,8 +592,8 @@ export type ProvisionStandingDto = z.infer<typeof ProvisionStandingDtoSchema>;
 export const TitleDocumentStandingDtoSchema = z.object({
   documentId: z.string(),
   documentType: z.string(),
-  // Null for a title whose kind confers no right — the order allotting the
-  // parcel, whose right is read off the extract or the plan (ADR-0026).
+  // Every title names a right since ADR-0028; kept nullable so the contract
+  // does not move.
   landRight: LandRightSchema.nullable(),
   dated: z
     .object({

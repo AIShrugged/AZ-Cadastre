@@ -84,6 +84,13 @@ export const IssueKindSchema = z.enum([
   // applicant is not answerable for an integration nobody built. Which system
   // is the profile's `source` of `documentType`.
   'IntegrationNotConnected',
+  // No paper of the package prints a QR code, so the check of authenticity by
+  // QR code the policy asks for had nothing to be made on and was skipped. Not a
+  // fault of the applicant and not the same line as IntegrationNotConnected,
+  // which is a paper read and not confirmed: here there is no paper to confirm.
+  // Never counted against the package, and never to read as a finding either —
+  // it says "nothing to check this with", not "something is wrong" (ADR-0028).
+  'QrCodeUnavailable',
   // A Decree 439 paper held against the National Archive Fund by its QR
   // reference, and the archive's copy says something else — a line differs, or
   // the body that issued it had no competence to issue a paper of that kind.

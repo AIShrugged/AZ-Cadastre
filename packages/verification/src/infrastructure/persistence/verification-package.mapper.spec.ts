@@ -919,7 +919,9 @@ describe('VerificationPackageMapper', () => {
           1 +
           // no title to the land, and a provision nobody could decide with
           // not one figure read (ADR-0025)
-          2,
+          2 +
+          // and no paper printing a QR code to check (ADR-0028)
+          1,
       );
     });
 

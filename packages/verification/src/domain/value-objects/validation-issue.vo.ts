@@ -513,6 +513,29 @@ export class ValidationIssue {
   }
 
   /*
+   * The check of authenticity by QR code was skipped: no paper of the package
+   * prints a code, so there was nothing to check it with (ADR-0028).
+   *
+   * Names the papers of the package that could have carried one and did not
+   * have one read off them, so the inspector knows which sheet to look at for a
+   * code the reader may have missed; filed against no document, because the
+   * finding is about the package having none. Never against the package.
+   */
+  static qrCodeUnavailable(carriers: readonly DocumentType[]): ValidationIssue {
+    const named = carriers.map(type => `"${type.value}"`).join(', ');
+
+    return ValidationIssue.of({
+      kind: IssueKind.QR_CODE_UNAVAILABLE,
+      message:
+        'No paper of the package prints a QR code, so authenticity was not ' +
+        'checked by QR code: there was nothing to check it with.' +
+        (carriers.length === 0
+          ? ' The package carries no paper of a kind that prints one.'
+          : ` No code was read off the ${named}.`),
+    });
+  }
+
+  /*
    * A Decree 439 paper the National Archive Fund's copy does not bear out.
    *
    * Names every line that differs, with both sides, and says so separately when

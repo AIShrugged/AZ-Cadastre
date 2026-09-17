@@ -142,6 +142,17 @@ export class IssueKind {
   static readonly INTEGRATION_NOT_CONNECTED = new IssueKind(
     'IntegrationNotConnected',
   );
+  /*
+   * No paper of the package prints a QR code, so the check of authenticity by
+   * QR code had nothing to be made on and was skipped (ADR-0028).
+   *
+   * Not INTEGRATION_NOT_CONNECTED, which is a paper that was read and not
+   * confirmed: here there is no paper to confirm, and the inspector has to be
+   * told the step did not happen at all. Not a finding against the package
+   * either — "there was nothing to check this with" is not "the applicant did
+   * something wrong", and the two must never read alike.
+   */
+  static readonly QR_CODE_UNAVAILABLE = new IssueKind('QrCodeUnavailable');
 
   /*
    * A Decree 439 paper held against the National Archive Fund by the QR
@@ -177,6 +188,7 @@ export class IssueKind {
       IssueKind.TITLE_DOCUMENT_INVALID,
       IssueKind.PROVISION_UNDETERMINED,
       IssueKind.INTEGRATION_NOT_CONNECTED,
+      IssueKind.QR_CODE_UNAVAILABLE,
       IssueKind.ARCHIVE_QR_MISMATCH,
     ];
   }
@@ -191,7 +203,8 @@ export class IssueKind {
   // contradict is here for a third reason: the applicant is not answerable for
   // what the office typed about their case, and scoring the package down for it
   // would hold them to it. An integration nobody connected is here for the same
-  // reason as that one.
+  // reason as that one, and so is a QR check skipped for want of a paper that
+  // prints a code: nothing was found wrong, something could not be looked at.
   get isInformational(): boolean {
     return (
       this.equals(IssueKind.EXTRA_DOCUMENT) ||
@@ -199,7 +212,8 @@ export class IssueKind {
       this.equals(IssueKind.REGISTRY_UNCONFIRMED) ||
       this.equals(IssueKind.SUPPORTING_DOCUMENTS_REQUIRED) ||
       this.equals(IssueKind.DECLARED_VALUE_MISMATCH) ||
-      this.equals(IssueKind.INTEGRATION_NOT_CONNECTED)
+      this.equals(IssueKind.INTEGRATION_NOT_CONNECTED) ||
+      this.equals(IssueKind.QR_CODE_UNAVAILABLE)
     );
   }
 

@@ -21,6 +21,7 @@ enum IssueKind {
   TitleDocumentInvalid // a title outside its window of dates, or of the class its provision does not rest on
   ProvisionUndetermined // which provision of Article 8 the case falls under could not be decided
   IntegrationNotConnected // a check the policy makes through a state system this one does not reach
+  QrCodeUnavailable // no paper of the package prints a QR code, so the QR check was skipped
   ArchiveQrMismatch // the National Archive's copy of a Decree 439 paper, found by its QR code, does not bear it out
 }
 

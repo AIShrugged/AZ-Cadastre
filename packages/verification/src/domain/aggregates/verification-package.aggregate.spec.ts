@@ -1258,6 +1258,86 @@ describe('VerificationPackage', () => {
       expect(kindsOf(verification)).toEqual(['IntegrationNotConnected']);
     });
 
+    /*
+     * The customer's decision: no paper with a QR code, the step is skipped and
+     * the report says so — as "there was nothing to check this with", never as
+     * a fault of the applicant (ADR-0028).
+     */
+    describe('where no paper of the package prints a QR code', () => {
+      function qrFindings(verification: VerificationPackage) {
+        return (verification.report?.issues ?? []).filter(
+          issue => issue.kind.value === 'QrCodeUnavailable',
+        );
+      }
+
+      // The complete package, its plan-scheme read again without the code.
+      function aCompletePackageWithoutACode() {
+        const built = aCompletePackage();
+        built.verification.recordExtractedFields(built.documents[0]!.id, [
+          stated('property_address', 'Zığ qəsəbəsi, Əliyev küçəsi 12'),
+          stated('land_category', 'Fərdi yaşayış tikintisi üçün torpaq'),
+        ]);
+
+        return built;
+      }
+
+      it('says once that the check by QR code was skipped', () => {
+        const { verification } = aCompletePackageWithoutACode();
+
+        verification.complete();
+
+        const [finding, ...more] = qrFindings(verification);
+        expect(more).toEqual([]);
+        expect(finding?.message).toContain('not checked by QR code');
+        expect(finding?.documentId).toBeNull();
+      });
+
+      it('does not hold it against the package', () => {
+        const { verification } = aCompletePackageWithoutACode();
+
+        verification.complete();
+
+        expect(verification.report?.status.value).toBe('OK');
+        expect(IssueKind.QR_CODE_UNAVAILABLE.isInformational).toBe(true);
+        expect(IssueKind.QR_CODE_UNAVAILABLE.leavesPackageIncomplete).toBe(
+          false,
+        );
+      });
+
+      it('names the papers that could have carried one', () => {
+        const { verification } = aCompletePackageWithoutACode();
+
+        verification.complete();
+
+        // The plan-scheme is a kind that prints a code; the sketch design, the
+        // certificate and the act are not, and are not named.
+        const [finding] = qrFindings(verification);
+        expect(finding?.message).toContain('"land_plot_plan"');
+        expect(finding?.message).not.toContain('"registration_certificate"');
+        expect(finding?.message).not.toContain('"sketch_project"');
+        expect(finding?.message).not.toContain('"operation_acceptance_act"');
+      });
+
+      it('says the package carries no paper of a kind that prints one', () => {
+        const { verification, document } = aSegmentedPackage();
+        verification.classify(document.id, aClassification('sketch_project'));
+
+        verification.complete();
+
+        expect(qrFindings(verification)[0]?.message).toContain(
+          'no paper of a kind that prints one',
+        );
+      });
+
+      it('is not said where a paper printed a code', () => {
+        const { verification } = aCompletePackage();
+
+        verification.complete();
+
+        expect(qrFindings(verification)).toEqual([]);
+      });
+    });
+
     it('names every required document nobody supplied', () => {
       const { verification, document } = aSegmentedPackage();
       verification.classify(document.id, aClassification('identity_card'));
@@ -2790,7 +2870,8 @@ describe('VerificationPackage', () => {
    * design 7.4 m tall and a plot owned and designated for housing, the case
    * falls under 8.0.9.1.2, which asks for nothing beyond the title (ADR-0025).
    * The plan-scheme states the address, so the register has something to be
-   * asked about. `extraSheets` more are segmented and left unplaced, for a spec
+   * asked about, and prints its QR code, so the check by QR code has something
+   * to be made on (ADR-0028). `extraSheets` more are segmented and left unplaced, for a spec
    * to do with as it needs.
    */
   function aCompletePackage(extraSheets = 0) {
@@ -2806,6 +2887,7 @@ describe('VerificationPackage', () => {
     built.verification.recordExtractedFields(plan!.id, [
       stated('property_address', 'Zığ qəsəbəsi, Əliyev küçəsi 12'),
       stated('land_category', 'Fərdi yaşayış tikintisi üçün torpaq'),
+      stated('qr_code', 'https://e-emdk.gov.az/plan/RN-2010-000112'),
     ]);
     built.verification.recordExtractedFields(design!.id, [
       stated('building_height', '7,4 m'),

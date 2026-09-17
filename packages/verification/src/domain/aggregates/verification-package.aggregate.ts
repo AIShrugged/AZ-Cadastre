@@ -74,6 +74,7 @@ import {
   PackageStanding,
   PackageStatus,
   ValidationIssue,
+  VerificationProfile,
   VerificationReport,
   type ApprovalComment,
   type ApprovalSummary,
@@ -94,7 +95,6 @@ import {
   type RegistryCheckSpec,
   type SourceFileId,
   type SupplyTarget,
-  type VerificationProfile,
 } from '../value-objects/index.js';
 
 export type VerificationPackageState = {
@@ -1163,6 +1163,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       ...this.againstTheRecord(),
       ...this.againstTheDeclaration(),
       ...this.unconfirmedOutside(provision),
+      ...this.withoutAQrCode(),
       ...this.refusedSupplies(),
     ];
 
@@ -1360,6 +1361,47 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       );
 
     return [...read, ...takenElsewhere];
+  }
+
+  /*
+   * The check of authenticity by QR code, where the package gives it nothing to
+   * be made on (ADR-0028).
+   *
+   * Skipped, and said once, where no paper in force had a code read off it —
+   * whether the package carries no paper of a kind that prints one or carries
+   * one whose code went unread. A code that was read is a code the check has,
+   * and the step is then the paper's source to confirm, which the report
+   * already says for every paper it only read. Never held against the package:
+   * the applicant is not at fault for there being nothing to check.
+   */
+  private withoutAQrCode(): readonly ValidationIssue[] {
+    const carriers = this.#profile.qrCarriers;
+
+    if (carriers.length === 0) return [];
+
+    const carrying = this.documentsInForce.flatMap(document => {
+      const type = document.classification?.type;
+
+      return type && carriers.some(carrier => carrier.equals(type))
+        ? [{ document, type }]
+        : [];
+    });
+
+    const printed = carrying.some(({ document }) =>
+      document.fieldsReadHere.some(field =>
+        field.key.equals(VerificationProfile.QR_CODE),
+      ),
+    );
+
+    if (printed) return [];
+
+    const types = carrying
+      .map(one => one.type)
+      .filter(
+        (type, index, all) => all.findIndex(one => one.equals(type)) === index,
+      );
+
+    return [ValidationIssue.qrCodeUnavailable(types)];
   }
 
   // What the papers of one submission were asked to agree on and did not. A

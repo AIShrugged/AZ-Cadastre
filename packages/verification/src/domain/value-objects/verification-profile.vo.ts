@@ -780,6 +780,11 @@ const LICENCE_FIELDS: Fields = [
 ];
 
 export class VerificationProfile {
+  // The line a paper prints its QR code on. One key across every type that
+  // carries a code, so the check of authenticity by QR code can ask the whole
+  // package whether any paper printed one (ADR-0028).
+  static readonly QR_CODE = FieldKey.create('qr_code');
+
   // The one case the system handles: first state registration of an individual
   // residential house. The key is what every stored package names its policy
   // by, so it outlives the wording — the profile's name is a UI string in three
@@ -2023,6 +2028,15 @@ export class VerificationProfile {
 
   get documentTypes(): readonly DocumentType[] {
     return this.#specs.map(spec => spec.type);
+  }
+
+  // The types whose papers print a QR code: every type whose schema declares
+  // the line. Empty on a profile that asks no paper for one, which is a profile
+  // with no QR check to skip.
+  get qrCarriers(): readonly DocumentType[] {
+    return this.#specs
+      .filter(spec => spec.schema.declares(VerificationProfile.QR_CODE))
+      .map(spec => spec.type);
   }
 
   get requiredTypes(): readonly DocumentType[] {

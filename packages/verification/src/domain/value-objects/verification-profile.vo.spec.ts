@@ -120,6 +120,33 @@ describe('VerificationProfile', () => {
     });
   });
 
+  // What the check of authenticity by QR code is made on, and what it is
+  // skipped for want of (ADR-0028).
+  describe('the papers that print a QR code', () => {
+    const carriers = VerificationProfile.CADASTRE.qrCarriers.map(
+      type => type.value,
+    );
+
+    it('are every type whose schema declares the code', () => {
+      expect(carriers).toContain('land_plot_plan');
+      expect(carriers).toContain('state_register_extract');
+      expect(carriers).toContain('technical_passport');
+      expect(carriers).toContain('land_right_state_act');
+      for (const type of VerificationProfile.CADASTRE.documentTypes) {
+        expect(carriers.includes(type.value)).toBe(
+          VerificationProfile.CADASTRE.schemaFor(type).declares(
+            VerificationProfile.QR_CODE,
+          ),
+        );
+      }
+    });
+
+    it('leave out a paper that prints none', () => {
+      expect(carriers).not.toContain('sketch_project');
+      expect(carriers).not.toContain('disposal_order');
+    });
+  });
+
   describe('the marks an office leaves on a paper it issues', () => {
     // The judgement of ADR-0012, written out so that changing it is a change to
     // this list and not a side effect of editing a description.

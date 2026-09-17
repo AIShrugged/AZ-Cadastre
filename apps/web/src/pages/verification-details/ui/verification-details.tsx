@@ -1744,6 +1744,13 @@ const SECTIONS: Record<IssueKind, { heading: string; tone: SectionTone }> = {
     heading: ISSUE_KIND_KEY.IntegrationNotConnected,
     tone: 'note',
   },
+  // Not a fault and not a paper read and left unconfirmed: no paper of the
+  // package prints a QR code, so the check by QR code had nothing to be made on
+  // and was skipped. Counted against nothing (ADR-0028).
+  QrCodeUnavailable: {
+    heading: ISSUE_KIND_KEY.QrCodeUnavailable,
+    tone: 'note',
+  },
   // Neither a fault nor an observation about the envelope: what the applicant
   // has to bring next, for the case this package turned out to be. Last,
   // because it is the only line that is about what happens after the report
@@ -1923,6 +1930,17 @@ function findingOf(
         .join(' · '),
       anchor,
       docId: document?.id ?? null,
+    };
+  }
+
+  // A check that was skipped for want of a paper to make it on: named by the
+  // line it would have been made on, and filed against no document.
+  if (issue.kind === 'QrCodeUnavailable') {
+    return {
+      subject: t('field.qr_code'),
+      where: t('detail.f.qr_unavailable_sub'),
+      anchor,
+      docId: null,
     };
   }
 

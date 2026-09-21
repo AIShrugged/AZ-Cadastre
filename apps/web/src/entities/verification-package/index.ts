@@ -31,7 +31,12 @@ export {
 
 export { STAGES } from './model/pipeline';
 
-export { fieldsReadHere, isCarriedOver } from './model/field-origin';
+export {
+  fieldsReadHere,
+  isCarriedOver,
+  isOperatorEntered,
+  isScored,
+} from './model/field-origin';
 
 export type { ReadingBand } from './model/reading-scale';
 export {
@@ -224,9 +229,14 @@ export {
   useGetPackageQuery,
   useCreatePackageMutation,
   useAddFilesMutation,
+  useEditDocumentFieldsMutation,
   useSupplyDocumentMutation,
   useApproveArchiveSearchMutation,
 } from './api/packages-api';
+// The cache the detail screen reads, so a write that answers with the whole
+// package can put its answer where the screen is already looking instead of
+// sending it round a second read of what it has just been told (ADR-0033).
+export { useKeepPackage } from './api/packages-api';
 export {
   useGetProfilesQuery,
   useSuggestProfileQuery,

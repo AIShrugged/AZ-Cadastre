@@ -313,6 +313,10 @@ const en: Dict = {
   'detail.taken_from_go': 'Open the reading this value was taken from',
   'detail.confirmed': 'Registry confirms',
   'detail.confirmed_why': 'Matches the archive.',
+  'detail.corrected': 'Entered by operator',
+  'detail.corrected_on': 'Entered by operator · {date}',
+  'detail.corrected_why':
+    'A person read the sheet and typed this value, so there is no confidence figure for it.',
   'detail.ocr': 'OCR',
   'detail.fields': 'Extracted fields',
   'detail.pending': 'Extraction pending',
@@ -769,7 +773,7 @@ const en: Dict = {
   'error.OBJECT_BODY_MISSING': 'The uploaded file arrived empty — add it again',
   'error.RATE_LIMITED': 'Too many requests — try again shortly',
   'error.PACKAGE_NOT_TAKING_FILES':
-    'A run is under way — files can be added once it finishes',
+    'A run is under way — the package takes no changes until it finishes',
   'error.PACKAGE_MUST_GAIN_A_FILE': 'Choose at least one file to add',
   'error.PACKAGE_NOT_FOUND': 'This package is no longer in the register',
   'error.DUPLICATE_STORAGE_KEY': 'That file is already in the package',
@@ -852,6 +856,41 @@ const en: Dict = {
     'The register was asked nothing about this submission',
   'error.ARCHIVE_SEARCH_ALREADY_APPROVED':
     'This archive search has already been approved — reload to see it',
+  // ─── An operator correcting a field on the case screen (ADR-0033) ──────────
+  // The consequence is said before the save and never after it: one correction
+  // re-opens the case, and an operator told afterwards has already done it.
+  'correct.field_action': 'Correct “{field}”',
+  'correct.box_placeholder': 'What the paper says',
+  'correct.box_hint':
+    'Type what the sheet states, or leave it empty if the paper does not state it.',
+  'correct.was': 'the engine read “{value}”',
+  'correct.struck':
+    'The paper does not state this — the value will be dropped.',
+  'correct.too_long': 'Longer than {n} characters — shorten it.',
+  'correct.too_long_bar': 'One of the values is too long to be saved.',
+  'correct.revert': 'Put this row back',
+  'correct.unsaved': 'Not saved',
+  'correct.add_open': 'State a value nothing was read for',
+  'correct.add_close': 'Close',
+  'correct.add_note': 'Only the values this document type is asked for.',
+  'correct.pending': 'Corrections to save: {n}',
+  'correct.consequence':
+    'Saving re-opens the case: the report, the cross-document checks and the archive answers are discarded, the archive approval is spent, and the package is verified again from the stage the correction reaches.',
+  'correct.save': 'Save and re-verify',
+  'correct.saving': 'Saving…',
+  'correct.discard': 'Discard',
+  'correct.saved': 'Corrections saved — the package is being verified again',
+  'correct.failed': 'The corrections could not be saved — try again',
+  'correct.running':
+    'Checking in progress — values can be corrected when it finishes.',
+  'error.DOCUMENT_NOT_CLASSIFIED':
+    'This document has no type yet — its values can be corrected once it is classified',
+  'error.UNCLASSIFIABLE_DOCUMENT':
+    'The profile asks nothing of this document, so it has no values to correct',
+  'error.DOCUMENT_NOT_IN_FORCE':
+    'This scan has been replaced — correct the one that replaced it',
+  'error.FIELD_NOT_IN_SCHEMA':
+    'This document type is not asked for that value — reload to see what it is asked for',
 
   // ── The workspace shell ────────────────────────────────────────────────────
   'nav.intake': 'Case pre-check',
@@ -1520,6 +1559,10 @@ const ru: Dict = {
   'detail.taken_from_go': 'Открыть значение, с которого оно взято',
   'detail.confirmed': 'Реестр подтверждает',
   'detail.confirmed_why': 'Совпадает с архивом.',
+  'detail.corrected': 'Ввёл оператор',
+  'detail.corrected_on': 'Ввёл оператор · {date}',
+  'detail.corrected_why':
+    'Значение ввёл человек, прочитав лист, поэтому оценки уверенности у него нет.',
   'detail.ocr': 'OCR',
   'detail.fields': 'Извлечённые поля',
   'detail.pending': 'Извлечение ожидается',
@@ -1960,7 +2003,7 @@ const ru: Dict = {
     'Загруженный файл оказался пустым — добавьте его снова',
   'error.RATE_LIMITED': 'Слишком много запросов — повторите позже',
   'error.PACKAGE_NOT_TAKING_FILES':
-    'Идёт проверка — файлы можно догрузить, когда она закончится',
+    'Идёт проверка — пакет не принимает изменений, пока она не закончится',
   'error.PACKAGE_MUST_GAIN_A_FILE': 'Выберите хотя бы один файл',
   'error.PACKAGE_NOT_FOUND': 'Этого пакета больше нет в реестре',
   'error.DUPLICATE_STORAGE_KEY': 'Этот файл уже есть в пакете',
@@ -2039,6 +2082,39 @@ const ru: Dict = {
   'error.ARCHIVE_SEARCH_NOT_ASKED': 'Реестр по этому заявлению не опрашивали',
   'error.ARCHIVE_SEARCH_ALREADY_APPROVED':
     'Этот архивный поиск уже утверждён — обновите страницу',
+  // ─── Оператор исправляет значение на экране дела (ADR-0033) ────────────────
+  'correct.field_action': 'Исправить «{field}»',
+  'correct.box_placeholder': 'Что написано в документе',
+  'correct.box_hint':
+    'Введите то, что указано на листе, или оставьте пустым, если в документе этого нет.',
+  'correct.was': 'машина прочитала «{value}»',
+  'correct.struck': 'В документе этого нет — значение будет удалено.',
+  'correct.too_long': 'Длиннее {n} символов — сократите.',
+  'correct.too_long_bar': 'Одно из значений слишком длинное.',
+  'correct.revert': 'Вернуть строку как было',
+  'correct.unsaved': 'Не сохранено',
+  'correct.add_open': 'Указать значение, которое не было прочитано',
+  'correct.add_close': 'Закрыть',
+  'correct.add_note':
+    'Только те значения, которые профиль требует от этого типа документа.',
+  'correct.pending': 'Исправлений к сохранению: {n}',
+  'correct.consequence':
+    'Сохранение возвращает дело в проверку: отчёт, кросс-документная сверка и ответы архива отбрасываются, утверждение архивного поиска аннулируется, и пакет проверяется заново с той стадии, до которой достаёт исправление.',
+  'correct.save': 'Сохранить и перепроверить',
+  'correct.saving': 'Сохраняем…',
+  'correct.discard': 'Отменить',
+  'correct.saved': 'Исправления сохранены — пакет проверяется заново',
+  'correct.failed': 'Не удалось сохранить исправления — попробуйте ещё раз',
+  'correct.running':
+    'Идёт проверка — значения можно исправить, когда она закончится.',
+  'error.DOCUMENT_NOT_CLASSIFIED':
+    'У документа ещё нет типа — значения можно исправить после классификации',
+  'error.UNCLASSIFIABLE_DOCUMENT':
+    'Профиль ничего не требует от этого документа — исправлять нечего',
+  'error.DOCUMENT_NOT_IN_FORCE':
+    'Этот скан заменён — исправляйте тот, который его заменил',
+  'error.FIELD_NOT_IN_SCHEMA':
+    'Этот тип документа такого значения не требует — обновите страницу',
 
   // ── Оболочка рабочего места ────────────────────────────────────────────────
   'nav.intake': 'Приёмка заявления',
@@ -2681,6 +2757,10 @@ const az: Dict = {
   'detail.taken_from_go': 'Dəyərin götürüldüyü oxunuşu aç',
   'detail.confirmed': 'Reyestr təsdiqləyir',
   'detail.confirmed_why': 'Arxivlə uyğundur.',
+  'detail.corrected': 'Operator daxil edib',
+  'detail.corrected_on': 'Operator daxil edib · {date}',
+  'detail.corrected_why':
+    'Dəyəri vərəqi oxuyan şəxs daxil edib, ona görə də etibarlılıq göstəricisi yoxdur.',
   'detail.ocr': 'OCR',
   'detail.fields': 'Çıxarılan sahələr',
   'detail.pending': 'Çıxarış gözlənilir',
@@ -3121,7 +3201,7 @@ const az: Dict = {
   'error.OBJECT_BODY_MISSING': 'Yüklənmiş fayl boş gəldi — yenidən əlavə edin',
   'error.RATE_LIMITED': 'Çox sayda sorğu — bir az sonra cəhd edin',
   'error.PACKAGE_NOT_TAKING_FILES':
-    'Yoxlama gedir — fayllar bitəndən sonra əlavə oluna bilər',
+    'Yoxlama gedir — paket bitənədək dəyişiklik qəbul etmir',
   'error.PACKAGE_MUST_GAIN_A_FILE': 'Ən azı bir fayl seçin',
   'error.PACKAGE_NOT_FOUND': 'Bu paket artıq reyestrdə yoxdur',
   'error.DUPLICATE_STORAGE_KEY': 'Bu fayl artıq paketdədir',
@@ -3200,6 +3280,38 @@ const az: Dict = {
     'Bu təqdimat üzrə reyestrdən heç nə soruşulmayıb',
   'error.ARCHIVE_SEARCH_ALREADY_APPROVED':
     'Bu arxiv axtarışı artıq təsdiqlənib — səhifəni yeniləyin',
+  // ─── Operator iş ekranında dəyəri düzəldir (ADR-0033) ──────────────────────
+  'correct.field_action': '«{field}» dəyərini düzəlt',
+  'correct.box_placeholder': 'Sənəddə nə yazılıb',
+  'correct.box_hint':
+    'Vərəqdə göstərilən dəyəri yazın, sənəddə yoxdursa boş buraxın.',
+  'correct.was': 'maşın «{value}» oxuyub',
+  'correct.struck': 'Sənəddə bu göstərilməyib — dəyər silinəcək.',
+  'correct.too_long': '{n} simvoldan uzundur — qısaldın.',
+  'correct.too_long_bar': 'Dəyərlərdən biri çox uzundur.',
+  'correct.revert': 'Sətri əvvəlki halına qaytar',
+  'correct.unsaved': 'Saxlanılmayıb',
+  'correct.add_open': 'Oxunmamış dəyəri göstər',
+  'correct.add_close': 'Bağla',
+  'correct.add_note':
+    'Yalnız profilin bu sənəd tipindən tələb etdiyi dəyərlər.',
+  'correct.pending': 'Saxlanılacaq düzəlişlər: {n}',
+  'correct.consequence':
+    'Saxlama işi yenidən açır: hesabat, sənədlərarası yoxlama və arxivin cavabları ləğv olunur, arxiv axtarışının təsdiqi qüvvədən düşür və paket düzəlişin çatdığı mərhələdən yenidən yoxlanılır.',
+  'correct.save': 'Saxla və yenidən yoxla',
+  'correct.saving': 'Saxlanılır…',
+  'correct.discard': 'İmtina et',
+  'correct.saved': 'Düzəlişlər saxlanıldı — paket yenidən yoxlanılır',
+  'correct.failed': 'Düzəlişlər saxlanılmadı — yenidən cəhd edin',
+  'correct.running':
+    'Yoxlama gedir — dəyərləri yoxlama bitəndən sonra düzəltmək olar.',
+  'error.DOCUMENT_NOT_CLASSIFIED':
+    'Sənədin hələ tipi yoxdur — dəyərlər təsnifatdan sonra düzəldilə bilər',
+  'error.UNCLASSIFIABLE_DOCUMENT':
+    'Profil bu sənəddən heç nə tələb etmir — düzəldiləcək dəyər yoxdur',
+  'error.DOCUMENT_NOT_IN_FORCE': 'Bu skan əvəzlənib — onu əvəz edəni düzəldin',
+  'error.FIELD_NOT_IN_SCHEMA':
+    'Bu sənəd tipi belə bir dəyər tələb etmir — səhifəni yeniləyin',
 
   // ── İş sahəsinin çərçivəsi ─────────────────────────────────────────────────
   'nav.intake': 'Ərizənin qəbulu',

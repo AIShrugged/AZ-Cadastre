@@ -32,6 +32,7 @@ import {
   PrinterIcon,
   StampIcon,
   TriangleAlertIcon,
+  UserPenIcon,
 } from 'lucide-react';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -54,6 +55,8 @@ import {
   HOLDING_KEY,
   HOLDING_TONE,
   holdsHash,
+  isOperatorEntered,
+  isScored,
   ISSUE_KIND_KEY,
   isSuperseded,
   OUTCOME_NOTE,
@@ -88,6 +91,18 @@ import {
   type VerificationPackage,
 } from '@/entities/verification-package';
 import { ApproveArchiveSearch } from '@/features/approve-archive-search';
+import {
+  AddValue,
+  CorrectButton,
+  CorrectionBar,
+  CorrectionBox,
+  NoCorrectionsNote,
+  UnsavedMark,
+  useCorrections,
+  whyNotCorrectable,
+  type Corrections,
+  type NoCorrection,
+} from '@/features/correct-field';
 import { DocumentGaps } from '@/features/supply-document';
 import { AddFiles } from '@/features/upload-documents';
 import { paths } from '@/shared/config';
@@ -744,11 +759,17 @@ function Marks({
   sourceText: string;
   stacked: boolean;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const handwritten = isHandwritten(field.value, sourceText);
   const confirmed = field.origin === 'ConfirmedByRegistry';
+  const corrected = isOperatorEntered(field);
+  // The day it was put right, which is the whole of what this client can say
+  // about who did: the contract publishes an account id and resolving one to a
+  // person belongs to the context that owns accounts (ADR-0033).
+  const correctedOn =
+    corrected && field.editedAt ? formatDate(field.editedAt, locale) : '';
 
-  if (!handwritten && !confirmed) return null;
+  if (!handwritten && !confirmed && !corrected) return null;
 
   return (
     <span
@@ -774,6 +795,23 @@ function Marks({
         >
           <CheckIcon className='size-2.5 shrink-0' strokeWidth={3} />
           {t('detail.confirmed')}
+        </span>
+      )}
+      {/* A person read this sheet and typed what it says, and the row says so
+          for as long as the case is kept. It is the one provenance a reader
+          months from now cannot work out from anything else on the page — the
+          confidence column is silent beside it, because there is no figure —
+          so the mark carries the date and is never dropped for want of room
+          (ADR-0033). */}
+      {corrected && (
+        <span
+          title={t('detail.corrected_why')}
+          className='inline-flex items-center gap-1 rounded-sm bg-accent-2-tint px-1.5 py-0.5 text-[0.625rem] font-medium leading-none text-accent-2-ink'
+        >
+          <UserPenIcon aria-hidden className='size-2.5 shrink-0' />
+          {correctedOn
+            ? t('detail.corrected_on', { date: correctedOn })
+            : t('detail.corrected')}
         </span>
       )}
     </span>
@@ -839,17 +877,27 @@ function Field({
   docId,
   sourceText,
   folded,
+  corrections,
   onJump,
 }: {
   field: FieldDto;
   docId: string;
   sourceText: string;
   folded: boolean;
+  /** How this card's corrections are being held, or null where it takes none —
+   *  a paper out of force, one with no type, or a package mid-run. The row then
+   *  offers nothing at all rather than a control that would be refused. */
+  corrections: Corrections | null;
   onJump: Jump;
 }) {
   const { t } = useI18n();
   const entries = entriesOf(field.value);
   const uncertain = field.confidence < CONFIDENCE_FLOOR;
+  // A row with a box open on it shows the box and nothing else in the value
+  // column: the reading it is replacing is printed under the box by the box
+  // itself, where it can be read against what is being typed.
+  const open = corrections?.opened(field.name) ?? false;
+  const unsaved = open && (corrections?.changed(field.name) ?? false);
 
   return (
     <div
@@ -858,7 +906,7 @@ function Field({
       // a row the eye can find, and the wash fades rather than sticking.
       id={fieldRowId(docId, field.name)}
       className={cn(
-        'grid scroll-mt-16 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1 border-b border-rule py-2.5 transition-colors duration-500 target:bg-accent @md:grid-cols-[minmax(8rem,15rem)_minmax(0,1fr)_auto] @md:gap-x-6 @md:gap-y-0',
+        'group/row grid scroll-mt-16 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1 border-b border-rule py-2.5 transition-colors duration-500 target:bg-accent @md:grid-cols-[minmax(8rem,15rem)_minmax(0,1fr)_auto] @md:gap-x-6 @md:gap-y-0',
         // A folded row keeps its place in the document and answers to its own
         // fragment: `:target` outranks `hidden`, so the one row a finding names
         // opens itself as the hash lands and before the browser scrolls to it.
@@ -871,29 +919,43 @@ function Field({
         {translateOr(t, `field.${field.name}`, field.name)}
       </dt>
       <dd className='min-w-0'>
-        {entries.length > 0 ? (
-          <Enumerated entries={entries} uncertain={uncertain} />
+        {open && corrections ? (
+          <CorrectionBox
+            name={field.name}
+            original={field.value}
+            // Null where there is no figure to print: a value a person entered
+            // was never scored, so there is nothing for the box to show the
+            // operator they are improving on.
+            confidence={isScored(field) ? field.confidence : null}
+            corrections={corrections}
+          />
         ) : (
-          <span
-            className={cn(
-              'break-words whitespace-pre-line text-[0.875rem] leading-snug tabular-nums',
-              uncertain ? 'text-incomplete-ink' : 'text-foreground',
+          <>
+            {entries.length > 0 ? (
+              <Enumerated entries={entries} uncertain={uncertain} />
+            ) : (
+              <span
+                className={cn(
+                  'break-words whitespace-pre-line text-[0.875rem] leading-snug tabular-nums',
+                  uncertain ? 'text-incomplete-ink' : 'text-foreground',
+                )}
+              >
+                {/* A field the paper does not carry keeps its row and says so.
+                    It is an answer the inspector needs — there was nothing
+                    there and nowhere to take it from — and a row that vanished
+                    would read as a field nobody asked for. */}
+                {field.value || '—'}
+              </span>
             )}
-          >
-            {/* A field the paper does not carry keeps its row and says so. It
-                is an answer the inspector needs — there was nothing there and
-                nowhere to take it from — and a row that vanished would read as
-                a field nobody asked for. */}
-            {field.value || '—'}
-          </span>
-        )}
-        <Marks
-          field={field}
-          sourceText={sourceText}
-          stacked={entries.length > 0}
-        />
-        {field.takenFrom && (
-          <TakenFrom source={field.takenFrom} onJump={onJump} />
+            <Marks
+              field={field}
+              sourceText={sourceText}
+              stacked={entries.length > 0}
+            />
+            {field.takenFrom && (
+              <TakenFrom source={field.takenFrom} onJump={onJump} />
+            )}
+          </>
         )}
       </dd>
       {/* Every reading carries its figure, and the scale is why. A 92% beside
@@ -907,30 +969,80 @@ function Field({
           The chip stays off in a row either way: "needs review" is the
           worklist's own word for a sheet that wants a second look, and the
           report deliberately files no finding against a carried-over reading —
-          the line under the value says where to look instead. */}
-      <Confidence value={field.confidence} bare />
+          the line under the value says where to look instead.
+
+          A value a person entered has no figure and is given none: the contract
+          sends 1 because it has to send something, and printing "100%" there
+          would be the reading scale answering for a reading it never made
+          (ADR-0033). The column carries the pencil instead. */}
+      <span className='inline-flex shrink-0 items-baseline justify-end gap-1.5'>
+        {unsaved ? (
+          <UnsavedMark />
+        ) : (
+          isScored(field) &&
+          !open && <Confidence value={field.confidence} bare />
+        )}
+        {corrections && !open && (
+          <CorrectButton field={field} corrections={corrections} />
+        )}
+      </span>
     </div>
   );
 }
 
+/**
+ * A row the card draws for a key nothing was read for.
+ *
+ * The document holds no field to draw it from, so one is made — and made as
+ * what it is about to become: a value a person entered, which is why it carries
+ * no figure. Nothing of it reaches the wire; the request is worked out from the
+ * draft and the document's own fields, and this is only how the row is laid out
+ * in the same three columns as the rest of the card.
+ */
+function openedRow(name: string): FieldDto {
+  return {
+    name,
+    value: '',
+    confidence: 1,
+    pageNumber: null,
+    origin: 'EnteredByOperator',
+    takenFrom: null,
+    editedByAccountId: null,
+    editedAt: null,
+  };
+}
+
 function Fields({
-  fields,
-  docId,
+  pkg,
+  doc,
   sourceText,
+  schema,
+  refusal,
   spent,
   onJump,
 }: {
-  fields: FieldDto[];
-  docId: string;
+  pkg: PackageDetailDto;
+  doc: DocumentDto;
   sourceText: string;
+  /** The keys the profile declares for this document's type, in the profile's
+   *  order — the only list a value may be added under, because a key the
+   *  schema does not name is refused with `FIELD_NOT_IN_SCHEMA`. Empty while
+   *  the profiles are still loading, and then no value can be added rather than
+   *  the wrong ones being offered. */
+  schema: readonly string[];
+  /** Why this card takes no correction, or null where it takes one. Worked out
+   *  by the card above, which also decides on it whether there are rows to draw
+   *  at all. */
+  refusal: NoCorrection | null;
   /** Whether this paper has been replaced — see `Field`. */
   spent: boolean;
   onJump: Jump;
 }) {
   const { t } = useI18n();
+  const fields = doc.fields;
   const { shown, folded } = foldFields(fields);
   const [whole, setWhole] = useState(() =>
-    holdsHash(folded, docId, window.location.hash),
+    holdsHash(folded, doc.id, window.location.hash),
   );
   // What the fold is keeping back that the inspector was sent here for. The
   // same rule the heading counts by: only a reading made on this paper is work
@@ -938,6 +1050,10 @@ function Fields({
   const flagged = fieldsReadHere(folded).filter(
     field => field.confidence < CONFIDENCE_FLOOR,
   ).length;
+  // Held for every card and offered only by the ones that take a correction: a
+  // hook cannot be called conditionally.
+  const corrections = useCorrections(pkg.id, doc, fields);
+  const editable = refusal === null ? corrections : null;
 
   return (
     <>
@@ -952,9 +1068,10 @@ function Fields({
           <Field
             key={field.name}
             field={field}
-            docId={docId}
+            docId={doc.id}
             sourceText={sourceText}
             folded={false}
+            corrections={editable}
             onJump={onJump}
           />
         ))}
@@ -962,9 +1079,25 @@ function Fields({
           <Field
             key={field.name}
             field={field}
-            docId={docId}
+            docId={doc.id}
             sourceText={sourceText}
             folded={!whole}
+            corrections={editable}
+            onJump={onJump}
+          />
+        ))}
+        {/* Under the profile's own rows and never among them: the card's order
+            is the order the contract numbers its items by, and that is what an
+            inspector holds it against the paper by. A key added by hand takes
+            its place in that order once the run has put it there. */}
+        {editable?.added.map(name => (
+          <Field
+            key={name}
+            field={openedRow(name)}
+            docId={doc.id}
+            sourceText={sourceText}
+            folded={false}
+            corrections={editable}
             onJump={onJump}
           />
         ))}
@@ -999,6 +1132,14 @@ function Fields({
             </span>
           )}
         </button>
+      )}
+      {editable ? (
+        <>
+          <AddValue schema={schema} fields={fields} corrections={editable} />
+          <CorrectionBar corrections={editable} />
+        </>
+      ) : (
+        refusal && <NoCorrectionsNote reason={refusal} />
       )}
     </>
   );
@@ -1520,17 +1661,26 @@ const ENTRY_TITLE: Record<DocumentWeight, string> = {
 };
 
 function DocumentEntry({
+  pkg,
   doc,
   file,
   files,
+  profile,
   required,
   onJump,
 }: {
+  /** The package as it stands, which is what says whether a correction can be
+   *  made on it at all — a run under way takes no writes. */
+  pkg: PackageDetailDto;
   doc: DocumentDto;
   file: SourceFileDto;
   /** Every file of the package, so a replaced scan can name the one that
    *  replaced it — which lives under a different file than this one. */
   files: readonly SourceFileDto[];
+  /** The policy this package is read under, or null while the profiles load.
+   *  It is the only list of the keys a document's type is asked for, and so the
+   *  only list a value may be added under (ADR-0002). */
+  profile: ProfileDto | null;
   /** The papers this package's profile insists on, in the profile's own order
    *  — the engine's list and never one kept here (ADR-0002). Empty while the
    *  profiles load, and then the register states no hierarchy by requirement
@@ -1569,6 +1719,18 @@ function DocumentEntry({
     doc.classificationConfidence < CONFIDENCE_FLOOR
       ? doc.classificationConfidence
       : null;
+  // Why this paper takes no correction, or null where it takes one.
+  const refusal = whyNotCorrectable(pkg, doc);
+  // What the profile asks of this type, which is what a value may be added
+  // under. Empty while the profiles load — nothing is offered rather than the
+  // wrong keys.
+  const schema =
+    profile?.documentTypes.find(type => type.key === doc.type)?.fields ?? [];
+  // A card with no rows still opens for a paper whose values were all missed,
+  // but only where there is something to offer: an empty register under a
+  // paper nobody can correct is a hairline with nothing beneath it.
+  const takesRows =
+    doc.fields.length > 0 || (refusal === null && schema.length > 0);
 
   return (
     // Values left, the paper they were read off right — the heading sits in the
@@ -1664,11 +1826,13 @@ function DocumentEntry({
             )}
           </p>
         ) : (
-          doc.fields.length > 0 && (
+          takesRows && (
             <Fields
-              fields={doc.fields}
-              docId={doc.id}
+              pkg={pkg}
+              doc={doc}
               sourceText={text}
+              schema={schema}
+              refusal={refusal}
               spent={spent}
               onJump={onJump}
             />
@@ -1697,15 +1861,19 @@ function DocumentEntry({
 // line that says how many there are and which sheets they sit on. Nothing is
 // lost — the line opens.
 function AsideGroup({
+  pkg,
   docs,
   file,
   files,
+  profile,
   required,
   onJump,
 }: {
+  pkg: PackageDetailDto;
   docs: DocumentDto[];
   file: SourceFileDto;
   files: readonly SourceFileDto[];
+  profile: ProfileDto | null;
   required: readonly string[];
   onJump: Jump;
 }) {
@@ -1735,9 +1903,11 @@ function AsideGroup({
         {docs.map(doc => (
           <DocumentEntry
             key={doc.id}
+            pkg={pkg}
             doc={doc}
             file={file}
             files={files}
+            profile={profile}
             required={required}
             onJump={onJump}
           />
@@ -1798,19 +1968,25 @@ function SuppliedFor({
 // one file it reads as a caption; with several it becomes the rule that groups
 // each file's documents.
 function FileGroup({
+  pkg,
   file,
   files,
   failed,
   segment,
+  profile,
   required,
   onJump,
 }: {
+  pkg: PackageDetailDto;
   file: SourceFileDto;
   /** Every file of the package: a document replaced by one sent in later names
    *  its replacement, and the replacement lives under a different file. */
   files: readonly SourceFileDto[];
   failed: boolean;
   segment: DocSegment;
+  /** The policy the package is read under — passed down because a correction
+   *  may only name a key the profile declares for the document's own type. */
+  profile: ProfileDto | null;
   /** The papers the package's profile insists on — passed down so each entry
    *  can be printed at the weight the profile gives it. */
   required: readonly string[];
@@ -1869,17 +2045,21 @@ function FileGroup({
             {listed.map(doc => (
               <DocumentEntry
                 key={doc.id}
+                pkg={pkg}
                 doc={doc}
                 file={file}
                 files={files}
+                profile={profile}
                 required={required}
                 onJump={onJump}
               />
             ))}
             <AsideGroup
+              pkg={pkg}
               docs={asides}
               file={file}
               files={files}
+              profile={profile}
               required={required}
               onJump={onJump}
             />
@@ -4143,10 +4323,12 @@ export function VerificationDetails() {
                     {pkg.files.map(file => (
                       <FileGroup
                         key={file.id}
+                        pkg={pkg}
                         file={file}
                         files={pkg.files}
                         failed={view.disposition === 'failed'}
                         segment={segment}
+                        profile={profile}
                         required={required}
                         onJump={jump}
                       />

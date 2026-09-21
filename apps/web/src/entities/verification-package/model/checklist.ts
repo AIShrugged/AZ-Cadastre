@@ -1,20 +1,21 @@
 /**
- * The checklist beside the case — what the package carries, what its provision
- * of Article 8 asks for, how the papers agreed with each other and how the
- * archive answered — as rows a rail can draw and a jump can follow.
+ * The checklist over a case — what the package carries, what its provision of
+ * Article 8 asks for, how the papers agreed with each other and how the archive
+ * answered — as rows a surface can draw and a jump can follow.
  *
  * Every mark is read off an answer the server already published: the gaps, the
  * provision, the cross-document checks, the register's answers. Nothing here
  * works out whether a paper is missing or a check failed; it only groups what
- * was said and names each row by the one word it is drawn in. The rail is an
- * index into the evidence below it, never a second account of it.
+ * was said and names each row by the one word it is drawn in. A checklist is an
+ * index into the evidence, never a second account of it.
+ *
+ * **Two readers, one account.** The office reads these rows down the case rail
+ * and the applicant reads the same rows, summed, in their cabinet — because the
+ * question "is my paper in" has one answer and two screens that worked it out
+ * separately would sooner or later disagree in front of the person who filed.
+ * Which rows a surface draws, and in whose words, is the surface's; which mark
+ * a row carries is this module's and nobody else's (COMM-115).
  */
-import {
-  isSuperseded,
-  OUTCOME_KEY,
-  requiredShortfall,
-  speaksAgainst,
-} from '@/entities/verification-package';
 import { translateOr } from '@/shared/i18n';
 import type {
   CaseProvisionDto,
@@ -27,6 +28,9 @@ import type {
   ProvisionRequirementDto,
   RegistryCheckDto,
 } from '@cadastre/api-contracts/verification';
+
+import { OUTCOME_KEY, speaksAgainst } from './archive-search';
+import { isSuperseded, requiredShortfall } from './document-gaps';
 
 /** The `t` from `useI18n`. */
 type Translate = (

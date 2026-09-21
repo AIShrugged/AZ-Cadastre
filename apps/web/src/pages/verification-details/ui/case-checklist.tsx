@@ -5,7 +5,8 @@
  * archive say, and what the report remarks on.
  *
  * It is an index and never a verdict, and it only informs: every mark is the
- * server's answer, grouped (see `model/checklist`), and nothing on the rail
+ * server's answer, grouped (see `entities/verification-package/model/checklist`
+ * — the same rows the applicant's cabinet sums), and nothing on the rail
  * can be ticked or changed. A tick kept in one browser was a mark that looked
  * like a record and recorded nothing.
  *
@@ -13,22 +14,25 @@
  * and tally, so what needs work is read off the headings and unfolded on
  * demand rather than laid out down the side of the case (COMM-109).
  */
-import {
-  CheckIcon,
-  ChevronRightIcon,
-  CircleDashedIcon,
-  CircleHelpIcon,
-  CornerDownRightIcon,
-  MinusIcon,
-  TriangleAlertIcon,
-} from 'lucide-react';
+import { ChevronRightIcon, CornerDownRightIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 
 import {
+  archiveRows,
+  CheckGlyph,
+  completenessRows,
+  crossCheckRows,
+  isSettled,
+  MARK_INK,
   provisionName,
+  provisionRows,
   provisionShort,
   ReadingFigure,
   requiredTypes,
+  tally,
+  worstMark,
+  type ChecklistRow,
+  type CheckMark,
   type ProfileDto,
 } from '@/entities/verification-package';
 import { useI18n } from '@/shared/i18n';
@@ -39,18 +43,6 @@ import type {
   IssueKind,
   PackageDetailDto,
 } from '@cadastre/api-contracts/verification';
-
-import {
-  archiveRows,
-  completenessRows,
-  crossCheckRows,
-  isSettled,
-  provisionRows,
-  tally,
-  worstMark,
-  type ChecklistRow,
-  type CheckMark,
-} from '../model/checklist';
 
 /** One remark as the worklist names it, keyed by what it is about. */
 export type FindingLine = {
@@ -66,32 +58,6 @@ export type FindingGroup = {
   kind: IssueKind;
   heading: string;
   lines: FindingLine[];
-};
-
-const MARK_ICON: Record<CheckMark, typeof CheckIcon> = {
-  ok: CheckIcon,
-  short: MinusIcon,
-  against: TriangleAlertIcon,
-  open: CircleHelpIcon,
-  quiet: CircleDashedIcon,
-};
-
-// The same tints the provision table draws its glyphs in, so a paper marked
-// missing in the rail and in the table beside it is one mark.
-const MARK_TINT: Record<CheckMark, string> = {
-  ok: 'bg-ok/12 text-ok-ink',
-  short: 'bg-incomplete/12 text-incomplete-ink',
-  against: 'bg-issues/14 text-issues-ink',
-  open: 'bg-issues/14 text-issues-ink',
-  quiet: 'bg-muted text-muted-foreground',
-};
-
-const MARK_INK: Record<CheckMark, string> = {
-  ok: 'text-ok-ink',
-  short: 'text-incomplete-ink',
-  against: 'text-issues-ink',
-  open: 'text-issues-ink',
-  quiet: 'text-muted-foreground',
 };
 
 const JUMP_SHAPE =
@@ -415,20 +381,11 @@ function Rows({
  * is one fact printed eight times, and it would bury the one that is not.
  */
 function CheckRow({ row, onJump }: { row: ChecklistRow; onJump: Jump }) {
-  const Icon = MARK_ICON[row.mark];
   const settled = row.mark === 'ok';
 
   const body = (
     <>
-      <span
-        aria-hidden
-        className={cn(
-          'mt-px grid size-[1.125rem] shrink-0 place-items-center rounded-full',
-          MARK_TINT[row.mark],
-        )}
-      >
-        <Icon className='size-[0.6875rem]' strokeWidth={2.75} />
-      </span>
+      <CheckGlyph mark={row.mark} className='mt-px' />
       <span className='min-w-0 flex-1'>
         <span
           className={cn(
@@ -495,20 +452,11 @@ function FindingItem({
   onJump: Jump;
 }) {
   const { t } = useI18n();
-  const Icon = MARK_ICON[mark];
   const low = line.confidence !== null && line.confidence < CONFIDENCE_FLOOR;
 
   const text = (
     <>
-      <span
-        aria-hidden
-        className={cn(
-          'mt-px grid size-[1.125rem] shrink-0 place-items-center rounded-full',
-          MARK_TINT[mark],
-        )}
-      >
-        <Icon className='size-[0.6875rem]' strokeWidth={2.75} />
-      </span>
+      <CheckGlyph mark={mark} className='mt-px' />
       <span className='min-w-0 flex-1'>
         <span className='block text-[0.8125rem] leading-snug text-foreground'>
           {line.subject}
@@ -583,7 +531,6 @@ function RowsStatus({
   if (rows.length === 0) return null;
 
   const mark = isSettled(rows) ? 'ok' : worstMark(rows);
-  const Icon = MARK_ICON[mark];
   const { done, total } = tally(rows);
 
   return (
@@ -595,15 +542,7 @@ function RowsStatus({
     >
       {/* The rows' own tinted mark, smaller: a bare minus beside a tally read
           as a dash in front of the number. */}
-      <span
-        aria-hidden
-        className={cn(
-          'grid size-3.5 place-items-center rounded-full',
-          MARK_TINT[mark],
-        )}
-      >
-        <Icon className='size-2.5' strokeWidth={3} />
-      </span>
+      <CheckGlyph mark={mark} size='tight' />
       {total > 0 && (
         <span data-mono className='tabular-nums'>
           {done}/{total}

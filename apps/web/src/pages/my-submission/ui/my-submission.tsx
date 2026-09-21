@@ -1,13 +1,21 @@
 /**
  * One submission, as the person who filed it reads it.
  *
- * Three questions and nothing else: where it stands, whether anything is wanted
- * from them, and how to send that in. The office's case sheet answers a
- * different set — what was read off which sheet, how sure the engine was, which
- * provision of Article 8 the case falls under, whether the archive agrees — and
- * every one of those is the office reading its own machine. An applicant given
- * the same page would be handed a confidence figure about their own title deed
- * and nothing to do about it.
+ * The office's case sheet and this one answer the same case and not the same
+ * questions. The inspector's names which sheet a value was read off, how sure
+ * the engine was of it, which provision of Article 8 the case falls under and
+ * what each check weighed against what — the office reading its own machine.
+ * This one answers what the person waiting actually asked: *how far has it
+ * got, what did my papers turn out to say, which of them are in,* and the one
+ * thing they can act on — what is still wanted, and how to send it.
+ *
+ * It used to answer only the last of those. The standing, then the gaps, then
+ * nothing: a submission with nine of eleven papers in and every reading agreed
+ * looked exactly like one with nothing in it but two demands, because only the
+ * demands were drawn. What the run had already settled was invisible, and the
+ * page read as a list of complaints rather than as a report (COMM-115). The
+ * digest is that missing half — the same rows the inspector's rail draws, in
+ * the applicant's words and without the office's figures (`submission-digest`).
  *
  * **Reading it is what makes it theirs.** `GET /packages/:id` is scoped by the
  * session, and somebody else's submission comes back **404 and never 403**: a
@@ -20,19 +28,30 @@
  * server's answer and the supply operation accepts exactly what it names; a
  * second copy of it written for this page would, sooner or later, offer an
  * upload the service declines and hide one it would have taken.
+ *
+ * **But it is not shown until the run has placed the papers.** A gap of reason
+ * `MissingDocument` is "a required type no document in force answers", and at
+ * the start of a run no document answers anything — nothing has been
+ * classified — so the server correctly publishes every required paper as
+ * missing and the panel correctly headed them «Нет в комплекте». To the office
+ * that reads as a stage that has not run; to the person who uploaded those very
+ * papers ten seconds ago it reads as an accusation, and it is wrong by the time
+ * the run finishes. Worse on a re-run after a supply: the paper they have just
+ * sent is the unclassified one. So the shortfall is drawn only once
+ * `isClassified` says the run has been through the package — and nothing is
+ * lost by waiting, because `takesFiles` is false for the whole of a run and the
+ * panel could not have taken a file anyway. The office keeps seeing it
+ * throughout; the difference is which reader is being told, not which fact.
  */
 import { ArrowLeftIcon, FileQuestionIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import {
-  APPLICANT_REPORT_KEY,
-  APPLICANT_STANDING_NOTE,
-  drawsOutcome,
-  OutcomeMark,
+  isClassified,
   packageRef,
-  REPORT_TONE,
-  StandingMark,
+  stageStatuses,
+  toViewPackage,
   useGetPackageQuery,
   useGetProfilesQuery,
 } from '@/entities/verification-package';
@@ -50,6 +69,8 @@ import {
 } from '@/shared/ui/empty';
 import { Skeleton } from '@/shared/ui/skeleton';
 import { SurfaceBody, SurfaceHeading, SurfacePage } from '@/shared/ui/surface';
+
+import { SubmissionDigest } from './submission-digest';
 
 /** The beat the rest of the product watches a run at. */
 const RUN_BEATS_MS = 1500;
@@ -119,6 +140,15 @@ export function MySubmission() {
   const subject =
     pkg?.propertyAddress?.value ?? (pkg ? t('mine.entry.untitled') : undefined);
 
+  /*
+   * Whether a paper's absence is a shortfall yet — decided once here and read
+   * by both blocks below, so the sheet and the panel can never disagree about
+   * whether the package is short of anything.
+   */
+  const shortfallKnown =
+    pkg !== undefined &&
+    isClassified(stageStatuses(pkg, toViewPackage(pkg).disposition));
+
   return (
     <SurfacePage>
       <SurfaceHeading
@@ -147,43 +177,27 @@ export function MySubmission() {
 
       <SurfaceBody>
         <div className='mx-auto flex w-full max-w-3xl flex-col gap-7 px-4 py-6 md:py-8'>
-          {/* ── Where it stands ── the whole of the news, in one panel, in the
-              words a person who is waiting for an answer reads. */}
-          <section className='flex flex-col gap-2.5 rounded-xl border border-rule-strong px-5 py-4'>
-            <span className='register-label'>{t('mine.one.standing')}</span>
-            {pkg === undefined ? (
-              <>
-                <Skeleton className='h-4 w-40' />
-                <Skeleton className='h-3 w-full max-w-md' />
-              </>
-            ) : (
-              <>
-                <StandingMark standing={pkg.standing} voice='applicant' />
-                <p className='max-w-[70ch] text-[0.875rem] leading-relaxed text-muted-foreground'>
-                  {t(APPLICANT_STANDING_NOTE[pkg.standing])}
-                </p>
-                {/* Only where it says something the standing above has not —
-                    the same judgement the office's register makes about its own
-                    two words (`drawsOutcome`). */}
-                {pkg.reportStatus !== null &&
-                  drawsOutcome(pkg.standing, pkg.reportStatus, false) && (
-                    <span className='flex'>
-                      <OutcomeMark
-                        tone={REPORT_TONE[pkg.reportStatus]}
-                        label={t(APPLICANT_REPORT_KEY[pkg.reportStatus])}
-                      />
-                    </span>
-                  )}
-              </>
-            )}
-          </section>
-
-          {/* ── What is still wanted, and how to send it ── the office's own
-              published list of what this submission will take. */}
           {pkg === undefined ? (
-            <Skeleton className='h-32 w-full' />
+            <Skeleton className='h-80 w-full rounded-xl' />
           ) : (
-            <DocumentGaps pkg={pkg} profiles={profiles} voice='applicant' />
+            <>
+              {/* ── The case, short ── where it stands, how far the run got,
+                  what the papers turned out to say, and which of them are in.
+                  Everything the run has already settled, which is the half the
+                  gaps panel below cannot show. */}
+              <SubmissionDigest
+                pkg={pkg}
+                profiles={profiles}
+                shortfallKnown={shortfallKnown}
+              />
+
+              {/* ── What is still wanted, and how to send it ── the office's own
+                  published list of what this submission will take, once the run
+                  has read the package well enough for the list to be true. */}
+              {shortfallKnown && (
+                <DocumentGaps pkg={pkg} profiles={profiles} voice='applicant' />
+              )}
+            </>
           )}
 
           <p className='text-[0.8125rem] leading-relaxed text-muted-foreground'>

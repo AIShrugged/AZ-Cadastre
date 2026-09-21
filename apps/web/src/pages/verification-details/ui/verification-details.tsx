@@ -50,11 +50,13 @@ import {
   fieldAnchor,
   fieldRowId,
   fieldsReadHere,
+  findingKey,
   foldFields,
   groundName,
   HOLDING_KEY,
   HOLDING_TONE,
   holdsHash,
+  isClassified,
   isOperatorEntered,
   isScored,
   ISSUE_KIND_KEY,
@@ -76,7 +78,7 @@ import {
   requiredShortfall,
   requiredTypes,
   speaksAgainst,
-  STAGES,
+  stageStatuses,
   STANDING_NOTE,
   StandingMark,
   supportingSetsOf,
@@ -85,9 +87,9 @@ import {
   unansweredAlternatives,
   useGetPackageQuery,
   useGetProfilesQuery,
-  type Disposition,
   type MarkStanding,
   type ProfileDto,
+  type StageStatus,
   type VerificationPackage,
 } from '@/entities/verification-package';
 import { ApproveArchiveSearch } from '@/features/approve-archive-search';
@@ -147,7 +149,6 @@ import type {
   StatedValueDto,
 } from '@cadastre/api-contracts/verification';
 
-import { findingKey } from '../model/checklist';
 import {
   documentsOf,
   documentWeight,
@@ -169,8 +170,6 @@ type Translate = (
   key: string,
   vars?: Record<string, string | number>,
 ) => string;
-
-type StageStatus = 'done' | 'current' | 'pending' | 'error';
 
 /**
  * Which folds the reader has opened or shut by hand, over the ones this page
@@ -322,76 +321,6 @@ function RunProgress({
       )}
     </section>
   );
-}
-
-/** Real per-stage status from pipeline output. A stage that could not do its
- *  work no longer halts the run: it is marked done-with-a-finding and the run
- *  walks on, because the report is what the inspector is owed. Only a run that
- *  lost the package altogether ends in error. */
-function stageStatuses(
-  pkg: PackageDetailDto,
-  disposition: Disposition,
-): StageStatus[] {
-  const files = pkg.files;
-  const documents = documentsOf(pkg);
-  const ocrDone =
-    files.length > 0 &&
-    files.every(f => f.pages.length > 0 && f.pages.every(p => p.ocr !== null));
-  // Every file has been read into the documents it holds. A file that holds
-  // nothing has not been detected yet, not detected as empty.
-  const detectDone =
-    files.length > 0 && files.every(f => f.documents.length > 0);
-  const classifyDone = detectDone && documents.every(d => d.type !== null);
-  // Extraction is done once every document with a schema behind it has its
-  // fields. Neither answer the engine keeps for itself declares any: a document
-  // it could not place has nothing to extract, and one it placed outside the
-  // profile has no schema to extract against.
-  const extractDone =
-    classifyDone &&
-    documents
-      .filter(
-        d => d.type && d.type !== 'unknown' && d.type !== 'out_of_profile',
-      )
-      .every(d => d.fields.length > 0);
-  // The first check to come back is what says the stage is under way; a run
-  // that finished takes the branch below, so a package no check could be made
-  // over never sits here waiting.
-  const crossDone = extractDone && pkg.crossChecks.length > 0;
-  // The register is asked once the values it holds against a record exist, and
-  // it is answered per check, so the first answer back says the stage is under
-  // way — the same reading as the cross-document stage above it.
-  const registryDone = crossDone && pkg.registryChecks.length > 0;
-
-  const stages: StageStatus[] = Array.from({ length: STAGES }, () => 'pending');
-  if (disposition === 'failed') {
-    stages[0] = ocrDone ? 'done' : 'error';
-    if (ocrDone) stages[1] = detectDone ? 'done' : 'error';
-    if (ocrDone && detectDone) stages[2] = 'error';
-    return stages;
-  }
-  // A finished run compiled its report, so every stage behind it has had its
-  // turn — whatever each of them managed to make of the package.
-  if (pkg.report) return stages.map(() => 'done');
-
-  stages[0] = ocrDone ? 'done' : 'current';
-  stages[1] = detectDone ? 'done' : ocrDone ? 'current' : 'pending';
-  if (!detectDone) return stages;
-  // Classification and extraction are one pass, not two: the run takes a
-  // document, places it, and reads its fields before moving to the next. So
-  // while that pass is under way both are genuinely working and both are marked
-  // running — showing extraction as "not started" until the last document is
-  // placed would report a queue the run does not have.
-  stages[2] = classifyDone ? 'done' : 'current';
-  stages[3] = extractDone ? 'done' : 'current';
-  stages[4] = crossDone ? 'done' : extractDone ? 'current' : 'pending';
-  stages[5] = registryDone ? 'done' : crossDone ? 'current' : 'pending';
-  // Gathering starts once the register has answered, and nothing in the
-  // response says when it ends: a run that carried nothing over looks exactly
-  // like a run that has not reached the stage. What says it is over is the
-  // report, and the branch above already answers "done" to everything once that
-  // has landed (ADR-0023).
-  stages[6] = registryDone ? 'current' : 'pending';
-  return stages;
 }
 
 // ─── Confidence ────────────────────────────────────────────────────────────────
@@ -3948,7 +3877,7 @@ export function VerificationDetails() {
   const running = !pkg.report && !failed;
   // Only once classification has been through every document is a type's
   // absence a finding rather than a stage that has not run yet.
-  const classified = stages[2] === 'done' || stages[2] === 'error';
+  const classified = isClassified(stages);
   // Null while the profiles are still loading, and null is what the sheet
   // wants: it lists no required documents rather than listing the wrong ones.
   const profile =

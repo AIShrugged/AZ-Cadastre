@@ -31,6 +31,15 @@ export {
 
 export { STAGES } from './model/pipeline';
 
+export type { StageStatus } from './model/run-stages';
+export {
+  currentPhase,
+  isClassified,
+  RUN_PHASES,
+  runPhases,
+  stageStatuses,
+} from './model/run-stages';
+
 export {
   fieldsReadHere,
   isCarriedOver,
@@ -134,6 +143,18 @@ export {
   readWellEnough,
   READ_WELL_ENOUGH,
 } from './model/packet-reading';
+
+export type { CheckMark, ChecklistRow } from './model/checklist';
+export {
+  archiveRows,
+  completenessRows,
+  crossCheckRows,
+  findingKey,
+  isSettled,
+  provisionRows,
+  tally,
+  worstMark,
+} from './model/checklist';
 
 export type { CaseState } from './model/case-state';
 export { caseState, drawsOutcome, hasFindings } from './model/case-state';
@@ -259,3 +280,5 @@ export type { StandingVoice } from './ui/standing-mark';
 export { StandingMark } from './ui/standing-mark';
 export { ProfileGlyph } from './ui/profile-glyph';
 export { StageBar } from './ui/stage-bar';
+export type { GlyphSize } from './ui/check-glyph';
+export { CheckGlyph, MARK_ICON, MARK_INK, MARK_TINT } from './ui/check-glyph';

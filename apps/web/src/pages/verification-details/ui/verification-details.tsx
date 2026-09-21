@@ -37,7 +37,12 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import {
+  ArchiveQrStatusMark,
   attestationLines,
+  comparesLines,
+  competence,
+  COMPETENCE_KEY,
+  COMPETENCE_TONE,
   documentIn,
   ENTRIES_SHOWN,
   entriesOf,
@@ -56,6 +61,11 @@ import {
   profileName,
   provisionShort,
   provisionSummary,
+  QR_STATUS_NOTE,
+  QR_VERDICT_KEY,
+  QR_VERDICT_TONE,
+  qrDisagreements,
+  qrFields,
   ReadingFigure,
   readReport,
   readWellEnough,
@@ -81,7 +91,13 @@ import { ApproveArchiveSearch } from '@/features/approve-archive-search';
 import { DocumentGaps } from '@/features/supply-document';
 import { AddFiles } from '@/features/upload-documents';
 import { paths } from '@/shared/config';
-import { formatDate, relativeAgo, translateOr, useI18n } from '@/shared/i18n';
+import {
+  formatDate,
+  formatTime,
+  relativeAgo,
+  translateOr,
+  useI18n,
+} from '@/shared/i18n';
 import { cn } from '@/shared/lib/cn';
 import type { Jump } from '@/shared/lib/jump';
 import { Button } from '@/shared/ui/button';
@@ -96,6 +112,8 @@ import { Skeleton } from '@/shared/ui/skeleton';
 import { SurfaceBody, SurfacePage } from '@/shared/ui/surface';
 import { CONFIDENCE_FLOOR } from '@cadastre/api-contracts/verification';
 import type {
+  ArchiveQrCheckDto,
+  ArchiveQrFieldCheckDto,
   CheckedValueDto,
   CrossCheckDto,
   CrossCheckVerdict,
@@ -1189,6 +1207,239 @@ function Attestation({
 }
 
 /**
+ * What the National Archive Fund holds of this paper, found by the QR code
+ * printed on it (ADR-0028).
+ *
+ * It sits in the document's own entry and not in a panel of the package,
+ * because that is what the answer is about: each Decree 439 paper prints its
+ * own reference and names its own file in the archive, and a package-level
+ * panel would have to invent a single verdict the contract never states.
+ *
+ * Folded shut on a confirmation and open on anything else, the same rule the
+ * cross-checks and the register panel keep: an agreement is stated and folded,
+ * and anything else is where the work is.
+ *
+ * Every status and every verdict carries a mark and a word — none of the four
+ * answers rests on its colour, and the two silences (`NotFound`, `NoQrCode`)
+ * share a tone precisely so that neither reads as the worse of the two (The
+ * Status-Never-Alone Rule).
+ */
+/** The four columns the comparison is read down. Written once and spent on the
+ *  heading and on every row, because a heading that drifted from its rows is
+ *  worse than no heading at all. */
+const QR_COLUMNS =
+  'sm:grid-cols-[minmax(6rem,9rem)_minmax(0,1fr)_minmax(0,1fr)_minmax(5.5rem,7.5rem)]';
+
+function ArchiveQrLine({ field }: { field: ArchiveQrFieldCheckDto }) {
+  const { t } = useI18n();
+  const tone = QR_VERDICT_TONE[field.verdict];
+
+  return (
+    <li
+      className={cn(
+        'grid gap-x-4 gap-y-1 border-b border-rule py-2',
+        QR_COLUMNS,
+      )}
+    >
+      <span className='min-w-0 text-[0.8125rem] leading-snug text-muted-foreground'>
+        {translateOr(t, `field.${field.name}`, field.name)}
+      </span>
+      <QrValue
+        label={t('detail.qr.in_document')}
+        value={field.documentValue}
+        tone='document'
+      />
+      <QrValue
+        label={t('detail.qr.in_archive')}
+        value={field.archiveValue}
+        tone={tone === 'issues' ? 'differs' : 'archive'}
+      />
+      {/* Three verdicts, three marks and three words — never the colour alone.
+          Silence is a dash and not a cross: a value neither side states is not
+          a disagreement, and a fault's sign on it would invent one. */}
+      <span
+        className={cn(
+          'flex min-w-0 items-baseline gap-1.5 text-[0.75rem] leading-snug',
+          tone === 'issues'
+            ? 'text-issues-ink'
+            : tone === 'ok'
+              ? 'text-muted-foreground'
+              : 'italic text-muted-foreground',
+        )}
+      >
+        {tone === 'ok' ? (
+          <CheckIcon className='size-3 shrink-0 translate-y-0.5 text-ok-ink' />
+        ) : tone === 'issues' ? (
+          <TriangleAlertIcon className='size-3 shrink-0 translate-y-0.5 text-issues-ink' />
+        ) : (
+          <MinusIcon className='size-3 shrink-0 translate-y-0.5 text-muted-foreground/50' />
+        )}
+        <span className='min-w-0'>{t(QR_VERDICT_KEY[field.verdict])}</span>
+      </span>
+    </li>
+  );
+}
+
+/**
+ * One side of a comparison. A value neither the paper nor the archive states is
+ * said to be absent rather than drawn as an empty cell, which would read as a
+ * row that failed to load.
+ *
+ * It carries its own column heading below `sm`, where the four columns become
+ * four lines and the heading above them is gone: "1471" over "1471" says
+ * nothing about which of the two is the archive's.
+ */
+function QrValue({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string | null;
+  tone: 'document' | 'archive' | 'differs';
+}) {
+  const { t } = useI18n();
+
+  return (
+    <span className='flex min-w-0 items-baseline gap-2'>
+      <span className='w-[6.5rem] shrink-0 text-[0.6875rem] leading-snug text-muted-foreground/70 sm:hidden'>
+        {label}
+      </span>
+      {value === null ? (
+        <span className='min-w-0 text-[0.8125rem] italic leading-snug text-muted-foreground'>
+          {t('detail.qr.silent')}
+        </span>
+      ) : (
+        <span
+          data-mono
+          className={cn(
+            'min-w-0 break-words text-[0.8125rem] leading-snug',
+            tone === 'differs'
+              ? 'text-issues-ink'
+              : tone === 'document'
+                ? 'text-foreground'
+                : 'text-muted-foreground',
+          )}
+        >
+          {value}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function ArchiveQrCheck({ check }: { check: ArchiveQrCheckDto }) {
+  const { t, locale } = useI18n();
+  const table = comparesLines(check);
+  const differences = qrDisagreements(check);
+  const standing = competence(check);
+  const competenceTone = COMPETENCE_TONE[standing];
+  const when = `${formatDate(check.checkedAt, locale)} · ${formatTime(check.checkedAt)}`;
+
+  return (
+    <details
+      className='group mt-3 border-t border-rule'
+      open={check.status !== 'Confirmed'}
+    >
+      <summary className='-mx-2 flex cursor-pointer list-none select-none flex-wrap items-baseline gap-x-3 gap-y-1 rounded-md px-2 py-2 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50'>
+        <ChevronRightIcon className='size-3.5 shrink-0 translate-y-0.5 text-muted-foreground transition-transform duration-200 group-open:rotate-90' />
+        <span className='min-w-0 text-[0.8125rem] leading-snug text-foreground'>
+          {t('detail.qr.title')}
+        </span>
+        <span className='ml-auto flex shrink-0 items-baseline gap-2'>
+          {/* How much work is in the table, said on the line that folds it —
+              a count only where there is something to count. */}
+          {differences > 0 && (
+            <span
+              data-mono
+              className='text-[0.75rem] tabular-nums text-issues-ink'
+            >
+              {t('detail.qr.differing', {
+                n: differences,
+                total: check.fields.length,
+              })}
+            </span>
+          )}
+          <ArchiveQrStatusMark status={check.status} />
+        </span>
+      </summary>
+      <div className='mt-1 border-t border-rule pl-5'>
+        <p className='max-w-[70ch] py-2 text-[0.8125rem] leading-relaxed text-muted-foreground'>
+          {t(QR_STATUS_NOTE[check.status])}
+        </p>
+        {/* What was actually read off the paper and sent to the archive. An
+            answer about a reference the reader cannot see is an answer they
+            cannot check — and on `NoQrCode` there is no reference, which is
+            what the status says. */}
+        <p className='flex flex-wrap items-baseline gap-x-2 gap-y-1 pb-2 text-[0.75rem] text-muted-foreground'>
+          <span>{t('detail.qr.reference')}</span>
+          {check.qrReference ? (
+            <span data-mono className='break-all text-foreground/80'>
+              {check.qrReference}
+            </span>
+          ) : (
+            <span className='italic'>{t('detail.qr.no_reference')}</span>
+          )}
+          <span className='text-muted-foreground/60'>·</span>
+          <span>{t('detail.qr.checked_at', { when })}</span>
+        </p>
+        {table && (
+          <>
+            {/* Four columns, and they are headed. Below `sm` the heading goes
+                and each value carries its own label instead — a column title
+                on a row that is no longer in a column is a title pointing at
+                nothing. */}
+            <div
+              className={cn(
+                'hidden gap-x-4 border-b border-rule pb-1 text-[0.6875rem] font-medium uppercase tracking-wide text-muted-foreground/70 sm:grid',
+                QR_COLUMNS,
+              )}
+            >
+              <span>{t('detail.qr.col_field')}</span>
+              <span>{t('detail.qr.in_document')}</span>
+              <span>{t('detail.qr.in_archive')}</span>
+              <span>{t('detail.qr.col_verdict')}</span>
+            </div>
+            <ul className='flex flex-col'>
+              {qrFields(check).map(field => (
+                <ArchiveQrLine key={field.name} field={field} />
+              ))}
+            </ul>
+          </>
+        )}
+        {/* A fact of its own and never a ninth row: the name on the paper can
+            match the archive's copy exactly and the body still have had no
+            power to issue a paper of that kind. */}
+        <p className='flex flex-wrap items-baseline gap-2 py-2 text-[0.8125rem]'>
+          <span className='text-muted-foreground'>
+            {t('detail.qr.competence')}
+          </span>
+          <span
+            className={cn(
+              'inline-flex items-baseline gap-1.5',
+              competenceTone === 'issues'
+                ? 'text-issues-ink'
+                : competenceTone === 'ok'
+                  ? 'text-foreground'
+                  : 'italic text-muted-foreground',
+            )}
+          >
+            {competenceTone === 'ok' ? (
+              <CheckIcon className='size-3 shrink-0 translate-y-0.5 text-ok-ink' />
+            ) : competenceTone === 'issues' ? (
+              <TriangleAlertIcon className='size-3 shrink-0 translate-y-0.5 text-issues-ink' />
+            ) : (
+              <MinusIcon className='size-3 shrink-0 translate-y-0.5 text-muted-foreground/50' />
+            )}
+            {t(COMPETENCE_KEY[standing])}
+          </span>
+        </p>
+      </div>
+    </details>
+  );
+}
+
+/**
  * A paper the package no longer rests on, kept where it always was.
  *
  * A replaced scan is never removed: a submission is evidence and not a working
@@ -1393,6 +1644,13 @@ function DocumentEntry({
         {spent && <SupersededMark doc={doc} files={files} onJump={onJump} />}
 
         <Attestation attestation={doc.attestation} />
+
+        {/* Null on a paper the check does not apply to — every document that
+            is not a Decree 439 one, and one the check has not been made for
+            yet. Nothing is drawn for it: a block saying "not checked" on the
+            other fifteen papers of a package would be fifteen lines of noise
+            over one answer. */}
+        {doc.archiveQrCheck && <ArchiveQrCheck check={doc.archiveQrCheck} />}
 
         {fieldless ? (
           <p className='mt-2 max-w-[65ch] text-[0.8125rem] leading-relaxed text-muted-foreground'>

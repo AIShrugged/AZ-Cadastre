@@ -530,6 +530,40 @@ const en: Dict = {
   'detail.reg.holding_held': 'The archive holds the original',
   'detail.reg.holding_notheld': 'The archive has no original of it',
   'detail.reg.holding_unknown': 'the district archive does not keep these',
+
+  // ── The National Archive Fund, by QR code (ADR-0028) ──────────────────
+  // An answer about one Decree 439 paper and not about the package. The two
+  // silences below — no file under the reference, no reference read off the
+  // paper — are neither of them a fault, and their words are what say so.
+  'detail.qr.title': 'Checked by QR code against the National Archive',
+  'detail.qr.confirmed': 'Archive copy agrees',
+  'detail.qr.differs': 'Archive copy disagrees',
+  'detail.qr.not_found': 'No file under this reference',
+  'detail.qr.no_code': 'No QR code read',
+  'detail.qr.confirmed_note':
+    'The archive found its copy, every line held against it agrees, and the body that issued the paper could issue one of this kind.',
+  'detail.qr.differs_note':
+    'The archive found its copy, and it does not bear the paper out: the lines marked below differ, or the issuing body had no power to issue a paper of this kind.',
+  'detail.qr.not_found_note':
+    'The QR code was read and the archive holds nothing under it. Its fonds are partial, so this says nothing against the paper — and nothing for it either.',
+  'detail.qr.no_code_note':
+    'No QR reference could be read off this paper, so the archive was not asked. Nothing was checked and nothing is held against the package.',
+  'detail.qr.reference': 'QR reference:',
+  'detail.qr.no_reference': 'nothing was read',
+  'detail.qr.checked_at': 'checked {when}',
+  'detail.qr.in_document': 'On the paper',
+  'detail.qr.in_archive': 'In the archive',
+  'detail.qr.silent': 'no value stated',
+  'detail.qr.col_field': 'Line',
+  'detail.qr.col_verdict': 'Result',
+  'detail.qr.v_match': 'Agrees',
+  'detail.qr.v_mismatch': 'Differs',
+  'detail.qr.v_not_stated': 'not stated',
+  'detail.qr.differing': '{n} of {total} differ',
+  'detail.qr.competence': 'Issuing body:',
+  'detail.qr.competent': 'could issue a paper of this kind',
+  'detail.qr.incompetent': 'had no power to issue a paper of this kind',
+  'detail.qr.competence_unknown': 'nothing to judge its power by',
   'regattr.ownerName': 'Right holder',
   'regattr.cadastralNumber': 'Cadastral number',
   'regattr.plotArea': 'Plot area',
@@ -1701,6 +1735,37 @@ const ru: Dict = {
   'detail.reg.holding_held': 'Подлинник в архиве есть',
   'detail.reg.holding_notheld': 'Подлинника в архиве нет',
   'detail.reg.holding_unknown': 'архив района такие документы не хранит',
+
+  // ── Национальный архив, по QR-коду (ADR-0028) ─────────────────────────
+  'detail.qr.title': 'Сверка по QR-коду с Национальным архивом',
+  'detail.qr.confirmed': 'Копия архива подтверждает',
+  'detail.qr.differs': 'Копия архива расходится',
+  'detail.qr.not_found': 'По ссылке дела нет',
+  'detail.qr.no_code': 'QR-код не прочитан',
+  'detail.qr.confirmed_note':
+    'Архив нашёл свою копию, все сверенные строки совпали, а выдавший орган имел право выдавать такой документ.',
+  'detail.qr.differs_note':
+    'Архив нашёл свою копию, и она документ не подтверждает: отмеченные ниже строки расходятся либо выдавший орган не имел права выдавать такой документ.',
+  'detail.qr.not_found_note':
+    'QR-код прочитан, но по нему в архиве ничего не числится. Фонды неполны, поэтому это не говорит против документа — но и не подтверждает его.',
+  'detail.qr.no_code_note':
+    'С документа не удалось прочитать ссылку QR-кода, поэтому архив не спрашивали. Ничего не проверено и ничего пакету не вменяется.',
+  'detail.qr.reference': 'Ссылка QR-кода:',
+  'detail.qr.no_reference': 'ничего не прочитано',
+  'detail.qr.checked_at': 'проверено {when}',
+  'detail.qr.in_document': 'В документе',
+  'detail.qr.in_archive': 'В архиве',
+  'detail.qr.silent': 'значение не указано',
+  'detail.qr.col_field': 'Строка',
+  'detail.qr.col_verdict': 'Результат',
+  'detail.qr.v_match': 'Совпадает',
+  'detail.qr.v_mismatch': 'Расходится',
+  'detail.qr.v_not_stated': 'не указано',
+  'detail.qr.differing': 'расходятся {n} из {total}',
+  'detail.qr.competence': 'Выдавший орган:',
+  'detail.qr.competent': 'имел право выдавать такой документ',
+  'detail.qr.incompetent': 'не имел права выдавать такой документ',
+  'detail.qr.competence_unknown': 'судить о его полномочиях не по чему',
   'regattr.ownerName': 'Правообладатель',
   'regattr.cadastralNumber': 'Кадастровый номер',
   'regattr.plotArea': 'Площадь участка',
@@ -2831,6 +2896,38 @@ const az: Dict = {
   'detail.reg.holding_held': 'Əsli arxivdə var',
   'detail.reg.holding_notheld': 'Əsli arxivdə yoxdur',
   'detail.reg.holding_unknown': 'rayon arxivi belə sənədləri saxlamır',
+
+  // ── Milli Arxiv Fondu, QR kod üzrə (ADR-0028) ─────────────────────────
+  'detail.qr.title': 'Milli Arxivlə QR kod üzrə yoxlama',
+  'detail.qr.confirmed': 'Arxiv nüsxəsi təsdiqləyir',
+  'detail.qr.differs': 'Arxiv nüsxəsi fərqlənir',
+  'detail.qr.not_found': 'Bu istinad üzrə iş yoxdur',
+  'detail.qr.no_code': 'QR kod oxunmadı',
+  'detail.qr.confirmed_note':
+    'Arxiv öz nüsxəsini tapdı, yoxlanan bütün sətirlər uyğun gəldi və sənədi verən orqanın belə sənəd vermək səlahiyyəti var idi.',
+  'detail.qr.differs_note':
+    'Arxiv öz nüsxəsini tapdı və o, sənədi təsdiqləmir: aşağıda işarələnmiş sətirlər fərqlənir və ya verən orqanın belə sənəd vermək səlahiyyəti olmayıb.',
+  'detail.qr.not_found_note':
+    'QR kod oxundu, lakin arxivdə onun üzrə heç nə yoxdur. Fondlar tam deyil, ona görə bu, sənədin əleyhinə deyil — lehinə də deyil.',
+  'detail.qr.no_code_note':
+    'Sənəddən QR istinadı oxunmadı, ona görə arxivə sorğu verilmədi. Heç nə yoxlanmayıb və paketə heç nə aid edilmir.',
+  'detail.qr.reference': 'QR istinadı:',
+  'detail.qr.no_reference': 'heç nə oxunmayıb',
+  'detail.qr.checked_at': 'yoxlanıb {when}',
+  'detail.qr.in_document': 'Sənəddə',
+  'detail.qr.in_archive': 'Arxivdə',
+  'detail.qr.silent': 'dəyər göstərilməyib',
+  'detail.qr.col_field': 'Sətir',
+  'detail.qr.col_verdict': 'Nəticə',
+  'detail.qr.v_match': 'Uyğundur',
+  'detail.qr.v_mismatch': 'Fərqlənir',
+  'detail.qr.v_not_stated': 'göstərilməyib',
+  'detail.qr.differing': '{total} sətirdən {n} fərqlənir',
+  'detail.qr.competence': 'Verən orqan:',
+  'detail.qr.competent': 'belə sənəd vermək səlahiyyəti var idi',
+  'detail.qr.incompetent': 'belə sənəd vermək səlahiyyəti olmayıb',
+  'detail.qr.competence_unknown':
+    'səlahiyyəti barədə mühakimə üçün əsas yoxdur',
   'regattr.ownerName': 'Hüquq sahibi',
   'regattr.cadastralNumber': 'Kadastr nömrəsi',
   'regattr.plotArea': 'Torpaq sahəsi',

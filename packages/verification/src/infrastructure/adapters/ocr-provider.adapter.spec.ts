@@ -88,6 +88,39 @@ describe('OcrProviderAdapter', () => {
     expect(result.text.value).toContain('Sərəncam No: R-1147');
   });
 
+  it('reads the 1998 allotment order as the Decree 439 paper it is', async () => {
+    const result = await recognise(
+      `${anId()}/serencam-1471.pdf/pages/page_001.png`,
+    );
+
+    expect(result.text.value).toContain(
+      'Həyətyanı torpaq sahəsinin ayrılması barədə qərar № 1471, 29.10.1998',
+    );
+    expect(result.text.value).toContain('Qusadze Vera Vladimirovna');
+    expect(result.text.value).toContain('400,0 kv.m');
+    expect(result.text.value).toContain('Fond-130, siy.1, i-476, vər.98');
+  });
+
+  it('reads the order off the plot it allots, however the word was spelled', async () => {
+    const bare = await recognise(`${anId()}/heyetyani-qerar.png`);
+    const azeri = await recognise(`${anId()}/həyətyanı-qerar.png`);
+
+    for (const result of [bare, azeri]) {
+      expect(result.text.value).toContain('SABUNÇU RAYON İCRA HAKİMİYYƏTİ');
+      expect(result.text.value).toContain('№ 1471, 29.10.1998');
+    }
+  });
+
+  it('tells the 1998 order apart from the extract of the current case', async () => {
+    const order = await recognise(`${anId()}/serencam-1471.png`);
+    const extract = await recognise(`${anId()}/serencam.png`);
+
+    expect(order.text.value).toContain('№ 1471, 29.10.1998');
+    expect(extract.text.value).toContain('SƏRƏNCAMDAN ÇIXARIŞ');
+    expect(extract.text.value).toContain('Sərəncam No: R-1147');
+    expect(extract.text.value).not.toContain('1471');
+  });
+
   it('reads an application as one, mentioning the documents it cites', async () => {
     const result = await recognise(`${anId()}/qeydiyyat-erize.pdf.png`);
 

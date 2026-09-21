@@ -56,6 +56,7 @@ import {
   profileName,
   provisionShort,
   provisionSummary,
+  ReadingFigure,
   readReport,
   readWellEnough,
   RegistryOutcomeMark,
@@ -114,6 +115,18 @@ import type {
 } from '@cadastre/api-contracts/verification';
 
 import { findingKey } from '../model/checklist';
+import {
+  documentsOf,
+  documentWeight,
+  inSegment,
+  isAside,
+  isOpenIn,
+  needsReview,
+  SEGMENT_KEY,
+  SEGMENTS,
+  type DocSegment,
+  type DocumentWeight,
+} from '../model/documents';
 import { PANEL, panelForHash, type PanelId } from '../model/panels';
 
 import { CaseChecklist, type FindingGroup } from './case-checklist';
@@ -278,78 +291,6 @@ function RunProgress({
   );
 }
 
-/** Every document the engine found, across all uploaded files, in reading
- *  order. */
-function documentsOf(pkg: PackageDetailDto): DocumentDto[] {
-  return pkg.files.flatMap(file => file.documents);
-}
-
-// ─── What the register is filtered by ────────────────────────────────────────
-// A package this size is mostly settled work: of sixteen documents the engine
-// read here, six carry a reading the inspector should look at and eight are not
-// documents this profile asks for at all. Rendering all of them at equal weight
-// is what buries the six. The segments are the register's own triage — the same
-// control the package register uses, with the same counts.
-type DocSegment = 'review' | 'all' | 'other';
-
-const SEGMENTS: DocSegment[] = ['review', 'all', 'other'];
-
-const SEGMENT_KEY: Record<DocSegment, string> = {
-  review: 'detail.seg.review',
-  all: 'detail.seg.all',
-  other: 'detail.seg.other',
-};
-
-/** A paper the catalogue could not name: read, placed, and not one of the
- *  grounds the law lists. It is evidence of what was in the envelope, never a
- *  shortfall. */
-function isAside(doc: DocumentDto): boolean {
-  return doc.type === 'out_of_profile';
-}
-
-/** Whether this document holds anything the inspector should actually look at:
- *  a reading below the floor, or a type the classifier could not place. Its
- *  answer decides both the segment a document falls in and whether the entry
- *  opens with its fields showing.
- *
- *  Only what was read off this paper counts. A value carried in from another
- *  document of the package may well sit under the floor — it is the source's
- *  reading, discounted — but the doubt is about the sheet it was read on, and
- *  it is already reported there (ADR-0023). Counting it here would send the
- *  inspector to a paper with nothing on it to look at. */
-function needsReview(doc: DocumentDto): boolean {
-  // A scan a later arrival has pushed out of force is the record of what was
-  // sent first, not a paper the case rests on: the report, the checks and the
-  // register's questions are all worked out from the documents in force
-  // (COMM-80). Counting its faults here would send the inspector to settle a
-  // reading nothing is decided on, and would count the work twice — once on the
-  // spent scan and once on the one that replaced it.
-  if (isSuperseded(doc)) return false;
-  if (doc.type === null || doc.type === 'unknown') return true;
-  if (isAside(doc)) return false;
-  if (
-    doc.classificationConfidence != null &&
-    doc.classificationConfidence < CONFIDENCE_FLOOR
-  )
-    return true;
-  return fieldsReadHere(doc.fields).some(f => f.confidence < CONFIDENCE_FLOOR);
-}
-
-function inSegment(doc: DocumentDto, segment: DocSegment): boolean {
-  if (segment === 'all') return true;
-  if (segment === 'other') return isAside(doc);
-  return needsReview(doc);
-}
-
-/** Rendered *and* spelled out. Under "all" the service sheets are in the
- *  register but folded into the line that stands for them, so a jump aimed at
- *  one has to land somewhere else — being on the page is not the same as being
- *  reachable. */
-function isOpenIn(doc: DocumentDto, segment: DocSegment): boolean {
-  if (!inSegment(doc, segment)) return false;
-  return !(segment === 'all' && isAside(doc));
-}
-
 /** Real per-stage status from pipeline output. A stage that could not do its
  *  work no longer halts the run: it is marked done-with-a-finding and the run
  *  walks on, because the report is what the inspector is owed. Only a run that
@@ -421,10 +362,18 @@ function stageStatuses(
 }
 
 // ─── Confidence ────────────────────────────────────────────────────────────────
-// A machine-read value: tabular mono, and below the engine's own floor it flags
-// for review in the clay "incomplete" ink (PRD §4.6). Above the floor it stays
-// a quiet figure in its own column — a reading the engine is sure of must not
-// shout down the value it produced.
+// A machine-read value: tabular mono, printed on the case card's three-band
+// reading scale, and below the engine's own floor it also flags for review
+// (PRD §4.6).
+//
+// Two lines, not one, and they are not the same statement. The **chip** is the
+// engine's floor — below 0.85 the report files a finding and offers the scan to
+// be sent again — and it is untouched by the scale. The **colour** is the
+// customer's own scale (`model/reading-scale`, COMM-110), which reads the
+// figure the reader can see and says nothing about whether anything is wrong
+// with it. They disagree between 80% and 85%, where a figure prints green and
+// still carries the chip; the thresholds are the customer's and the floor is
+// the engine's, so neither is moved here to make them meet.
 //
 // The threshold is the contract's `CONFIDENCE_FLOOR` and never a copy of it.
 // This screen used to keep its own 0.8 beside the engine's, which is two
@@ -460,16 +409,20 @@ function Confidence({
           {t('detail.needs_review')}
         </span>
       )}
-      <span
-        data-mono
-        className={cn(
-          'text-[0.75rem] tabular-nums',
-          low ? 'font-medium text-incomplete-ink' : 'text-muted-foreground/80',
-        )}
-        title={unscored ? t('detail.unscored_why') : undefined}
-      >
-        {unscored ? t('detail.unscored') : `${Math.round(value * 100)}%`}
-      </span>
+      {/* An unscored reading has no figure to band: the word says there is no
+          number, and colouring the absence of one would be the scale answering
+          a question nobody asked it. It keeps the doubtful ink it always had. */}
+      {unscored ? (
+        <span
+          data-mono
+          className='text-[0.75rem] font-medium tabular-nums text-incomplete-ink'
+          title={t('detail.unscored_why')}
+        >
+          {t('detail.unscored')}
+        </span>
+      ) : (
+        <ReadingFigure confidence={value} className='text-[0.75rem]' />
+      )}
     </span>
   );
 }
@@ -899,11 +852,7 @@ function Field({
       <dt className='col-span-2 text-[0.8125rem] leading-snug text-muted-foreground @md:col-span-1'>
         {translateOr(t, `field.${field.name}`, field.name)}
       </dt>
-      <dd
-        className='min-w-0'
-        // The figure a sure reading was made with, on asking — see below.
-        title={uncertain ? undefined : `${Math.round(field.confidence * 100)}%`}
-      >
+      <dd className='min-w-0'>
         {entries.length > 0 ? (
           <Enumerated entries={entries} uncertain={uncertain} />
         ) : (
@@ -929,18 +878,19 @@ function Field({
           <TakenFrom source={field.takenFrom} onJump={onJump} />
         )}
       </dd>
-      {/* A carried-over reading keeps its figure and loses the chip: "needs
-          review" is the worklist's own word for a sheet that wants a second
-          look, and the report deliberately files no finding against this
-          one — the line under the value says where to look instead. */}
-      {/* Only a doubtful reading carries its figure in the row. A 92% beside
-          every value was a column nobody read, and it hid the one figure worth
-          reading; a sure reading keeps its figure on hover of the value. */}
-      {uncertain ? (
-        <Confidence value={field.confidence} bare />
-      ) : (
-        <span aria-hidden />
-      )}
+      {/* Every reading carries its figure, and the scale is why. A 92% beside
+          every value used to be a column nobody read — all of it one ink, the
+          one figure worth reading buried in it — so only doubtful readings were
+          printed and a sure one kept its figure on hover. Coloured, the column
+          reads at a glance instead of word by word, which is what the customer
+          asked the scale for; hiding four fifths of it would have left a scale
+          with nothing on it but its own bottom band (COMM-110).
+
+          The chip stays off in a row either way: "needs review" is the
+          worklist's own word for a sheet that wants a second look, and the
+          report deliberately files no finding against a carried-over reading —
+          the line under the value says where to look instead. */}
+      <Confidence value={field.confidence} bare />
     </div>
   );
 }
@@ -1287,10 +1237,42 @@ function SupersededMark({
   );
 }
 
+/**
+ * The register's hierarchy, drawn the way a ruled page draws one: kegel and
+ * weight on the heading, the air around the entry, and how heavy the line above
+ * it is. No plaque, no card, no decorative glyph — the page stays flat and
+ * ruled, and it is the type that composes (COMM-110, and the Flat-Page and
+ * Earned-Lift rules).
+ *
+ * Three steps and not two, because the register says three different things: a
+ * paper the case turns on, a paper it merely carries, and a paper it does not
+ * rest on at all.
+ */
+const ENTRY_SPACE: Record<DocumentWeight, string> = {
+  primary: 'py-8 first:pt-6',
+  standard: 'py-6 first:pt-5',
+  quiet: 'py-4 first:pt-3.5',
+};
+
+// Rule density is part of the hierarchy: the structural `rule-strong` opens a
+// paper the case turns on, the hairline divides everything else.
+const ENTRY_RULE: Record<DocumentWeight, string> = {
+  primary: 'border-rule-strong',
+  standard: 'border-rule',
+  quiet: 'border-rule',
+};
+
+const ENTRY_TITLE: Record<DocumentWeight, string> = {
+  primary: 'text-[1.0625rem] font-[570] leading-tight tracking-[-0.015em]',
+  standard: 'text-[0.9375rem] font-[550] leading-tight tracking-[-0.01em]',
+  quiet: 'text-[0.875rem] font-normal leading-tight',
+};
+
 function DocumentEntry({
   doc,
   file,
   files,
+  required,
   onJump,
 }: {
   doc: DocumentDto;
@@ -1298,10 +1280,21 @@ function DocumentEntry({
   /** Every file of the package, so a replaced scan can name the one that
    *  replaced it — which lives under a different file than this one. */
   files: readonly SourceFileDto[];
+  /** The papers this package's profile insists on, in the profile's own order
+   *  — the engine's list and never one kept here (ADR-0002). Empty while the
+   *  profiles load, and then the register states no hierarchy by requirement
+   *  rather than the wrong one. */
+  required: readonly string[];
   onJump: Jump;
 }) {
   const { t } = useI18n();
   const spent = isSuperseded(doc);
+  const weight = documentWeight(doc, required);
+  // Said and not only drawn. Type weight is what an eye scanning the page
+  // reads, but why one entry outranks another is a fact about the profile, and
+  // a fact is written down — which is also what carries it into grayscale, a
+  // screen reader and a printout (The Status-Never-Alone Rule).
+  const insisted = doc.type !== null && required.includes(doc.type);
   // Two different answers that both leave a document without fields, and they
   // must not read alike: "we could not tell what this is" against "we read it,
   // and the statutory list does not name it".
@@ -1333,7 +1326,9 @@ function DocumentEntry({
     <article
       id={`doc-${doc.id}`}
       className={cn(
-        'scroll-mt-16 py-6 first:pt-5 last:pb-0 lg:grid lg:grid-cols-[minmax(0,1fr)_11.5rem] lg:gap-x-8',
+        'scroll-mt-16 border-t last:pb-0 first:border-t-0 lg:grid lg:grid-cols-[minmax(0,1fr)_11.5rem] lg:gap-x-8',
+        ENTRY_SPACE[weight],
+        ENTRY_RULE[weight],
         spent && 'opacity-70',
       )}
     >
@@ -1346,7 +1341,7 @@ function DocumentEntry({
             {doc.type ? (
               <h3
                 className={cn(
-                  'text-[0.9375rem] font-[550] leading-tight tracking-[-0.01em]',
+                  ENTRY_TITLE[weight],
                   fieldless || spent
                     ? 'text-muted-foreground'
                     : 'text-foreground',
@@ -1362,6 +1357,16 @@ function DocumentEntry({
                   className='size-1.5 rounded-full bg-primary motion-safe:animate-pulse'
                 />
                 {t('detail.classifying')}
+              </span>
+            )}
+            {/* The word behind the weight: this is one of the papers the
+                profile insists on. Set in the register's own label style and
+                not as a badge — a plaque beside a heading would be the thing
+                the page is composed to avoid. A spent scan keeps quiet about
+                it: the requirement is answered by the scan that replaced it. */}
+            {insisted && !spent && (
+              <span className='shrink-0 text-[0.625rem] font-medium uppercase tracking-[0.09em] text-muted-foreground'>
+                {t('detail.required_mark')}
               </span>
             )}
             {/* How many readings in this document want a second look — the count
@@ -1437,18 +1442,20 @@ function AsideGroup({
   docs,
   file,
   files,
+  required,
   onJump,
 }: {
   docs: DocumentDto[];
   file: SourceFileDto;
   files: readonly SourceFileDto[];
+  required: readonly string[];
   onJump: Jump;
 }) {
   const { t } = useI18n();
   if (docs.length === 0) return null;
 
   return (
-    <details className='group'>
+    <details className='group border-t border-rule first:border-t-0'>
       <summary className='flex cursor-pointer list-none select-none items-baseline gap-3 py-3.5 text-[0.8125rem] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50'>
         <ChevronRightIcon className='size-3.5 shrink-0 translate-y-0.5 transition-transform duration-200 group-open:rotate-90' />
         <span className='min-w-0'>
@@ -1463,13 +1470,17 @@ function AsideGroup({
           {docs.map(doc => pageLabel(t, doc).replace(/^\D+/, '')).join(', ')}
         </span>
       </summary>
-      <div className='divide-y divide-rule border-t border-rule'>
+      {/* The entries rule themselves — each draws the line above it at the
+          weight it is printed at, and the first drops it — so the group's own
+          hairline is what divides the summary from what it opens into. */}
+      <div className='border-t border-rule'>
         {docs.map(doc => (
           <DocumentEntry
             key={doc.id}
             doc={doc}
             file={file}
             files={files}
+            required={required}
             onJump={onJump}
           />
         ))}
@@ -1533,6 +1544,7 @@ function FileGroup({
   files,
   failed,
   segment,
+  required,
   onJump,
 }: {
   file: SourceFileDto;
@@ -1541,6 +1553,9 @@ function FileGroup({
   files: readonly SourceFileDto[];
   failed: boolean;
   segment: DocSegment;
+  /** The papers the package's profile insists on — passed down so each entry
+   *  can be printed at the weight the profile gives it. */
+  required: readonly string[];
   onJump: Jump;
 }) {
   const { t } = useI18n();
@@ -1592,13 +1607,14 @@ function FileGroup({
             {t('detail.empty_filter')}
           </p>
         ) : (
-          <div className='divide-y divide-rule'>
+          <div>
             {listed.map(doc => (
               <DocumentEntry
                 key={doc.id}
                 doc={doc}
                 file={file}
                 files={files}
+                required={required}
                 onJump={onJump}
               />
             ))}
@@ -1606,6 +1622,7 @@ function FileGroup({
               docs={asides}
               file={file}
               files={files}
+              required={required}
               onJump={onJump}
             />
           </div>
@@ -3872,6 +3889,7 @@ export function VerificationDetails() {
                         files={pkg.files}
                         failed={view.disposition === 'failed'}
                         segment={segment}
+                        required={required}
                         onJump={jump}
                       />
                     ))}

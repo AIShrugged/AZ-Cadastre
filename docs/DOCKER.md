@@ -103,8 +103,19 @@ docker build -f apps/registry-stub/Dockerfile -t ekalkutin/cadastre-registry:lat
 context owns `cadastre-accounts` for the same reason (ADR-0029). The register
 gets `cadastre-registry` — the compose file creates the two it does not get from
 `POSTGRES_DB` through an init script the postgres image runs **only when it
-creates the data directory**, so on a volume that already exists they have to be
-made by hand:
+creates the data directory**, so on a volume that already exists that script
+never runs at all.
+
+That is not the step it looks like, because the migrator covers it:
+`prisma migrate deploy` creates the database its URL names when it is missing,
+and says so (`PostgreSQL database cadastre-accounts created at postgres:5432`)
+before applying the first migration. Checked on the stand against a volume that
+predated the accounts context, COMM-125. The one condition is that the role in
+the URL may create databases — `postgres` here can; a least-privilege role on a
+real deployment cannot, and there the databases are the DBA's to make.
+
+So on an existing volume, run the migrator and read what it prints. Only if that
+role cannot create databases do you make them yourself first:
 
 ```bash
 docker exec cadastre-postgres createdb -U postgres cadastre-accounts
@@ -173,7 +184,11 @@ The docker-compose configuration includes:
 - **Registry** (`ekalkutin/cadastre-registry`): the archive register stand-in on
   port 3100, answering out of its own `cadastre-registry` database
 - **Migrate** (`ekalkutin/cadastre-migrator`): not a service — a one-off job
-  behind the `migrate` profile, so `up` never starts it. See
+  that runs to completion and exits. It is no longer behind a profile: `up`
+  runs it and the backend waits on
+  `migrate: service_completed_successfully`, because forgetting it turned out
+  to be far too easy. The cost of that gate is that a migrator which cannot
+  start takes the whole stack with it rather than one container. See
   [Migrations](#migrations)
 - **PostgreSQL**: three databases on port 5432 — `cadastre-db` for the
   verification context, `cadastre-accounts` for the accounts context, and
@@ -211,6 +226,67 @@ docker compose logs -f backend
 docker compose logs -f frontend
 docker compose logs -f postgres
 ```
+
+### Updating the stand
+
+Nothing deploys the stand. `release.yml` builds and publishes the images and
+stops there, and the `docker-compose.yml` on the server is a copy somebody put
+there by hand. So the two halves drift independently, and the order you touch
+them in is the whole of the procedure:
+
+**Update the compose file first, then pull the images.**
+
+That order is not taste. The images move on `:latest` the moment a release
+finishes; the compose file only moves when a person moves it. Pull first and you
+are running a new image against an old file — which is exactly COMM-125: the
+migrator image had gained its third target and the compose file next to it had
+not gained `ACCOUNTS_DATABASE_URL`, so the stack came down on
+
+```
+/usr/local/bin/migrate: line 47: ACCOUNTS_DATABASE_URL: ACCOUNTS_DATABASE_URL is not set — the URL of the cadastre-accounts database
+```
+
+The migrator says which variable is missing, and that is the loud half. The
+quiet half is worse: every URL in `apps/server/src/config/env.schema.ts` has a
+`localhost` default, so a server missing `ACCOUNTS_DATABASE_URL` does not
+complain — it dials its own container and crash-loops on `ECONNREFUSED`, which
+reads like a database outage and is not one. When a service cannot reach a
+database that is plainly up, diff the compose file against this repository
+before you look at postgres.
+
+The full sequence, from the directory holding the stand's compose file:
+
+```bash
+# 1. the file, first — diff it against the repository and carry over anything
+#    new, keeping the stand's own lines (its bindings, its origin, its keys)
+docker compose config -q                    # it parses
+
+# 2. then the images
+docker compose pull
+
+# 3. migrate before anything serves traffic; it creates a missing database
+docker compose run --rm migrate
+
+# 4. up
+docker compose up -d
+
+# 5. if a service container was recreated, restart the frontend — its nginx
+#    resolves `backend` and `registry` once, at start-up, so a container that
+#    came back on a new address leaves it proxying to nobody: /api answers 502
+#    while the page itself still loads 200
+docker compose restart frontend
+
+# 6. prove it, rather than assume it
+docker compose ps
+curl -s -o /dev/null -w '%{http_code}\n' -X POST localhost:3000/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"login":"cadastre-operator","password":"12345678"}'   # 200
+```
+
+Step 1 is a diff and not a copy. A stand carries lines this repository's file
+does not — a `WEB_ORIGIN` that is its address, port bindings on `127.0.0.1`
+because a reverse proxy in front of it holds the only TLS and the only gate,
+provider keys. Overwriting the file with this one publishes its database port.
 
 ### What's Inside
 

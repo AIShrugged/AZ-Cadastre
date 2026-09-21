@@ -115,7 +115,7 @@ export type TitleDocumentStanding = {
    * extract or a plan words, that rest on the other class of title — a
    * lease-or-use title beside a case of 8.0.9.1.2. Empty for a title the case
    * can stand on, for the register's own extract, and for a title outside its
-   * window, which founds nothing already (ADR-0028).
+   * window, which founds nothing already (ADR-0030).
    */
   readonly wrongClassFor: readonly string[];
 };
@@ -237,7 +237,7 @@ type Established<T> = {
  * 8.0.1" — and only where it carries none is the right read off how a plan or
  * an extract words it. Wording beside a title decides nothing: a title of the
  * other class than the wording is a mismatch, and is reported as one
- * (ADR-0028).
+ * (ADR-0030).
  *
  * Two title documents of two different classes decide nothing: which of them
  * the case stands on is a question for the inspector, and the figure is left

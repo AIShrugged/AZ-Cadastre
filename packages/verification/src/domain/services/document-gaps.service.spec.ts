@@ -178,11 +178,11 @@ describe('gapsIn', () => {
         'registration_certificate',
         'property_right_certificate',
         // A lease-or-use title, and not offered for a case of ownership
-        // (ADR-0028).
+        // (ADR-0030).
       ]);
     });
 
-    // Items 1.4 and 2.7: the order is a lease-or-use title (ADR-0028).
+    // Items 1.4 and 2.7: the order is a lease-or-use title (ADR-0030).
     it('offers the order allotting the parcel for a case of lease or use', () => {
       const documents = [
         aDocumentStating('land_plot_plan', {

@@ -1359,7 +1359,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
    * provision it falls under could not be decided, that a title the package
    * carries is dated outside the window it is a title in, and that a title is of
    * the other class than a provision the case falls under, or would fall under
-   * on the right an extract or a plan words, rests on (ADR-0028).
+   * on the right an extract or a plan words, rests on (ADR-0030).
    */
   private againstTheProvision(
     provision: CaseProvision | null,
@@ -1502,7 +1502,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
 
   /*
    * The check of authenticity by QR code, where the package gives it nothing to
-   * be made on (ADR-0028).
+   * be made on (ADR-0031).
    *
    * Skipped, and said once, where no paper in force had a code read off it —
    * whether the package carries no paper of a kind that prints one or carries

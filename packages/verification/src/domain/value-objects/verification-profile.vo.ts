@@ -782,7 +782,7 @@ const LICENCE_FIELDS: Fields = [
 export class VerificationProfile {
   // The line a paper prints its QR code on. One key across every type that
   // carries a code, so the check of authenticity by QR code can ask the whole
-  // package whether any paper printed one (ADR-0028).
+  // package whether any paper printed one (ADR-0031).
   static readonly QR_CODE = FieldKey.create('qr_code');
 
   // The one case the system handles: first state registration of an individual

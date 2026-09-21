@@ -227,7 +227,7 @@ describe('provisionOf', () => {
   /*
    * The order allotting the parcel is a lease-or-use title under items 1.4 and
    * 2.7 — the customer's answer of 2026-09-16 — and the class of a title
-   * decides the right whatever an extract or a plan words (ADR-0028, which
+   * decides the right whatever an extract or a plan words (ADR-0030, which
    * supersedes decision 3 of ADR-0026).
    */
   describe('the order of an executive authority allotting the parcel', () => {

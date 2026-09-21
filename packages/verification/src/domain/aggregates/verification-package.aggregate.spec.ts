@@ -1269,7 +1269,7 @@ describe('VerificationPackage', () => {
     /*
      * The customer's decision: no paper with a QR code, the step is skipped and
      * the report says so — as "there was nothing to check this with", never as
-     * a fault of the applicant (ADR-0028).
+     * a fault of the applicant (ADR-0031).
      */
     describe('where no paper of the package prints a QR code', () => {
       function qrFindings(verification: VerificationPackage) {
@@ -1850,7 +1850,7 @@ describe('VerificationPackage', () => {
         span_dimensions: 'A—B 4,20 m; B—C 3,60 m',
       },
     ];
-    // A lease-or-use title under items 1.4 and 2.7 (ADR-0028).
+    // A lease-or-use title under items 1.4 and 2.7 (ADR-0030).
     const ORDER: Paper = ['disposal_order', {}];
     const LEASE: Paper = [
       'homestead_land_allocation_decision',
@@ -2003,7 +2003,7 @@ describe('VerificationPackage', () => {
     });
 
     // The customer's answer of 2026-09-16: a title of the other class than
-    // the provision is a mismatch (ADR-0028).
+    // the provision is a mismatch (ADR-0030).
     it('says a lease-or-use title does not found a case a plan words as ownership', () => {
       const built = aCase(
         2010,
@@ -2924,7 +2924,7 @@ describe('VerificationPackage', () => {
    * falls under 8.0.9.1.2, which asks for nothing beyond the title (ADR-0025).
    * The plan-scheme states the address, so the register has something to be
    * asked about, and prints its QR code, so the check by QR code has something
-   * to be made on (ADR-0028). `extraSheets` more are segmented and left unplaced, for a spec
+   * to be made on (ADR-0031). `extraSheets` more are segmented and left unplaced, for a spec
    * to do with as it needs.
    */
   function aCompletePackage(extraSheets = 0) {

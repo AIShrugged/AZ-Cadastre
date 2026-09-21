@@ -217,7 +217,7 @@ function shortOfProvision(
           type =>
             decided?.titleRight == null ||
             // The order allotting a parcel is a lease-or-use title and is not
-            // offered for a case of ownership (ADR-0028).
+            // offered for a case of ownership (ADR-0030).
             provisions.rightConferredBy(type) === decided.titleRight,
         );
 

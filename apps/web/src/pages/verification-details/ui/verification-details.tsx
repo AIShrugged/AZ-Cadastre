@@ -1770,7 +1770,7 @@ const SECTIONS: Record<IssueKind, { heading: string; tone: SectionTone }> = {
   },
   // Not a fault and not a paper read and left unconfirmed: no paper of the
   // package prints a QR code, so the check by QR code had nothing to be made on
-  // and was skipped. Counted against nothing (ADR-0028).
+  // and was skipped. Counted against nothing (ADR-0031).
   QrCodeUnavailable: {
     heading: ISSUE_KIND_KEY.QrCodeUnavailable,
     tone: 'note',

@@ -410,7 +410,7 @@ export class ValidationIssue {
   /*
    * A title the package carries of the other class than a provision the case
    * falls under rests on — a lease-or-use title where the case is, or by the
-   * wording of its extract would be, one of 8.0.9.1.2 (ADR-0028).
+   * wording of its extract would be, one of 8.0.9.1.2 (ADR-0030).
    *
    * Filed against the document and no field of it: the class is its kind, and
    * nothing on its sheets could be misread into another.

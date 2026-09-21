@@ -144,7 +144,7 @@ export class IssueKind {
   );
   /*
    * No paper of the package prints a QR code, so the check of authenticity by
-   * QR code had nothing to be made on and was skipped (ADR-0028).
+   * QR code had nothing to be made on and was skipped (ADR-0031).
    *
    * Not INTEGRATION_NOT_CONNECTED, which is a paper that was read and not
    * confirmed: here there is no paper to confirm, and the inspector has to be

@@ -128,7 +128,7 @@ export type TitleDocumentDeclaration = {
   readonly item: string;
   readonly type: string;
   // The right its kind confers. Every title confers one, and the class of the
-  // paper decides it whatever another paper words (ADR-0028).
+  // paper decides it whatever another paper words (ADR-0030).
   readonly landRight: LandRight;
   // The field of that document type the date of issue is read off.
   readonly dateField: string;

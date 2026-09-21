@@ -40,6 +40,33 @@ export class OcrProviderAdapter extends OcrProvider {
 function fakeText(key: string): string {
   const name = key.toLowerCase();
 
+  // Asked before every other branch, because the sheet is an allotment order
+  // and its filename says so twice: the words a 1998 order is filed under —
+  // "sərəncam", "qərar", "torpaq" — would otherwise be answered by the papers
+  // of the current Əliyev case. It is the number that tells them apart, so the
+  // year's own order is read off `1471` (or off `həyətyanı`, the plot it
+  // allots), and a plain `serencam.pdf` still reads as the extract below.
+  //
+  // The Rusadze case: the archive's certified copy of the order allotting the
+  // homestead plot, held against the National Archive Fund by the QR reference
+  // printed on it. The heading is the one the profile places a Decree 439
+  // paper by, and the archival reference is the one the stand-in archive holds
+  // (ADR-0028).
+  if (
+    name.includes('1471') ||
+    name.includes('heyetyani') ||
+    name.includes('həyətyanı')
+  ) {
+    return [
+      'AZƏRBAYCAN RESPUBLİKASI',
+      'SABUNÇU RAYON İCRA HAKİMİYYƏTİ',
+      'Həyətyanı torpaq sahəsinin ayrılması barədə qərar № 1471, 29.10.1998',
+      'Qusadze Vera Vladimirovna — 400,0 kv.m',
+      'EAS: Fond-130, siy.1, i-476, vər.98',
+      '[stamp: SABUNÇU RAYON İCRA HAKİMİYYƏTİ]',
+      '[signature]',
+    ].join('\n');
+  }
   if (
     name.includes('vesiqe') ||
     name.includes('vəsiqə') ||

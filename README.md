@@ -29,11 +29,12 @@ something: below `Confidence.FLOOR` the reading goes to the inspector as a
 finding instead of into the register as a fact — and the document it was read
 off is offered to be sent in again (ADR-0024).
 
-The floor is `0.85`, raised from the PRD's `0.80` when targeted supply arrived:
-one number decides both what the report doubts and what the package offers to
-be sent again, and a second one beside it would be two "low confidences" in one
-product. Clients read it from the contract as `CONFIDENCE_FLOOR` rather than
-keeping a copy.
+The floor is `0.80`, the figure PRD §4.6 asks for: one number decides both what
+the report doubts and what the package offers to be sent again, and a second one
+beside it would be two "low confidences" in one product. Clients read it from
+the contract as `CONFIDENCE_FLOOR` rather than keeping a copy — the case card's
+green band is the same 80 in the reader's own unit, and a test holds the two
+together.
 
 So the number has to be real. It is taken as the **lower** of two independent
 accounts: the token logprobs the route returns, and the model's own stated

@@ -2,6 +2,13 @@
 
 Date: 2026-09-11. Status: accepted.
 
+> Amended by COMM-129 in the number only. Decision 2 below stands — one
+> threshold for the whole product, published as `CONFIDENCE_FLOOR` — but the
+> raise to 0.85 it also made did not: the PM had not asked for it, and it put
+> the floor out of step with the case card's green band. The floor is the 0.80
+> of PRD §4.6, and paragraph 2's talk of a raise and of its cost describes what
+> was reverted.
+
 Extends [ADR-0013](./0013-a-package-takes-more-files-until-a-run-is-reading-it.md),
 whose `addFiles` re-opens a package and re-reads nothing it has already read,
 and [ADR-0016](./0016-the-approval-of-an-archive-search-is-an-event-and-it-is-spent.md),

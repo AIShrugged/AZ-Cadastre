@@ -32,16 +32,21 @@ export const DECLARED_YEAR_LATEST = 2200;
  * against it, and it offers the document to be sent in again as an
  * `UnusableScan` gap.
  *
+ * The figure is the one PRD §4.6 asks for — 0.80, confirmed by the PM as the
+ * single threshold the product has.
+ *
  * Published so there is one of it. A client that wants to mark a doubtful value
  * reads this rather than keeping a figure of its own — two numbers called "low
  * confidence" in one product is two products, and the first time they disagree
  * a screen highlights a value the report is content with, or leaves a flagged
- * one plain (COMM-80).
+ * one plain. The case card's colour scale is the same decision in the reader's
+ * unit: `READING_BAND_FLOOR.sure` is 80 because this is 0.8, and a test holds
+ * them together.
  *
  * It is the engine's and not a profile's: how well a scan was read is not a
  * matter of policy.
  */
-export const CONFIDENCE_FLOOR = 0.85;
+export const CONFIDENCE_FLOOR = 0.8;
 
 /**
  * One value the package states about itself, as the pipeline read it off the

@@ -192,6 +192,11 @@ export type FieldView = {
     fieldName: string;
     pageNumber: number;
   } | null;
+  // Who last corrected this value by hand, and when. Both null on every field
+  // nobody has touched, and both set on exactly the `EnteredByOperator` ones
+  // (ADR-0033).
+  editedByAccountId: string | null;
+  editedAt: Date | null;
 };
 
 /**

@@ -14,6 +14,8 @@ const field = (over: Partial<FieldDto> = {}): FieldDto => ({
   pageNumber: 1,
   origin: 'ReadOnThisDocument',
   takenFrom: null,
+  editedByAccountId: null,
+  editedAt: null,
   ...over,
 });
 

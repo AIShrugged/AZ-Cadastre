@@ -10,6 +10,7 @@ import {
   Confidence,
   DocumentId,
   DocumentType,
+  EditorAccountId,
   FieldKey,
   FieldValue,
   PageNumber,
@@ -163,5 +164,83 @@ describe('Document', () => {
     expect(() => restored.classifiedAs(aClassification('application'))).toThrow(
       DocumentAlreadyClassifiedException,
     );
+  });
+
+  /*
+   * A person correcting a value and the machine putting its own back on the
+   * next run is the one failure that would make the whole correction feature
+   * worthless, so the rule lives on the only way a reading reaches a document
+   * (ADR-0033).
+   */
+  describe("carrying an operator's corrections", () => {
+    const OPERATOR = EditorAccountId.of('0190a1b2-c3d4-7e5f-8a9b-0000000000aa');
+    const AT = new Date('2026-09-21T10:00:00.000Z');
+
+    const edit = (key: string, value: string | null) => ({
+      key: FieldKey.create(key),
+      value: value === null ? null : FieldValue.create(value),
+    });
+
+    function corrected(): Document {
+      return aDocument()
+        .classifiedAs(aClassification())
+        .withFields([aField('document_no')])
+        .withEdits([edit('document_no', 'AZE7654321')], OPERATOR, AT);
+    }
+
+    it('replaces the reading with what the operator typed', () => {
+      const field = corrected().fields[0];
+
+      expect(field?.value.value).toBe('AZE7654321');
+      expect(field?.wasEnteredByOperator).toBe(true);
+      expect(field?.editedBy?.equals(OPERATOR)).toBe(true);
+    });
+
+    it('carries the sheet of the reading it replaced onto the correction', () => {
+      expect(corrected().fields[0]?.foundOn?.value).toBe(1);
+    });
+
+    it('drops the key where the operator states the paper does not say it', () => {
+      const document = corrected().withEdits(
+        [edit('document_no', null)],
+        OPERATOR,
+        AT,
+      );
+
+      expect(document.fields).toEqual([]);
+    });
+
+    /*
+     * The test the extraction stage asks before skipping a paper it takes to be
+     * done with. A document whose one value an operator typed has not been read
+     * by anything, and counting that as a reading would cancel the reading of
+     * every other field on the paper for good.
+     */
+    it('is not a document a machine has read', () => {
+      expect(corrected().hasMachineReadings).toBe(false);
+      expect(corrected().hasFields).toBe(true);
+    });
+
+    it('leaves the correction alone when the extractor reads the paper again', () => {
+      const read = corrected().withFields([aField('document_no')]);
+
+      expect(read.fields).toHaveLength(1);
+      expect(read.fields[0]?.value.value).toBe('AZE7654321');
+      expect(read.fields[0]?.wasEnteredByOperator).toBe(true);
+    });
+
+    it('takes the readings of every key the operator has not spoken for', () => {
+      const read = corrected().withFields([
+        aField('document_no'),
+        aField('first_name'),
+      ]);
+
+      expect(
+        read.fields.map(field => [field.key.value, field.wasEnteredByOperator]),
+      ).toEqual([
+        ['document_no', true],
+        ['first_name', false],
+      ]);
+    });
   });
 });

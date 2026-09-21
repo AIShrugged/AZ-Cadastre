@@ -5,6 +5,7 @@ import {
   Confidence,
   DocumentId,
   DocumentType,
+  EditorAccountId,
   FieldKey,
   FieldOrigin,
   FieldValue,
@@ -139,6 +140,81 @@ describe('ExtractedField', () => {
       expect(
         aField(Confidence.of(0.9)).confirmedByRegistry().confidence.value,
       ).toBe(0.9);
+    });
+  });
+
+  /*
+   * What an operator typed off the paper in front of them, because the reader
+   * got the field wrong or never got it at all (ADR-0033).
+   */
+  describe('entered by an operator', () => {
+    const OPERATOR = EditorAccountId.of('0190a1b2-c3d4-7e5f-8a9b-0000000000aa');
+    const AT = new Date('2026-09-21T10:00:00.000Z');
+
+    function typed(foundOn: PageNumber | null = PageNumber.of(2)) {
+      return ExtractedField.enteredByOperator(
+        FieldKey.create('property_address'),
+        FieldValue.create('Zığ qəsəbəsi, Əliyev küçəsi 21'),
+        foundOn,
+        OPERATOR,
+        AT,
+      );
+    }
+
+    /*
+     * A person read the paper, so the value answers for the paper: it may be a
+     * side of a cross-document check and may be what the register is asked
+     * about. Were it anything else the correction would change nothing
+     * downstream.
+     */
+    it('is a reading of the document it hangs on', () => {
+      expect(typed().origin).toBe(FieldOrigin.ENTERED_BY_OPERATOR);
+      expect(typed().wasReadHere).toBe(true);
+    });
+
+    // Not a reading by anything the extraction stage may skip a paper over: a
+    // document whose only values were typed in has not been read (ADR-0033).
+    it('is not a machine reading', () => {
+      expect(typed().wasReadByTheMachine).toBe(false);
+      expect(typed().wasEnteredByOperator).toBe(true);
+    });
+
+    /*
+     * A figure a person read off the sheet is not a reading with a probability
+     * attached. This is what keeps a correction out of the report's
+     * low-confidence findings, where it would send an inspector back to the one
+     * value somebody has already looked at.
+     */
+    it('is certain, and never a doubted reading', () => {
+      expect(typed().confidence.value).toBe(1);
+      expect(typed().isBelow(Confidence.FLOOR)).toBe(false);
+    });
+
+    it('cites the sheet of the reading it replaced', () => {
+      expect(typed().foundOn?.value).toBe(2);
+    });
+
+    // Nothing was read, so there is no sheet to send an inspector to.
+    it('cites no sheet where the operator states a value nothing was read for', () => {
+      expect(typed(null).foundOn).toBeNull();
+    });
+
+    it('records who corrected it and when', () => {
+      expect(typed().editedBy?.equals(OPERATOR)).toBe(true);
+      expect(typed().editedAt).toBe(AT);
+    });
+
+    /*
+     * The origin records where the value came from, and where it came from is a
+     * person. The register's agreement is already on the registry check that
+     * asked, and overwriting the origin with it would lose the one fact an
+     * inspector most needs about the field (ADR-0033).
+     */
+    it('is left alone by the archive register agreeing with it', () => {
+      const field = typed().confirmedByRegistry();
+
+      expect(field.origin).toBe(FieldOrigin.ENTERED_BY_OPERATOR);
+      expect(field.editedBy?.equals(OPERATOR)).toBe(true);
     });
   });
 });

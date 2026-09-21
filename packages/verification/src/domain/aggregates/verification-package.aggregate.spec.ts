@@ -9,6 +9,7 @@ import {
 import {
   ArchiveQrCheckMade,
   DocumentClassified,
+  DocumentFieldsEdited,
   FieldsExtracted,
   FilesAdded,
   PackageSubmitted,
@@ -27,6 +28,7 @@ import {
   DocumentAlreadyClassifiedException,
   DocumentNotClassifiedException,
   DocumentNotHeldAgainstTheArchiveException,
+  DocumentNotInForceException,
   DocumentNotInPackageException,
   DocumentsMustCoverEverySheetException,
   DocumentTypeNotInProfileException,
@@ -66,6 +68,7 @@ import {
   DeclaredAtIntake,
   DocumentId,
   DocumentType,
+  EditorAccountId,
   FailureReason,
   FieldKey,
   FieldOrigin,
@@ -86,6 +89,7 @@ import {
   RegistryOutcome,
   SourceFileId,
   StorageKey,
+  Supersession,
   SupplyTarget,
   ValidationIssue,
   VerificationProfile,
@@ -4748,6 +4752,537 @@ describe('VerificationPackage supplied with a document', () => {
       expect(
         verification.documentWith(document.id).archiveQrCheck?.status,
       ).toBe('Confirmed');
+    });
+  });
+});
+
+/*
+ * An operator corrects, by hand, a field the reader got wrong or never got
+ * at all — and the package is verified again from the stage the correction
+ * reaches (ADR-0033).
+ */
+describe('VerificationPackage corrected by hand', () => {
+  const ADDRESS = VerificationProfile.CADASTRE.crossChecks.find(
+    spec => spec.key.value === 'property_address',
+  )!;
+  const OF_RECORD = VerificationProfile.CADASTRE.registryChecks[0]!;
+
+  const ON_THE_PLAN = 'Zığ qəsəbəsi, Əliyev küçəsi 12';
+  const AS_THE_OPERATOR_READS_IT = 'Zığ qəsəbəsi, Əliyev küçəsi 21';
+  const QR = 'AZ-NAF-1998-001471';
+  const CHECKED_AT = new Date('2026-09-21T10:00:00.000Z');
+
+  const OPERATOR = EditorAccountId.of('0190a1b2-c3d4-7e5f-8a9b-0000000000aa');
+
+  function read(
+    key: string,
+    value: string,
+    page = 1,
+    confidence = 0.6,
+  ): ExtractedField {
+    return ExtractedField.of(
+      FieldKey.create(key),
+      FieldValue.create(value),
+      Confidence.of(confidence),
+      PageNumber.of(page),
+    );
+  }
+
+  function stated(key: string, value: string | null) {
+    return {
+      key: FieldKey.create(key),
+      value: value === null ? null : FieldValue.create(value),
+    };
+  }
+
+  function anArchiveAnswer(): ArchiveQrCheck {
+    return ArchiveQrCheck.found({
+      qrReference: QR,
+      checkedAt: CHECKED_AT,
+      issuingAuthorityCompetent: true,
+      fields: ARCHIVE_QR_FIELDS.map(name =>
+        ArchiveQrFieldCheck.of({
+          name,
+          documentValue: null,
+          archiveValue: null,
+          verdict: 'NotStated',
+        }),
+      ),
+    });
+  }
+
+  /*
+   * A submission the pipeline has been all the way over: two Decree 439
+   * titles the archive has answered for, the plan-scheme the address is read
+   * off, the sketch design that did not yield one and had it gathered, the
+   * cross-check and the register's answer over the lot, a report, and a
+   * person's signature on the archive search.
+   *
+   * Everything a correction is supposed to reach is in it, so the specs below
+   * can say what goes and — just as much the point — what stays.
+   */
+  function aVerifiedSubmission() {
+    const built = aSegmentedPackage(5);
+    const [edited, other, plan, sketch, application] = built.documents as [
+      Document,
+      Document,
+      Document,
+      Document,
+      Document,
+    ];
+
+    for (const [index, title] of [edited, other].entries()) {
+      built.verification.classify(
+        title.id,
+        aClassification('homestead_land_allocation_decision'),
+      );
+      built.verification.recordExtractedFields(title.id, [
+        read('document_no', '1471', index + 1),
+        read('issue_date', '29.10.1998', index + 1),
+        read('qr_code', QR, index + 1),
+      ]);
+      built.verification.recordArchiveQrCheck(title.id, anArchiveAnswer());
+    }
+
+    // The plan-scheme is read best of the papers that print the address, so it
+    // is the one the sketch design's blank is closed from — which is what makes
+    // correcting *it* the case that strips a carried-over value (ADR-0023).
+    built.verification.classify(plan.id, aClassification('land_plot_plan'));
+    built.verification.recordExtractedFields(plan.id, [
+      read('property_address', ON_THE_PLAN, 3, 0.7),
+    ]);
+    built.verification.classify(sketch.id, aClassification('sketch_project'));
+    built.verification.recordExtractedFields(sketch.id, [
+      read('project_name', 'Fərdi yaşayış evi', 4),
+    ]);
+    built.verification.classify(application.id, aClassification('application'));
+    built.verification.recordExtractedFields(application.id, [
+      read('property_address', ON_THE_PLAN, 5),
+      read('applicant_name', 'Əliyeva Rübabə', 5),
+    ]);
+
+    built.verification.gatherFromThePackage();
+    built.verification.recordCrossCheck(
+      CrossCheck.of({
+        key: ADDRESS.key,
+        verdict: CrossCheckVerdict.MATCH,
+        confidence: Confidence.of(0.9),
+        note: 'compared in a test',
+        values: built.verification.valuesFor(ADDRESS),
+      }),
+    );
+    built.verification.recordRegistryCheck(
+      RegistryCheck.of({
+        key: OF_RECORD.key,
+        outcome: RegistryOutcome.CONFIRMED,
+        confidence: Confidence.of(0.95),
+        note: 'the register holds this address',
+        asked: built.verification.askedOf(OF_RECORD)!,
+        reference: 'folder 14, pp. 01-dən 30',
+        attributes: [],
+      }),
+    );
+    built.verification.complete();
+    built.verification.approveArchiveSearch(
+      ApprovalSummary.create('The archive answers for this submission.'),
+      ApprovalComment.from(undefined),
+    );
+    built.verification.commit();
+
+    return { ...built, edited, other, plan, sketch, application };
+  }
+
+  function fieldOn(
+    verification: VerificationPackage,
+    document: Document,
+    key: string,
+  ): ExtractedField | undefined {
+    return verification
+      .documentWith(document.id)
+      .fields.find(field => field.key.value === key);
+  }
+
+  it("makes the value the operator's own, certain, on the sheet the reading cited", () => {
+    const built = aVerifiedSubmission();
+
+    built.verification.editFields(
+      built.plan.id,
+      [stated('property_address', AS_THE_OPERATOR_READS_IT)],
+      OPERATOR,
+    );
+
+    const field = fieldOn(built.verification, built.plan, 'property_address');
+    expect(field?.value.value).toBe(AS_THE_OPERATOR_READS_IT);
+    expect(field?.origin).toBe(FieldOrigin.ENTERED_BY_OPERATOR);
+    expect(field?.confidence.value).toBe(1);
+    expect(field?.foundOn?.value).toBe(3);
+    expect(field?.editedBy?.equals(OPERATOR)).toBe(true);
+    expect(field?.editedAt).toBeInstanceOf(Date);
+  });
+
+  /*
+   * The point of the fourth origin: a person read the paper, so the value
+   * answers for the paper. Were it anything else the correction would change
+   * nothing downstream (ADR-0033).
+   */
+  it('is a reading of the paper, so it answers cross-checks and the register', () => {
+    const built = aVerifiedSubmission();
+
+    built.verification.editFields(
+      built.plan.id,
+      [stated('property_address', AS_THE_OPERATOR_READS_IT)],
+      OPERATOR,
+    );
+
+    expect(
+      fieldOn(built.verification, built.plan, 'property_address')?.wasReadHere,
+    ).toBe(true);
+    expect(
+      built.verification.valuesFor(ADDRESS).map(value => value.value.value),
+    ).toContain(AS_THE_OPERATOR_READS_IT);
+  });
+
+  it('states a value for a key nothing was read for, citing no sheet', () => {
+    const built = aVerifiedSubmission();
+
+    built.verification.editFields(
+      built.plan.id,
+      [stated('cadastral_number', '40-12-345-67')],
+      OPERATOR,
+    );
+
+    const field = fieldOn(built.verification, built.plan, 'cadastral_number');
+    expect(field?.value.value).toBe('40-12-345-67');
+    expect(field?.foundOn).toBeNull();
+    expect(field?.origin).toBe(FieldOrigin.ENTERED_BY_OPERATOR);
+  });
+
+  // The operator states the paper does not say it. A later run may carry one
+  // over from a sister paper, which is correct and is the point of gathering.
+  it('drops the key when the operator states the paper does not say it', () => {
+    const built = aVerifiedSubmission();
+
+    built.verification.editFields(
+      built.plan.id,
+      [stated('property_address', null)],
+      OPERATOR,
+    );
+
+    expect(
+      fieldOn(built.verification, built.plan, 'property_address'),
+    ).toBeUndefined();
+  });
+
+  it('discards the cross-checks, the register and the report, and re-opens', () => {
+    const built = aVerifiedSubmission();
+
+    built.verification.editFields(
+      built.plan.id,
+      [stated('property_address', AS_THE_OPERATOR_READS_IT)],
+      OPERATOR,
+    );
+
+    expect(built.verification.crossChecks).toEqual([]);
+    expect(built.verification.registryChecks).toEqual([]);
+    expect(built.verification.report).toBeNull();
+    expect(built.verification.status.equals(PackageStatus.PENDING)).toBe(true);
+  });
+
+  // What was approved covered answers the package no longer holds (ADR-0016).
+  it('spends the signature on the archive search', () => {
+    const built = aVerifiedSubmission();
+
+    built.verification.editFields(
+      built.plan.id,
+      [stated('property_address', AS_THE_OPERATOR_READS_IT)],
+      OPERATOR,
+    );
+
+    expect(built.verification.archiveSearchApproval).toBeNull();
+    expect(typesOf(built.verification)).toContain(
+      'verification.ArchiveSearchApprovalSpent',
+    );
+  });
+
+  /*
+   * The question put to the archive is built out of the edited paper's own
+   * fields, and nothing on another paper changes it — so one answer goes and
+   * the other stays where it is (ADR-0028).
+   */
+  it("drops the archive's answer about the edited paper and no other", () => {
+    const built = aVerifiedSubmission();
+
+    built.verification.editFields(
+      built.edited.id,
+      [stated('document_no', '1417')],
+      OPERATOR,
+    );
+
+    expect(
+      built.verification.documentWith(built.edited.id).archiveQrCheck,
+    ).toBeNull();
+    expect(
+      built.verification.documentWith(built.other.id).archiveQrCheck?.status,
+    ).toBe('Confirmed');
+  });
+
+  // A pointer at a reading that no longer exists is not a value the package
+  // states; the next run gathers again off what is now in force (ADR-0023).
+  it('drops a value carried over from the key that was corrected', () => {
+    const built = aVerifiedSubmission();
+    expect(
+      fieldOn(built.verification, built.sketch, 'property_address')?.origin,
+    ).toBe(FieldOrigin.TAKEN_FROM_ANOTHER_DOCUMENT);
+
+    built.verification.editFields(
+      built.plan.id,
+      [stated('property_address', AS_THE_OPERATOR_READS_IT)],
+      OPERATOR,
+    );
+
+    expect(
+      fieldOn(built.verification, built.sketch, 'property_address'),
+    ).toBeUndefined();
+  });
+
+  it('leaves every other paper of the package exactly as it was', () => {
+    const built = aVerifiedSubmission();
+
+    built.verification.editFields(
+      built.plan.id,
+      [stated('property_address', AS_THE_OPERATOR_READS_IT)],
+      OPERATOR,
+    );
+
+    expect(
+      fieldOn(built.verification, built.other, 'document_no')?.value.value,
+    ).toBe('1471');
+    expect(
+      fieldOn(built.verification, built.sketch, 'project_name')?.value.value,
+    ).toBe('Fərdi yaşayış evi');
+    expect(built.verification.files).toHaveLength(1);
+    expect(built.verification.documents).toHaveLength(5);
+  });
+
+  it('announces the correction, so the same handler starts a run', () => {
+    const built = aVerifiedSubmission();
+
+    built.verification.editFields(
+      built.plan.id,
+      [
+        stated('property_address', AS_THE_OPERATOR_READS_IT),
+        stated('cadastral_number', '40-12-345-67'),
+      ],
+      OPERATOR,
+    );
+
+    const event = built.verification
+      .getUncommittedEvents()
+      .find(
+        (one): one is DocumentFieldsEdited =>
+          one instanceof DocumentFieldsEdited,
+      );
+    expect(event?.documentId.equals(built.plan.id)).toBe(true);
+    expect(event?.fieldCount).toBe(2);
+  });
+
+  /*
+   * An operator pressing save twice must not re-open a package that has been
+   * re-verified since the first press (ADR-0033).
+   */
+  describe('and the correction changes nothing', () => {
+    function corrected() {
+      const built = aVerifiedSubmission();
+      built.verification.editFields(
+        built.plan.id,
+        [stated('property_address', AS_THE_OPERATOR_READS_IT)],
+        OPERATOR,
+      );
+      built.verification.commit();
+
+      return built;
+    }
+
+    it('answers that nothing changed', () => {
+      const built = corrected();
+
+      expect(
+        built.verification.editFields(
+          built.plan.id,
+          [stated('property_address', AS_THE_OPERATOR_READS_IT)],
+          OPERATOR,
+        ),
+      ).toBe(false);
+    });
+
+    it('announces nothing, so no run starts', () => {
+      const built = corrected();
+
+      built.verification.editFields(
+        built.plan.id,
+        [stated('property_address', AS_THE_OPERATOR_READS_IT)],
+        OPERATOR,
+      );
+
+      expect(built.verification.getUncommittedEvents()).toEqual([]);
+    });
+
+    it('leaves a key nobody holds alone when it is struck out again', () => {
+      const built = aVerifiedSubmission();
+
+      expect(
+        built.verification.editFields(
+          built.plan.id,
+          [stated('cadastral_number', null)],
+          OPERATOR,
+        ),
+      ).toBe(false);
+    });
+
+    /*
+     * The same text over a *machine* reading is a change and not a no-op: it
+     * is a person taking responsibility for the value, which makes it certain
+     * and puts it out of the extractor's reach on every later run.
+     */
+    it('counts the same text over a machine reading as a correction', () => {
+      const built = aVerifiedSubmission();
+
+      expect(
+        built.verification.editFields(
+          built.plan.id,
+          [stated('property_address', ON_THE_PLAN)],
+          OPERATOR,
+        ),
+      ).toBe(true);
+      expect(
+        fieldOn(built.verification, built.plan, 'property_address')?.origin,
+      ).toBe(FieldOrigin.ENTERED_BY_OPERATOR);
+    });
+  });
+
+  describe('and the correction cannot be taken', () => {
+    // The same state test a file arriving is put to, and the same reason: the
+    // run reads the package it started with (ADR-0013).
+    it('refuses while a run is reading the package', () => {
+      const built = aSegmentedPackage();
+      built.verification.classify(
+        built.document.id,
+        aClassification('land_plot_plan'),
+      );
+
+      expect(() =>
+        built.verification.editFields(
+          built.document.id,
+          [stated('property_address', AS_THE_OPERATOR_READS_IT)],
+          OPERATOR,
+        ),
+      ).toThrow(PackageNotTakingFilesException);
+    });
+
+    it('refuses a document that is not in this package', () => {
+      const built = aVerifiedSubmission();
+
+      expect(() =>
+        built.verification.editFields(
+          DocumentId.of(anId()),
+          [stated('property_address', AS_THE_OPERATOR_READS_IT)],
+          OPERATOR,
+        ),
+      ).toThrow(DocumentNotInPackageException);
+    });
+
+    it('refuses a paper a better scan has already replaced', () => {
+      const built = aReadPackage(2);
+      const replacement = aDocumentOf(
+        built.file.id,
+        PageRange.single(PageNumber.of(2)),
+      );
+      const replaced = Document.restore({
+        id: DocumentId.of(anId()),
+        sourceFileId: built.file.id,
+        pages: PageRange.single(PageNumber.first()),
+        classification: aClassification('land_plot_plan'),
+        fields: [],
+        superseded: Supersession.of(replacement.id, new Date()),
+      });
+      built.verification.segmentIntoDocuments(built.file.id, [
+        replaced,
+        replacement,
+      ]);
+      built.verification.complete();
+
+      expect(() =>
+        built.verification.editFields(
+          replaced.id,
+          [stated('property_address', AS_THE_OPERATOR_READS_IT)],
+          OPERATOR,
+        ),
+      ).toThrow(DocumentNotInForceException);
+    });
+
+    it('refuses a paper nothing has placed yet', () => {
+      const { verification, document } = aSegmentedPackage();
+      verification.complete();
+
+      expect(() =>
+        verification.editFields(
+          document.id,
+          [stated('property_address', AS_THE_OPERATOR_READS_IT)],
+          OPERATOR,
+        ),
+      ).toThrow(DocumentNotClassifiedException);
+    });
+
+    it('refuses a paper the profile has no schema for', () => {
+      const { verification, document } = aSegmentedPackage();
+      verification.classify(
+        document.id,
+        Classification.outOfProfile(Confidence.of(0.9), null),
+      );
+      verification.complete();
+
+      expect(() =>
+        verification.editFields(
+          document.id,
+          [stated('property_address', AS_THE_OPERATOR_READS_IT)],
+          OPERATOR,
+        ),
+      ).toThrow(UnclassifiableDocumentException);
+    });
+
+    it("refuses a key the document's type never declared", () => {
+      const built = aVerifiedSubmission();
+
+      expect(() =>
+        built.verification.editFields(
+          built.plan.id,
+          [stated('receipt_no', '12345')],
+          OPERATOR,
+        ),
+      ).toThrow(FieldNotInSchemaException);
+    });
+
+    // A refusal must leave the package exactly as it was, and never as one
+    // that discarded its report over a correction it declined.
+    it('changes nothing at all when one entry breaks the schema', () => {
+      const built = aVerifiedSubmission();
+
+      expect(() =>
+        built.verification.editFields(
+          built.plan.id,
+          [
+            stated('property_address', AS_THE_OPERATOR_READS_IT),
+            stated('receipt_no', '12345'),
+          ],
+          OPERATOR,
+        ),
+      ).toThrow(FieldNotInSchemaException);
+      expect(
+        fieldOn(built.verification, built.plan, 'property_address')?.value
+          .value,
+      ).toBe(ON_THE_PLAN);
+      expect(built.verification.report).not.toBeNull();
+      expect(built.verification.getUncommittedEvents()).toEqual([]);
     });
   });
 });

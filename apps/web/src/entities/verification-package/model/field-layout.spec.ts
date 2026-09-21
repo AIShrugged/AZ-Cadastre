@@ -19,6 +19,8 @@ const field = (name: string): FieldDto => ({
   pageNumber: 1,
   origin: 'ReadOnThisDocument',
   takenFrom: null,
+  editedByAccountId: null,
+  editedAt: null,
 });
 
 const someFields = (n: number): FieldDto[] =>

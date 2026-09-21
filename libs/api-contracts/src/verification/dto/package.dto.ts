@@ -215,6 +215,18 @@ export const FieldDtoSchema = z.object({
   origin: FieldOriginSchema,
   // Set only on `TakenFromAnotherDocument`, and always set there.
   takenFrom: FieldSourceDtoSchema.nullable(),
+  /**
+   * The account of the operator who last corrected this value by hand, and the
+   * moment they did. Both null on every field nobody has touched, and both set
+   * on exactly the fields whose `origin` is `EnteredByOperator` (ADR-0033).
+   *
+   * The id and not a name: accounts are another context's, and resolving one to
+   * a person is a question for the context that owns them. Nothing does it
+   * today — what a screen shows beside a corrected value is the date.
+   */
+  editedByAccountId: z.string().nullable(),
+  // ISO-8601, like every other instant the API publishes.
+  editedAt: z.string().nullable(),
 });
 export type FieldDto = z.infer<typeof FieldDtoSchema>;
 

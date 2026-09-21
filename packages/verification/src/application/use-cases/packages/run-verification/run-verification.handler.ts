@@ -502,7 +502,17 @@ export class RunVerificationHandler implements ICommandHandler<
     const document = verification.documentWith(documentId);
     const classification = document.classification;
 
-    if (!classification?.isPlaced || document.hasFields) return;
+    /*
+     * `hasMachineReadings` and not `hasFields`: the test is whether a machine
+     * has already read this paper, and a value an operator typed in by hand is
+     * not that. A document extraction never yielded anything for, whose one
+     * field a person corrected, must still be read — otherwise that one
+     * correction would silently cancel the reading of every other field on the
+     * paper, for good. What the readings may not do is write over the
+     * correction itself, and `Document.withFields` is where that is enforced
+     * (COMM-122).
+     */
+    if (!classification?.isPlaced || document.hasMachineReadings) return;
 
     const spec = verification.profile.specFor(classification.type);
     if (spec.schema.isEmpty) return;

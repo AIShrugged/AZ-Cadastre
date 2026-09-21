@@ -28,6 +28,7 @@ import {
   AddFilesRequestSchema,
   ApproveArchiveSearchRequestSchema,
   CreatePackageRequestSchema,
+  EditDocumentFieldsRequestSchema,
   ListPackagesRequestSchema,
   ListPackagesResponseSchema,
   PackageDetailDtoSchema,
@@ -43,6 +44,7 @@ import {
   type AddFilesRequest,
   type ApproveArchiveSearchRequest,
   type CreatePackageRequest,
+  type EditDocumentFieldsRequest,
   type ListPackagesRequestInput,
   type ListPackagesResponse,
   type PackageDetailDto,
@@ -351,6 +353,37 @@ export class RestClient {
       this.request(
         'POST',
         `/api/packages/${encodeURIComponent(id)}/archive-search-approval`,
+        z.unknown(),
+        body,
+      ),
+
+    /**
+     * What an operator states one of the package's papers says, saved a
+     * document at a time and answered with the whole submission (ADR-0033).
+     */
+    editDocumentFields: (
+      id: string,
+      documentId: string,
+      request: EditDocumentFieldsRequest,
+    ): Promise<ApiResponse<PackageDetailDto>> =>
+      this.request(
+        'POST',
+        `/api/packages/${encodeURIComponent(id)}` +
+          `/documents/${encodeURIComponent(documentId)}/fields`,
+        PackageDetailDtoSchema,
+        EditDocumentFieldsRequestSchema.parse(request),
+      ),
+
+    /** Deliberately unvalidated, for the specs that check the API's own refusals. */
+    editDocumentFieldsRaw: (
+      id: string,
+      documentId: string,
+      body: unknown,
+    ): Promise<ApiResponse<unknown>> =>
+      this.request(
+        'POST',
+        `/api/packages/${encodeURIComponent(id)}` +
+          `/documents/${encodeURIComponent(documentId)}/fields`,
         z.unknown(),
         body,
       ),

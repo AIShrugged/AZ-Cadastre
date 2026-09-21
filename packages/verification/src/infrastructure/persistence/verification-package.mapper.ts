@@ -22,6 +22,7 @@ import {
   DeclaredAtIntake,
   DocumentId,
   DocumentType,
+  EditorAccountId,
   FieldKey,
   FieldOrigin,
   FieldSource,
@@ -239,6 +240,11 @@ export type FieldRow = {
   readonly sourceDocumentType: string | null;
   readonly sourceFieldName: string | null;
   readonly sourcePageNumber: number | null;
+  // Who last corrected this value by hand, and when. Both null on every field
+  // nobody has touched, and on every row written before they existed
+  // (ADR-0033).
+  readonly editedByAccountId?: string | null;
+  readonly editedAt?: Date | null;
 };
 
 export type PackageWrite = {
@@ -408,6 +414,8 @@ export type FieldWrite = {
   readonly sourceDocumentType: string | null;
   readonly sourceFieldName: string | null;
   readonly sourcePageNumber: number | null;
+  readonly editedByAccountId: string | null;
+  readonly editedAt: Date | null;
 };
 
 export class VerificationPackageMapper {
@@ -494,6 +502,8 @@ export class VerificationPackageMapper {
           sourceDocumentType: field.takenFrom?.documentType.value ?? null,
           sourceFieldName: field.takenFrom?.fieldKey.value ?? null,
           sourcePageNumber: field.takenFrom?.foundOn.value ?? null,
+          editedByAccountId: field.editedBy?.value ?? null,
+          editedAt: field.editedAt,
         })),
         archiveQrCheck: VerificationPackageMapper.archiveQrCheckRow(
           document.archiveQrCheck,
@@ -827,6 +837,8 @@ export class VerificationPackageMapper {
             field.pageNumber === null ? null : PageNumber.of(field.pageNumber),
           origin: FieldOrigin.of(field.origin),
           takenFrom: VerificationPackageMapper.sourceToDomain(field),
+          editedBy: EditorAccountId.orNone(field.editedByAccountId ?? null),
+          editedAt: field.editedAt ?? null,
         }),
       ),
       archiveQrCheck: row.archiveQrCheck

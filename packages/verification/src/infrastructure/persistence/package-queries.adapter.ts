@@ -466,6 +466,9 @@ export class PackageQueriesAdapter extends PackageQueries {
                     sourceDocumentType: true,
                     sourceFieldName: true,
                     sourcePageNumber: true,
+                    // Who corrected the value by hand, and when (ADR-0033).
+                    editedByAccountId: true,
+                    editedAt: true,
                   },
                 },
                 // What the National Archive Fund said about the paper, where
@@ -562,6 +565,8 @@ export class PackageQueriesAdapter extends PackageQueries {
             pageNumber: field.pageNumber,
             origin: field.origin,
             takenFrom: PackageQueriesAdapter.toFieldSource(field),
+            editedByAccountId: field.editedByAccountId,
+            editedAt: field.editedAt,
           })),
           archiveQrCheck: document.archiveQrCheck,
           supersededById: document.supersededById,

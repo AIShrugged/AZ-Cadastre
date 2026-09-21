@@ -2,6 +2,7 @@ import type {
   AddFilesRequest,
   ApproveArchiveSearchRequest,
   CreatePackageRequest,
+  EditDocumentFieldsRequest,
   ListPackagesRequest,
   ListPackagesResponse,
   PackageDetailDto,
@@ -149,5 +150,63 @@ export interface PackagesApi {
   approveArchiveSearch(
     id: string,
     request: ApproveArchiveSearchRequest,
+  ): Promise<PackageDetailDto>;
+
+  /**
+   * Records what an operator states one of the package's papers says, and
+   * answers with the submission as it now stands (ADR-0033).
+   *
+   * The correction the office makes when the scan was poor: a value the reader
+   * got wrong, or one it never got at all. The field becomes
+   * `EnteredByOperator` — a reading of that document, certain, carrying who
+   * typed it and when — and a `null` value states that the paper does not say
+   * it at all, which drops the key.
+   *
+   * One call carries every correction made to one document, because an operator
+   * fixes a form and saves it. A package that re-opened per keystroke would run
+   * the pipeline five times over one edit.
+   *
+   * What follows is `addFiles` with a smaller blast radius, and deliberately
+   * the same road (ADR-0013): the package re-opens and is verified afresh, with
+   * every cross-document check, every registry check, the report and the
+   * archive-search approval discarded — the edited value may be a side of any
+   * of them, and working out which is a guess this system does not make. The
+   * archive QR check of **this** document goes too, because the question put to
+   * the archive is built out of this paper's fields; no other document's does.
+   * Everything else stands: the sheets, their text, the segmentation, the
+   * classification, and every other paper's readings and archive answer.
+   *
+   * The correction survives the run that follows. Extraction re-reads a
+   * document only where no machine reading is on it, and what it reads then
+   * fills the keys the operator has not spoken for and leaves the ones they
+   * have.
+   *
+   * An edit whose every entry already holds that value is a no-op: nothing is
+   * discarded, no run starts, and the package comes back untouched — an
+   * operator pressing save twice must not re-open a package that has been
+   * re-verified since.
+   *
+   * Refused with `PACKAGE_NOT_FOUND` where the id is nobody's, with
+   * `DOCUMENT_NOT_IN_PACKAGE` where the document is not this package's, with
+   * `PACKAGE_NOT_TAKING_FILES` while a run is under way — the same state test
+   * `addFiles` is put to — with `DOCUMENT_NOT_CLASSIFIED` where the paper has
+   * no type and `UNCLASSIFIABLE_DOCUMENT` where its type is none of the
+   * profile's, since either way there is no schema and so no field to name, with
+   * `DOCUMENT_NOT_IN_FORCE` where a later scan has replaced the paper (correct
+   * the one that replaced it), and with `FIELD_NOT_IN_SCHEMA` where a key is
+   * not in the profile's schema for that type.
+   *
+   * The office's own: an applicant gets a 403, because the route and not the
+   * case is none of their business (ADR-0029).
+   *
+   * `editedByAccountId` is the edge's to supply and never the body's, exactly
+   * as an owner is on `create`: it is read off the session, so a caller cannot
+   * file a correction under somebody else's name.
+   */
+  editDocumentFields(
+    id: string,
+    documentId: string,
+    request: EditDocumentFieldsRequest,
+    editedByAccountId: string,
   ): Promise<PackageDetailDto>;
 }

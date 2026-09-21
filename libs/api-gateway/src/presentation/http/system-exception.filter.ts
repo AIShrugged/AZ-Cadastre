@@ -35,6 +35,15 @@ const DOMAIN_STATUS: Readonly<Record<string, number>> = {
   PACKAGE_ALREADY_FINISHED: HttpStatus.CONFLICT,
   DOCUMENT_NOT_CLASSIFIED: HttpStatus.CONFLICT,
   UNCLASSIFIABLE_DOCUMENT: HttpStatus.CONFLICT,
+  // A correction aimed at a paper a better scan has already replaced. Nothing
+  // the package states is worked out from such a document, so the correction
+  // would change nothing an inspector reads; the one that replaced it is the
+  // one to correct (COMM-122).
+  DOCUMENT_NOT_IN_FORCE: HttpStatus.CONFLICT,
+  // A key the profile's schema for that document type does not declare. A
+  // malformed ask and not a conflict: the body names a field that does not
+  // exist, which no state of the package would make valid.
+  FIELD_NOT_IN_SCHEMA: HttpStatus.BAD_REQUEST,
   // Each of these is the package being in a state where approving its archive
   // search would mean something other than what the caller asked for — never a
   // malformed request, which is what makes them conflicts (ADR-0016).

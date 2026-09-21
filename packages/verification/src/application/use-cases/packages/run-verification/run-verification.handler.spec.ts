@@ -20,6 +20,7 @@ import {
   CrossCheckVerdict,
   DocumentId,
   DocumentType,
+  EditorAccountId,
   FieldKey,
   FieldValue,
   Filename,
@@ -1245,5 +1246,124 @@ describe('RunVerificationHandler', () => {
       );
       expect(asked).toBeUndefined();
     });
+  });
+});
+
+/*
+ * The trap COMM-122 exists to close, and the whole reason this feature is not
+ * simply "discard and re-run": the extraction stage skips a document it has
+ * already read, and a correction must not be mistaken for a reading in either
+ * direction (ADR-0033).
+ */
+describe('a run over a package an operator has corrected', () => {
+  const OPERATOR = EditorAccountId.of('0190a1b2-c3d4-7e5f-8a9b-0000000000aa');
+
+  class ReadsTheCardAgain extends FieldExtractor {
+    readonly asked: ExtractionRequest[] = [];
+
+    override async extract(
+      request: ExtractionRequest,
+    ): Promise<readonly ExtractedField[]> {
+      this.asked.push(request);
+
+      return (
+        [
+          ['document_no', 'AZE0000000'],
+          ['first_name', 'Rübabə'],
+        ] as const
+      ).map(([key, value]) =>
+        ExtractedField.of(
+          FieldKey.create(key),
+          FieldValue.create(value),
+          Confidence.of(0.9),
+          PageNumber.first(),
+        ),
+      );
+    }
+  }
+
+  /*
+   * A package read once by an extractor that yielded nothing, then corrected by
+   * hand on the one key the reader missed. That is the case that goes wrong
+   * both ways: the paper must still be read, and what is read must not write
+   * over the correction.
+   */
+  async function correctedAfterAnEmptyRun() {
+    const file = aFile('sexsiyyet-vesiqe.pdf', ContentType.PDF);
+    const verification = aPackageOf(file);
+
+    await pipelineOver(verification, new RenderingSplitter(1)).run();
+
+    const document = verification.documents[0]!;
+    verification.editFields(
+      document.id,
+      [
+        {
+          key: FieldKey.create('document_no'),
+          value: FieldValue.create('AZE1234567'),
+        },
+      ],
+      OPERATOR,
+    );
+    verification.commit();
+
+    return { verification, document };
+  }
+
+  it('reads a paper whose only values an operator typed in', async () => {
+    const { verification } = await correctedAfterAnEmptyRun();
+    const extractor = new ReadsTheCardAgain();
+
+    await pipelineOver(
+      verification,
+      new RenderingSplitter(1),
+      new RecordingOcr(),
+      new SegmenterCuttingAt(),
+      new RecordingClassifier(),
+      extractor,
+    ).run();
+
+    expect(extractor.asked).toHaveLength(1);
+  });
+
+  it('leaves the correction exactly as the operator typed it', async () => {
+    const { verification, document } = await correctedAfterAnEmptyRun();
+
+    await pipelineOver(
+      verification,
+      new RenderingSplitter(1),
+      new RecordingOcr(),
+      new SegmenterCuttingAt(),
+      new RecordingClassifier(),
+      new ReadsTheCardAgain(),
+    ).run();
+
+    const corrected = verification
+      .documentWith(document.id)
+      .fields.find(field => field.key.value === 'document_no');
+    expect(corrected?.value.value).toBe('AZE1234567');
+    expect(corrected?.wasEnteredByOperator).toBe(true);
+    expect(corrected?.confidence.value).toBe(1);
+  });
+
+  // The readings fill the keys the operator has not spoken for: one correction
+  // must not cancel the reading of every other field on the paper.
+  it('takes the readings of every key the operator did not speak for', async () => {
+    const { verification, document } = await correctedAfterAnEmptyRun();
+
+    await pipelineOver(
+      verification,
+      new RenderingSplitter(1),
+      new RecordingOcr(),
+      new SegmenterCuttingAt(),
+      new RecordingClassifier(),
+      new ReadsTheCardAgain(),
+    ).run();
+
+    expect(
+      verification
+        .documentWith(document.id)
+        .fields.find(field => field.key.value === 'first_name')?.value.value,
+    ).toBe('Rübabə');
   });
 });

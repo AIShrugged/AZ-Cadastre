@@ -103,6 +103,10 @@ function aFieldRow(overrides: Partial<FieldRow> = {}): FieldRow {
     sourceDocumentType: null,
     sourceFieldName: null,
     sourcePageNumber: null,
+    // Nobody has corrected this reading by hand, which is what both nulls say
+    // (ADR-0033).
+    editedByAccountId: null,
+    editedAt: null,
     ...overrides,
   };
 }

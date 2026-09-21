@@ -317,6 +317,7 @@ const en: Dict = {
   'detail.fields': 'Extracted fields',
   'detail.pending': 'Extraction pending',
   'detail.needs_review': 'Needs review',
+  'detail.required_mark': 'Required',
   'detail.unscored': 'unscored',
   'detail.unscored_why':
     'No confidence given — check the value against the scan.',
@@ -1356,6 +1357,7 @@ const ru: Dict = {
   'detail.fields': 'Извлечённые поля',
   'detail.pending': 'Извлечение ожидается',
   'detail.needs_review': 'Требует проверки',
+  'detail.required_mark': 'Обязательный',
   'detail.unscored': 'без оценки',
   'detail.unscored_why': 'Уверенность не указана — сверьте значение со сканом.',
   'detail.none': 'Нет',
@@ -2354,6 +2356,7 @@ const az: Dict = {
   'detail.fields': 'Çıxarılan sahələr',
   'detail.pending': 'Çıxarış gözlənilir',
   'detail.needs_review': 'Yoxlama tələb edir',
+  'detail.required_mark': 'Mütləq',
   'detail.unscored': 'qiymətləndirilməyib',
   'detail.unscored_why': 'Etibarlılıq göstərilməyib — dəyəri skanla yoxlayın.',
   'detail.none': 'Yoxdur',

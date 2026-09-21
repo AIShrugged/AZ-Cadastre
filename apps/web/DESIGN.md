@@ -18,6 +18,12 @@ colors:
   issues-ink: 'oklch(0.475 0.10 66)'
   incomplete: 'oklch(0.60 0.16 32)'
   incomplete-ink: 'oklch(0.465 0.145 30)'
+  reading-low: 'oklch(0.55 0.20 27)'
+  reading-low-ink: 'oklch(0.44 0.175 27)'
+  reading-fair: 'oklch(0.68 0.14 74)'
+  reading-fair-ink: 'oklch(0.50 0.105 70)'
+  reading-sure: 'oklch(0.62 0.13 160)'
+  reading-sure-ink: 'oklch(0.545 0.10 158)'
   failed: 'oklch(0.55 0.20 26)'
   failed-ink: 'oklch(0.46 0.185 25)'
 typography:
@@ -191,6 +197,32 @@ position on the conveyor — it is the conveyor having stopped — so it wears t
 reserved failed ink, and the summary calls it out above the figure as well as in
 it.
 
+### Reading scale (ordinal, case card only)
+
+How sure the engine is that it read a value, in the three bands the customer
+asked the case card to state — under 60%, 60–79%, 80% and over. A band of its
+own and **not** the disposition inks: a weak reading is not a fault, and
+printing it in the failed red would have the surface claim a verdict the
+register never made.
+
+- **reading-low** (`oklch(0.55 0.20 27)`, ink `oklch(0.44 0.175 27)`): under 60%.
+- **reading-fair** (`oklch(0.68 0.14 74)`, ink `oklch(0.50 0.105 70)`): 60–79%.
+- **reading-sure** (`oklch(0.62 0.13 160)`, ink `oklch(0.545 0.10 158)`): 80–100%.
+
+Ordinal and not categorical, like the conveyor: the inks are monotone in
+lightness — a doubtful reading is the darkest mark in the column on paper and
+the lightest under the lamp, because presence flips with the ground — so the
+ramp keeps its order in grayscale. Each band also carries its own type weight
+(semibold / medium / regular), and the figure itself is printed in every case.
+Every ink clears AA on both the canvas and the raised surface, in both themes.
+
+**Scoped, and deliberately so.** The scale is drawn on the case card and its
+checklist and nowhere else. The archive search states a confidence in the
+neutral four-step ink meter (`ConfidenceMark`), which is what the rule below
+asks for; that surface is not changed, and the thresholds here are not the
+engine's `CONFIDENCE_FLOOR` — see `entities/verification-package/model/reading-scale`
+for why the two lines disagree between 80% and 85%.
+
 ### Named Rules
 
 **The One Signal Rule.** Registry Indigo carries selection, the primary action,
@@ -220,6 +252,10 @@ the trilingual RU/EN/AZ interface. No display serif, no second personality face.
 - **Data** (450, 0.8125rem, mono, tabular): IDs, dates, counts, confidence.
 - **Label** (500, 0.6875rem, +0.09em, uppercase): column headers and section
   markers only.
+
+**The Reading-Ink Rule.** A confidence is not a disposition. Outside the case
+card's reading scale it is drawn in neutral ink and never in a status tone — a
+weak reading is a fact about a scan, not a fault of the submission.
 
 ### Named Rules
 
@@ -304,6 +340,13 @@ pulses. Marker + word always travel together — this is the register's stamp.
 - Row hover and selection wash in `selection-tint`; the active row carries a 2px
   Registry Indigo marker on its leading edge (a functional rule, not decorative
   border-left kitsch).
+- **Document hierarchy (case card):** entries in a case's register of documents
+  are printed at three weights — a paper the profile requires or one carrying a
+  reading to check, a paper the case merely carries, a paper it does not rest on
+  (out of profile, or a scan replaced by a later one). The difference is kegel
+  and weight on the heading, the air around the entry, and whether the line
+  above it is `rule-strong` or the hairline. Never a card, a plaque or a
+  decorative glyph; a required paper also says so in the uppercase Label style.
 - **Stage bar:** in-progress packages show a segmented 6-cell bar (one cell per
   pipeline stage: OCR, Classify, Extract, Completeness, Rules, Report), filled
   cells in ink, current cell in Registry Indigo — rounded pill segments, never a

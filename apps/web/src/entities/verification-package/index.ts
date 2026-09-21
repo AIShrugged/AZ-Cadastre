@@ -33,6 +33,15 @@ export { STAGES } from './model/pipeline';
 
 export { fieldsReadHere, isCarriedOver } from './model/field-origin';
 
+export type { ReadingBand } from './model/reading-scale';
+export {
+  READING_BAND_FLOOR,
+  READING_BANDS,
+  readingBand,
+  readingPercent,
+  readReading,
+} from './model/reading-scale';
+
 export {
   ENTRIES_SHOWN,
   entriesOf,
@@ -206,6 +215,12 @@ export {
   OUTCOME_ICON,
   RegistryOutcomeMark,
 } from './ui/outcome-mark';
+export {
+  ReadingFigure,
+  READING_INK,
+  READING_TINT,
+  READING_WEIGHT,
+} from './ui/reading-mark';
 export { StandingMark } from './ui/standing-mark';
 export { ProfileGlyph } from './ui/profile-glyph';
 export { StageBar } from './ui/stage-bar';

@@ -27,6 +27,7 @@ import { useState, type ReactNode } from 'react';
 import {
   provisionName,
   provisionShort,
+  ReadingFigure,
   requiredTypes,
   type ProfileDto,
 } from '@/entities/verification-package';
@@ -516,11 +517,11 @@ function FindingItem({
           <span className='mt-0.5 flex flex-wrap items-baseline gap-x-2 text-[0.75rem] leading-snug text-muted-foreground'>
             {line.where && <span className='min-w-0'>{line.where}</span>}
             {/* The figure a doubtful reading was made with, because that is the
-              thing the inspector is being asked to look at (PRD §4.6). */}
+              thing the inspector is being asked to look at (PRD §4.6) — on the
+              same three-band scale the case card prints it in, so a remark in
+              the rail and the row it jumps to are one colour (COMM-110). */}
             {low && line.confidence !== null && (
-              <span data-mono className='tabular-nums text-incomplete-ink'>
-                {Math.round(line.confidence * 100)}%
-              </span>
+              <ReadingFigure confidence={line.confidence} />
             )}
           </span>
         )}

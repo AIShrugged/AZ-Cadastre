@@ -61,6 +61,22 @@
     --color-conveyor-2: var(--conveyor-2);
     --color-conveyor-3: var(--conveyor-3);
 
+    /* Reading scale — how sure a reading is, in the customer's own three bands
+       (under 60 / 60–79 / 80 and over). A band of its own and deliberately not
+       the disposition inks: a weak reading is not a fault, and printing it in
+       the `failed` red would have the screen state a verdict the register never
+       made. Scoped to the case card and its checklist; the archive search keeps
+       the neutral ink meter the rule asks for (COMM-110, ADR-0009). Ordinal and
+       not categorical: `low` is the heaviest ink on paper and the lightest under
+       the lamp, and the figure is printed beside it in every case, so colour is
+       never the whole statement. */
+    --color-reading-low: var(--reading-low);
+    --color-reading-low-ink: var(--reading-low-ink);
+    --color-reading-fair: var(--reading-fair);
+    --color-reading-fair-ink: var(--reading-fair-ink);
+    --color-reading-sure: var(--reading-sure);
+    --color-reading-sure-ink: var(--reading-sure-ink);
+
     /* Structural rules — the visible grid. */
     --color-rule: var(--rule);
     --color-rule-strong: var(--rule-strong);
@@ -165,6 +181,20 @@
     --conveyor-2: oklch(0.615 0.15 266);         /* being read */
     --conveyor-3: oklch(0.505 0.185 266);        /* read */
 
+    /* Reading scale — the three bands of the case card's confidence figures.
+       Monotone in lightness so the ramp keeps its order in grayscale: a doubtful
+       reading is the darkest mark in the column and a sure one the quietest,
+       which is also the register's own manners — a reading the engine is certain
+       of must not shout down the value it produced. Every *-ink clears AA on
+       both the paper canvas and the white raised surface (8.13:1 / 5.87:1 /
+       4.50:1); the un-inked pair is the wash behind a chip. */
+    --reading-low: oklch(0.55 0.20 27);          /* under 60% */
+    --reading-low-ink: oklch(0.44 0.175 27);
+    --reading-fair: oklch(0.68 0.14 74);         /* 60–79% */
+    --reading-fair-ink: oklch(0.50 0.105 70);
+    --reading-sure: oklch(0.62 0.13 160);        /* 80% and over */
+    --reading-sure-ink: oklch(0.545 0.10 158);
+
     /* Elevation — offset + soft blur, never a flat colored halo */
     --shadow-xs: 0 1px 2px oklch(0.235 0.02 264 / 0.05);
     --shadow-sm: 0 1px 2px oklch(0.235 0.02 264 / 0.06),
@@ -254,6 +284,19 @@
     --conveyor-1: oklch(0.50 0.15 266);          /* waiting to be read */
     --conveyor-2: oklch(0.62 0.155 266);         /* being read */
     --conveyor-3: oklch(0.745 0.13 266);         /* read */
+
+    /* The reading scale with its anchor flipped, for the reason the conveyor
+       flips: under the lamp it is lightness that reads as presence, so the
+       doubtful end is the lightest here and the sure end the quietest. Still
+       monotone, and re-validated against this ground rather than flipped by
+       arithmetic — every *-ink clears AA on both the ground and the raised
+       surface (9.48:1 / 8.06:1 / 6.83:1). */
+    --reading-low: oklch(0.72 0.175 28);         /* under 60% */
+    --reading-low-ink: oklch(0.82 0.12 28);
+    --reading-fair: oklch(0.78 0.14 76);         /* 60–79% */
+    --reading-fair-ink: oklch(0.755 0.13 76);
+    --reading-sure: oklch(0.72 0.14 160);        /* 80% and over */
+    --reading-sure-ink: oklch(0.69 0.125 160);
 
     /* Elevation, grounded in true black for dark surfaces */
     --shadow-xs: 0 1px 2px oklch(0 0 0 / 0.35);

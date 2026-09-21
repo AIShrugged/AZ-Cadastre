@@ -17,11 +17,18 @@ import type { RegistryImportReport } from './types';
 // `create` as well as the two this module uses: `shared/api` builds its own
 // axios instance at import time, and a mock without it takes the whole module
 // graph down before a test runs.
+// The stand-in has to be an axios instance and not an empty object: importing
+// `shared/api` pulls in the app's own client, which registers a response
+// interceptor on the instance `create` answers with (the 401 that ends a
+// session). A `create` returning `{}` made every spec in this file fail on
+// import, naming a line in `http.ts` and not in anything under test.
 vi.mock('axios', () => ({
   default: {
     post: vi.fn(),
     isCancel: vi.fn(() => false),
-    create: vi.fn(() => ({})),
+    create: vi.fn(() => ({
+      interceptors: { request: { use: vi.fn() }, response: { use: vi.fn() } },
+    })),
   },
 }));
 

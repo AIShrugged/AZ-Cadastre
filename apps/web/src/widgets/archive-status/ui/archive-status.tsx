@@ -1,12 +1,17 @@
 /**
- * Archive data — the sidebar's live band, in the place the workspace used to
- * carry an inspector's name.
+ * Archive data — the sidebar's live band, under the account card at the foot of
+ * the register cover.
  *
- * The name went because there is nobody to read one off: this system has no
- * accounts on purpose (ADR-0016), and a card naming a person manufactured the
- * appearance of an identity rather than showing one. What belongs in a band
- * that is always on screen is the state of the thing every screen depends on —
- * what the archive register holds, and whether it is there at all.
+ * It took that band over while the system had no accounts and nobody's name to
+ * read (ADR-0016), and it keeps it now that there are (ADR-0029): the two say
+ * different things and both are worth a band that is always on screen — who is
+ * signed in, and the state of the thing every one of their screens depends on.
+ * What did not survive accounts arriving is the band being *instead of* a name.
+ *
+ * It is the office's band and only the office's. The register's holdings are
+ * how the office measures a system an applicant never queries, and the route
+ * that serves them answers a `user` 403 — so the shell draws this for an
+ * `operator` and leaves an applicant's cover ending on the account card.
  *
  * It said the second half only, once, because the register published its
  * liveness and nothing else and a count here could only have been invented.

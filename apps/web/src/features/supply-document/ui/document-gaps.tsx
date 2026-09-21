@@ -49,6 +49,17 @@
  * What each reason means is said behind the ⓘ beside it rather than above every
  * group: it is the same sentence on every case, and the names of the papers are
  * what an operator scans this list for.
+ *
+ * **Two readers, one panel.** The applicant's cabinet shows the same list for
+ * the same reason the office does — it is the server's answer to "what will
+ * this package take", and a second copy of it would sooner or later offer an
+ * upload the service declines. What changes with `voice` is the reading under a
+ * bad scan: the office is told which fields went unread and at what confidence,
+ * because that is how an inspector decides whether to re-photograph or to
+ * accept, and it is a link to the sheet itself. An applicant has no sheet to
+ * open and no floor to weigh a figure against — the whole of their move is to
+ * send a clearer copy, which the row already says. So the fault detail is the
+ * office's and the row is everybody's.
  */
 import {
   ChevronRightIcon,
@@ -88,6 +99,12 @@ import { CONFIDENCE_FLOOR } from '@cadastre/api-contracts/verification';
 import { supplyStateFor, type SuppliedFile } from '../model/supply-state';
 
 import { SupplyButton } from './supply-button';
+
+/**
+ * Who the panel is talking to. Not a theme: it decides what is said, and the
+ * difference is one paragraph per unreadable scan.
+ */
+export type GapVoice = 'office' | 'applicant';
 
 const REASON_ICON: Record<DocumentGapReason, typeof ScanLineIcon> = {
   MissingDocument: TriangleAlertIcon,
@@ -178,13 +195,17 @@ export function DocumentGaps({
   pkg,
   profiles,
   onJump,
+  voice = 'office',
 }: {
   pkg: PackageDetailDto;
   /** The engine's own copy of the policy, so a bad scan can be told which fields
    *  it was asked for. Empty while it loads, and then a row says the scan is
    *  worth sending again without pretending to know why. */
   profiles: readonly ProfileDto[];
-  onJump: Jump;
+  /** How the case sheet gets to the scan a row is about. Absent where there is
+   *  no sheet to get to — the cabinet has the gaps but not the documents. */
+  onJump?: Jump;
+  voice?: GapVoice;
 }) {
   const { t } = useI18n();
   // The contract's answer to "will this package take a file at all", not a list
@@ -227,6 +248,7 @@ export function DocumentGaps({
             profiles={profiles}
             accepting={accepting}
             onJump={onJump}
+            voice={voice}
           />
         ))}
       </div>
@@ -285,6 +307,7 @@ function ReasonGroup({
   profiles,
   accepting,
   onJump,
+  voice,
 }: {
   reason: DocumentGapReason;
   gaps: readonly DocumentGapDto[];
@@ -294,7 +317,8 @@ function ReasonGroup({
   pkg: PackageDetailDto;
   profiles: readonly ProfileDto[];
   accepting: boolean;
-  onJump: Jump;
+  onJump?: Jump;
+  voice: GapVoice;
 }) {
   const { t } = useI18n();
   const tone = GAP_REASON_TONE[reason];
@@ -328,6 +352,7 @@ function ReasonGroup({
       profiles={profiles}
       accepting={accepting}
       onJump={onJump}
+      voice={voice}
     />
   );
 
@@ -353,7 +378,7 @@ function ReasonGroup({
         )}
         <InfoHint label={t('common.more_info')}>
           <span>{t(GAP_REASON_NOTE[reason])}</span>
-          {reason === 'UnusableScan' && (
+          {reason === 'UnusableScan' && voice === 'office' && (
             <span className='opacity-80'>
               {t('gap.floor', { floor: Math.round(CONFIDENCE_FLOOR * 100) })}
             </span>
@@ -409,6 +434,7 @@ function GapRow({
   profiles,
   accepting,
   onJump,
+  voice,
 }: {
   gap: DocumentGapDto;
   /** What this row is worth against the ones around it. Never read off the gap
@@ -417,7 +443,8 @@ function GapRow({
   pkg: PackageDetailDto;
   profiles: readonly ProfileDto[];
   accepting: boolean;
-  onJump: Jump;
+  onJump?: Jump;
+  voice: GapVoice;
 }) {
   const { t } = useI18n();
   const state = supplyStateFor(pkg, gap);
@@ -435,9 +462,22 @@ function GapRow({
             gap it is, and what to do about it, the group above already said. */}
         <h3 className={cn('leading-snug', WEIGHT_TITLE[weight])}>{type}</h3>
 
-        {gap.reason === 'UnusableScan' && (
-          <ScanFault gap={gap} pkg={pkg} profiles={profiles} onJump={onJump} />
-        )}
+        {gap.reason === 'UnusableScan' &&
+          (voice === 'office' && onJump !== undefined ? (
+            <ScanFault
+              gap={gap}
+              pkg={pkg}
+              profiles={profiles}
+              onJump={onJump}
+            />
+          ) : (
+            /* All the applicant can do about a scan the engine could not read
+               is send a better one, and that is the whole of the instruction —
+               which fields came back faint is a measurement of our own OCR. */
+            <p className='mt-2 max-w-[60ch] text-[0.8125rem] leading-relaxed text-muted-foreground'>
+              {t('gap.unusable_plain')}
+            </p>
+          ))}
 
         {state.reading.map(file => (
           <Note

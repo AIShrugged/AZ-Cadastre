@@ -1056,6 +1056,138 @@ const en: Dict = {
   'slice.incomplete': 'Incomplete',
   'slice.clean': 'Clean',
   'slice.error': 'Error',
+
+  // ── Accounts, the gate and the applicant's cabinet (COMM-116) ─────────────
+  'role.operator': 'Registry operator',
+  'role.user': 'Applicant',
+  'account.sign_out': 'Sign out',
+
+  'gate.holding': 'Checking who you are…',
+  'gate.unreachable.title': 'The service did not answer',
+  'gate.unreachable.body':
+    'We could not reach the system to find out whether you are signed in. That is not a refusal — ask it again.',
+  'gate.unreachable.retry': 'Try again',
+
+  'gate.field.login': 'Login',
+  'gate.field.login_hint':
+    'The login you registered with. It may be an email address, but it does not have to be one.',
+  'gate.field.password': 'Password',
+  'gate.field.first_name': 'First name',
+  'gate.field.last_name': 'Last name',
+  'gate.field.password_hint': 'At least {min} characters.',
+  'gate.fault.login': 'A login is {min} to {max} characters.',
+  'gate.fault.name': 'Please fill this in.',
+  'gate.fault.password': 'A password is {min} to {max} characters.',
+
+  'gate.sign_in.title': 'Sign in',
+  'gate.sign_in.lead': 'The register of cadastre submissions.',
+  'gate.sign_in.action': 'Sign in',
+  'gate.sign_in.signing': 'Signing in…',
+  'gate.sign_in.unavailable':
+    'Could not sign in — the service did not answer. Try again.',
+  'gate.sign_in.no_account': 'No account yet?',
+  'gate.sign_in.to_register': 'Register',
+
+  'gate.register.title': 'Open an account',
+  'gate.register.lead':
+    'For applicants: file a submission and follow where it stands.',
+  'gate.register.action': 'Open an account',
+  'gate.register.opening': 'Opening…',
+  'gate.register.unavailable':
+    'Could not open the account — the service did not answer. Try again.',
+  'gate.register.opened_not_signed_in':
+    'The account was opened, but signing in did not work. Try signing in with it.',
+  'gate.register.have_account': 'Already have an account?',
+  'gate.register.to_sign_in': 'Sign in',
+  'gate.register.applicants_only':
+    'This form opens an applicant’s account. An operator’s account is issued by the office.',
+
+  'nav.cabinet': 'My cabinet',
+  'nav.submissions': 'My submissions',
+  'nav.new_submission': 'New submission',
+
+  'page.mine.title': 'My submissions',
+  'page.mine.subtitle':
+    'Everything you have filed, and where each of them stands.',
+  'mine.count': 'Submissions: {n}',
+  'mine.action.file': 'New submission',
+  'mine.entry.untitled': 'Address not yet read from the documents',
+  'mine.entry.filed': 'filed {date}',
+  'mine.empty.title': 'You have not filed anything yet',
+  'mine.empty.body':
+    'Attach the documents for your property, say what your claim is founded on, and file it. It will appear here with its progress.',
+  'mine.error.title': 'Could not load your submissions',
+  'mine.error.body':
+    'The service did not answer. That does not mean you have none — ask it again.',
+
+  'page.new_submission.title': 'New submission',
+  'page.new_submission.subtitle':
+    'Attach your documents and send them for checking.',
+  'mine.new.claim': 'What you are claiming on',
+  'mine.new.claim_lead':
+    'Both boxes may be left empty. They are what lets us suggest the right kind of application.',
+  'mine.new.basis': 'Basis of the claim',
+  'mine.new.basis_none': 'Not stated',
+  'mine.new.basis_stray':
+    '“{ground}” does not fit “{kind}”. Change one of the two.',
+  'mine.new.year': 'Year the building was built',
+  'mine.new.year_hint': 'Four digits. Can be left empty.',
+  'mine.new.kind': 'Kind of application',
+  'mine.new.kind_lead':
+    'Which set of documents your application is checked against.',
+  'mine.new.kind_docs': 'Documents required: {n}',
+  'mine.new.suggest': 'Suggestion',
+  'mine.new.suggest_undeclared':
+    'Fill in the basis or the year above and we will suggest one.',
+  'mine.new.suggest_none': 'No kind matches what you have stated.',
+  'mine.new.papers': 'Your documents',
+  'mine.new.papers_lead':
+    'Attach everything you have. We work out what each file is — there is nothing to sort.',
+  'mine.new.file': 'File the submission',
+  'mine.new.filing': 'Filing…',
+  'mine.new.failed': 'Could not file the submission. Try again.',
+
+  'mine.one.standing': 'Where it stands',
+  'mine.one.footnote':
+    'The check is a report for the office, not a decision on your application. The decision is taken by a person.',
+  'mine.missing.title': 'No such submission',
+  'mine.missing.body':
+    'It does not exist, or it is not yours. Check the link, or go back to your submissions.',
+  'mine.missing.back': 'My submissions',
+
+  'mine.standing.Queued': 'Received',
+  'mine.standing.UnderVerification': 'Being checked',
+  'mine.standing.Stalled': 'Checking stopped',
+  'mine.standing.ShortOfDocuments': 'Documents wanted',
+  'mine.standing.NeedsInspector': 'With an inspector',
+  'mine.standing.AwaitingArchiveApproval': 'Awaiting the office',
+  'mine.standing.Cleared': 'Checked',
+  'mine.standing.note.Queued':
+    'We have your documents. The check starts shortly — there is nothing for you to do.',
+  'mine.standing.note.UnderVerification':
+    'Your documents are being read. This usually takes a few minutes.',
+  'mine.standing.note.Stalled':
+    'The check stopped before it finished. The office has it; you do not need to file again.',
+  'mine.standing.note.ShortOfDocuments':
+    'Some papers are missing. They are listed below — send them in here.',
+  'mine.standing.note.NeedsInspector':
+    'The check raised points an officer has to look at. Nothing is wanted from you for now.',
+  'mine.standing.note.AwaitingArchiveApproval':
+    'The office is signing off the archive check. Nothing is wanted from you.',
+  'mine.standing.note.Cleared':
+    'The check found nothing outstanding. The office decides on your application.',
+
+  'mine.outcome.ok': 'Nothing found against it',
+  'mine.outcome.issues': 'Points to look at',
+  'mine.outcome.incomplete': 'Documents missing',
+
+  'gap.unusable_plain':
+    'This scan could not be read well enough. Send a clearer photo or scan of the same paper.',
+
+  'error.INVALID_CREDENTIALS': 'Wrong login or password',
+  'error.LOGIN_ALREADY_TAKEN': 'That login is already taken',
+  'error.VALIDATION_FAILED':
+    'Something in the form was not accepted — check the fields',
 };
 
 const ru: Dict = {
@@ -2059,6 +2191,136 @@ const ru: Dict = {
   'slice.incomplete': 'Неполные',
   'slice.clean': 'Без замечаний',
   'slice.error': 'Сбой',
+
+  // ── Accounts, the gate and the applicant's cabinet (COMM-116) ─────────────
+  'role.operator': 'Оператор реестра',
+  'role.user': 'Заявитель',
+  'account.sign_out': 'Выйти',
+
+  'gate.holding': 'Проверяем, кто вы…',
+  'gate.unreachable.title': 'Сервис не ответил',
+  'gate.unreachable.body':
+    'Не удалось связаться с системой, чтобы узнать, выполнен ли вход. Это не отказ — попробуйте ещё раз.',
+  'gate.unreachable.retry': 'Повторить',
+
+  'gate.field.login': 'Логин',
+  'gate.field.login_hint':
+    'Логин, с которым вы зарегистрировались. Это может быть адрес почты, но не обязательно.',
+  'gate.field.password': 'Пароль',
+  'gate.field.first_name': 'Имя',
+  'gate.field.last_name': 'Фамилия',
+  'gate.field.password_hint': 'Не короче {min} символов.',
+  'gate.fault.login': 'Логин — от {min} до {max} символов.',
+  'gate.fault.name': 'Заполните это поле.',
+  'gate.fault.password': 'Пароль — от {min} до {max} символов.',
+
+  'gate.sign_in.title': 'Вход',
+  'gate.sign_in.lead': 'Реестр кадастровых заявлений.',
+  'gate.sign_in.action': 'Войти',
+  'gate.sign_in.signing': 'Входим…',
+  'gate.sign_in.unavailable':
+    'Войти не удалось — сервис не ответил. Попробуйте ещё раз.',
+  'gate.sign_in.no_account': 'Ещё нет аккаунта?',
+  'gate.sign_in.to_register': 'Зарегистрироваться',
+
+  'gate.register.title': 'Регистрация',
+  'gate.register.lead':
+    'Для заявителей: подать заявление и следить, на какой оно стадии.',
+  'gate.register.action': 'Зарегистрироваться',
+  'gate.register.opening': 'Создаём…',
+  'gate.register.unavailable':
+    'Создать аккаунт не удалось — сервис не ответил. Попробуйте ещё раз.',
+  'gate.register.opened_not_signed_in':
+    'Аккаунт создан, но войти не получилось. Попробуйте войти с этим логином.',
+  'gate.register.have_account': 'Уже есть аккаунт?',
+  'gate.register.to_sign_in': 'Войти',
+  'gate.register.applicants_only':
+    'Эта форма создаёт аккаунт заявителя. Аккаунт оператора выдаёт ведомство.',
+
+  'nav.cabinet': 'Личный кабинет',
+  'nav.submissions': 'Мои заявления',
+  'nav.new_submission': 'Новое заявление',
+
+  'page.mine.title': 'Мои заявления',
+  'page.mine.subtitle': 'Всё, что вы подали, и на какой стадии каждое.',
+  'mine.count': 'Заявлений: {n}',
+  'mine.action.file': 'Новое заявление',
+  'mine.entry.untitled': 'Адрес ещё не прочитан из документов',
+  'mine.entry.filed': 'подано {date}',
+  'mine.empty.title': 'Вы ещё ничего не подали',
+  'mine.empty.body':
+    'Приложите документы на объект, укажите основание — и подайте заявление. Оно появится здесь вместе с ходом проверки.',
+  'mine.error.title': 'Не удалось загрузить ваши заявления',
+  'mine.error.body':
+    'Сервис не ответил. Это не значит, что заявлений нет, — попробуйте ещё раз.',
+
+  'page.new_submission.title': 'Новое заявление',
+  'page.new_submission.subtitle':
+    'Приложите документы и отправьте их на проверку.',
+  'mine.new.claim': 'На чём основано право',
+  'mine.new.claim_lead':
+    'Оба поля можно оставить пустыми. Именно они позволяют подсказать подходящий вид заявления.',
+  'mine.new.basis': 'Основание',
+  'mine.new.basis_none': 'Не указано',
+  'mine.new.basis_stray':
+    '«{ground}» не подходит к виду «{kind}». Измените одно из двух.',
+  'mine.new.year': 'Год постройки',
+  'mine.new.year_hint': 'Четыре цифры. Можно не заполнять.',
+  'mine.new.kind': 'Вид заявления',
+  'mine.new.kind_lead':
+    'По какому набору документов будут проверять ваше заявление.',
+  'mine.new.kind_docs': 'Обязательных документов: {n}',
+  'mine.new.suggest': 'Подсказка',
+  'mine.new.suggest_undeclared':
+    'Заполните основание или год выше — и мы подскажем вид.',
+  'mine.new.suggest_none': 'Под указанное не подходит ни один вид.',
+  'mine.new.papers': 'Ваши документы',
+  'mine.new.papers_lead':
+    'Приложите всё, что есть. Что за документ в каждом файле, мы определим сами — раскладывать ничего не нужно.',
+  'mine.new.file': 'Подать заявление',
+  'mine.new.filing': 'Отправляем…',
+  'mine.new.failed': 'Подать заявление не удалось. Попробуйте ещё раз.',
+
+  'mine.one.standing': 'Стадия',
+  'mine.one.footnote':
+    'Проверка — это отчёт для ведомства, а не решение по вашему заявлению. Решение принимает человек.',
+  'mine.missing.title': 'Такого заявления нет',
+  'mine.missing.body':
+    'Оно не существует или принадлежит не вам. Проверьте ссылку или вернитесь к списку.',
+  'mine.missing.back': 'Мои заявления',
+
+  'mine.standing.Queued': 'Принято',
+  'mine.standing.UnderVerification': 'Идёт проверка',
+  'mine.standing.Stalled': 'Проверка прервалась',
+  'mine.standing.ShortOfDocuments': 'Нужны документы',
+  'mine.standing.NeedsInspector': 'У инспектора',
+  'mine.standing.AwaitingArchiveApproval': 'Ждём ведомство',
+  'mine.standing.Cleared': 'Проверено',
+  'mine.standing.note.Queued':
+    'Документы у нас. Проверка начнётся в ближайшее время — от вас ничего не требуется.',
+  'mine.standing.note.UnderVerification':
+    'Документы читаются. Обычно это занимает несколько минут.',
+  'mine.standing.note.Stalled':
+    'Проверка остановилась, не закончившись. Ведомство это видит; подавать заново не нужно.',
+  'mine.standing.note.ShortOfDocuments':
+    'Не хватает документов. Они перечислены ниже — дошлите их здесь.',
+  'mine.standing.note.NeedsInspector':
+    'Проверка нашла то, что должен посмотреть сотрудник. От вас пока ничего не требуется.',
+  'mine.standing.note.AwaitingArchiveApproval':
+    'Ведомство утверждает результат архивной проверки. От вас ничего не требуется.',
+  'mine.standing.note.Cleared':
+    'Проверка не нашла ничего незакрытого. Решение по заявлению принимает ведомство.',
+
+  'mine.outcome.ok': 'Замечаний нет',
+  'mine.outcome.issues': 'Есть что посмотреть',
+  'mine.outcome.incomplete': 'Не хватает документов',
+
+  'gap.unusable_plain':
+    'Этот скан прочитать не удалось. Пришлите более чёткое фото или скан того же документа.',
+
+  'error.INVALID_CREDENTIALS': 'Неверный логин или пароль',
+  'error.LOGIN_ALREADY_TAKEN': 'Такой логин уже занят',
+  'error.VALIDATION_FAILED': 'Что-то в форме не принято — проверьте поля',
 };
 
 const az: Dict = {
@@ -3059,6 +3321,136 @@ const az: Dict = {
   'slice.incomplete': 'Natamam',
   'slice.clean': 'Qeydsiz',
   'slice.error': 'Nasazlıq',
+
+  // ── Accounts, the gate and the applicant's cabinet (COMM-116) ─────────────
+  'role.operator': 'Reyestr operatoru',
+  'role.user': 'Ərizəçi',
+  'account.sign_out': 'Çıxış',
+
+  'gate.holding': 'Kim olduğunuz yoxlanılır…',
+  'gate.unreachable.title': 'Xidmət cavab vermədi',
+  'gate.unreachable.body':
+    'Girişin olub-olmadığını öyrənmək üçün sistemə çıxmaq alınmadı. Bu imtina deyil — yenidən soruşun.',
+  'gate.unreachable.retry': 'Yenidən cəhd et',
+
+  'gate.field.login': 'Login',
+  'gate.field.login_hint':
+    'Qeydiyyatdan keçdiyiniz login. E-poçt ünvanı ola bilər, amma məcburi deyil.',
+  'gate.field.password': 'Şifrə',
+  'gate.field.first_name': 'Ad',
+  'gate.field.last_name': 'Soyad',
+  'gate.field.password_hint': 'Ən azı {min} simvol.',
+  'gate.fault.login': 'Login {min}–{max} simvol olmalıdır.',
+  'gate.fault.name': 'Bu sahəni doldurun.',
+  'gate.fault.password': 'Şifrə {min}–{max} simvol olmalıdır.',
+
+  'gate.sign_in.title': 'Giriş',
+  'gate.sign_in.lead': 'Kadastr ərizələri reyestri.',
+  'gate.sign_in.action': 'Daxil ol',
+  'gate.sign_in.signing': 'Daxil olunur…',
+  'gate.sign_in.unavailable':
+    'Daxil olmaq alınmadı — xidmət cavab vermədi. Yenidən cəhd edin.',
+  'gate.sign_in.no_account': 'Hesabınız yoxdur?',
+  'gate.sign_in.to_register': 'Qeydiyyatdan keçin',
+
+  'gate.register.title': 'Hesab açın',
+  'gate.register.lead':
+    'Ərizəçilər üçün: ərizə verin və hansı mərhələdə olduğunu izləyin.',
+  'gate.register.action': 'Hesab aç',
+  'gate.register.opening': 'Yaradılır…',
+  'gate.register.unavailable':
+    'Hesab açmaq alınmadı — xidmət cavab vermədi. Yenidən cəhd edin.',
+  'gate.register.opened_not_signed_in':
+    'Hesab açıldı, lakin daxil olmaq alınmadı. Həmin loginlə daxil olmağa cəhd edin.',
+  'gate.register.have_account': 'Artıq hesabınız var?',
+  'gate.register.to_sign_in': 'Daxil ol',
+  'gate.register.applicants_only':
+    'Bu forma ərizəçi hesabı açır. Operator hesabını idarə verir.',
+
+  'nav.cabinet': 'Şəxsi kabinet',
+  'nav.submissions': 'Ərizələrim',
+  'nav.new_submission': 'Yeni ərizə',
+
+  'page.mine.title': 'Ərizələrim',
+  'page.mine.subtitle':
+    'Verdiyiniz bütün ərizələr və hər birinin hansı mərhələdə olduğu.',
+  'mine.count': 'Ərizə: {n}',
+  'mine.action.file': 'Yeni ərizə',
+  'mine.entry.untitled': 'Ünvan hələ sənədlərdən oxunmayıb',
+  'mine.entry.filed': '{date} tarixində verilib',
+  'mine.empty.title': 'Hələ ərizə verməmisiniz',
+  'mine.empty.body':
+    'Obyektə aid sənədləri əlavə edin, hüququn nəyə əsaslandığını göstərin və ərizəni verin. Ərizə burada, gedişatı ilə birlikdə görünəcək.',
+  'mine.error.title': 'Ərizələriniz yüklənmədi',
+  'mine.error.body':
+    'Xidmət cavab vermədi. Bu, ərizənizin olmaması demək deyil — yenidən soruşun.',
+
+  'page.new_submission.title': 'Yeni ərizə',
+  'page.new_submission.subtitle':
+    'Sənədlərinizi əlavə edin və yoxlamaya göndərin.',
+  'mine.new.claim': 'Hüquq nəyə əsaslanır',
+  'mine.new.claim_lead':
+    'Hər iki xananı boş saxlaya bilərsiniz. Uyğun ərizə növünü təklif etməyə imkan verən məhz onlardır.',
+  'mine.new.basis': 'Əsas',
+  'mine.new.basis_none': 'Göstərilməyib',
+  'mine.new.basis_stray':
+    '«{ground}» «{kind}» növünə uyğun gəlmir. İkisindən birini dəyişin.',
+  'mine.new.year': 'Tikilmə ili',
+  'mine.new.year_hint': 'Dörd rəqəm. Boş saxlaya bilərsiniz.',
+  'mine.new.kind': 'Ərizə növü',
+  'mine.new.kind_lead': 'Ərizəniz hansı sənəd dəsti üzrə yoxlanacaq.',
+  'mine.new.kind_docs': 'Tələb olunan sənəd: {n}',
+  'mine.new.suggest': 'Təklif',
+  'mine.new.suggest_undeclared':
+    'Yuxarıda əsası və ya ili doldurun — növü təklif edək.',
+  'mine.new.suggest_none': 'Göstərdiyinizə uyğun növ yoxdur.',
+  'mine.new.papers': 'Sənədləriniz',
+  'mine.new.papers_lead':
+    'Nəyiniz varsa, əlavə edin. Hər faylın hansı sənəd olduğunu özümüz müəyyən edirik — çeşidləməyə ehtiyac yoxdur.',
+  'mine.new.file': 'Ərizəni ver',
+  'mine.new.filing': 'Göndərilir…',
+  'mine.new.failed': 'Ərizəni vermək alınmadı. Yenidən cəhd edin.',
+
+  'mine.one.standing': 'Mərhələ',
+  'mine.one.footnote':
+    'Yoxlama — idarə üçün hesabatdır, ərizəniz üzrə qərar deyil. Qərarı insan verir.',
+  'mine.missing.title': 'Belə ərizə yoxdur',
+  'mine.missing.body':
+    'O mövcud deyil və ya sizə aid deyil. Keçidi yoxlayın və ya siyahıya qayıdın.',
+  'mine.missing.back': 'Ərizələrim',
+
+  'mine.standing.Queued': 'Qəbul edilib',
+  'mine.standing.UnderVerification': 'Yoxlanılır',
+  'mine.standing.Stalled': 'Yoxlama dayandı',
+  'mine.standing.ShortOfDocuments': 'Sənəd lazımdır',
+  'mine.standing.NeedsInspector': 'İnspektordadır',
+  'mine.standing.AwaitingArchiveApproval': 'İdarə gözlənilir',
+  'mine.standing.Cleared': 'Yoxlanılıb',
+  'mine.standing.note.Queued':
+    'Sənədləriniz bizdədir. Yoxlama tezliklə başlayacaq — sizdən heç nə tələb olunmur.',
+  'mine.standing.note.UnderVerification':
+    'Sənədləriniz oxunur. Bu, adətən bir neçə dəqiqə çəkir.',
+  'mine.standing.note.Stalled':
+    'Yoxlama başa çatmadan dayandı. İdarə bunu görür; yenidən ərizə verməyə ehtiyac yoxdur.',
+  'mine.standing.note.ShortOfDocuments':
+    'Bəzi sənədlər çatmır. Onlar aşağıda sadalanıb — buradan göndərin.',
+  'mine.standing.note.NeedsInspector':
+    'Yoxlama əməkdaşın baxmalı olduğu məqamlar aşkarladı. Hələlik sizdən heç nə tələb olunmur.',
+  'mine.standing.note.AwaitingArchiveApproval':
+    'İdarə arxiv yoxlamasının nəticəsini təsdiqləyir. Sizdən heç nə tələb olunmur.',
+  'mine.standing.note.Cleared':
+    'Yoxlama açıq qalan heç nə tapmadı. Ərizə üzrə qərarı idarə verir.',
+
+  'mine.outcome.ok': 'Qeyd yoxdur',
+  'mine.outcome.issues': 'Baxılmalı məqamlar var',
+  'mine.outcome.incomplete': 'Sənəd çatmır',
+
+  'gap.unusable_plain':
+    'Bu skan kifayət qədər oxunmadı. Eyni sənədin daha aydın foto və ya skanını göndərin.',
+
+  'error.INVALID_CREDENTIALS': 'Login və ya şifrə yanlışdır',
+  'error.LOGIN_ALREADY_TAKEN': 'Bu login artıq tutulub',
+  'error.VALIDATION_FAILED': 'Formada nəsə qəbul edilmədi — sahələri yoxlayın',
 };
 
 /**

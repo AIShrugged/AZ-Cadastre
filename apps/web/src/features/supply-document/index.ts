@@ -14,4 +14,5 @@
  * is not exported on its own: it is only ever correct beside the gap it was drawn
  * from, and handing it out would invite a screen to make up a target.
  */
+export type { GapVoice } from './ui/document-gaps';
 export { DocumentGaps } from './ui/document-gaps';

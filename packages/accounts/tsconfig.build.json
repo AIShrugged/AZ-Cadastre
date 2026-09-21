@@ -1,0 +1,28 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "build",
+    "node_modules",
+    "test",
+    "src/**/*.spec.ts",
+    "src/**/__tests__/**"
+  ],
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "./src"
+  },
+  "references": [
+    {
+      "path": "../../libs/api-contracts/tsconfig.build.json"
+    },
+    {
+      "path": "../../libs/event-publisher/tsconfig.build.json"
+    },
+    {
+      "path": "../../libs/logger/tsconfig.build.json"
+    },
+    {
+      "path": "../../libs/shared/tsconfig.build.json"
+    }
+  ]
+}

@@ -6,6 +6,7 @@ import type {
   ListPackagesResponse,
   PackageDetailDto,
   PackageDto,
+  PackageScope,
   PackagesOverviewRequest,
   PackagesOverviewResponse,
   SupplyDocumentRequest,
@@ -17,7 +18,19 @@ import type {
  * client port mirrors it, and the compiler keeps them the same shape.
  */
 export interface PackagesApi {
-  create(request: CreatePackageRequest): Promise<PackageDto>;
+  /**
+   * Takes a submission in, owned by the account that made it.
+   *
+   * `ownerAccountId` is the edge's to supply and never the body's: it is read
+   * off the session, so a caller cannot file a case in somebody else's name.
+   * `null` is a package with no owner, which is what every submission taken in
+   * before there were accounts is — invisible to an applicant, unchanged for
+   * the office.
+   */
+  create(
+    request: CreatePackageRequest,
+    ownerAccountId: string | null,
+  ): Promise<PackageDto>;
   /**
    * One page of the submissions, newest first, narrowed by what the caller
    * asked for. Never the whole list: it grows with every submission the office
@@ -28,8 +41,19 @@ export interface PackagesApi {
    * two filters mean. They are two filters and not one because they answer two
    * questions — where the submission stands, and what the run found.
    */
-  findMany(request: ListPackagesRequest): Promise<ListPackagesResponse>;
-  findOne(id: string): Promise<PackageDetailDto>;
+  findMany(
+    request: ListPackagesRequest,
+    scope: PackageScope,
+  ): Promise<ListPackagesResponse>;
+  /**
+   * One submission in full.
+   *
+   * Refused with `PACKAGE_NOT_FOUND` — a 404 — where the id is nobody's and,
+   * identically, where it is somebody else's and the scope is an account's. The
+   * two are one answer on purpose: a 403 on a case that exists is a way to ask
+   * this system which of its ids are real.
+   */
+  findOne(id: string, scope: PackageScope): Promise<PackageDetailDto>;
 
   /**
    * The four things an inspector opens a summary to ask, over the submissions
@@ -59,8 +83,15 @@ export interface PackagesApi {
    * since changed, so they are discarded and the package is verified afresh.
    * What was read off each file on its own — its sheets, their text, the
    * documents carved out of them — survives (ADR-0013).
+   *
+   * Outside the scope, refused as `findOne` is: `PACKAGE_NOT_FOUND`, never a
+   * 403.
    */
-  addFiles(id: string, request: AddFilesRequest): Promise<PackageDto>;
+  addFiles(
+    id: string,
+    request: AddFilesRequest,
+    scope: PackageScope,
+  ): Promise<PackageDto>;
 
   /**
    * Sends one document in for one of the gaps `PackageDetailDto.gaps`
@@ -96,6 +127,7 @@ export interface PackagesApi {
   supplyDocument(
     id: string,
     request: SupplyDocumentRequest,
+    scope: PackageScope,
   ): Promise<PackageDto>;
 
   /**

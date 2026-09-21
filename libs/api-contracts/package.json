@@ -15,6 +15,22 @@
       "types": "./build/shared/index.d.ts",
       "import": "./build/shared/index.js"
     },
+    "./accounts": {
+      "types": "./build/accounts/index.d.ts",
+      "import": "./build/accounts/index.js"
+    },
+    "./accounts/api": {
+      "types": "./build/accounts/api/index.d.ts",
+      "import": "./build/accounts/api/index.js"
+    },
+    "./accounts/dto": {
+      "types": "./build/accounts/dto/index.d.ts",
+      "import": "./build/accounts/dto/index.js"
+    },
+    "./accounts/enums": {
+      "types": "./build/accounts/enums/index.d.ts",
+      "import": "./build/accounts/enums/index.js"
+    },
     "./registry": {
       "types": "./build/registry/index.d.ts",
       "import": "./build/registry/index.js"

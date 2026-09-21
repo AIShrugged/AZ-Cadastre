@@ -1,14 +1,21 @@
 import { beforeAll, describe, expect, inject, it } from 'vitest';
 
-import { ApiError, RestClient } from '@cadastre/api-client';
+import { ApiError, type RestClient } from '@cadastre/api-client';
 import { ErrorBodySchema } from '@cadastre/api-contracts/shared';
+
+import { asOperator, sessionHeader } from '../harness/sign-in.js';
 
 let baseUrl: string;
 let api: RestClient;
 
-beforeAll(() => {
+/*
+ * Signed in as the office, because everything under `/api` needs a session now
+ * and the archive is the office's to search (ADR-0029). The cases about who may
+ * call what are in `auth/access.e2e.spec.ts`; this file is about the route.
+ */
+beforeAll(async () => {
   baseUrl = inject('baseUrl');
-  api = new RestClient(baseUrl);
+  api = await asOperator(baseUrl);
 });
 
 /*
@@ -33,7 +40,7 @@ describe('every refusal the API itself makes comes back in the published shape',
     // act — rejected by the global pipe, before any handler is asked
     const response = await fetch(`${baseUrl}/api/documents/presign`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...sessionHeader(api) },
       body: JSON.stringify({ filename: 'x.pdf' }),
     });
     const body: unknown = await response.json();
@@ -47,8 +54,12 @@ describe('every refusal the API itself makes comes back in the published shape',
 
   it('mounts every route under the prefix main.ts sets, and only there', async () => {
     // act — the same path without the prefix must not answer
-    const prefixed = await fetch(`${baseUrl}/api/profiles`);
-    const bare = await fetch(`${baseUrl}/profiles`);
+    const prefixed = await fetch(`${baseUrl}/api/profiles`, {
+      headers: sessionHeader(api),
+    });
+    const bare = await fetch(`${baseUrl}/profiles`, {
+      headers: sessionHeader(api),
+    });
 
     // assert
     expect(prefixed.status).toBe(200);

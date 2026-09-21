@@ -29,6 +29,7 @@ import {
   Filename,
   IssueKind,
   OcrResult,
+  OwnerAccountId,
   PackageId,
   PackageStatus,
   PageId,
@@ -67,6 +68,9 @@ export type PackageRow = {
   readonly id: string;
   readonly status: string;
   readonly profileKey: string;
+  // The account that submitted it, or null on every package taken in before
+  // there were accounts (ADR-0029).
+  readonly ownerAccountId: string | null;
   // What the office declared when it took the submission in. Null on a package
   // taken in before intake asked, and on one where the office knew neither.
   readonly declaredLegalBasis: string | null;
@@ -241,6 +245,7 @@ export type PackageWrite = {
   readonly id: string;
   readonly status: StatusColumn;
   readonly profileKey: string;
+  readonly ownerAccountId: string | null;
   readonly declaredLegalBasis: string | null;
   readonly declaredBuiltYear: number | null;
   readonly sourceFiles: readonly SourceFileWrite[];
@@ -411,6 +416,7 @@ export class VerificationPackageMapper {
       id: PackageId.of(row.id),
       version: row.version,
       profile: VerificationProfile.of(row.profileKey),
+      owner: OwnerAccountId.orNone(row.ownerAccountId),
       declared: DeclaredAtIntake.of({
         legalBasis: row.declaredLegalBasis
           ? DocumentType.create(row.declaredLegalBasis)
@@ -444,6 +450,7 @@ export class VerificationPackageMapper {
       id: aggregate.id.value,
       status: VerificationPackageMapper.statusColumn(aggregate.status),
       profileKey: aggregate.profile.key,
+      ownerAccountId: aggregate.owner?.value ?? null,
       declaredLegalBasis: aggregate.declared.legalBasis?.value ?? null,
       declaredBuiltYear: aggregate.declared.builtYear,
       sourceFiles: aggregate.files.map(file => ({

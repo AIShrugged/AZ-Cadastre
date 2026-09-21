@@ -49,11 +49,12 @@ RUN PRISMA_VERSION="$(sed -n 's/^  prisma@\([0-9][^:(]*\):$/\1/p' pnpm-lock.yaml
 # not found".
 COPY tsconfig.json tsconfig.base.json ./
 
-# Both contexts, each with its own `prisma.config.ts`, its own schema and its
+# Every database, each with its own `prisma.config.ts`, its own schema and its
 # own migration history. They are copied whole — a few megabytes of source — so
 # that the config resolves exactly the paths it resolves in a working copy, and
 # so a new file under `persistence/` does not need a line added here.
 COPY packages/verification ./packages/verification
+COPY packages/accounts ./packages/accounts
 COPY apps/registry-stub ./apps/registry-stub
 
 COPY docker/migrator/migrate.sh /usr/local/bin/migrate

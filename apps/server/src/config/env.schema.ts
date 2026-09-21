@@ -1,5 +1,10 @@
+import { randomBytes } from 'node:crypto';
+
 import { z } from 'zod';
 
+import type { AccountsModuleOptions } from '@cadastre/accounts';
+import { PASSWORD_MIN_LENGTH } from '@cadastre/api-contracts/accounts';
+import type { SessionOptions } from '@cadastre/api-gateway';
 import type { LoggerModuleOptions } from '@cadastre/logger';
 import type { VerificationModuleOptions } from '@cadastre/verification';
 
@@ -21,6 +26,56 @@ export const EnvironmentSchema = z
       .default(
         'postgresql://postgres:postgres@localhost:5432/cadastre-db?schema=public',
       ),
+
+    // The accounts context owns a database of its own, and deliberately not
+    // this one: a context owns its database, and two of them sharing one is how
+    // a join across the boundary gets written by accident (ADR-0029).
+    ACCOUNTS_DATABASE_URL: z
+      .url()
+      .default(
+        'postgresql://postgres:postgres@localhost:5432/cadastre-accounts?schema=public',
+      ),
+
+    // ── Sessions ──────────────────────────────────────────────────────────
+    // The key every session cookie is signed with. Optional here and generated
+    // when it is absent, which is the right trade for a developer — a stack
+    // that has never been configured still signs in — and the wrong one for a
+    // deployment: the generated key lives in one process's memory, so a restart
+    // signs everybody out and a second replica accepts nothing the first one
+    // issued. The start-up line says which of the two happened.
+    SESSION_SECRET: z.string().min(16).optional(),
+    // Seconds. A week: long enough that an operator is not signing in twice a
+    // day, short enough that a token taken off a laptop stops working.
+    SESSION_TTL: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(7 * 24 * 60 * 60),
+    // `Secure` on the session cookie. False by default because the default
+    // stand is plain HTTP, and a `Secure` cookie there is one the browser never
+    // sends back — a sign-in that appears to work and then 401s. True anywhere
+    // there is TLS.
+    SESSION_COOKIE_SECURE: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform(v => v === 'true'),
+
+    // ── Seed accounts ─────────────────────────────────────────────────────
+    // The two accounts the office starts with — operator@cadastre.az and
+    // user@cadastre.az — so that a stack brought up from nothing can be signed
+    // into. The addresses are fixed in the context; only the passwords are
+    // configured, and only here.
+    //
+    // No default, deliberately. A default would be a password published in this
+    // repository and in force on every stand whose operator did not think to
+    // override it. Absent means that account is not seeded, and the start-up
+    // log says so by name.
+    //
+    // Held to the same floor a registration is — from the contract's own
+    // constant, so the office cannot be seeded with a password the public form
+    // would have refused.
+    SEED_OPERATOR_PASSWORD: z.string().min(PASSWORD_MIN_LENGTH).optional(),
+    SEED_USER_PASSWORD: z.string().min(PASSWORD_MIN_LENGTH).optional(),
 
     WEB_ORIGIN: z.string().nonempty().default('http://localhost:5173'),
 
@@ -124,6 +179,32 @@ export const EnvironmentSchema = z
     web: {
       origin: env.WEB_ORIGIN,
     },
+    /*
+     * The edge's own slice: a session is how a browser carries the answer to a
+     * sign-in from one request to the next, which is transport and not a
+     * context's business (ADR-0029).
+     */
+    session: {
+      // Generated when none was configured, so a developer's stack works out of
+      // the box. What it costs is said at start-up and in .env.example: the key
+      // is this process's alone, so a restart signs everybody out.
+      secret: env.SESSION_SECRET ?? randomBytes(32).toString('base64url'),
+      ttlSeconds: env.SESSION_TTL,
+      secure: env.SESSION_COOKIE_SECURE,
+    } satisfies SessionOptions,
+    // Whether the secret was configured or invented, for the line that says we
+    // started. Not the secret itself, and never the secret itself.
+    sessionSecretConfigured: env.SESSION_SECRET !== undefined,
+    // The slice handed to `AccountsModule.forRootAsync`.
+    accounts: {
+      database: {
+        url: env.ACCOUNTS_DATABASE_URL,
+      },
+      seed: {
+        operatorPassword: env.SEED_OPERATOR_PASSWORD,
+        userPassword: env.SEED_USER_PASSWORD,
+      },
+    } satisfies AccountsModuleOptions,
     /*
      * The register as the edge reaches it, for the operator's own archive
      * search. The same address the verification context is given, because there

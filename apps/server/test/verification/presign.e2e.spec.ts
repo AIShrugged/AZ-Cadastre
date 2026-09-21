@@ -1,13 +1,20 @@
 import { beforeAll, describe, expect, inject, it } from 'vitest';
 
-import { ApiError, RestClient } from '@cadastre/api-client';
+import { ApiError, type RestClient } from '@cadastre/api-client';
+
+import { asOperator } from '../harness/sign-in.js';
 
 const MAX_BYTES = 50 * 1024 * 1024;
 
 let api: RestClient;
 
-beforeAll(() => {
-  api = new RestClient(inject('baseUrl'));
+/*
+ * Signed in as the office, because everything under `/api` needs a session now
+ * (ADR-0029). The cases about who may call what are in
+ * `auth/access.e2e.spec.ts`; this file is about the route.
+ */
+beforeAll(async () => {
+  api = await asOperator(inject('baseUrl'));
 });
 
 describe('POST /api/documents/presign', () => {

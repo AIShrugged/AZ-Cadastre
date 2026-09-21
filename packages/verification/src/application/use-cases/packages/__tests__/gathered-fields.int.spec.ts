@@ -96,7 +96,7 @@ describe('a field one paper did not yield and another states', () => {
       new CreatePackageCommand('cadastre', submission()),
     );
     await waitForTerminalStatus(queries, id);
-    detail = await queries.execute(new GetPackageQuery(id.value));
+    detail = await queries.execute(new GetPackageQuery(id.value, null));
   });
 
   afterAll(async () => {

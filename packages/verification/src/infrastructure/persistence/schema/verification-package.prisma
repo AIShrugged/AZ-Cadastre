@@ -37,6 +37,17 @@ model VerificationPackage {
   declaredLegalBasis String?
   declaredBuiltYear  Int?
 
+  /// The account that submitted this package, as a plain id and never a foreign
+  /// key: accounts are another context with a database of its own, and a key
+  /// across that boundary would be a join somebody could write by accident
+  /// (ADR-0029).
+  ///
+  /// Nullable on purpose, and it stays nullable. Every submission the office
+  /// took in before there were accounts has no owner — which makes it invisible
+  /// to an applicant and unchanged for the office, because the office's scope is
+  /// every case and an applicant's is their own.
+  ownerAccountId String? @db.Uuid
+
   /// Optimistic concurrency: every aggregate carries a version that takes part
   /// in every write. An update names the version it was loaded at in its WHERE
   /// clause and bumps it, so a concurrent write is refused rather than silently
@@ -62,5 +73,8 @@ model VerificationPackage {
   /// reports, the findings and the register's answers alike. Without it every
   /// period is a full scan of the table, and the table only ever grows.
   @@index([createdAt])
+  /// An applicant's list is this column and nothing else, and it is read on
+  /// every page of it.
+  @@index([ownerAccountId])
   @@map("verification_packages")
 }

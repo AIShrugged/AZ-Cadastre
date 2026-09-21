@@ -2,6 +2,7 @@ import { Inject } from '@nestjs/common';
 import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
 
 import {
+  OwnerAccountId,
   PackageStanding,
   ReportStatus,
 } from '../../../../domain/value-objects/index.js';
@@ -27,6 +28,7 @@ export class ListPackagesHandler implements IQueryHandler<
     // reaching the database as a string that matches nothing and answering
     // with an empty page that looks like an honest answer.
     return this.packages.listSummaries({
+      owner: OwnerAccountId.orNone(query.ownerAccountId),
       search: query.search ?? null,
       standings: (query.standings ?? []).map(standing =>
         PackageStanding.named(standing),

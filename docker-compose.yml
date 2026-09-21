@@ -25,11 +25,41 @@ services:
       - SERVICE_PORT=3000
       - SERVICE_HOST=0.0.0.0
 
-      # Database
+      # Databases. One per context, and deliberately not one for both: a
+      # context owns its database, and two on one is how a join across the
+      # boundary gets written by accident (ADR-0029).
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/cadastre-db?schema=public
+      - ACCOUNTS_DATABASE_URL=postgresql://postgres:postgres@postgres:5432/cadastre-accounts?schema=public
 
-      # Web CORS
+      # Web CORS. One origin and never a wildcard: the session is a cookie, so
+      # the API answers with `credentials: true`, and the browser refuses that
+      # combined with `*`.
       - WEB_ORIGIN=http://49.13.138.121
+
+      # ── Sessions ─────────────────────────────────────────────────────────
+      # The key every session cookie is signed with. CHANGE THIS, and keep it:
+      # left unset the server invents one per process, so a restart signs
+      # everybody out and a second replica accepts nothing the first one issued
+      # — the start-up line says which of the two is happening (ADR-0029).
+      # Changing it is also the only way to end every session at once, which is
+      # the whole of the revocation story today (TECH_DEBT §16).
+      - SESSION_SECRET=change-this-before-anyone-else-uses-the-stand
+      # Seconds. A week.
+      - SESSION_TTL=604800
+      # `Secure` on the cookie. False here because this stand is plain HTTP and
+      # a Secure cookie there is one the browser never sends back — a sign-in
+      # that appears to work and then 401s. Set it to true the day there is TLS.
+      - SESSION_COOKIE_SECURE=false
+
+      # ── The two seeded accounts ──────────────────────────────────────────
+      # operator@cadastre.az and user@cadastre.az, put in at start-up if they
+      # are not there already. Demo passwords: change them, and note that
+      # changing them here afterwards does nothing — the seed leaves an account
+      # that exists alone rather than resetting a credential somebody may have
+      # changed (ADR-0029), and there is no route that changes one yet
+      # (TECH_DEBT §16).
+      - SEED_OPERATOR_PASSWORD=operator-demo-password
+      - SEED_USER_PASSWORD=user-demo-password
 
       # Logging. One structured line per event on stdout, which is where
       # `docker logs` reads it (ADR-0008). The image already sets LOG_PRETTY=false
@@ -113,10 +143,11 @@ services:
       - SERVICE_HOST=0.0.0.0
       - LOG_LEVEL=info
       # The register's own database, and deliberately not cadastre-db: that one
-      # belongs to the verification context (ADR-0010). It is created by the
-      # init script the postgres service mounts — which the official image runs
-      # only when the data directory is new, so on an existing volume create it
-      # by hand:
+      # belongs to the verification context (ADR-0010), and cadastre-accounts
+      # belongs to the accounts context (ADR-0029). It is created by the init
+      # script the postgres service mounts — which the official image runs only
+      # when the data directory is new, so on an existing volume create it by
+      # hand:
       #   docker exec cadastre-postgres createdb -U postgres cadastre-registry
       # Then apply the schema — see the `migrate` service below — and put the
       # records in. The seed is plain node and runs from this image:
@@ -138,15 +169,16 @@ services:
       timeout: 5s
       retries: 5
 
-  # Applies the pending migrations of both databases. Its own image, because
-  # neither service image can do it: `prisma` is a devDependency of both
+  # Applies the pending migrations of every database. Its own image, because
+  # no service image can do it: `prisma` is a devDependency of both
   # `packages/verification` and `apps/registry-stub`, and both runtime stages
   # install with `--prod`, so the CLI is not in them (COMM-62). Putting it in
   # them would also put `migrate reset` inside a container that is exposed to
   # the internet, and a bundled Prisma Studio with it (ADR-0020).
   #
-  #   docker compose run --rm migrate            # both databases
+  #   docker compose run --rm migrate            # every database
   #   docker compose run --rm migrate core       # cadastre-db only
+  #   docker compose run --rm migrate accounts   # cadastre-accounts only
   #   docker compose run --rm migrate registry   # cadastre-registry only
   #   docker compose run --rm migrate status     # report, apply nothing
   #
@@ -162,6 +194,7 @@ services:
   #
   # Отдельные прогоны по-прежнему доступны:
   #   docker compose run --rm migrate core       # cadastre-db only
+  #   docker compose run --rm migrate accounts   # cadastre-accounts only
   #   docker compose run --rm migrate registry   # cadastre-registry only
   #   docker compose run --rm migrate status     # report, apply nothing
   migrate:
@@ -169,10 +202,11 @@ services:
     # Задача, а не служба: отработала и вышла. Перезапускать её нельзя.
     restart: 'no'
     environment:
-      # One variable per database, and no bare DATABASE_URL: the two histories
-      # are separate on purpose (ADR-0010), and a single unnamed URL is how the
-      # register's tables end up in the verification context's database.
+      # One variable per database, and no bare DATABASE_URL: the histories are
+      # separate on purpose (ADR-0010, ADR-0029), and a single unnamed URL is
+      # how one owner's tables end up in another's database.
       - CORE_DATABASE_URL=postgresql://postgres:postgres@postgres:5432/cadastre-db?schema=public
+      - ACCOUNTS_DATABASE_URL=postgresql://postgres:postgres@postgres:5432/cadastre-accounts?schema=public
       - REGISTRY_DATABASE_URL=postgresql://postgres:postgres@postgres:5432/cadastre-registry?schema=public
     depends_on:
       postgres:
@@ -185,8 +219,10 @@ services:
       - '5432:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      # Creates the register's database beside the context's. Read only, and
-      # run by the image only on a data directory it has just created.
+      # Creates the accounts context's database and the register's beside the
+      # verification context's. Read only, and run by the image only on a data
+      # directory it has just created — on an existing volume, `createdb` them
+      # by hand (the script says how).
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
     environment:
       - POSTGRES_USER=postgres

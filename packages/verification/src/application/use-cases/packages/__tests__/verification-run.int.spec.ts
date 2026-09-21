@@ -52,7 +52,7 @@ describe('a verification run whose reader never succeeds', () => {
       new CreatePackageCommand('cadastre', submission('unreadable')),
     );
     await waitForTerminalStatus(queries, id);
-    detail = await queries.execute(new GetPackageQuery(id.value));
+    detail = await queries.execute(new GetPackageQuery(id.value, null));
   });
 
   afterAll(async () => {

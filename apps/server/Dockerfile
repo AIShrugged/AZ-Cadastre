@@ -55,13 +55,19 @@ COPY --from=builder /app/libs/logger/build ./libs/logger/build
 COPY --from=builder /app/libs/api-contracts/build ./libs/api-contracts/build
 COPY --from=builder /app/libs/api-gateway/build ./libs/api-gateway/build
 COPY --from=builder /app/packages/verification/build ./packages/verification/build
+COPY --from=builder /app/packages/accounts/build ./packages/accounts/build
 
-# The verification context owns its schema and migration history; `db:deploy`
-# is run against them from that package.
+# Each context owns its schema and migration history; `db:deploy` is run against
+# them from that package — and in a deployment, by the migrator image, which
+# carries the same directories (ADR-0020).
 COPY --from=builder /app/packages/verification/src/infrastructure/persistence/schema \
      ./packages/verification/src/infrastructure/persistence/schema
 COPY --from=builder /app/packages/verification/src/infrastructure/persistence/migrations \
      ./packages/verification/src/infrastructure/persistence/migrations
+COPY --from=builder /app/packages/accounts/src/infrastructure/persistence/schema \
+     ./packages/accounts/src/infrastructure/persistence/schema
+COPY --from=builder /app/packages/accounts/src/infrastructure/persistence/migrations \
+     ./packages/accounts/src/infrastructure/persistence/migrations
 
 WORKDIR /app/apps/server
 

@@ -19,6 +19,7 @@ this is expressed in.
 - **Long-Running Workflows**: Temporal-based orchestration for resumable, auditable processes
 - **Structured Data Integration**: PostgreSQL for application data, RustFS (S3-compatible) for document storage
 - **Archive Register Lookup**: the property a submission is for is looked up in the cadastre archive register — is there a record of this address, who does it say holds it, what area does it say, and which folder is the paper in (ADR-0009)
+- **Accounts and two roles**: an **operator** is the office and does everything the API does; a **user** is the applicant, who files a package, sees only their own submissions and sends in a document one of them is short of. Sign-in is a session cookie and every route but the four `/api/auth` ones needs one (ADR-0029)
 
 ## Models and confidence
 
@@ -74,6 +75,10 @@ apps/                       # deployables: composition roots and UI. No business
                             #     nothing, and answers from its own database —
                             #     own schema, own migrations, own seed (ADR-0010)
 packages/                   # bounded contexts: own language, own model, own database
+  accounts/                 #   type:context — who may use the system, the credential
+                            #     they sign in with and the role they do it in. Its own
+                            #     database, and no word for a session: that is the
+                            #     edge's (ADR-0029)
   verification/             #   type:context
     CONTEXT.md              #     its ubiquitous language and what to avoid calling things
     docs/adr/               #     decisions local to this context
@@ -136,12 +141,55 @@ pnpm install                                      # install and generate the Pri
 cp apps/server/.env.example apps/server/.env      # the running service's environment
 cp packages/verification/.env.example \
    packages/verification/.env                     # DATABASE_URL for migrations
+cp packages/accounts/.env.example \
+   packages/accounts/.env                         # and for the accounts context's own
 
+docker compose up -d postgres rustfs              # the accounts and register databases
+                                                  #   are made by the init script, on a
+                                                  #   new data directory only
 pnpm --filter @cadastre/verification db:migrate   # apply the context's migrations
+pnpm --filter @cadastre/accounts db:migrate       # and the accounts context's
 pnpm build                                        # build every package, in dependency order
 pnpm lint                                         # check the dependency rule holds
 pnpm --filter @cadastre/server dev                # run the API
 ```
+
+On a Postgres volume that already exists, the init script does not run — the
+official image runs it only when it creates the data directory — so make the two
+extra databases by hand:
+
+```bash
+docker exec cadastre-postgres createdb -U postgres cadastre-accounts
+docker exec cadastre-postgres createdb -U postgres cadastre-registry
+```
+
+### Signing in
+
+Every route under `/api` needs a session except `POST /api/auth/register`,
+`POST /api/auth/login`, `POST /api/auth/logout` and `GET /api/auth/me`. Two
+accounts are put in at start-up so a stack brought up from nothing can be opened
+— with the passwords `apps/server/.env.example` carries:
+
+| Account                | Role       | Local password   | What it may do                                                                                        |
+| ---------------------- | ---------- | ---------------- | ----------------------------------------------------------------------------------------------------- |
+| `operator@cadastre.az` | `operator` | `operator-local` | Everything: intake, the whole register of cases, the overview, the archive search and its approval    |
+| `user@cadastre.az`     | `user`     | `user-local-pw`  | Files a package, sees **only their own** submissions, and supplies a document one of them is short of |
+
+The addresses are fixed in the code; only the passwords come from the
+environment (`SEED_OPERATOR_PASSWORD`, `SEED_USER_PASSWORD`), and they have no
+default — leave one out and that account is not seeded, and the start-up log
+says so by name. The seed is idempotent by **leaving an existing account alone**:
+changing a password in `.env` after the first run does nothing, because the
+environment is not the authority over a credential somebody may have changed.
+An applicant opens their own account at `POST /api/auth/register`; an operator
+is never self-registered.
+
+Set `SESSION_SECRET` too. Without it the server invents one per process — fine
+on a laptop, wrong anywhere shared, because a restart then signs everybody out
+and a second replica accepts nothing the first one issued. The start-up line
+says which of the two is happening. The whole of the decision, including what it
+deliberately does not do: [ADR-0029](docs/adr/0029-accounts-are-a-context-of-their-own-and-a-session-is-the-edges.md)
+and `TECH_DEBT.md` §16.
 
 Unit tests live beside the source they cover (`confidence.vo.ts` →
 `confidence.vo.spec.ts`). `pnpm test` runs every package's; `pnpm --filter
@@ -169,8 +217,8 @@ docker compose up --build
 ### Migrations in a container
 
 Neither service image can migrate its own database, and this is on purpose.
-`prisma` is a devDependency of both `packages/verification` and
-`apps/registry-stub`, and both runtime stages install with `--prod`, so the CLI
+`prisma` is a devDependency of `packages/verification`, `packages/accounts` and
+`apps/registry-stub`, and every runtime stage installs with `--prod`, so the CLI
 is not in them — `docker exec cadastre-registry pnpm db:deploy` answers `sh:
 prisma: not found`, and in `cadastre-core` it does not even reach Prisma. Adding
 the CLI to a service image would put `migrate reset` and a bundled Prisma Studio
@@ -178,12 +226,13 @@ inside a container that is exposed to the internet, for a command that runs once
 per deploy.
 
 So migrating is its own image, `ekalkutin/cadastre-migrator`, holding the Prisma
-CLI, both schemas and both migration histories and nothing that serves traffic.
+CLI, every schema and every migration history and nothing that serves traffic.
 It is a compose profile rather than a service, so it never starts with `up`:
 
 ```bash
-docker compose run --rm migrate            # both databases
+docker compose run --rm migrate            # every database
 docker compose run --rm migrate core       # cadastre-db only
+docker compose run --rm migrate accounts   # cadastre-accounts only
 docker compose run --rm migrate registry   # cadastre-registry only
 docker compose run --rm migrate status     # report what is pending, apply nothing
 ```

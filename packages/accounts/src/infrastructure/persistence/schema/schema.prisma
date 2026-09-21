@@ -1,0 +1,19 @@
+// Prisma schema for @cadastre/accounts (multi-file — one model per file).
+//
+// This context owns its database: the schema, the generated client and the
+// migration history all live under infrastructure/persistence, never in a
+// shared package. That is what makes "a transaction never spans two contexts"
+// something the wiring cannot express, rather than a rule anyone has to
+// remember — and it is why `verification_packages.ownerAccountId` over in the
+// other context is a plain column with no foreign key behind it (ADR-0029).
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../generated"
+  runtime      = "nodejs"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}

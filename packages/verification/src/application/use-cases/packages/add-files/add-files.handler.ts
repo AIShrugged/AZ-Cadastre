@@ -8,11 +8,11 @@ import {
   PackageId,
   StorageKey,
 } from '../../../../domain/value-objects/index.js';
-import { PackageNotFoundException } from '../../../exceptions/index.js';
 import {
   IdGenerator,
   VerificationPackageRepository,
 } from '../../../ports/outbound/index.js';
+import { loadInScope } from '../scoped-package.js';
 
 import { AddFilesCommand } from './add-files.command.js';
 
@@ -28,10 +28,11 @@ export class AddFilesHandler implements ICommandHandler<
   ) {}
 
   async execute(command: AddFilesCommand): Promise<PackageId> {
-    const packageId = PackageId.of(command.packageId);
-    const verification = await this.packages.findById(packageId);
-
-    if (!verification) throw new PackageNotFoundException(packageId);
+    const verification = await loadInScope(
+      this.packages,
+      PackageId.of(command.packageId),
+      command.ownerAccountId,
+    );
 
     // Whether the package will take them is the aggregate's to say — the state
     // it is in is the only thing that decides it, and that decision has one

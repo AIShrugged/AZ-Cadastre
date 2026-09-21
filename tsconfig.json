@@ -24,6 +24,9 @@
       "path": "./libs/api-gateway/tsconfig.build.json"
     },
     {
+      "path": "./packages/accounts/tsconfig.build.json"
+    },
+    {
       "path": "./packages/verification/tsconfig.build.json"
     },
     {

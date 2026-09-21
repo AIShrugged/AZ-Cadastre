@@ -22,6 +22,12 @@ export class SupplyDocumentCommand extends Command<PackageId> {
     // The document it is sent in place of, off an `UnusableScan` gap; null
     // where it answers a paper the package simply did not have.
     public readonly replacesDocumentId: string | null,
+    /**
+     * Whose submissions this call may touch: an account id, or `null` for every
+     * one the office holds. A package outside the scope is refused as one that
+     * does not exist (ADR-0029).
+     */
+    public readonly ownerAccountId: string | null,
   ) {
     super();
   }

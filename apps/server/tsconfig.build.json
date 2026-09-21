@@ -7,6 +7,9 @@
   },
   "references": [
     {
+      "path": "../../packages/accounts/tsconfig.build.json"
+    },
+    {
       "path": "../../libs/api-gateway/tsconfig.build.json"
     },
     {

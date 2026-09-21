@@ -164,6 +164,11 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
         id: row.id,
         status: row.status,
         profileKey: row.profileKey,
+        // Written once, at submission, and never in the update below, for the
+        // same reason as the declaration under it: who submitted a package is
+        // fixed when it is taken in, and a package does not change hands
+        // (ADR-0029).
+        ownerAccountId: row.ownerAccountId,
         // Written once, at submission, and never in the update below: a
         // package's declaration is what the office said when it took the
         // submission in, and nothing that happens to it afterwards changes what

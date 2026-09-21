@@ -104,6 +104,10 @@ function adapterOver(rows: readonly Row[]): PackageQueriesAdapter {
     verificationPackage: {
       findMany: () => Promise.resolve(rows),
       findUnique: () => Promise.resolve(rows[0] ?? null),
+      // `findDetail` reads with `findFirst` and not `findUnique`, because the
+      // owner is part of the condition rather than a check made after the row
+      // came back (ADR-0029).
+      findFirst: () => Promise.resolve(rows[0] ?? null),
       count: () => Promise.resolve(rows.length),
     },
     $transaction: (operations: readonly Promise<unknown>[]) =>
@@ -116,6 +120,8 @@ function adapterOver(rows: readonly Row[]): PackageQueriesAdapter {
 // Narrowed by nothing: these specs are about what the register makes of a row,
 // not about which rows it is handed.
 const EVERYTHING = {
+  // The whole register, as the office reads it (ADR-0029).
+  owner: null,
   search: null,
   standings: [],
   reportStatus: null,
@@ -266,7 +272,10 @@ function aDetailRow(
 async function attestationsOf(
   row: Row,
 ): Promise<readonly (DocumentAttestationView | null)[]> {
-  const detail = await adapterOver([row]).findDetail(PackageId.of(PACKAGE_ID));
+  const detail = await adapterOver([row]).findDetail(
+    PackageId.of(PACKAGE_ID),
+    null,
+  );
 
   return (detail?.files[0]?.documents ?? []).map(
     document => document.attestation,

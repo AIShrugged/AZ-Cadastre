@@ -1,7 +1,9 @@
 import type { Provider } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+import { AccountsApiPort } from '@cadastre/accounts';
 import {
+  AccountsClientPort,
   RegistryClientPort,
   VerificationClientPort,
 } from '@cadastre/api-gateway';
@@ -23,6 +25,9 @@ import { HttpArchiveRegistryClient } from './registry/index.js';
 export const LOCAL_PROVIDERS: Provider[] = [
   // gateway → verification
   { provide: VerificationClientPort, useExisting: VerificationApiPort },
+  // gateway → accounts. The edge asks who somebody is; it never asks
+  // verification, and verification never asks this (ADR-0029).
+  { provide: AccountsClientPort, useExisting: AccountsApiPort },
   /*
    * gateway → the archive register, which is not a context of ours and is
    * reached over HTTP because it is a system outside this one (ADR-0009). It

@@ -35,6 +35,7 @@ export { FileSize } from './file-size.vo.js';
 export { Filename } from './filename.vo.js';
 export {
   DocumentId,
+  OwnerAccountId,
   PackageId,
   PageId,
   SourceFileId,

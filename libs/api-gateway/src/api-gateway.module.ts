@@ -6,13 +6,21 @@ import {
   type NestModule,
   type Provider,
 } from '@nestjs/common';
-import { APP_FILTER } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 
+import { AuthController } from './presentation/accounts/rest/index.js';
 import {
   HttpExceptionFilter,
   RequestLoggingMiddleware,
   SystemExceptionFilter,
 } from './presentation/http/index.js';
+import {
+  RolesGuard,
+  SESSION_OPTIONS,
+  SessionCodec,
+  SessionGuard,
+  type SessionOptions,
+} from './presentation/http/session/index.js';
 import {
   AddressesController,
   ArchiveSearchController,
@@ -30,6 +38,20 @@ export type ApiGatewayModuleOptions = Pick<ModuleMetadata, 'imports'> & {
    * declares what it needs and never names who satisfies it.
    */
   providers: Provider[];
+  /**
+   * How a session is signed and how long it lasts. The edge's own
+   * configuration and not a context's: a session is how a browser carries the
+   * answer to a sign-in from one request to the next, which is transport
+   * (ADR-0029).
+   *
+   * A factory rather than a value, for the same reason every context takes one:
+   * the composition root validates the environment once and hands out slices of
+   * it, and the slice is not there until its config module is.
+   */
+  session: {
+    inject?: unknown[];
+    useFactory: (...args: never[]) => SessionOptions | Promise<SessionOptions>;
+  };
 };
 
 @Module({})
@@ -48,6 +70,12 @@ export class ApiGatewayModule implements NestModule {
       module: ApiGatewayModule,
       imports: options.imports ?? [],
       controllers: [
+        /*
+         * Signing in, and the only routes on this API that may be reached
+         * without a session. Everything else is refused 401 by `SessionGuard`
+         * below, including a route nobody has written yet (ADR-0029).
+         */
+        AuthController,
         DocumentsController,
         PackagesController,
         ProfilesController,
@@ -75,6 +103,26 @@ export class ApiGatewayModule implements NestModule {
       ],
       providers: [
         ...options.providers,
+        {
+          provide: SESSION_OPTIONS,
+          useFactory: options.session.useFactory,
+          inject: (options.session.inject ?? []) as never[],
+        },
+        SessionCodec,
+        /*
+         * Two global guards, in this order and for two different questions.
+         * `SessionGuard` answers "who is this" and refuses 401; `RolesGuard`
+         * answers "may they" and refuses 403, reading the account the first one
+         * put on the request. Nest runs global guards in registration order, so
+         * the order here is the dependency between them.
+         *
+         * Global rather than per controller, because the rule is about the API
+         * and not about one area of it: a controller added tomorrow is behind a
+         * session because nobody did anything, and the way out of it is a
+         * decorator on the route that a reviewer can see.
+         */
+        { provide: APP_GUARD, useClass: SessionGuard },
+        { provide: APP_GUARD, useClass: RolesGuard },
         // The transport is where a refusal becomes a status code, so the
         // `code → status` table lives at the edge and not in the context that
         // raised it.

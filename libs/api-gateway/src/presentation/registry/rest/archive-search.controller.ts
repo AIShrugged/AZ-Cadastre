@@ -7,6 +7,7 @@ import {
 } from '@cadastre/api-contracts/registry';
 
 import { RegistryClientPort } from '../../../application/ports/index.js';
+import { RequiresRole } from '../../http/session/index.js';
 
 /**
  * The archive searched, published at this system's own origin.
@@ -22,6 +23,15 @@ import { RegistryClientPort } from '../../../application/ports/index.js';
  * which is allowed to have its register mocked, and would then answer an
  * operator's search from three built-in records.
  */
+/*
+ * The office's alone. The register is where the archive is searched and
+ * measured, and neither question is about anybody's own submission — an
+ * applicant asking it would be asking what the archive holds about other
+ * people's property. A 403 and not a 404: it is the route that is none of their
+ * business, and that the office has an archive search reveals nothing about
+ * anybody (ADR-0029).
+ */
+@RequiresRole('operator')
 @Controller('registry')
 export class ArchiveSearchController {
   constructor(

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CqrsModule } from '@nestjs/cqrs';
 
+import { AccountsModule } from '@cadastre/accounts';
 import { ApiGatewayModule } from '@cadastre/api-gateway';
 import { LoggerModule } from '@cadastre/logger';
 import { VerificationModule } from '@cadastre/verification';
@@ -18,6 +19,12 @@ const verification = VerificationModule.forRootAsync({
   inject: [ConfigService],
   useFactory: (config: ConfigService<Environment, true>) =>
     config.get('verification', { infer: true }),
+});
+
+const accounts = AccountsModule.forRootAsync({
+  inject: [ConfigService],
+  useFactory: (config: ConfigService<Environment, true>) =>
+    config.get('accounts', { infer: true }),
 });
 
 @Module({
@@ -41,10 +48,19 @@ const verification = VerificationModule.forRootAsync({
     }),
 
     verification,
+    accounts,
 
     ApiGatewayModule.forRoot({
-      imports: [verification],
+      imports: [verification, accounts],
       providers: LOCAL_PROVIDERS,
+      // The edge's own configuration: a session is how a browser carries the
+      // answer to a sign-in from one request to the next, which is transport
+      // and not a context's business (ADR-0029).
+      session: {
+        inject: [ConfigService],
+        useFactory: (config: ConfigService<Environment, true>) =>
+          config.get('session', { infer: true }),
+      },
     }),
   ],
 })

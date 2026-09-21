@@ -19,7 +19,18 @@ async function bootstrap(): Promise<void> {
   app.useLogger(app.get(Logger));
 
   app.useGlobalPipes(new StandardSchemaValidationPipe());
-  app.enableCors({ origin: config.get('web', { infer: true }).origin });
+  /*
+   * `credentials: true`, because the session is a cookie and not a token the
+   * client stores: without it the browser neither keeps the `Set-Cookie` on the
+   * sign-in nor sends the cookie back on anything after it, and every call from
+   * the web client is a 401 that looks like a broken login (ADR-0029). It is
+   * why `origin` here is one origin and never `*` — the two cannot be combined,
+   * and a wildcard would be refused by the browser rather than by us.
+   */
+  app.enableCors({
+    origin: config.get('web', { infer: true }).origin,
+    credentials: true,
+  });
 
   app.setGlobalPrefix('api');
 
@@ -34,6 +45,15 @@ async function bootstrap(): Promise<void> {
     url: `http://${service.host}:${service.port}/api`,
     webOrigin: config.get('web', { infer: true }).origin,
     logLevel: config.get('logger', { infer: true }).level,
+    /*
+     * Whether the session key was configured or invented at start-up. An
+     * invented one works and signs everybody out on the next restart, which is
+     * a fine answer for a developer and a bad one for a stand — and it is
+     * otherwise invisible until somebody asks why they keep being logged out.
+     */
+    sessions: config.get('sessionSecretConfigured', { infer: true })
+      ? 'configured secret'
+      : 'generated secret — sessions end at restart',
     providers: {
       ocr: `${verification.ocr.provider}:${verification.ocr.model || '—'}`,
       segmenter: `${verification.segmenter.provider}:${verification.segmenter.model || '—'}`,

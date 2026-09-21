@@ -9,6 +9,7 @@ import {
   Query,
 } from '@nestjs/common';
 
+import type { AccountDto } from '@cadastre/api-contracts/accounts';
 import {
   AddFilesRequestSchema,
   ApproveArchiveSearchRequestSchema,
@@ -29,16 +30,28 @@ import {
 } from '@cadastre/api-contracts/verification';
 
 import { VerificationClientPort } from '../../../application/ports/index.js';
+import {
+  CurrentAccount,
+  RequiresRole,
+  scopeFor,
+} from '../../http/session/index.js';
 
 @Controller('packages')
 export class PackagesController {
   constructor(private readonly verification: VerificationClientPort) {}
 
+  /*
+   * Either role may file one, and the case belongs to whoever filed it. The
+   * owner comes off the session and never off the body: a request that could
+   * name its own owner would be a request that could file a case in somebody
+   * else's name (ADR-0029).
+   */
   @Post()
   async create(
     @Body({ schema: CreatePackageRequestSchema }) body: CreatePackageRequest,
+    @CurrentAccount() account: AccountDto,
   ): Promise<PackageDto> {
-    return this.verification.packages.create(body);
+    return this.verification.packages.create(body, account.id);
   }
 
   /*
@@ -50,8 +63,12 @@ export class PackagesController {
   @Get()
   async list(
     @Query({ schema: ListPackagesRequestSchema }) query: ListPackagesRequest,
+    @CurrentAccount() account: AccountDto,
   ): Promise<ListPackagesResponse> {
-    return this.verification.packages.findMany(query);
+    // The office reads the whole register; an applicant reads their own
+    // submissions. Not a filter the query string can ask for — the scope is the
+    // session's, which is why it travels beside the request and not inside it.
+    return this.verification.packages.findMany(query, scopeFor(account));
   }
 
   /*
@@ -65,8 +82,9 @@ export class PackagesController {
   async addFiles(
     @Param('id') id: string,
     @Body({ schema: AddFilesRequestSchema }) body: AddFilesRequest,
+    @CurrentAccount() account: AccountDto,
   ): Promise<PackageDto> {
-    return this.verification.packages.addFiles(id, body);
+    return this.verification.packages.addFiles(id, body, scopeFor(account));
   }
 
   /*
@@ -88,26 +106,34 @@ export class PackagesController {
   async supplyDocument(
     @Param('id') id: string,
     @Body({ schema: SupplyDocumentRequestSchema }) body: SupplyDocumentRequest,
+    @CurrentAccount() account: AccountDto,
   ): Promise<PackageDto> {
-    return this.verification.packages.supplyDocument(id, body);
+    return this.verification.packages.supplyDocument(
+      id,
+      body,
+      scopeFor(account),
+    );
   }
 
   /*
    * The one write here a person makes rather than the engine: their approval of
    * what the archive register answered about this submission (ADR-0016).
    *
-   * Only an administrator may approve one. Nothing here enforces that and
-   * nothing can: there is no authentication and there are no accounts, so this
-   * endpoint cannot tell an administrator from anybody else, and a check it
-   * could make — a name in the body, a header a caller sets — would be a lock
-   * with the key taped to it. The restriction is written down and unenforced
-   * rather than faked, and this is the one place a guard attaches when accounts
-   * arrive.
+   * The office's own, and the guard below is the one that was promised here
+   * when this endpoint was written: the restriction used to be written down and
+   * unenforced because there was nothing to enforce it with, and accounts are
+   * what arrived (ADR-0029). An applicant gets a 403 — not a 404, because it is
+   * the route and not the case that is none of their business.
+   *
+   * It still carries no author. Who approved a search is a separate question
+   * from who may, and ADR-0016 says an approval has no author today; adding one
+   * is a change to the approval, not to this guard.
    *
    * 200 and not 201: what comes back is the package as it now stands, and the
    * approval has no address of its own to be created at.
    */
   @Post(':id/archive-search-approval')
+  @RequiresRole('operator')
   @HttpCode(HttpStatus.OK)
   async approveArchiveSearch(
     @Param('id') id: string,
@@ -127,8 +153,13 @@ export class PackagesController {
    * starts, is a 400 from here and never a call into the context. Naming
    * neither bound is every submission the office has ever taken in. What the
    * four slices are and why they arrive together: ADR-0017.
+   *
+   * The office's own measure of itself, so the office alone may ask for it: it
+   * is counted over every submission there is, and there is no version of it
+   * narrowed to one applicant's that would mean anything (ADR-0029).
    */
   @Get('overview')
+  @RequiresRole('operator')
   async overview(
     @Query({ schema: PackagesOverviewRequestSchema })
     query: PackagesOverviewRequest,
@@ -136,8 +167,18 @@ export class PackagesController {
     return this.verification.packages.overview(query);
   }
 
+  /*
+   * A submission that is not this applicant's comes back 404 and never 403: a
+   * 403 on a case that exists tells a stranger it exists, which is exactly what
+   * an id they guessed was for (ADR-0029). The context answers it, not this
+   * route — the scope is part of the read, so there is no moment where the row
+   * has been fetched and then discarded.
+   */
   @Get(':id')
-  async detail(@Param('id') id: string): Promise<PackageDetailDto> {
-    return this.verification.packages.findOne(id);
+  async detail(
+    @Param('id') id: string,
+    @CurrentAccount() account: AccountDto,
+  ): Promise<PackageDetailDto> {
+    return this.verification.packages.findOne(id, scopeFor(account));
   }
 }

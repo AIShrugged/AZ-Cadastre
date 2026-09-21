@@ -1,13 +1,20 @@
 import { beforeAll, describe, expect, inject, it } from 'vitest';
 
-import { RestClient } from '@cadastre/api-client';
+import type { RestClient } from '@cadastre/api-client';
+
+import { asOperator, sessionHeader } from '../harness/sign-in.js';
 
 let baseUrl: string;
 let api: RestClient;
 
-beforeAll(() => {
+/*
+ * Signed in as the office, because everything under `/api` needs a session now
+ * and the archive is the office's to search (ADR-0029). The cases about who may
+ * call what are in `auth/access.e2e.spec.ts`; this file is about the route.
+ */
+beforeAll(async () => {
   baseUrl = inject('baseUrl');
-  api = new RestClient(baseUrl);
+  api = await asOperator(baseUrl);
 });
 
 /*
@@ -61,7 +68,9 @@ describe('GET /api/registry/summary', () => {
    */
   it('says nothing about whether the archive is ready', async () => {
     // act
-    const response = await fetch(`${baseUrl}/api/registry/summary`);
+    const response = await fetch(`${baseUrl}/api/registry/summary`, {
+      headers: sessionHeader(api),
+    });
     const body = (await response.json()) as Record<string, unknown>;
 
     // assert — facts and no verdict: what four sources out of six means is the

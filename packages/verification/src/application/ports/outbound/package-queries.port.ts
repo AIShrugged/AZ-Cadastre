@@ -1,4 +1,5 @@
 import type {
+  OwnerAccountId,
   PackageId,
   PackageStanding,
   ReportStatus,
@@ -15,6 +16,16 @@ import type {
  * and a standing the domain does not name never reaches the database.
  */
 export type PackageListCriteria = {
+  /**
+   * Whose submissions the caller may see: the account that owns them, or `null`
+   * for every submission the office holds.
+   *
+   * Not a filter a caller sends — it is the scope the edge worked out from the
+   * session — which is why it is here and not in
+   * `ListPackagesRequestSchema`. A package with no owner is outside every
+   * account's scope and inside the office's (ADR-0029).
+   */
+  readonly owner: OwnerAccountId | null;
   /**
    * What the inspector typed, already trimmed; null when the box was empty.
    * What counts as a match is the register's own business and is stated where
@@ -74,7 +85,18 @@ export abstract class PackageQueries {
 
   abstract findSummary(id: PackageId): Promise<PackageSummaryView | null>;
 
-  abstract findDetail(id: PackageId): Promise<PackageDetailView | null>;
+  /**
+   * One submission in full, or `null`.
+   *
+   * `owner` scopes the read rather than being checked after it: a package
+   * somebody else owns answers `null` here, identically to an id that is
+   * nobody's, so the use case above cannot accidentally turn the two into
+   * different status codes.
+   */
+  abstract findDetail(
+    id: PackageId,
+    owner: OwnerAccountId | null,
+  ): Promise<PackageDetailView | null>;
 
   /**
    * The four tallies of a period, counted by the database in one transaction.

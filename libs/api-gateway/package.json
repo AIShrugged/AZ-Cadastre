@@ -17,7 +17,10 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "watch": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "license": "ISC",
   "nx": {
@@ -34,6 +37,8 @@
     "@nestjs/core": "catalog:nestjs12"
   },
   "devDependencies": {
-    "@types/express": "^5.0.0"
+    "@types/express": "^5.0.0",
+    "@vitest/coverage-v8": "catalog:tooling",
+    "vitest": "catalog:tooling"
   }
 }

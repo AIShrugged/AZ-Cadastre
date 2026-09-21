@@ -1,0 +1,60 @@
+{
+  "name": "@cadastre/accounts",
+  "version": "1.0.0",
+  "description": "The accounts bounded context: who may use the system, the credential they sign in with and the role they do it in.",
+  "type": "module",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/index.d.ts",
+      "import": "./build/index.js"
+    }
+  },
+  "files": [
+    "build"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "watch": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:reset": "prisma migrate reset --force",
+    "db:studio": "prisma studio",
+    "postinstall": "prisma generate"
+  },
+  "license": "ISC",
+  "nx": {
+    "tags": [
+      "type:context",
+      "deployment:monolith"
+    ]
+  },
+  "dependencies": {
+    "@cadastre/api-contracts": "workspace:*",
+    "@cadastre/event-publisher": "workspace:*",
+    "@cadastre/logger": "workspace:*",
+    "@cadastre/shared": "workspace:*",
+    "@nestjs/common": "catalog:nestjs12",
+    "@nestjs/core": "catalog:nestjs12",
+    "@nestjs/cqrs": "catalog:nestjs12",
+    "@node-rs/argon2": "^2.2.1",
+    "@prisma/adapter-pg": "^7.9.0",
+    "@prisma/client": "^7.9.0",
+    "pg": "^8.22.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@testcontainers/postgresql": "^12.1.0",
+    "@types/pg": "^8.20.0",
+    "@vitest/coverage-v8": "catalog:tooling",
+    "prisma": "^7.9.0",
+    "testcontainers": "^12.1.0",
+    "vitest": "catalog:tooling"
+  }
+}

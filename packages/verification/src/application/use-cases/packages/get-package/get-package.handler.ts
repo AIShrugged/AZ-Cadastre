@@ -4,6 +4,7 @@ import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
 import { Logger } from '@cadastre/logger';
 
 import {
+  OwnerAccountId,
   PackageId,
   StorageKey,
 } from '../../../../domain/value-objects/index.js';
@@ -33,8 +34,14 @@ export class GetPackageHandler implements IQueryHandler<
 
   async execute(query: GetPackageQuery): Promise<PackageDetailView> {
     const packageId = PackageId.of(query.packageId);
-    const detail = await this.packages.findDetail(packageId);
+    const detail = await this.packages.findDetail(
+      packageId,
+      OwnerAccountId.orNone(query.ownerAccountId),
+    );
 
+    // Not there, or not this account's — one refusal for both, because a 403 on
+    // a case that exists is a way to ask this system which of its ids are real
+    // (ADR-0029).
     if (!detail) throw new PackageNotFoundException(packageId);
 
     return { ...detail, files: await this.withSheetLinks(detail.files) };

@@ -102,7 +102,7 @@ describe('a document supplied for a gap the package publishes', () => {
   };
 
   const detailOf = async (id: PackageId): Promise<PackageDetailView> =>
-    queries.execute(new GetPackageQuery(id.value));
+    queries.execute(new GetPackageQuery(id.value, null));
 
   beforeAll(async () => {
     ({ module } = await startContext(inject('databaseUrl'), {
@@ -163,6 +163,7 @@ describe('a document supplied for a gap the package publishes', () => {
           aFile('supply-missing', 'serencam-cixaris.pdf'),
           'disposal_order',
           null,
+          null,
         ),
       );
       await waitForTerminalStatus(queries, id);
@@ -202,6 +203,7 @@ describe('a document supplied for a gap the package publishes', () => {
           aFile('supply-replace', 'sexsiyyet-vesiqe-yeni.pdf'),
           'identity_card',
           gap!.documentId,
+          null,
         ),
       );
       await waitForTerminalStatus(queries, id);
@@ -239,6 +241,7 @@ describe('a document supplied for a gap the package publishes', () => {
           aFile('supply-report', 'sexsiyyet-vesiqe-yeni.pdf'),
           'identity_card',
           gap!.documentId,
+          null,
         ),
       );
       await waitForTerminalStatus(queries, id);
@@ -274,6 +277,7 @@ describe('a document supplied for a gap the package publishes', () => {
           aFile('supply-wrong', 'sexsiyyet-vesiqe-again.pdf'),
           'land_plot_plan',
           null,
+          null,
         ),
       );
       await waitForTerminalStatus(queries, id);
@@ -303,6 +307,7 @@ describe('a document supplied for a gap the package publishes', () => {
           id.value,
           aFile('supply-nogap', 'erize-qeydiyyat-again.pdf'),
           'application',
+          null,
           null,
         ),
       ),

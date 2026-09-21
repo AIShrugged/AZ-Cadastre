@@ -27,6 +27,25 @@
  * up; and while the package is mid-run the whole panel says the package takes no
  * files rather than offering buttons that would be declined.
  *
+ * Three things to do are three weights on the page, and not three colours of the
+ * same row. Read down, the panel says *what is missing* before *what was read
+ * badly* before *what may be sent whenever* — the papers nobody sent lead in the
+ * heaviest heading, the widest rows and the strongest rule, and the ones the
+ * profile takes at any time are set in the quiet label of a section marker with
+ * a ghost button beside them, because nothing is wrong there. Drawn at one
+ * weight, as they were, an inspector had to read all three groups to find out
+ * which of them was the finding.
+ *
+ * The same drop happens inside «not in the package»: the papers the profile
+ * insists on are set in the body weight and the alternatives under the fold a
+ * step below it, so the two are told apart by how they are drawn and not only by
+ * which side of the fold they fell on.
+ *
+ * None of this re-reads the list. The order is the contract's, the rows are the
+ * contract's, and the count beside the first heading is the server's own gaps
+ * read a second way (`requiredShortfall`) — the panel decides how loudly to say
+ * what it was given, and nothing about what it was given.
+ *
  * What each reason means is said behind the ⓘ beside it rather than above every
  * group: it is the same sentence on every case, and the names of the papers are
  * what an operator scans this list for.
@@ -48,6 +67,7 @@ import {
   GAP_REASON_TONE,
   gapKey,
   namesAFault,
+  requiredShortfall,
   requiredTypes,
   scanShortfall,
   takesFiles,
@@ -76,11 +96,82 @@ const REASON_ICON: Record<DocumentGapReason, typeof ScanLineIcon> = {
 };
 
 // A shortfall is drawn as one; a paper the profile simply accepts is not. The
-// quiet third tone is the whole point of publishing three reasons.
-const TONE_LABEL: Record<GapTone, string> = {
-  short: 'text-incomplete-ink',
-  doubt: 'text-issues-ink',
-  offer: 'text-muted-foreground',
+// quiet third tone is the whole point of publishing three reasons — and the
+// difference between them is size, weight and rule as much as ink, so the order
+// survives a grayscale print and a reader who does not see the three hues apart
+// (the Status-Never-Alone rule: every one of these tints travels with its word).
+const TONE_HEADING: Record<GapTone, string> = {
+  short:
+    'gap-2 text-[0.875rem] font-semibold tracking-[-0.01em] text-incomplete-ink',
+  doubt: 'gap-1.5 text-[0.8125rem] font-medium text-issues-ink',
+  offer:
+    'gap-1.5 text-[0.6875rem] font-medium tracking-[0.09em] uppercase text-muted-foreground',
+};
+
+/** The reason's glyph: a filled mark for the papers that are missing, the bare
+ *  line icon for the other two. */
+const TONE_MARK: Record<GapTone, string> = {
+  short: 'size-[1.125rem] rounded-full bg-incomplete/12',
+  doubt: 'size-3.5',
+  offer: 'size-3',
+};
+
+const TONE_GLYPH: Record<GapTone, string> = {
+  short: 'size-[0.6875rem]',
+  doubt: 'size-3.5',
+  offer: 'size-3',
+};
+
+const TONE_STROKE: Record<GapTone, number> = {
+  short: 2.75,
+  doubt: 2,
+  offer: 2,
+};
+
+/** The structural rule above and below the group — heavier under the papers the
+ *  package is short of, the hairline everywhere else. */
+const TONE_RULE: Record<GapTone, string> = {
+  short: 'border-rule-strong',
+  doubt: 'border-rule',
+  offer: 'border-rule',
+};
+
+/** A little more air above the group that is not a finding, so the eye reads a
+ *  break between the shortfalls and the offer. */
+const TONE_SECTION: Record<GapTone, string> = {
+  short: '',
+  doubt: '',
+  offer: 'pt-1',
+};
+
+/** How a row under this reason is set, before the fold demotes it further. */
+const TONE_WEIGHT: Record<GapTone, GapWeight> = {
+  short: 'lead',
+  doubt: 'plain',
+  offer: 'quiet',
+};
+
+/**
+ * How much of the page one row takes.
+ *
+ * `lead` is a paper the profile insists on and nobody sent: the widest row, its
+ * name in the body weight. `plain` is a scan worth sending again. `quiet` is
+ * everything that is not a shortfall — an alternative title under the fold, or a
+ * paper accepted at any time — set a step down and answered by a ghost button,
+ * so it reads as something offered rather than something owed.
+ */
+type GapWeight = 'lead' | 'plain' | 'quiet';
+
+const WEIGHT_ROW: Record<GapWeight, string> = {
+  lead: 'py-3',
+  plain: 'py-2.5',
+  quiet: 'py-2',
+};
+
+const WEIGHT_TITLE: Record<GapWeight, string> = {
+  lead: 'text-[0.875rem] font-medium tracking-[-0.01em] text-foreground',
+  plain: 'text-[0.875rem] text-foreground',
+  quiet: 'text-[0.8125rem] text-foreground/80',
 };
 
 export function DocumentGaps({
@@ -112,7 +203,9 @@ export function DocumentGaps({
   }
 
   const profile = profiles.find(candidate => candidate.key === pkg.profileKey);
-  const required = new Set(profile ? requiredTypes(profile) : []);
+  // In the profile's own order, because the count of what is still owed is read
+  // off it and the order is the one the case sheet lists them in.
+  const required = profile ? requiredTypes(profile) : [];
 
   return (
     <section id='document-gaps' className='scroll-mt-16'>
@@ -174,7 +267,9 @@ function GapsHeading({
  * read badly, then what the profile takes at any time — so the groups fall out of
  * the list rather than being sorted here.
  *
- * **The papers the profile insists on lead; the rest fold.** A `MissingDocument`
+ * **The papers the profile insists on lead; the rest fold.** They also lead in
+ * how they are set — body weight against the step below it — so the fold is not
+ * the only thing telling the two apart. A `MissingDocument`
  * gap is published for every paper that would close a requirement — each title
  * a provision could rest on among them — so a house whose provision is still
  * open is offered sixteen titles beside the two papers the profile requires.
@@ -193,7 +288,9 @@ function ReasonGroup({
 }: {
   reason: DocumentGapReason;
   gaps: readonly DocumentGapDto[];
-  required: ReadonlySet<string>;
+  /** The papers this profile insists on, in its own order. Empty until the
+   *  profiles have loaded, and then nothing is claimed about which lead. */
+  required: readonly string[];
   pkg: PackageDetailDto;
   profiles: readonly ProfileDto[];
   accepting: boolean;
@@ -202,22 +299,31 @@ function ReasonGroup({
   const { t } = useI18n();
   const tone = GAP_REASON_TONE[reason];
   const Icon = REASON_ICON[reason];
+  const insisted = new Set(required);
 
   const leading =
-    reason === 'MissingDocument' && required.size > 0
-      ? gaps.filter(gap => required.has(gap.expectedType))
+    reason === 'MissingDocument' && insisted.size > 0
+      ? gaps.filter(gap => insisted.has(gap.expectedType))
       : [];
   // A group with no required paper in it is not folded away whole.
   const shown = leading.length > 0 ? leading : gaps;
   const folded =
     leading.length > 0
-      ? gaps.filter(gap => !required.has(gap.expectedType))
+      ? gaps.filter(gap => !insisted.has(gap.expectedType))
       : [];
+  // How many of the papers the profile insists on are not here — said once, in
+  // the heading, rather than as a tag on every row. It is the published gaps
+  // counted, not a completeness rule worked out a second time here: a
+  // requirement several papers answer publishes a gap for each of them, and
+  // `requiredShortfall` is what keeps that from reading as sixteen.
+  const owed =
+    reason === 'MissingDocument' ? requiredShortfall(required, gaps).length : 0;
 
-  const row = (gap: DocumentGapDto) => (
+  const row = (gap: DocumentGapDto, weight: GapWeight) => (
     <GapRow
       key={gapKey(gap)}
       gap={gap}
+      weight={weight}
       pkg={pkg}
       profiles={profiles}
       accepting={accepting}
@@ -226,17 +332,25 @@ function ReasonGroup({
   );
 
   return (
-    <section>
+    <section className={TONE_SECTION[tone]}>
       <div className='flex flex-wrap items-center gap-x-1 gap-y-1'>
-        <span
-          className={cn(
-            'inline-flex items-center gap-1.5 text-[0.8125rem] font-medium',
-            TONE_LABEL[tone],
-          )}
-        >
-          <Icon aria-hidden className='size-3.5' />
+        <span className={cn('inline-flex items-center', TONE_HEADING[tone])}>
+          <span
+            aria-hidden
+            className={cn('grid shrink-0 place-items-center', TONE_MARK[tone])}
+          >
+            <Icon
+              className={TONE_GLYPH[tone]}
+              strokeWidth={TONE_STROKE[tone]}
+            />
+          </span>
           {t(GAP_REASON_KEY[reason])}
         </span>
+        {owed > 0 && (
+          <span className='rounded-full bg-incomplete/12 px-1.5 py-px text-[0.6875rem] font-medium tabular-nums text-incomplete-ink'>
+            {t('gap.required_count', { n: owed })}
+          </span>
+        )}
         <InfoHint label={t('common.more_info')}>
           <span>{t(GAP_REASON_NOTE[reason])}</span>
           {reason === 'UnusableScan' && (
@@ -247,8 +361,10 @@ function ReasonGroup({
         </InfoHint>
       </div>
 
-      <ul className='mt-1.5 divide-y divide-rule border-y border-rule'>
-        {shown.map(row)}
+      <ul
+        className={cn('mt-1.5 divide-y divide-rule border-y', TONE_RULE[tone])}
+      >
+        {shown.map(gap => row(gap, TONE_WEIGHT[tone]))}
       </ul>
 
       {folded.length > 0 && (
@@ -261,7 +377,7 @@ function ReasonGroup({
             {t('gap.more', { n: folded.length })}
           </summary>
           <ul className='divide-y divide-rule border-b border-rule'>
-            {folded.map(row)}
+            {folded.map(gap => row(gap, 'quiet'))}
           </ul>
         </details>
       )}
@@ -288,12 +404,16 @@ function groupsOf(
 
 function GapRow({
   gap,
+  weight,
   pkg,
   profiles,
   accepting,
   onJump,
 }: {
   gap: DocumentGapDto;
+  /** What this row is worth against the ones around it. Never read off the gap
+   *  here — the group that drew it knows which of the three it is. */
+  weight: GapWeight;
   pkg: PackageDetailDto;
   profiles: readonly ProfileDto[];
   accepting: boolean;
@@ -304,11 +424,16 @@ function GapRow({
   const type = translateOr(t, `doctype.${gap.expectedType}`, gap.expectedType);
 
   return (
-    <li className='flex flex-wrap items-start justify-between gap-x-6 gap-y-2 py-2'>
+    <li
+      className={cn(
+        'flex flex-wrap items-start justify-between gap-x-6 gap-y-2',
+        WEIGHT_ROW[weight],
+      )}
+    >
       <div className='min-w-0 flex-1 pt-1'>
         {/* The name of the paper is the whole of the row's heading: what kind of
             gap it is, and what to do about it, the group above already said. */}
-        <h3 className='text-[0.875rem] leading-snug text-foreground'>{type}</h3>
+        <h3 className={cn('leading-snug', WEIGHT_TITLE[weight])}>{type}</h3>
 
         {gap.reason === 'UnusableScan' && (
           <ScanFault gap={gap} pkg={pkg} profiles={profiles} onJump={onJump} />
@@ -331,7 +456,12 @@ function GapRow({
         ))}
       </div>
 
-      <SupplyButton packageId={pkg.id} gap={gap} accepting={accepting} />
+      <SupplyButton
+        packageId={pkg.id}
+        gap={gap}
+        accepting={accepting}
+        quiet={weight === 'quiet'}
+      />
     </li>
   );
 }

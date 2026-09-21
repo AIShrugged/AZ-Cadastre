@@ -12,6 +12,7 @@ import {
   ArchiveSearchApproved,
   CrossCheckMade,
   DocumentClassified,
+  DocumentFieldsEdited,
   DocumentSupplied,
   FieldsConfirmedByRegistry,
   FieldsExtracted,
@@ -32,7 +33,9 @@ import {
   ArchiveSearchNotAskedException,
   ArchiveSearchNotSettledException,
   CrossCheckNotInProfileException,
+  DocumentNotClassifiedException,
   DocumentNotHeldAgainstTheArchiveException,
+  DocumentNotInForceException,
   DocumentNotInPackageException,
   DocumentsMustCoverEverySheetException,
   DocumentTypeNotInProfileException,
@@ -51,6 +54,7 @@ import {
   SourceFileMustHaveADocumentException,
   SourceFileNotInPackageException,
   SourceFileNotSplitException,
+  UnclassifiableDocumentException,
   UntargetedSupplyException,
 } from '../exceptions/index.js';
 import {
@@ -92,8 +96,10 @@ import {
   type DocumentId,
   type DocumentType,
   type DocumentTypeSpec,
+  type EditorAccountId,
   type FieldKey,
   type FieldRef,
+  type FieldValue,
   type OcrResult,
   type PageId,
   type RecognisedText,
@@ -103,6 +109,19 @@ import {
   type SourceFileId,
   type SupplyTarget,
 } from '../value-objects/index.js';
+
+/**
+ * One correction an operator makes to one field of one document.
+ *
+ * A value states what the paper says and replaces whatever was held under that
+ * key, whatever its origin. `null` states that the paper does **not** say it,
+ * and the key is dropped — a later run may carry one over from a sister paper,
+ * which is correct and is the whole point of gathering (ADR-0023).
+ */
+export type FieldEdit = {
+  readonly key: FieldKey;
+  readonly value: FieldValue | null;
+};
 
 export type VerificationPackageState = {
   readonly id: PackageId;
@@ -772,6 +791,129 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     );
   }
 
+  /**
+   * An operator states, by hand, what one of a package's papers says.
+   *
+   * The same event as a file arriving, with a smaller blast radius, and it
+   * follows the same road on purpose (ADR-0013): the package re-opens,
+   * everything worked out *across* it is discarded, and the run that follows
+   * re-reads nothing it has already read. What makes the radius smaller is that
+   * one paper's readings changed rather than the envelope — so the sheets, the
+   * text, the segmentation, the classification and every other document's
+   * fields and archive answer all stand.
+   *
+   * Four things go, and each for its own reason. Every cross-document check and
+   * every registry check, because the edited value may be a side of any of them
+   * and working out which is a guess this system should not be making. The
+   * report, because it was compiled from them. The archive QR check **of this
+   * document only**, because the question put to the archive is built out of
+   * this paper's fields and nothing on another paper changes it. And every
+   * value carried over from the key just edited, wherever in the package it
+   * sits — a pointer at a reading that no longer exists is not a value the
+   * package states (ADR-0023), and `gatherFromThePackage` derives it again off
+   * what is now in force.
+   *
+   * Answers whether anything actually changed. An edit whose every entry
+   * already holds that value is a no-op: nothing is discarded, no run starts,
+   * and the package comes back as it was. That is not a nicety either — an
+   * operator pressing save twice must not re-open a package that has been
+   * re-verified since the first press (COMM-122).
+   */
+  editFields(
+    documentId: DocumentId,
+    edits: readonly FieldEdit[],
+    by: EditorAccountId,
+  ): boolean {
+    // The same test a file arriving is put to, and it is the same question: a
+    // run is reading this package, so anything written into it now would be
+    // read by half a pipeline (ADR-0013).
+    if (!this.#status.takesMoreFiles) {
+      throw new PackageNotTakingFilesException(
+        this.id.value,
+        this.#status.value,
+      );
+    }
+
+    const document = this.documentWith(documentId);
+
+    // A paper a better scan replaced states nothing the package is compiled
+    // from, so a correction typed onto it would change nothing an inspector
+    // ever reads. The one that replaced it is the one to correct (COMM-80).
+    if (!document.isInForce) {
+      throw new DocumentNotInForceException(
+        documentId.value,
+        document.superseded?.by?.value ?? null,
+      );
+    }
+
+    const classification = document.classification;
+
+    // No type means no schema, and no schema means there is no such thing as a
+    // field of this document to name — the same two refusals `withFields` makes
+    // of the extraction stage, for the same reason.
+    if (!classification)
+      throw new DocumentNotClassifiedException(documentId.value);
+    if (!classification.isPlaced) {
+      throw new UnclassifiableDocumentException(documentId.value);
+    }
+
+    const schema = this.#profile.schemaFor(classification.type);
+
+    for (const edit of edits) {
+      if (!schema.declares(edit.key)) {
+        throw new FieldNotInSchemaException(
+          edit.key.value,
+          classification.type.value,
+        );
+      }
+    }
+
+    const changed = edits.filter(edit =>
+      VerificationPackage.changes(document, edit),
+    );
+
+    if (changed.length === 0) return false;
+
+    this.replaceDocument(document.withEdits(changed, by, new Date()));
+    // Everywhere in the package and the edited document included: a value
+    // borrowed from a reading that has just been replaced or struck out is a
+    // pointer at nothing.
+    this.#documents = this.#documents.map(candidate =>
+      changed.reduce(
+        (stripped, edit) =>
+          stripped.withoutValueTakenFrom(documentId, edit.key),
+        candidate,
+      ),
+    );
+    this.replaceDocument(this.documentWith(documentId).withoutArchiveQrCheck());
+    this.reopen();
+    this.apply(new DocumentFieldsEdited(this.id, documentId, changed.length));
+
+    return true;
+  }
+
+  /*
+   * Whether one entry of an edit actually changes what the package states.
+   *
+   * Striking out a key nothing holds changes nothing. Stating a value already
+   * held changes nothing *only* where an operator is the one who put it there:
+   * the same text over a machine reading is a person taking responsibility for
+   * it, which raises the confidence to certainty and takes the value out of
+   * reach of the extractor on every later run. The second save of that same
+   * edit is then the no-op, which is exactly the case this exists for.
+   */
+  private static changes(document: Document, edit: FieldEdit): boolean {
+    const current = document.fields.find(field => field.key.equals(edit.key));
+
+    if (edit.value === null) return current !== undefined;
+
+    return !(
+      current !== undefined &&
+      current.wasEnteredByOperator &&
+      current.value.equals(edit.value)
+    );
+  }
+
   // What both ways in have in common: the package takes the files and re-opens,
   // and everything that was worked out across it goes (ADR-0013).
   private takeIn(files: readonly SourceFile[]): void {
@@ -789,6 +931,25 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     VerificationPackage.guardOneObjectEach(files, this.#files);
 
     this.#files = [...this.#files, ...files];
+    this.reopen();
+  }
+
+  /*
+   * Everything worked out *across* the package, discarded, and the package put
+   * back in the queue.
+   *
+   * The one place that says what re-opening means, because there are now two
+   * ways in — a file arriving and an operator correcting a value — and a second
+   * list of what to discard beside the first is how the two come to disagree.
+   * The cross-document checks and the register's answers were worked out over a
+   * package that has since changed, and a report compiled from them would
+   * describe a submission nobody made (ADR-0013).
+   *
+   * What each file says on its own is untouched, which is what makes the run
+   * that follows cheap: its sheets, their text, the documents carved out of
+   * them and every reading not affected by the change are read exactly once.
+   */
+  private reopen(): void {
     this.#crossChecks = [];
     this.#registryChecks = [];
     this.#report = null;

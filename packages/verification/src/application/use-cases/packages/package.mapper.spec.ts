@@ -69,6 +69,8 @@ function aFieldView(overrides: Partial<FieldView> = {}): FieldView {
     pageNumber: 1,
     origin: 'ReadOnThisDocument',
     takenFrom: null,
+    editedByAccountId: null,
+    editedAt: null,
     ...overrides,
   };
 }
@@ -798,6 +800,9 @@ describe('toDetailDto', () => {
         pageNumber: 2,
         origin: 'ReadOnThisDocument',
         takenFrom: null,
+        // Nobody has touched this reading, which is what both nulls say.
+        editedByAccountId: null,
+        editedAt: null,
       },
     ]);
   });
@@ -847,6 +852,8 @@ describe('toDetailDto', () => {
           fieldName: 'property_address',
           pageNumber: 3,
         },
+        editedByAccountId: null,
+        editedAt: null,
       },
     ]);
   });

@@ -269,6 +269,23 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
       },
     });
 
+    /*
+     * Gone from the aggregate means gone from the table.
+     *
+     * Deleted and not left behind, because a field can now be *dropped* rather
+     * than only written: an operator states that the paper does not say what
+     * the reader thought it did, and a value carried over loses the reading
+     * that justified it (ADR-0023, ADR-0033). A row the aggregate no longer
+     * holds would come back on the next read and be a value the package does
+     * not state — and, worse, would go on answering cross-checks (COMM-122).
+     */
+    await tx.extractedField.deleteMany({
+      where: {
+        documentId: stored.id,
+        name: { notIn: document.fields.map(field => field.name) },
+      },
+    });
+
     for (const field of document.fields) {
       await tx.extractedField.upsert({
         where: {
@@ -285,10 +302,15 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
           sourceDocumentType: field.sourceDocumentType,
           sourceFieldName: field.sourceFieldName,
           sourcePageNumber: field.sourcePageNumber,
+          editedByAccountId: field.editedByAccountId,
+          editedAt: field.editedAt,
         },
         // Every column, the source ones included: a field that was carried over
         // on one run and read on the next has to lose its source, or the row
-        // would cite a paper the value no longer came from.
+        // would cite a paper the value no longer came from. The audit columns
+        // are written the same way and for the same reason — a key an operator
+        // corrected and the reader later re-read is no longer anybody's
+        // correction.
         update: {
           value: field.value,
           confidence: field.confidence,
@@ -298,6 +320,8 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
           sourceDocumentType: field.sourceDocumentType,
           sourceFieldName: field.sourceFieldName,
           sourcePageNumber: field.sourcePageNumber,
+          editedByAccountId: field.editedByAccountId,
+          editedAt: field.editedAt,
         },
       });
     }

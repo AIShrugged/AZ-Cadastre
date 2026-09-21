@@ -24,6 +24,8 @@ const field = (name: string, value: string, confidence: number) => ({
   // module's — it picks between readings by confidence and nothing else.
   origin: 'ReadOnThisDocument' as const,
   takenFrom: null,
+  editedByAccountId: null,
+  editedAt: null,
 });
 
 const document = (id: string, fields: DocumentDto['fields']): DocumentDto => ({

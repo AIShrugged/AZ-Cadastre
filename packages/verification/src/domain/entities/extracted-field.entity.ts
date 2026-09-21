@@ -3,6 +3,7 @@ import {
   FieldOrigin,
   FieldSource,
   type CheckedValue,
+  type EditorAccountId,
   type FieldKey,
   type FieldValue,
   type PageNumber,
@@ -45,6 +46,10 @@ export class ExtractedField {
     public readonly foundOn: PageNumber | null,
     public readonly origin: FieldOrigin,
     public readonly takenFrom: FieldSource | null,
+    // Who last corrected this value by hand, and when. Both null on every field
+    // nobody has touched, which is nearly all of them (COMM-122).
+    public readonly editedBy: EditorAccountId | null,
+    public readonly editedAt: Date | null,
   ) {}
 
   // Read off this document, on this sheet of it. The extraction stage's only
@@ -62,6 +67,42 @@ export class ExtractedField {
       foundOn,
       FieldOrigin.READ_ON_THIS_DOCUMENT,
       null,
+      null,
+      null,
+    );
+  }
+
+  /**
+   * What an operator typed off the paper in front of them, because the reader
+   * got this field wrong or never got it at all.
+   *
+   * The confidence is 1 and is set here rather than taken, because a figure a
+   * person read off the sheet is not a reading with a probability attached.
+   * That is not a flourish: it is what keeps a correction out of the report's
+   * low-confidence findings, where it would send an inspector to look again at
+   * the one value somebody has already looked at.
+   *
+   * `foundOn` is the sheet of the field it replaces, where it replaces one, and
+   * null where the operator states a value nothing was read for — the same rule
+   * as any other origin that was read here, since there is no sheet to cite
+   * when nothing was read.
+   */
+  static enteredByOperator(
+    key: FieldKey,
+    value: FieldValue,
+    foundOn: PageNumber | null,
+    by: EditorAccountId,
+    at: Date,
+  ): ExtractedField {
+    return new ExtractedField(
+      key,
+      value,
+      Confidence.of(1),
+      foundOn,
+      FieldOrigin.ENTERED_BY_OPERATOR,
+      null,
+      by,
+      at,
     );
   }
 
@@ -85,6 +126,8 @@ export class ExtractedField {
         fieldKey: read.fieldKey,
         foundOn: read.foundOn,
       }),
+      null,
+      null,
     );
   }
 
@@ -95,6 +138,8 @@ export class ExtractedField {
     foundOn: PageNumber | null;
     origin: FieldOrigin;
     takenFrom: FieldSource | null;
+    editedBy?: EditorAccountId | null;
+    editedAt?: Date | null;
   }): ExtractedField {
     return new ExtractedField(
       state.key,
@@ -103,6 +148,8 @@ export class ExtractedField {
       state.foundOn,
       state.origin,
       state.takenFrom,
+      state.editedBy ?? null,
+      state.editedAt ?? null,
     );
   }
 
@@ -113,9 +160,17 @@ export class ExtractedField {
    * this paper says, it did not read the paper better than the reader did. A
    * value carried over from elsewhere is refused the mark, because the register
    * was asked about the paper that states it and the answer belongs there.
+   *
+   * A value an operator entered is left exactly as it is, mark and all. The
+   * origin records where the value came from, and where it came from is a
+   * person; the register's agreement is already recorded on the registry check
+   * that asked, and overwriting the origin with it would lose the one fact an
+   * inspector most needs about that field — that it is not what the machine
+   * read (COMM-122).
    */
   confirmedByRegistry(): ExtractedField {
     if (!this.origin.wasReadHere) return this;
+    if (this.origin.wasEnteredByOperator) return this;
 
     return new ExtractedField(
       this.key,
@@ -124,6 +179,8 @@ export class ExtractedField {
       this.foundOn,
       FieldOrigin.CONFIRMED_BY_REGISTRY,
       this.takenFrom,
+      this.editedBy,
+      this.editedAt,
     );
   }
 
@@ -132,6 +189,18 @@ export class ExtractedField {
   // the package speaking, not this sheet.
   get wasReadHere(): boolean {
     return this.origin.wasReadHere;
+  }
+
+  // Whether a machine read this value. What "already extracted" means: a value
+  // an operator typed is not this paper having been read (COMM-122).
+  get wasReadByTheMachine(): boolean {
+    return this.origin.wasReadByTheMachine;
+  }
+
+  // Whether a person put this value here, and so whether the extraction stage
+  // must leave it alone.
+  get wasEnteredByOperator(): boolean {
+    return this.origin.wasEnteredByOperator;
   }
 
   isBelow(threshold: Confidence): boolean {

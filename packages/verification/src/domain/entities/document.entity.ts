@@ -8,12 +8,14 @@ import type {
   ArchiveQrCheck,
   Classification,
   DocumentId,
+  EditorAccountId,
   FieldKey,
+  FieldValue,
   PageRange,
   SourceFileId,
 } from '../value-objects/index.js';
 
-import type { ExtractedField } from './extracted-field.entity.js';
+import { ExtractedField } from './extracted-field.entity.js';
 
 export class Document {
   readonly #fields: readonly ExtractedField[];
@@ -103,6 +105,34 @@ export class Document {
       : this.with({ fields: kept });
   }
 
+  /*
+   * The same document with the value it borrowed from one particular reading
+   * dropped — that document's field, and not the whole of that document.
+   *
+   * The narrower sister of `withoutValuesFrom`, and it has to be narrower: a
+   * paper going out of force takes every reading on it with it, but an operator
+   * correcting one field leaves the rest of that paper exactly as it was. A
+   * pointer at a reading that no longer exists is not a value the package
+   * states (ADR-0023), and `gatherFromThePackage` re-derives it off what is now
+   * in force — which is the only place the choice of source is ever made
+   * (COMM-122).
+   */
+  withoutValueTakenFrom(documentId: DocumentId, key: FieldKey): Document {
+    const kept = this.#fields.filter(field => {
+      const source = field.takenFrom;
+
+      return !(
+        source !== null &&
+        source.documentId.equals(documentId) &&
+        source.fieldKey.equals(key)
+      );
+    });
+
+    return kept.length === this.#fields.length
+      ? this
+      : this.with({ fields: kept });
+  }
+
   get fields(): readonly ExtractedField[] {
     return this.#fields;
   }
@@ -122,6 +152,26 @@ export class Document {
    */
   get hasFields(): boolean {
     return this.#fields.some(field => field.wasReadHere);
+  }
+
+  /*
+   * Whether a *machine* has read anything off this document.
+   *
+   * What the extraction stage asks before it skips a paper it takes to be done
+   * with, and deliberately not `hasFields`. A document extraction never yielded
+   * anything for, whose one value an operator typed in by hand, has not been
+   * read by anything — and treating that correction as a reading would make it
+   * cancel, silently and for good, the reading of every other field on that
+   * paper (COMM-122).
+   */
+  get hasMachineReadings(): boolean {
+    return this.#fields.some(field => field.wasReadByTheMachine);
+  }
+
+  // The values an operator typed off this paper. What extraction must not write
+  // over, and what a correction replaces when it is made a second time.
+  get fieldsEnteredByOperator(): readonly ExtractedField[] {
+    return this.#fields.filter(field => field.wasEnteredByOperator);
   }
 
   // Only what was read off this document. What every rule that asks what a
@@ -146,6 +196,17 @@ export class Document {
     return this.with({ classification });
   }
 
+  /*
+   * The document with what the extraction stage read off it.
+   *
+   * What the machine read replaces whatever was held here before — except the
+   * values an operator entered, which survive untouched and win over a reading
+   * of the same key. A person correcting a value and the machine putting its
+   * own back on the next run is the single failure that would make the whole
+   * correction feature worthless, so the rule lives here, on the only way a
+   * reading can ever reach a document, rather than in the stage that calls it
+   * (COMM-122).
+   */
   withFields(fields: readonly ExtractedField[]): Document {
     if (!this.classification) {
       throw new DocumentNotClassifiedException(this.id.value);
@@ -154,7 +215,13 @@ export class Document {
       throw new UnclassifiableDocumentException(this.id.value);
     }
 
-    return this.with({ fields });
+    const corrections = this.fieldsEnteredByOperator;
+    const spokenFor = (field: ExtractedField): boolean =>
+      corrections.some(correction => correction.key.equals(field.key));
+
+    return this.with({
+      fields: [...corrections, ...fields.filter(field => !spokenFor(field))],
+    });
   }
 
   /*
@@ -198,6 +265,72 @@ export class Document {
     }
 
     return this.with({ archiveQrCheck: check });
+  }
+
+  /*
+   * The document with an operator's corrections on it.
+   *
+   * One call for every correction made to one document, because an operator
+   * fixes a form and saves it: a document re-stated per keystroke would put the
+   * package through the pipeline five times over one edit. A value replaces
+   * whatever was there, whatever its origin; a null drops the key, which is the
+   * operator stating that the paper does not say it.
+   *
+   * The sheet of a replaced field is carried onto the correction, so an
+   * inspector opening it still turns to the paper the value is printed on. A
+   * key nothing was ever read for cites no sheet, because there is none.
+   */
+  withEdits(
+    edits: readonly {
+      readonly key: FieldKey;
+      readonly value: FieldValue | null;
+    }[],
+    by: EditorAccountId,
+    at: Date,
+  ): Document {
+    const edited = (key: FieldKey): boolean =>
+      edits.some(edit => edit.key.equals(key));
+
+    const kept = this.#fields.filter(field => !edited(field.key));
+    const entered = edits.flatMap(edit =>
+      edit.value === null
+        ? []
+        : [
+            ExtractedField.enteredByOperator(
+              edit.key,
+              edit.value,
+              this.#fields.find(field => field.key.equals(edit.key))?.foundOn ??
+                null,
+              by,
+              at,
+            ),
+          ],
+    );
+
+    return this.with({ fields: [...kept, ...entered] });
+  }
+
+  /*
+   * The same document with the archive's answer about it dropped.
+   *
+   * What a correction to this paper's fields does, and to this paper alone: the
+   * question put to the archive is built out of this document's own readings
+   * (`archiveQrQuestionOf`), so a value changing here makes the answer one to a
+   * question nobody asked any more. Nothing on another paper changes it, which
+   * is why no other document's check goes with it (COMM-122).
+   */
+  withoutArchiveQrCheck(): Document {
+    if (this.archiveQrCheck === null) return this;
+
+    return new Document(
+      this.id,
+      this.sourceFileId,
+      this.pages,
+      this.classification,
+      this.#fields,
+      this.superseded,
+      null,
+    );
   }
 
   private with(changes: {

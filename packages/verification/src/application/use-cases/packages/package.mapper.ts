@@ -393,6 +393,11 @@ function toDocumentDto(view: DocumentView): DocumentDto {
       // string is one the contract names.
       origin: field.origin as FieldDto['origin'],
       takenFrom: field.takenFrom,
+      // The id and not a name: turning an account into a person is a question
+      // for the context that owns accounts, and nothing asks it today — what a
+      // screen shows beside a corrected value is the date (ADR-0033).
+      editedByAccountId: field.editedByAccountId,
+      editedAt: field.editedAt?.toISOString() ?? null,
     })),
     archiveQrCheck: toArchiveQrCheckDto(view.archiveQrCheck),
     // History and not a paper the case rests on: a replaced document stays in

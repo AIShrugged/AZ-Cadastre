@@ -22,6 +22,14 @@ export {
   type FileInput,
 } from './create-package.dto.js';
 export {
+  EDIT_FIELD_VALUE_MAX_LENGTH,
+  EDIT_FIELDS_MAX_ENTRIES,
+  EditDocumentFieldsRequestSchema,
+  EditDocumentFieldsResponseSchema,
+  type EditDocumentFieldsRequest,
+  type EditDocumentFieldsResponse,
+} from './edit-document-fields.dto.js';
+export {
   GetPackageResponseSchema,
   type GetPackageResponse,
 } from './get-package.dto.js';

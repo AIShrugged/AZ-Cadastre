@@ -6,6 +6,7 @@ export { CrossCheckNotInProfileException } from './cross-check-not-in-profile.ex
 export { DocumentAlreadyClassifiedException } from './document-already-classified.exception.js';
 export { DocumentNotClassifiedException } from './document-not-classified.exception.js';
 export { DocumentNotHeldAgainstTheArchiveException } from './document-not-held-against-the-archive.exception.js';
+export { DocumentNotInForceException } from './document-not-in-force.exception.js';
 export { DocumentNotInPackageException } from './document-not-in-package.exception.js';
 export { DocumentTypeNotInProfileException } from './document-type-not-in-profile.exception.js';
 export { DocumentsMustCoverEverySheetException } from './documents-must-cover-every-sheet.exception.js';

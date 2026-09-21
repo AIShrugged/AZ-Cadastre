@@ -9,6 +9,10 @@ export {
   type DeclaredAtIntakeInput,
   type SubmittedFile,
 } from './create-package/index.js';
+export {
+  EditDocumentFieldsCommand,
+  EditDocumentFieldsHandler,
+} from './edit-document-fields/index.js';
 export { GetPackageHandler, GetPackageQuery } from './get-package/index.js';
 export {
   GetPackageSummaryHandler,

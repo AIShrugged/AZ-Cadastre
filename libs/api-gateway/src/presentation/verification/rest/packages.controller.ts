@@ -14,12 +14,14 @@ import {
   AddFilesRequestSchema,
   ApproveArchiveSearchRequestSchema,
   CreatePackageRequestSchema,
+  EditDocumentFieldsRequestSchema,
   ListPackagesRequestSchema,
   PackagesOverviewRequestSchema,
   SupplyDocumentRequestSchema,
   type AddFilesRequest,
   type ApproveArchiveSearchRequest,
   type CreatePackageRequest,
+  type EditDocumentFieldsRequest,
   type ListPackagesRequest,
   type ListPackagesResponse,
   type PackageDetailDto,
@@ -141,6 +143,42 @@ export class PackagesController {
     body: ApproveArchiveSearchRequest,
   ): Promise<PackageDetailDto> {
     return this.verification.packages.approveArchiveSearch(id, body);
+  }
+
+  /*
+   * What an operator states one of the package's papers says, when the reader
+   * got a field wrong or never got it at all (ADR-0033).
+   *
+   * One call per document and not per field, because that is the unit of the
+   * act: an operator fixes a form and saves it, and a package that re-opened
+   * per keystroke would run the pipeline five times over one edit.
+   *
+   * The office's own, and guarded as the archive-search approval is: an
+   * applicant gets a **403** and not a 404, because it is the route and not the
+   * case that is none of their business (ADR-0029). Who made the correction
+   * comes off the session and never off the body — a request that could name
+   * its own editor could file a correction under somebody else's name.
+   *
+   * 200 and not 201, like the two writes above it: what comes back is the
+   * package as it now stands, and a corrected field has no address of its own
+   * to be created at.
+   */
+  @Post(':id/documents/:documentId/fields')
+  @RequiresRole('operator')
+  @HttpCode(HttpStatus.OK)
+  async editDocumentFields(
+    @Param('id') id: string,
+    @Param('documentId') documentId: string,
+    @Body({ schema: EditDocumentFieldsRequestSchema })
+    body: EditDocumentFieldsRequest,
+    @CurrentAccount() account: AccountDto,
+  ): Promise<PackageDetailDto> {
+    return this.verification.packages.editDocumentFields(
+      id,
+      documentId,
+      body,
+      account.id,
+    );
   }
 
   /*

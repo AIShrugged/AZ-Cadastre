@@ -15,10 +15,11 @@ import type { PageNumber } from './page-number.vo.js';
  * the same record of has been confirmed by something outside the envelope. Both
  * are worth telling an inspector, and neither is "read here".
  *
- * Stated as an origin and never as a flag, because the three are not degrees of
- * one thing: a reading is evidence about *this* paper, a value carried over is
- * evidence about the package, and a confirmation is evidence from outside it.
- * A boolean would collapse the second and the third into "not quite read".
+ * Stated as an origin and never as a flag, because they are not degrees of one
+ * thing: a reading is evidence about *this* paper, a value carried over is
+ * evidence about the package, a confirmation is evidence from outside it, and
+ * a value an operator typed is a person's reading of the paper in their hand.
+ * A boolean would collapse all but the first into "not quite read".
  */
 export class FieldOrigin {
   // Read off this document, cited to a sheet of it. What every field was before
@@ -37,6 +38,18 @@ export class FieldOrigin {
   static readonly CONFIRMED_BY_REGISTRY = new FieldOrigin(
     'ConfirmedByRegistry',
   );
+  /*
+   * Typed by an operator off the paper in front of them, because the reader got
+   * it wrong or never got it at all.
+   *
+   * A reading of this document and answering `wasReadHere` with `true` — which
+   * is the whole point of it. A person read the paper, so the value may be a
+   * side of a cross-document check, may be what the register is asked about,
+   * and answers for the document it hangs on. Were it anything else, the
+   * correction would change nothing downstream and an operator would be typing
+   * into a box that does nothing (COMM-122).
+   */
+  static readonly ENTERED_BY_OPERATOR = new FieldOrigin('EnteredByOperator');
 
   private constructor(public readonly value: string) {}
 
@@ -45,6 +58,7 @@ export class FieldOrigin {
       FieldOrigin.READ_ON_THIS_DOCUMENT,
       FieldOrigin.TAKEN_FROM_ANOTHER_DOCUMENT,
       FieldOrigin.CONFIRMED_BY_REGISTRY,
+      FieldOrigin.ENTERED_BY_OPERATOR,
     ];
   }
 
@@ -63,11 +77,31 @@ export class FieldOrigin {
    * here rather than by comparing against a member: a value that was not read
    * here is not this paper stating anything, so it may not answer a
    * cross-check, may not be what the register is asked about, and is not a
-   * reading anybody can be told was poor. A fourth origin added later has to
-   * answer this question, and answering it here is what makes that unavoidable.
+   * reading anybody can be told was poor. A fourth origin was added later, and
+   * answering this question here is what made that unavoidable: an operator's
+   * own value answers `true`, because a person read the paper (COMM-122).
    */
   get wasReadHere(): boolean {
     return !this.equals(FieldOrigin.TAKEN_FROM_ANOTHER_DOCUMENT);
+  }
+
+  /*
+   * Whether a machine read this value, as against a person having typed it.
+   *
+   * The question the extraction stage asks before it skips a document it takes
+   * to be done with. A document whose only values an operator entered has not
+   * been read by anything, and counting those as a reading would make one
+   * correction cancel, for good, the reading of every other field on that
+   * paper (COMM-122).
+   */
+  get wasReadByTheMachine(): boolean {
+    return this.wasReadHere && !this.equals(FieldOrigin.ENTERED_BY_OPERATOR);
+  }
+
+  // Whether a person put this value here. Asked where the machine's own reading
+  // must not be allowed to write over a correction.
+  get wasEnteredByOperator(): boolean {
+    return this.equals(FieldOrigin.ENTERED_BY_OPERATOR);
   }
 
   equals(other: FieldOrigin): boolean {

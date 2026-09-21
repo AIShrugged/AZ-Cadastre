@@ -11,6 +11,8 @@ const read = (name: string, confidence: number): FieldDto => ({
   pageNumber: 2,
   origin: 'ReadOnThisDocument',
   takenFrom: null,
+  editedByAccountId: null,
+  editedAt: null,
 });
 
 const confirmed = (name: string, confidence: number): FieldDto => ({
@@ -31,6 +33,8 @@ const carried = (name: string, confidence: number): FieldDto => ({
     fieldName: name,
     pageNumber: 5,
   },
+  editedByAccountId: null,
+  editedAt: null,
 });
 
 describe('what a document read for itself', () => {

@@ -3,6 +3,7 @@ export { ArchiveSearchApprovalSpent } from './archive-search-approval-spent.even
 export { ArchiveSearchApproved } from './archive-search-approved.event.js';
 export { CrossCheckMade } from './cross-check-made.event.js';
 export { DocumentClassified } from './document-classified.event.js';
+export { DocumentFieldsEdited } from './document-fields-edited.event.js';
 export { DocumentSupplied } from './document-supplied.event.js';
 export { FieldsConfirmedByRegistry } from './fields-confirmed-by-registry.event.js';
 export { FieldsExtracted } from './fields-extracted.event.js';

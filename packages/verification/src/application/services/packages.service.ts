@@ -5,6 +5,7 @@ import type {
   AddFilesRequest,
   ApproveArchiveSearchRequest,
   CreatePackageRequest,
+  EditDocumentFieldsRequest,
   ListPackagesRequest,
   ListPackagesResponse,
   PackageDetailDto,
@@ -20,6 +21,7 @@ import {
   AddFilesCommand,
   ApproveArchiveSearchCommand,
   CreatePackageCommand,
+  EditDocumentFieldsCommand,
   GetPackageQuery,
   GetPackagesOverviewQuery,
   GetPackageSummaryQuery,
@@ -118,6 +120,35 @@ export class PackagesService implements PackagesApi {
      * scoping the read that follows it to an account would be scoping it to
      * nobody (ADR-0029).
      */
+    return this.findOne(packageId.value, null);
+  }
+
+  /*
+   * Answers with the whole package, as approving an archive search does and for
+   * the same reason: the correction shows on the submission a caller was
+   * already looking at, and asking for it again to see what one has just typed
+   * is a round trip for nothing.
+   *
+   * The read is unscoped, and `null` is not the caller's own account: only the
+   * office may correct a field, so the call that gets here is never an
+   * applicant's and scoping the read to an account would be scoping it to
+   * nobody (ADR-0029).
+   */
+  async editDocumentFields(
+    id: string,
+    documentId: string,
+    request: EditDocumentFieldsRequest,
+    editedByAccountId: string,
+  ): Promise<PackageDetailDto> {
+    const packageId = await this.commands.execute(
+      new EditDocumentFieldsCommand(
+        id,
+        documentId,
+        request.fields,
+        editedByAccountId,
+      ),
+    );
+
     return this.findOne(packageId.value, null);
   }
 

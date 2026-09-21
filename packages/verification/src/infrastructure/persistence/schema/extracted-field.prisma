@@ -2,14 +2,16 @@
 // from a document, per the field schema its detected type declares in the
 // active profile. Each field records where it came from and how sure we are.
 
-/// Where a field's value came from (ADR-0023). An enum and not a boolean:
-/// the three are not degrees of one thing — a reading is evidence about this
-/// paper, a value carried over is evidence about the package, and a
-/// confirmation is evidence from outside it.
+/// Where a field's value came from (ADR-0023, ADR-0033). An enum and not a
+/// boolean: they are not degrees of one thing — a reading is evidence about
+/// this paper, a value carried over is evidence about the package, a
+/// confirmation is evidence from outside it, and a value an operator typed is a
+/// person's reading of the paper in their hand.
 enum FieldOrigin {
   ReadOnThisDocument // read off this document, cited to a sheet of it
   TakenFromAnotherDocument // the same value another paper of the package states
   ConfirmedByRegistry // read here, and matched by the archive register's record
+  EnteredByOperator // typed by a person off the paper, because the reader got it wrong
 }
 
 model ExtractedField {
@@ -34,6 +36,16 @@ model ExtractedField {
   pageNumber Int?
 
   origin FieldOrigin @default(ReadOnThisDocument)
+
+  /// Who last corrected this value by hand, and when. Both null on every field
+  /// nobody has touched, which is nearly all of them.
+  ///
+  /// A plain column with no foreign key: the account row lives in another
+  /// context's database, so there is nothing here to point at (ADR-0029). This
+  /// context knows only that two corrections carrying one id were made by one
+  /// person; turning it into a name is the edge's business (ADR-0033).
+  editedByAccountId String?   @db.Uuid
+  editedAt          DateTime?
 
   /// The reading a carried-over value was copied from: the document of this
   /// package, its type, its field and the sheet of THAT document the value is

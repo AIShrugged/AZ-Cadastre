@@ -87,6 +87,15 @@ describe('with no session at all', () => {
         api.packages.createRaw({ profileKey: 'cadastre', files: [] }),
     ],
     [
+      'POST /packages/:id/documents/:documentId/fields',
+      (api: RestClient) =>
+        api.packages.editDocumentFieldsRaw(
+          '00000000-0000-4000-8000-000000000000',
+          '00000000-0000-4000-8000-000000000001',
+          { fields: [{ name: 'document_no', value: 'AZE1234567' }] },
+        ),
+    ],
+    [
       'POST /addresses/lookup',
       (api: RestClient) =>
         api.addresses.lookupRaw({
@@ -207,6 +216,23 @@ describe('an applicant', () => {
       applicant.packages.approveArchiveSearch(mine.id, {
         summary: 'Looks right to me',
       }),
+    ).rejects.toMatchObject({ status: 403, body: { code: 'FORBIDDEN' } });
+  });
+
+  /*
+   * Correcting a field is the office's own act, so the route and not the case
+   * is what is refused: 403 and never 404, even on a package they filed
+   * themselves (ADR-0029, ADR-0033).
+   */
+  it('is refused a field correction with 403, even on their own package', async () => {
+    const mine = await submit(applicant);
+
+    await expect(
+      applicant.packages.editDocumentFields(
+        mine.id,
+        '00000000-0000-4000-8000-000000000001',
+        { fields: [{ name: 'document_no', value: 'AZE1234567' }] },
+      ),
     ).rejects.toMatchObject({ status: 403, body: { code: 'FORBIDDEN' } });
   });
 

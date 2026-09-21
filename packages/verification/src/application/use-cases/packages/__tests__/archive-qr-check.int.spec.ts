@@ -9,17 +9,11 @@ import {
 } from '@cadastre/api-contracts/verification';
 
 import {
+  DemoOcrFor,
   FixedPageSplitter,
-  InstantOcr,
   startContext,
   waitForTerminalStatus,
 } from '../../../../../test/context-harness.js';
-import {
-  Confidence,
-  OcrResult,
-  RecognisedText,
-  type PageImage,
-} from '../../../../domain/value-objects/index.js';
 import { CreatePackageCommand } from '../create-package/index.js';
 import { GetPackageQuery } from '../get-package/index.js';
 import { toDetailDto } from '../package.mapper.js';
@@ -36,28 +30,6 @@ import { toDetailDto } from '../package.mapper.js';
  * publishes it on `DocumentDto` out of its own query.
  */
 
-// The sheet as a reader transcribes the copy the archive's Baku branch sent in
-// January 2026: the heading the profile places it by, and the seal and the
-// signature an office presses on an act.
-const ORDER_1471 = [
-  'AZƏRBAYCAN RESPUBLİKASI',
-  'SABUNÇU RAYON İCRA HAKİMİYYƏTİ',
-  'Həyətyanı torpaq sahəsinin ayrılması barədə qərar № 1471, 29.10.1998',
-  'Qusadze Vera Vladimirovna — 400,0 kv.m',
-  'EAS: Fond-130, siy.1, i-476, vər.98',
-  '[stamp: SABUNÇU RAYON İCRA HAKİMİYYƏTİ]',
-  '[signature]',
-].join('\n');
-
-/** The harness's reader, with the order's sheet in place of a demo paper. */
-class RusadzeOcr extends InstantOcr {
-  override async recognise(image: PageImage): Promise<OcrResult> {
-    return image.storageKey.value.includes('serencam-1471')
-      ? OcrResult.of(RecognisedText.of(ORDER_1471), Confidence.of(0.9))
-      : super.recognise(image);
-  }
-}
-
 describe('the Rusadze package, held against the National Archive by its QR code', () => {
   let module: TestingModule;
   let detail: PackageDetailDto;
@@ -65,7 +37,7 @@ describe('the Rusadze package, held against the National Archive by its QR code'
 
   beforeAll(async () => {
     ({ module } = await startContext(inject('databaseUrl'), {
-      ocr: new RusadzeOcr(),
+      ocr: new DemoOcrFor('serencam-1471'),
       splitter: new FixedPageSplitter(1),
     }));
 

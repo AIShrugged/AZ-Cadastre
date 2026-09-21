@@ -35,6 +35,7 @@ import {
 import {
   ArchiveRegistryAdapter,
   FieldExtractorAdapter,
+  OcrProviderAdapter,
 } from '../src/infrastructure/adapters/index.js';
 import type { VerificationModuleOptions } from '../src/verification.module-defs.js';
 import { VerificationModule } from '../src/verification.module.js';
@@ -109,6 +110,26 @@ export class InstantOcr extends OcrProvider {
       RecognisedText.of(textFor(image.storageKey.value)),
       Confidence.of(0.9),
     );
+  }
+}
+
+/**
+ * The instant reader with the named sheets answered by the shipped demo reader
+ * itself, so a spec about the demo runs on the page a local run with every
+ * provider on `mock` is given rather than on a fixture standing beside it
+ * (COMM-121). The pages it forwards pay that reader's demo latency.
+ */
+export class DemoOcrFor extends InstantOcr {
+  private readonly demo = new OcrProviderAdapter();
+
+  constructor(private readonly keyFragment: string) {
+    super();
+  }
+
+  override async recognise(image: PageImage): Promise<OcrResult> {
+    return image.storageKey.value.includes(this.keyFragment)
+      ? this.demo.recognise(image)
+      : super.recognise(image);
   }
 }
 

@@ -45,13 +45,39 @@ async function presigned(names: readonly string[]): Promise<FileInput[]> {
   );
 }
 
-async function aPackage(): Promise<string> {
+/*
+ * A package with its run behind it.
+ *
+ * Creating a package starts a run, and a run under way is a state the route
+ * answers differently: `PACKAGE_NOT_TAKING_FILES` pre-empts a refusal further
+ * down whenever it reaches the aggregate first. A case that called straight
+ * after `create` was therefore asking which of the two won a footrace, and got
+ * either answer depending on how loaded the machine was (COMM-128). Waiting for
+ * the run out here pins the package in a state every case can name, so the same
+ * status comes back on every machine — including cases that do not go near the
+ * handler today, so that they stay honest if they ever do.
+ */
+async function aPackage(timeoutMs = 45_000): Promise<string> {
   const { body } = await api.packages.create({
     profileKey: 'cadastre',
     files: await presigned(['sexsiyyet-vesiqe.pdf']),
   });
 
-  return body.id;
+  const deadline = Date.now() + timeoutMs;
+
+  for (;;) {
+    const { body: current } = await api.packages.findOne(body.id);
+
+    if (current.status === 'Completed' || current.status === 'Failed') {
+      return body.id;
+    }
+
+    if (Date.now() > deadline) {
+      throw new Error(`package ${body.id} was still ${current.status}`);
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 250));
+  }
 }
 
 const refusalOf = async (call: Promise<unknown>): Promise<ApiError> =>
@@ -76,6 +102,12 @@ describe('the route an operator corrects a field through', () => {
     expect(failure.body.code).toBe('PACKAGE_NOT_FOUND');
   });
 
+  /*
+   * A document id that names nothing in this package names nothing whatever
+   * the package is doing, so this is a 404 and not the 409 a write would get
+   * while a run reads the package — the order `editFields` puts its tests in
+   * says so, and the package here is settled besides (COMM-128).
+   */
   it('answers DOCUMENT_NOT_IN_PACKAGE for a document this package has not got', async () => {
     // arrange
     const id = await aPackage();

@@ -824,17 +824,25 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     edits: readonly FieldEdit[],
     by: EditorAccountId,
   ): boolean {
+    const document = this.documentWith(documentId);
+
     // The same test a file arriving is put to, and it is the same question: a
     // run is reading this package, so anything written into it now would be
     // read by half a pipeline (ADR-0013).
+    //
+    // It comes *after* the document is resolved, and the order is the contract
+    // (COMM-128): a document id that names nothing in this package names
+    // nothing whatever the package is doing, so that refusal must not depend on
+    // whether a run happens to be under way. `documentWith` only reads, so
+    // asking it first writes nothing into a package a run is holding. Every
+    // refusal below this line is about an edit that would otherwise land, and
+    // those the run does pre-empt.
     if (!this.#status.takesMoreFiles) {
       throw new PackageNotTakingFilesException(
         this.id.value,
         this.#status.value,
       );
     }
-
-    const document = this.documentWith(documentId);
 
     // A paper a better scan replaced states nothing the package is compiled
     // from, so a correction typed onto it would change nothing an inspector

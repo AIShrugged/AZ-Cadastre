@@ -49,20 +49,30 @@ function fakeText(key: string): string {
   //
   // The Rusadze case: the archive's certified copy of the order allotting the
   // homestead plot, held against the National Archive Fund by the QR reference
-  // printed on it. The heading is the one the profile places a Decree 439
-  // paper by, and the archival reference is the one the stand-in archive holds
-  // (ADR-0028).
+  // printed on it (ADR-0028). Every line DECREE_439_FIELDS asks of such a paper
+  // is on it, worded as the offline extractor reads it and referenced as the
+  // offline archive holds it — DECREE_439_VALUES in field-extractor.adapter.ts
+  // and HELD in national-archive.adapter.ts, which rusadze-order.spec.ts holds
+  // together with this sheet. The surname is the 1998 spelling, which order 396
+  // of 2021 later corrected to Rusadze.
   if (
     name.includes('1471') ||
     name.includes('heyetyani') ||
-    name.includes('həyətyanı')
+    name.includes('həyətyanı') ||
+    name.includes('priusadeb')
   ) {
     return [
       'AZƏRBAYCAN RESPUBLİKASI',
       'SABUNÇU RAYON İCRA HAKİMİYYƏTİ',
       'Həyətyanı torpaq sahəsinin ayrılması barədə qərar № 1471, 29.10.1998',
+      'РЕШЕНИЕ ОБ ОТВОДЕ ПРИУСАДЕБНОГО ЗЕМЕЛЬНОГО УЧАСТКА',
+      'Verən orqan: Sabunçu Rayon İcra Hakimiyyəti',
       'Qusadze Vera Vladimirovna — 400,0 kv.m',
+      'Ünvan: Sabunçu rayonu, 1-ci Zabrat qəsəbəsindən yeni məhəlləyə gedən ' +
+        'yolun solunda',
+      '439 saylı Fərmanın 2.7-ci bəndi',
       'EAS: Fond-130, siy.1, i-476, vər.98',
+      'QR: https://qr.esd.milliarxiv.gov.az/F130-S1-I476-V98',
       '[stamp: SABUNÇU RAYON İCRA HAKİMİYYƏTİ]',
       '[signature]',
     ].join('\n');

@@ -27,6 +27,20 @@ export const REPORT_KEY: Record<ReportStatus, string> = {
 };
 
 /**
+ * The same three outcomes, said to the person who filed the submission.
+ *
+ * "Incomplete package" is the office's word for an envelope; the applicant is
+ * told which papers are still wanted, which is what the word means to them. The
+ * mapping is here beside the office's for the same reason the standings' second
+ * vocabulary is beside the first: one wire value, two readers.
+ */
+export const APPLICANT_REPORT_KEY: Record<ReportStatus, string> = {
+  OK: 'mine.outcome.ok',
+  IssuesFound: 'mine.outcome.issues',
+  IncompletePackage: 'mine.outcome.incomplete',
+};
+
+/**
  * The tone it is set in — the register's own three, shared with the marks a
  * cross-document check and an archive answer are drawn in, so "found nothing
  * against it" reads alike wherever it is said.

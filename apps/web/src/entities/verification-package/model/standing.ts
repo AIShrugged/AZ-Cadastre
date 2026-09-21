@@ -64,6 +64,48 @@ export const STANDING_NOTE: Record<PackageStanding, string> = {
   Cleared: 'standing.note.Cleared',
 };
 
+/**
+ * The same seven standings, said to the person who filed the submission.
+ *
+ * A second vocabulary and not a second state: it is the contract's own
+ * `standing`, read off the wire exactly as the register reads it, and what
+ * differs is only who is being told. The register speaks to an inspector about
+ * a queue — "needs inspector", "short of documents" — and those are the words
+ * of the office's own work; an applicant is not in the queue and has no
+ * inspector. They are told what has happened to their application and whether
+ * there is anything for them to do.
+ *
+ * Here rather than on the cabinet's pages because two of them draw it — the
+ * list and the one submission — and two copies of a wording is how a list comes
+ * to say something the page it opens contradicts.
+ */
+export const APPLICANT_STANDING_KEY: Record<PackageStanding, string> = {
+  Queued: 'mine.standing.Queued',
+  UnderVerification: 'mine.standing.UnderVerification',
+  Stalled: 'mine.standing.Stalled',
+  ShortOfDocuments: 'mine.standing.ShortOfDocuments',
+  NeedsInspector: 'mine.standing.NeedsInspector',
+  AwaitingArchiveApproval: 'mine.standing.AwaitingArchiveApproval',
+  Cleared: 'mine.standing.Cleared',
+};
+
+/**
+ * What happens next, in a sentence, and whose move it is.
+ *
+ * Two of the seven are the applicant's move and the rest are the office's, and
+ * the sentence says which — a status that leaves a person unsure whether they
+ * are waiting or being waited for is the reason they telephone.
+ */
+export const APPLICANT_STANDING_NOTE: Record<PackageStanding, string> = {
+  Queued: 'mine.standing.note.Queued',
+  UnderVerification: 'mine.standing.note.UnderVerification',
+  Stalled: 'mine.standing.note.Stalled',
+  ShortOfDocuments: 'mine.standing.note.ShortOfDocuments',
+  NeedsInspector: 'mine.standing.note.NeedsInspector',
+  AwaitingArchiveApproval: 'mine.standing.note.AwaitingArchiveApproval',
+  Cleared: 'mine.standing.note.Cleared',
+};
+
 /** Whether the run is still working, which is the one standing that keeps a
  *  marker beating rather than still. */
 export function isRunning(standing: PackageStanding): boolean {

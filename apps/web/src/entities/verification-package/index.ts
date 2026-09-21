@@ -97,7 +97,11 @@ export {
   spentApprovals,
 } from './model/archive-search';
 
-export { REPORT_KEY, REPORT_TONE } from './model/report-outcome';
+export {
+  APPLICANT_REPORT_KEY,
+  REPORT_KEY,
+  REPORT_TONE,
+} from './model/report-outcome';
 
 export type { PacketLine, PacketReading } from './model/packet-reading';
 export {
@@ -182,6 +186,8 @@ export {
 
 export type { PackageStanding, StandingTone } from './model/standing';
 export {
+  APPLICANT_STANDING_KEY,
+  APPLICANT_STANDING_NOTE,
   isRunning,
   STANDING_KEY,
   STANDING_NOTE,
@@ -221,6 +227,7 @@ export {
   READING_TINT,
   READING_WEIGHT,
 } from './ui/reading-mark';
+export type { StandingVoice } from './ui/standing-mark';
 export { StandingMark } from './ui/standing-mark';
 export { ProfileGlyph } from './ui/profile-glyph';
 export { StageBar } from './ui/stage-bar';

@@ -10,6 +10,7 @@ import { cn } from '@/shared/lib/cn';
 import type { PackageStanding } from '@cadastre/api-contracts/verification';
 
 import {
+  APPLICANT_STANDING_KEY,
   isRunning,
   STANDING_KEY,
   STANDING_TONE,
@@ -34,15 +35,25 @@ const INK: Record<StandingTone, string> = {
   failed: 'text-failed-ink',
 };
 
+/**
+ * Whose words the mark is set in. The marker and its tone are the same either
+ * way — the standing is one state — and only the word changes: the office reads
+ * a queue, the person who filed reads their own application (`standing.ts`).
+ */
+export type StandingVoice = 'office' | 'applicant';
+
 export function StandingMark({
   standing,
+  voice = 'office',
   className,
 }: {
   standing: PackageStanding;
+  voice?: StandingVoice;
   className?: string;
 }) {
   const { t } = useI18n();
   const tone = STANDING_TONE[standing];
+  const word = voice === 'applicant' ? APPLICANT_STANDING_KEY : STANDING_KEY;
   return (
     <span
       className={cn('inline-flex items-center gap-2 leading-none', className)}
@@ -58,7 +69,7 @@ export function StandingMark({
       <span
         className={cn('text-[0.8125rem] font-medium tracking-tight', INK[tone])}
       >
-        {t(STANDING_KEY[standing])}
+        {t(word[standing])}
       </span>
     </span>
   );

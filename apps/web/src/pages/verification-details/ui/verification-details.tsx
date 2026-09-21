@@ -399,17 +399,15 @@ function stageStatuses(
 // reading scale, and below the engine's own floor it also flags for review
 // (PRD §4.6).
 //
-// Two lines, not one, and they are not the same statement. The **chip** is the
-// engine's floor — below 0.85 the report files a finding and offers the scan to
-// be sent again — and it is untouched by the scale. The **colour** is the
-// customer's own scale (`model/reading-scale`, COMM-110), which reads the
-// figure the reader can see and says nothing about whether anything is wrong
-// with it. They disagree between 80% and 85%, where a figure prints green and
-// still carries the chip; the thresholds are the customer's and the floor is
-// the engine's, so neither is moved here to make them meet.
+// The **chip** is the engine's floor — below it the report files a finding and
+// offers the scan to be sent again — and the **colour** is the customer's
+// reading scale (`model/reading-scale`, COMM-110), which says nothing about
+// whether anything is wrong with a value. Different statements, but they agree
+// at the top: the green band starts at 80 because the floor is 0.8, so a figure
+// printed green never carries the chip (COMM-129).
 //
 // The threshold is the contract's `CONFIDENCE_FLOOR` and never a copy of it.
-// This screen used to keep its own 0.8 beside the engine's, which is two
+// This screen used to keep its own number beside the engine's, which is two
 // numbers called "low confidence" in one product: the first time they disagreed
 // this column would highlight a value the report is content with, or leave a
 // flagged one plain (COMM-80).

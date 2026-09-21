@@ -219,9 +219,11 @@ Every ink clears AA on both the canvas and the raised surface, in both themes.
 **Scoped, and deliberately so.** The scale is drawn on the case card and its
 checklist and nowhere else. The archive search states a confidence in the
 neutral four-step ink meter (`ConfidenceMark`), which is what the rule below
-asks for; that surface is not changed, and the thresholds here are not the
-engine's `CONFIDENCE_FLOOR` — see `entities/verification-package/model/reading-scale`
-for why the two lines disagree between 80% and 85%.
+asks for; that surface is not changed. The top of the scale is the engine's
+`CONFIDENCE_FLOOR` said as a percentage — 80 because the floor is 0.8, so a
+reading that prints green is never one the report doubts — while the two lines
+below it are the customer's own; see
+`entities/verification-package/model/reading-scale`.
 
 ### Named Rules
 

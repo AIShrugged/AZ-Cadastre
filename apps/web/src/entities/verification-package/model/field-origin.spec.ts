@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import type { FieldDto } from '@cadastre/api-contracts/verification';
+import {
+  CONFIDENCE_FLOOR,
+  type FieldDto,
+} from '@cadastre/api-contracts/verification';
 
 import {
   fieldsReadHere,
@@ -71,7 +74,9 @@ describe('what a document read for itself', () => {
       read('owner_name', 0.95),
       carried('property_address', 0.6),
     ];
-    const flagged = fieldsReadHere(doubtful).filter(f => f.confidence < 0.8);
+    const flagged = fieldsReadHere(doubtful).filter(
+      f => f.confidence < CONFIDENCE_FLOOR,
+    );
     expect(flagged).toEqual([]);
   });
 

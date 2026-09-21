@@ -147,7 +147,14 @@ function aClassification(type = 'identity_card'): Classification {
   return Classification.of(DocumentType.create(type), Confidence.of(0.87));
 }
 
-function aField(key: string, confidence = 0.8): ExtractedField {
+// Read just well enough by default: on the floor and so not doubted, which
+// keeps a spec about something else from also asserting a `LowConfidence`
+// finding. Taken from the floor rather than written out, so the default keeps
+// that meaning if the floor ever moves (COMM-129).
+function aField(
+  key: string,
+  confidence = Confidence.FLOOR.value,
+): ExtractedField {
   return ExtractedField.of(
     FieldKey.create(key),
     FieldValue.create('AZE1234567'),
@@ -3566,7 +3573,15 @@ describe('VerificationPackage', () => {
       const built = aSubmission([
         [
           'land_plot_plan',
-          [read('property_address', ADDRESS_ON_THE_PLAN, 0.85)],
+          // On the floor, so the plan's own reading is not doubted while the
+          // discounted copy of it on the sketch is.
+          [
+            read(
+              'property_address',
+              ADDRESS_ON_THE_PLAN,
+              Confidence.FLOOR.value,
+            ),
+          ],
         ],
         ['sketch_project', [read('project_name', 'Fərdi yaşayış evi', 0.9, 2)]],
       ]);

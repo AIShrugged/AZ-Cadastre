@@ -53,13 +53,14 @@ describe('readReading', () => {
     }
   });
 
-  // Not the same line and not meant to be: the engine's floor decides what is
-  // flagged, the scale decides what colour a figure is. They disagree between
-  // 80 and 85, deliberately (COMM-110).
-  it('leaves the engine flagging readings the scale already prints green', () => {
-    const flagged = 0.82;
+  // One decision in two units: the green band starts exactly where the engine
+  // stops doubting a reading. Written as an assertion so that moving either
+  // number alone — and printing green over a value the report flags — fails the
+  // build rather than the screen (COMM-129).
+  it('starts the green band exactly at the engine floor', () => {
+    expect(READING_BAND_FLOOR.sure).toBe(CONFIDENCE_FLOOR * 100);
 
-    expect(flagged).toBeLessThan(CONFIDENCE_FLOOR);
-    expect(readReading(flagged).band).toBe('sure');
+    expect(readReading(CONFIDENCE_FLOOR).band).toBe('sure');
+    expect(readReading(CONFIDENCE_FLOOR - 0.01).band).not.toBe('sure');
   });
 });

@@ -21,17 +21,21 @@
  * claiming a verdict about a reading, which is the very thing the ink rule
  * exists to prevent.
  *
- * ─── The thresholds, and the band they are not ───────────────────────────────
+ * ─── The thresholds, and the floor they meet ─────────────────────────────────
  *
- * These are **not** `CONFIDENCE_FLOOR`, and neither replaces the other. The
- * floor is the engine's own line — below 0.85 it files a finding and offers the
- * scan to be sent again — and it decides what is flagged, which this scale
- * never touches. This scale decides only what colour the figure is printed in.
+ * The top line is the engine's floor, said in the reader's unit.
+ * `READING_BAND_FLOOR.sure` is 80 and `CONFIDENCE_FLOOR` is 0.8 because they
+ * are one decision written twice — where a reading stops being sure enough —
+ * expressed once as the percentage on screen and once as the 0..1 the engine
+ * compares against. A reading that prints green is therefore never a reading
+ * the report doubts, and the two must never drift apart: `reading-scale.spec`
+ * asserts `READING_BAND_FLOOR.sure === CONFIDENCE_FLOOR * 100` so that moving
+ * either one alone fails the build (COMM-129).
  *
- * The two lines therefore disagree between 80% and 85%: a reading in that band
- * prints green and is still flagged as low. That is a genuine oddity and it is
- * the customer's to settle — the thresholds are theirs and the floor is the
- * engine's, so neither is moved here to make them meet (COMM-110).
+ * What the scale still does not do is decide anything. The floor is what files
+ * a finding and offers the scan to be sent again; this module only says what
+ * colour the figure is printed in, and the `fair` and `low` lines below are the
+ * customer's own and answer to nothing in the engine (COMM-110).
  */
 
 /** The three bands the customer asked the case card to read in. */

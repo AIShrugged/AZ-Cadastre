@@ -520,6 +520,12 @@ export class ValidationIssue {
    * have one read off them, so the inspector knows which sheet to look at for a
    * code the reader may have missed; filed against no document, because the
    * finding is about the package having none. Never against the package.
+   *
+   * `carriers` are only those papers no line of their own already says this
+   * of: a Decree 439 paper carries it as `archiveQrUnconfirmed` against its own
+   * sheet, so the aggregate leaves it out here rather than tell one absence
+   * twice (ADR-0032). Empty names the package that carries no paper of a kind
+   * that prints a code at all.
    */
   static qrCodeUnavailable(carriers: readonly DocumentType[]): ValidationIssue {
     const named = carriers.map(type => `"${type.value}"`).join(', ');
@@ -589,6 +595,11 @@ export class ValidationIssue {
    * held against the package (ADR-0028). A paper nobody read a QR code off is
    * here for the same reason: it was not confirmed, and the inspector has to
    * know that rather than read silence as a pass.
+   *
+   * And this is the only line that says it of such a paper. The package-wide
+   * `qrCodeUnavailable` leaves out every paper that has one, so the inspector
+   * reads the sheet to open once instead of reading a list of them and then
+   * the same papers one by one (ADR-0032).
    */
   static archiveQrUnconfirmed(
     document: {

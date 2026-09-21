@@ -4,16 +4,16 @@ import { AccountRegistered } from '../events/index.js';
 import {
   AccountId,
   AccountRole,
-  type Email,
-  type FullName,
+  type Login,
   type PasswordHash,
+  type PersonName,
 } from '../value-objects/index.js';
 
 export type AccountState = {
   readonly id: AccountId;
   readonly version: number;
-  readonly email: Email;
-  readonly fullName: FullName;
+  readonly login: Login;
+  readonly name: PersonName;
   readonly role: AccountRole;
   readonly passwordHash: PasswordHash;
 };
@@ -34,15 +34,15 @@ export type AccountState = {
  * whether an offered password produces it.
  */
 export class Account extends AggregateRoot<AccountId> {
-  readonly #email: Email;
-  readonly #fullName: FullName;
+  readonly #login: Login;
+  readonly #name: PersonName;
   readonly #role: AccountRole;
   readonly #passwordHash: PasswordHash;
 
   private constructor(state: AccountState) {
     super(state.id, state.version);
-    this.#email = state.email;
-    this.#fullName = state.fullName;
+    this.#login = state.login;
+    this.#name = state.name;
     this.#role = state.role;
     this.#passwordHash = state.passwordHash;
   }
@@ -58,21 +58,21 @@ export class Account extends AggregateRoot<AccountId> {
    */
   static register(
     id: AccountId,
-    email: Email,
-    fullName: FullName,
+    login: Login,
+    name: PersonName,
     role: AccountRole,
     passwordHash: PasswordHash,
   ): Account {
     const account = new Account({
       id,
       version: 0,
-      email,
-      fullName,
+      login,
+      name,
       role,
       passwordHash,
     });
 
-    account.apply(new AccountRegistered(id, email, role));
+    account.apply(new AccountRegistered(id, login, role));
 
     return account;
   }
@@ -81,12 +81,12 @@ export class Account extends AggregateRoot<AccountId> {
     return new Account(state);
   }
 
-  get email(): Email {
-    return this.#email;
+  get login(): Login {
+    return this.#login;
   }
 
-  get fullName(): FullName {
-    return this.#fullName;
+  get name(): PersonName {
+    return this.#name;
   }
 
   get role(): AccountRole {

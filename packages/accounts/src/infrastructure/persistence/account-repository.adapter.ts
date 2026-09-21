@@ -5,10 +5,10 @@ import {
   DomainEventPublisher,
 } from '@cadastre/shared';
 
-import { EmailAlreadyTakenException } from '../../application/exceptions/index.js';
+import { LoginAlreadyTakenException } from '../../application/exceptions/index.js';
 import { AccountRepository } from '../../application/ports/outbound/index.js';
 import type { Account } from '../../domain/aggregates/index.js';
-import type { AccountId, Email } from '../../domain/value-objects/index.js';
+import type { AccountId, Login } from '../../domain/value-objects/index.js';
 
 import { AccountMapper } from './account.mapper.js';
 import { AccountsPrismaService } from './accounts-prisma.service.js';
@@ -17,7 +17,7 @@ import { isStoredId } from './stored-id.js';
 const FIRST_STORED_VERSION = 1;
 
 // Prisma's code for a unique constraint. The only one this table can raise is
-// the index on `email`.
+// the index on `login`.
 const UNIQUE_VIOLATION = 'P2002';
 
 @Injectable()
@@ -43,9 +43,9 @@ export class AccountRepositoryAdapter extends AccountRepository {
     return row ? AccountMapper.toDomain(row) : null;
   }
 
-  async findByEmail(email: Email): Promise<Account | null> {
+  async findByLogin(login: Login): Promise<Account | null> {
     const row = await this.prisma.account.findUnique({
-      where: { email: email.value },
+      where: { login: login.value },
     });
 
     return row ? AccountMapper.toDomain(row) : null;
@@ -78,14 +78,14 @@ export class AccountRepositoryAdapter extends AccountRepository {
       }
     } catch (error) {
       /*
-       * Two registrations for one address that arrive together both read
+       * Two registrations for one login that arrive together both read
        * nothing in the use case, and one of them loses here. It is the same
        * refusal the use case would have raised, so it is spelt the same way:
        * the index is what decides, and the read before it is only there to make
        * the ordinary case say something readable.
        */
       if (isUniqueViolation(error)) {
-        throw new EmailAlreadyTakenException(row.email);
+        throw new LoginAlreadyTakenException(row.login);
       }
       throw error;
     }

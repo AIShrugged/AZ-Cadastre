@@ -11,12 +11,19 @@ enum AccountRole {
 model Account {
   id String @id @db.Uuid
 
-  /// The address the account is found by, and the only thing it is found by.
+  /// The login the account is found by, and the only thing it is found by.
   /// Stored folded to lower case — the value object folds it — so that this
   /// index means what a person expects by "already taken".
-  email String @unique
+  ///
+  /// A plain string and never an address: the office's own account is
+  /// `cadastre-operator`, and a column called `email` holding that would be a
+  /// lie every reader of a query has to work around (ADR-0029).
+  login String @unique
 
-  fullName String
+  /// The two parts of the person's name, kept apart because that is how the
+  /// form asks for them. Joining them for display is the client's decision.
+  firstName String
+  lastName  String
 
   role AccountRole
 

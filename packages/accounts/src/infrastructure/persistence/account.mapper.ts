@@ -2,9 +2,9 @@ import { Account } from '../../domain/aggregates/index.js';
 import {
   AccountId,
   AccountRole,
-  Email,
-  FullName,
+  Login,
   PasswordHash,
+  PersonName,
 } from '../../domain/value-objects/index.js';
 
 import type { Account as AccountModel } from './generated/client.js';
@@ -21,8 +21,8 @@ export const AccountMapper = {
     return Account.restore({
       id: AccountId.of(row.id),
       version: row.version,
-      email: Email.create(row.email),
-      fullName: FullName.create(row.fullName),
+      login: Login.create(row.login),
+      name: PersonName.create(row.firstName, row.lastName),
       role: AccountRole.named(row.role),
       passwordHash: PasswordHash.of(row.passwordHash),
     });
@@ -30,16 +30,18 @@ export const AccountMapper = {
 
   toRow(account: Account): {
     id: string;
-    email: string;
-    fullName: string;
+    login: string;
+    firstName: string;
+    lastName: string;
     role: 'operator' | 'user';
     passwordHash: string;
     version: number;
   } {
     return {
       id: account.id.value,
-      email: account.email.value,
-      fullName: account.fullName.value,
+      login: account.login.value,
+      firstName: account.name.first,
+      lastName: account.name.last,
       role: account.role.value,
       passwordHash: account.passwordHash.value,
       version: account.version,

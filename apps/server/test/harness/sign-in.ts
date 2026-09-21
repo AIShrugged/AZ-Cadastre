@@ -6,14 +6,18 @@ import { RestClient } from '@cadastre/api-client';
  * also reads: what this set proves is that the seed put an account in the
  * database that these credentials open, and a constant both sides imported
  * would prove they agree with each other.
+ *
+ * The password is the harness's own and not the published development default,
+ * so these specs go on proving that `SEED_OPERATOR_PASSWORD` is still the thing
+ * that decides it.
  */
 export const SEEDED_OPERATOR = {
-  email: 'operator@cadastre.az',
+  login: 'cadastre-operator',
   password: 'operator-api-test-password',
 } as const;
 
 export const SEEDED_USER = {
-  email: 'user@cadastre.az',
+  login: 'cadastre-user',
   password: 'user-api-test-password',
 } as const;
 
@@ -42,11 +46,16 @@ export async function asUser(baseUrl: string): Promise<RestClient> {
  */
 export async function asNewUser(baseUrl: string): Promise<RestClient> {
   const api = new RestClient(baseUrl);
-  const email = `applicant-${crypto.randomUUID()}@example.az`;
+  const login = `applicant-${crypto.randomUUID()}`;
   const password = 'a-password-long-enough';
 
-  await api.auth.register({ email, password, fullName: 'Test Applicant' });
-  await api.auth.login({ email, password });
+  await api.auth.register({
+    login,
+    password,
+    firstName: 'Test',
+    lastName: 'Applicant',
+  });
+  await api.auth.login({ login, password });
 
   return api;
 }

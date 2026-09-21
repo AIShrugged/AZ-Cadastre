@@ -1,7 +1,7 @@
 import { Inject } from '@nestjs/common';
 import { QueryHandler, type IQueryHandler } from '@nestjs/cqrs';
 
-import { Email } from '../../../../domain/value-objects/index.js';
+import { Login } from '../../../../domain/value-objects/index.js';
 import { InvalidCredentialsException } from '../../../exceptions/index.js';
 import {
   AccountRepository,
@@ -23,19 +23,19 @@ export class AuthenticateAccountHandler implements IQueryHandler<
 
   async execute(query: AuthenticateAccountQuery): Promise<AccountView> {
     /*
-     * An address the schema refuses is a wrong credential like any other, and
-     * not a 400: `POST /auth/login` answers 401 to everything that is not a
-     * sign-in, so that the shape of what was sent tells a caller nothing about
-     * what is on file.
+     * A login the rule refuses — too short, or with a space in it — is a wrong
+     * credential like any other, and not a 400: `POST /auth/login` answers 401
+     * to everything that is not a sign-in, so that the shape of what was sent
+     * tells a caller nothing about what is on file.
      */
-    const email = Email.safe(query.email);
+    const login = Login.safe(query.login);
 
-    if (!email) throw new InvalidCredentialsException();
+    if (!login) throw new InvalidCredentialsException();
 
-    const account = await this.accounts.findByEmail(email);
+    const account = await this.accounts.findByLogin(login);
 
     /*
-     * The hash is computed even when no account answers to the address, over a
+     * The hash is computed even when no account answers to the login, over a
      * digest of our own. Without it the two cases take measurably different
      * times — a miss returns as fast as one index read, a hit takes the
      * hasher's whole cost — and a caller with a stopwatch gets the answer that

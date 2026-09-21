@@ -7,7 +7,7 @@ import { scopeFor } from './package-scope.js';
 const ID = '11111111-1111-4111-8111-111111111111';
 
 function account(role: AccountDto['role']): AccountDto {
-  return { id: ID, email: 'a@b.az', fullName: 'A B', role };
+  return { id: ID, login: 'somebody', firstName: 'A', lastName: 'B', role };
 }
 
 describe('scopeFor', () => {

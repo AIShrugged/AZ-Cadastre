@@ -35,9 +35,10 @@ export class AccountDirectoryService implements AccountDirectoryApi {
     return toAccountDto(
       await this.commands.execute(
         new RegisterAccountCommand(
-          request.email,
+          request.login,
           request.password,
-          request.fullName,
+          request.firstName,
+          request.lastName,
           'user',
         ),
       ),
@@ -47,7 +48,7 @@ export class AccountDirectoryService implements AccountDirectoryApi {
   async authenticate(request: LoginRequest): Promise<AccountDto> {
     return toAccountDto(
       await this.queries.execute(
-        new AuthenticateAccountQuery(request.email, request.password),
+        new AuthenticateAccountQuery(request.login, request.password),
       ),
     );
   }

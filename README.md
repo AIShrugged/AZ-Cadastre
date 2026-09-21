@@ -167,22 +167,28 @@ docker exec cadastre-postgres createdb -U postgres cadastre-registry
 
 Every route under `/api` needs a session except `POST /api/auth/register`,
 `POST /api/auth/login`, `POST /api/auth/logout` and `GET /api/auth/me`. Two
-accounts are put in at start-up so a stack brought up from nothing can be opened
-— with the passwords `apps/server/.env.example` carries:
+accounts are put in at start-up, so that `pnpm dev` or `docker compose up` on a
+fresh clone gives a stack somebody can sign into with nothing configured first:
 
-| Account                | Role       | Local password   | What it may do                                                                                        |
-| ---------------------- | ---------- | ---------------- | ----------------------------------------------------------------------------------------------------- |
-| `operator@cadastre.az` | `operator` | `operator-local` | Everything: intake, the whole register of cases, the overview, the archive search and its approval    |
-| `user@cadastre.az`     | `user`     | `user-local-pw`  | Files a package, sees **only their own** submissions, and supplies a document one of them is short of |
+| login               | password   | role       | first / last name    | What it may do                                                                                        |
+| ------------------- | ---------- | ---------- | -------------------- | ----------------------------------------------------------------------------------------------------- |
+| `cadastre-operator` | `12345678` | `operator` | Cadastre / Operator  | Everything: intake, the whole register of cases, the overview, the archive search and its approval    |
+| `cadastre-user`     | `12345678` | `user`     | Cadastre / Applicant | Files a package, sees **only their own** submissions, and supplies a document one of them is short of |
 
-The addresses are fixed in the code; only the passwords come from the
-environment (`SEED_OPERATOR_PASSWORD`, `SEED_USER_PASSWORD`), and they have no
-default — leave one out and that account is not seeded, and the start-up log
-says so by name. The seed is idempotent by **leaving an existing account alone**:
-changing a password in `.env` after the first run does nothing, because the
-environment is not the authority over a credential somebody may have changed.
-An applicant opens their own account at `POST /api/auth/register`; an operator
-is never self-registered.
+The identifier is a **login and not an email address**: `cadastre-operator` is
+not one, and nothing in the system validates the field as an address. An
+applicant registering will probably type their address in, which is fine — it is
+stored and compared as the string they typed.
+
+The logins are fixed in the code; only the passwords come from the environment
+(`SEED_OPERATOR_PASSWORD`, `SEED_USER_PASSWORD`), and they **default to the
+value above**, which is published in this repository. The server says so at
+start-up, on every start, naming the variable that replaces it — change both
+before anybody else can reach the stand. The seed is idempotent by **leaving an
+existing account alone**: changing a password in `.env` after the first run does
+nothing, because the environment is not the authority over a credential somebody
+may have changed. An applicant opens their own account at
+`POST /api/auth/register`; an operator is never self-registered.
 
 Set `SESSION_SECRET` too. Without it the server invents one per process — fine
 on a laptop, wrong anywhere shared, because a restart then signs everybody out

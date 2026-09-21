@@ -4,9 +4,9 @@ import { AccountRegistered } from '../events/index.js';
 import {
   AccountId,
   AccountRole,
-  Email,
-  FullName,
+  Login,
   PasswordHash,
+  PersonName,
 } from '../value-objects/index.js';
 
 import { Account } from './account.aggregate.js';
@@ -16,19 +16,20 @@ const ID = AccountId.of('11111111-1111-4111-8111-111111111111');
 function anAccount(role: AccountRole = AccountRole.USER): Account {
   return Account.register(
     ID,
-    Email.create('Applicant@Cadastre.AZ'),
-    FullName.create('  Rəşad   Məmmədov '),
+    Login.create('Cadastre-Applicant'),
+    PersonName.create('  Rəşad ', ' Məmmədov  '),
     role,
     PasswordHash.of('$argon2id$v=19$digest'),
   );
 }
 
 describe('Account', () => {
-  it('holds the address folded and the name tidied', () => {
+  it('holds the login folded and each name part tidied', () => {
     const account = anAccount();
 
-    expect(account.email.value).toBe('applicant@cadastre.az');
-    expect(account.fullName.value).toBe('Rəşad Məmmədov');
+    expect(account.login.value).toBe('cadastre-applicant');
+    expect(account.name.first).toBe('Rəşad');
+    expect(account.name.last).toBe('Məmmədov');
   });
 
   it('raises AccountRegistered carrying no credential', () => {
@@ -47,8 +48,8 @@ describe('Account', () => {
     const restored = Account.restore({
       id: ID,
       version: 4,
-      email: Email.create('a@b.az'),
-      fullName: FullName.create('A B'),
+      login: Login.create('somebody'),
+      name: PersonName.create('A', 'B'),
       role: AccountRole.OPERATOR,
       passwordHash: PasswordHash.of('$argon2id$v=19$digest'),
     });

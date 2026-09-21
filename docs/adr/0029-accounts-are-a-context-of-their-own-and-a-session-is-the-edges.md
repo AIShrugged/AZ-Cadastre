@@ -53,9 +53,9 @@ a caller, one guessed id at a time, which ids are real.
    with no "and also": who may use this system, the credential they sign in
    with, and the role they do it in. Its language is in
    `packages/accounts/CONTEXT.md`; its published surface is
-   `libs/api-contracts/accounts` — `AccountRole`, `AccountDto`, and one area
-   interface, `AccountDirectoryApi`, with `register`, `authenticate` and
-   `findOne`.
+   `libs/api-contracts/accounts` — `AccountRole`, `AccountDto`
+   (`{ id, login, firstName, lastName, role }`), and one area interface,
+   `AccountDirectoryApi`, with `register`, `authenticate` and `findOne`.
 
 2. **It owns a database of its own, `cadastre-accounts`.** Not a schema in
    `cadastre-db`: a context owns its database, and two contexts on one is how a
@@ -111,15 +111,41 @@ a caller, one guessed id at a time, which ids are real.
    submission taken in before this change has no owner, which makes it invisible
    to every applicant and unchanged for the office.
 
-8. **Two accounts, seeded at start-up.** `operator@cadastre.az` and
-   `user@cadastre.az`, idempotent by leaving an existing account alone —
-   never by resetting its password to whatever the environment now says. At
-   start-up rather than behind a `db:seed` command, because a stand where the
-   migration ran and the seed did not is a stand nobody can open. The addresses
-   are fixed in the code; only the passwords are configured, and they have **no
-   default**: a default would be a password published in this repository. An
-   account with no password configured is not seeded, and the log says so by
-   name.
+8. **Two accounts, seeded at start-up.** `cadastre-operator` and
+   `cadastre-user`, idempotent by leaving an existing account alone — never by
+   resetting its password to whatever the environment now says. At start-up
+   rather than behind a `db:seed` command, because a stand where the migration
+   ran and the seed did not is a stand nobody can open. The logins are fixed in
+   the code; only the passwords are configured, and they **default to
+   `12345678`** so that `pnpm dev` or `docker compose up` on a fresh clone
+   produces a stack somebody can sign into with no file edited first.
+
+   That default is published in this repository, which is the cost. It is paid
+   knowingly and said out loud: the seeder logs a warning on every start where
+   an account is still opening with it, naming the variable that replaces it.
+   The alternative — no default, and an account simply not seeded — was what
+   shipped first, and it makes a fresh stand one nobody can sign into, diagnosed
+   at the login screen by somebody with no reason to suspect the environment.
+
+9. **The identifier is a login, and a name is two fields.** `login` is a plain
+   string: trimmed, folded to lower case, three to sixty-four characters,
+   unique, and **never validated as an email address**. The seeded operator is
+   `cadastre-operator`, which is not one; an applicant registering will
+   generally type their address in, and that is an ordinary login that happens
+   to contain an `@`. The column is called `login` for the same reason — a
+   column called `email` holding `cadastre-operator` is a lie that outlives the
+   sprint, and every reader of a query pays for it.
+
+   `firstName` and `lastName` are asked for separately, both required, one to a
+   hundred characters each, and the DTO publishes them apart. There is no
+   `fullName`: joining them — in which order, with a patronymic or without, and
+   what to drop when the column is narrow — is a display decision, and it
+   belongs where the display is.
+
+   `PASSWORD_MIN_LENGTH` is **eight**, not ten. The product's own seed is
+   `12345678`, and a floor the system itself cannot clear is a floor somebody
+   lowers in a hurry on the day it first blocks them. A policy that has to be
+   bypassed is not a policy.
 
 ## Alternatives rejected
 
@@ -153,6 +179,20 @@ the two roles is the whole archive.
 
 **403 for somebody else's package.** Accurate, and an enumeration oracle.
 
+**An email address as the identifier.** What item 9 replaced. It reads as the
+obvious choice and it is wrong here twice over: the office's own account is not
+an address, so the validator would have refused the one login the product ships
+with; and validating an address is a promise to use it, which this system does
+not — nothing here sends mail, so `z.email()` buys a refused form and no
+delivered message. The day there is password reset, an address becomes a second
+field with a verification flow behind it, which is where it belongs.
+
+**One `fullName` string.** Cheaper, and defensible for Azerbaijani names, where
+the patronymic is a third part and the order on a paper is not the order on a
+form. But a form asks for two boxes and the office sorts by the family name, and
+a single string makes both of those the client's problem to parse back out —
+which is a worse guess than asking.
+
 ## Consequences
 
 **Every call to this API now needs a session, and that is a breaking change.**
@@ -178,7 +218,8 @@ already carries.
 key before the handler runs. That is the price of item 3's last paragraph, and
 it is the cheapest read in the system.
 
-**What this does not do.** No password reset, no email verification, no
+**What this does not do.** No password reset — and no address on file to send
+one through, because the identifier is a login and this system sends no mail. No
 refresh-token rotation, no screen for managing accounts, and no record of _who_
 approved an archive search — ADR-0016 still stands, and adding an author is a
 change to the approval rather than to a guard. The archive register itself is

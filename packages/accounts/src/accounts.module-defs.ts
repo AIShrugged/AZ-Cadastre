@@ -14,20 +14,23 @@ export type AccountsModuleOptions = {
    * The two accounts the office starts with, so that a freshly brought-up stack
    * can be signed into.
    *
-   * The addresses are not here and are not configurable: they are written into
-   * the seeder, because they are documented in the README and named in the
-   * compose file, and a deployment that changed one would have a stack nobody
-   * could sign into and a runbook that says otherwise. What a deployment does
-   * choose is the password.
+   * The logins are not here and are not configurable: they are written into the
+   * seeder, because they are documented in the README and named in the compose
+   * file, and a deployment that changed one would have a stack nobody could
+   * sign into and a runbook that says otherwise. What a deployment does choose
+   * is the password.
    *
-   * `undefined` is the honest default and means: do not seed that account.
-   * A default written into the schema would be a password published in this
-   * repository and in force on any stand whose operator did not think to
-   * override it.
+   * `DEFAULT_SEED_PASSWORD` is what arrives when nothing was configured, and
+   * that is deliberate: a fresh clone has to produce a stack somebody can sign
+   * into with no `.env` to edit first, because the alternative — a stand that
+   * migrated and seeded nothing — is diagnosed at the sign-in screen by
+   * somebody who has no reason to suspect the environment. The cost is a
+   * password published in this repository, so the seeder says so out loud at
+   * start-up and names the variable that replaces it.
    */
   seed: {
-    operatorPassword: string | undefined;
-    userPassword: string | undefined;
+    operatorPassword: string;
+    userPassword: string;
   };
 };
 
@@ -38,6 +41,17 @@ export type AccountsModuleAsyncOptions = Pick<ModuleMetadata, 'imports'> & {
     ...args: never[]
   ) => AccountsModuleOptions | Promise<AccountsModuleOptions>;
 };
+
+/**
+ * The password both seeded accounts are opened with when the environment names
+ * none.
+ *
+ * Published here rather than in the composition root because two places need
+ * the same string: the environment schema, which defaults to it, and the
+ * seeder, which recognises it in order to warn. It clears
+ * `PASSWORD_MIN_LENGTH` — which is eight, and is eight because of this.
+ */
+export const DEFAULT_SEED_PASSWORD = '12345678';
 
 /** Injection token for the resolved options. */
 export const ACCOUNTS_OPTIONS = 'ACCOUNTS_OPTIONS';

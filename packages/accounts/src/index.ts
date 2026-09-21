@@ -9,6 +9,7 @@
  */
 export { AccountsApiPort } from './application/ports/index.js';
 export { AccountsModule } from './accounts.module.js';
+export { DEFAULT_SEED_PASSWORD } from './accounts.module-defs.js';
 export type {
   AccountsModuleAsyncOptions,
   AccountsModuleOptions,

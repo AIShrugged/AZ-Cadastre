@@ -9,7 +9,7 @@ import type { AccountView } from '../../../read-models/index.js';
  */
 export class AuthenticateAccountQuery extends Query<AccountView> {
   constructor(
-    public readonly email: string,
+    public readonly login: string,
     public readonly password: string,
   ) {
     super();

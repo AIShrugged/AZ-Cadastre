@@ -13,12 +13,29 @@ follows from it: [ADR-0029](../../docs/adr/0029-accounts-are-a-context-of-their-
 ## Language
 
 **Account**:
-Somebody who may use the system. Found by one thing — the address it answers to
-— and holds exactly four things beside its identity: that address, the name the
-person writes, the role they hold, and the digest of their password. It is the
-word `CONTEXT-MAP.md` reserved for this the day it said a user is never a
-"profile".
+Somebody who may use the system. Found by one thing — the login it answers to —
+and holds exactly four things beside its identity: that login, the person's
+name, the role they hold, and the digest of their password. It is the word
+`CONTEXT-MAP.md` reserved for this the day it said a user is never a "profile".
 _Avoid_: user, profile, member, principal, identity
+
+**Login**:
+The name an account answers to, and the only thing it is found by. A plain
+string — trimmed, folded to lower case, three to sixty-four characters, unique
+— and **never an email address**: the office's own account is
+`cadastre-operator`, nothing here validates the field as an address, and nothing
+in this system sends mail. An applicant who types their address in has a login
+that happens to contain an `@`, and it is compared as the characters they typed.
+The column is called `login` for the same reason the value object is.
+_Avoid_: email, address, username, user id, handle
+
+**Person Name**:
+What the person is called, in two parts: a given name and a family name, each
+one to a hundred characters, both required. Kept apart because the form asks for
+two and the office sorts by the second. This context never joins them — which
+order, whether a patronymic sits between, what to drop in a narrow column are
+display decisions, and the display is elsewhere.
+_Avoid_: full name, display name, title
 
 **Role**:
 The job an account holds: **operator** — the office, which does everything the
@@ -45,10 +62,15 @@ _Avoid_: sign-up, onboarding, invitation
 
 **Authentication**:
 Answering whether a pair of credentials is somebody's, and whose. One refusal
-for both of the ways it can fail — an address no account answers to and the
-wrong password against one that exists — because two would be a way to enumerate
-this system's accounts without knowing a single password.
-_Avoid_: login (as a noun in code), sign-in (as a noun in code), verification
+for both of the ways it can fail — a login no account answers to and the wrong
+password against one that exists — because two would be a way to enumerate this
+system's accounts without knowing a single password.
+
+This is the context's word for the **act**. `login` in here is always the noun
+above and never the verb; the published route is `POST /api/auth/login` because
+that is what a route is called, and it reaches `authenticate`.
+_Avoid_: login (as a verb or as the name of an operation), sign-in (as a noun in
+code), verification
 
 ## What is deliberately not here
 
@@ -66,13 +88,17 @@ this context does not know that packages exist (ADR-0029).
 
 ## Invariants
 
-- An address answers to at most one account. Folded to lower case by the value
+- A login answers to at most one account. Folded to lower case by the value
   object, so the uniqueness index means what a person means by "already taken".
 - A password is never stored, never logged and never answered with. The
-  published `AccountDto` has four fields and none of them is a credential.
+  published `AccountDto` has five fields and none of them is a credential.
 - A role is one of two, checked against the contract's own enum on the way in
   and on the way out.
-- An account's address, role and credential are fixed once written. There is no
+- The rule about a login is the contract's rule and nothing more. A check this
+  context made that `RegisterAccountRequestSchema` does not is a request the
+  edge accepts and this refuses, which reaches the caller as a 422 nobody wrote
+  down.
+- An account's login, role and credential are fixed once written. There is no
   operation here that changes any of them — changing a password, changing a
   role and closing an account are three operations this context does not have
   yet, and each is a decision rather than a setter (TECH_DEBT §16).

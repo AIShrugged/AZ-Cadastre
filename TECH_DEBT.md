@@ -481,9 +481,11 @@ Four things ride with it, all deliberate and none of them free:
   root invents one per process — so a restart signs everybody out and a second
   replica accepts nothing the first one issued. The start-up line says which of
   the two is happening.
-- **There is no password reset and no email verification.** An applicant who
-  forgets their password has no way back in, and an address nobody proved they
-  own can open an account.
+- **There is no password reset, and no address on file to send one to.** An
+  applicant who forgets their password has no way back in. The identifier is a
+  login and not an email address (ADR-0029), and this system has no mail sender,
+  so there is nothing to reset a password through — reset is a feature with a
+  verified address behind it, and neither half exists yet.
 - **An account cannot be changed or closed.** `packages/accounts` has
   `register`, `authenticate` and `findOne` and nothing else: no role change, no
   password change, no deletion. The seeded operator's password is whatever the
@@ -503,7 +505,42 @@ bullet. Then, when revocation is actually wanted, an opaque session id in a tabl
 of the accounts context: one row per sign-in, deleted on logout, swept when
 expired. That is one write per sign-in and one read per request beyond the
 account lookup the guard already makes, and it makes `logout` mean what people
-think it means. Password reset and email verification are each a feature with a
-mail sender behind them and are not this entry's to smuggle in — but note that
-the second one is what makes "an address nobody proved they own" stop being
-true, and the registration route is open to the internet.
+think it means. Password reset is a feature with a mail sender and a verified
+address behind it and is not this entry's to smuggle in — but note that it is
+also what an open registration route eventually needs, and this one is open to
+the internet.
+
+---
+
+## 17. The seeded accounts' password is published in this repository
+
+**Not done.** `SEED_OPERATOR_PASSWORD` and `SEED_USER_PASSWORD` default to
+`12345678`, which is written in `README.md`, `docker-compose.yml`,
+`apps/server/.env.example` and `DEFAULT_SEED_PASSWORD` in
+`packages/accounts/src/accounts.module-defs.ts`. A stand brought up with no
+environment at all therefore has an **operator** account whose password anybody
+reading this repository knows.
+
+It is deliberate, and it bought something real: `pnpm dev` and
+`docker compose up` on a fresh clone produce a stack somebody can sign into with
+no file edited first. The version without a default shipped first, and what it
+produced was a stand that migrated, seeded nothing, and was diagnosed at the
+sign-in screen by somebody with no reason to suspect the environment.
+
+`PASSWORD_MIN_LENGTH` is eight because of this. A floor the product's own seed
+cannot clear is a floor somebody lowers in a hurry the day it first blocks them.
+
+**How it fires.** A demo stand goes on the network with the compose file's
+defaults, and it has an operator account — every case in the register, the
+archive search and its approval — behind a password in a public README. The
+warning is there on every start (`Seed account is using the published
+development password`, with `overrideWith` naming the variable), but a warning
+in a log is not a control.
+
+**What to do.** Set both variables on anything anybody else can reach; the
+warning names them and stops the moment they are set. Note that setting them
+_after_ the first start does nothing — the seed leaves an existing account alone
+(§16) — so on a stand already up it is the password-change route §16 asks for,
+or a new database. The real fix is that route, plus refusing to start with a
+default password when `NODE_ENV=production`, which is a decision nobody has
+taken yet.

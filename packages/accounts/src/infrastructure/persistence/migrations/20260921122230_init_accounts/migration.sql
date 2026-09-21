@@ -4,8 +4,9 @@ CREATE TYPE "AccountRole" AS ENUM ('operator', 'user');
 -- CreateTable
 CREATE TABLE "accounts" (
     "id" UUID NOT NULL,
-    "email" TEXT NOT NULL,
-    "fullName" TEXT NOT NULL,
+    "login" TEXT NOT NULL,
+    "firstName" TEXT NOT NULL,
+    "lastName" TEXT NOT NULL,
     "role" "AccountRole" NOT NULL,
     "passwordHash" TEXT NOT NULL,
     "version" INTEGER NOT NULL DEFAULT 0,
@@ -16,4 +17,4 @@ CREATE TABLE "accounts" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "accounts_email_key" ON "accounts"("email");
+CREATE UNIQUE INDEX "accounts_login_key" ON "accounts"("login");

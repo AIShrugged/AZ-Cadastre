@@ -51,15 +51,17 @@ compose file creates the last two through an init script the postgres image runs
 
 Everything under `/api` needs a session except the four `/api/auth` routes, so
 the first call of any manual poke at the API is a sign-in. Two accounts are
-seeded at start-up from `SEED_OPERATOR_PASSWORD` and `SEED_USER_PASSWORD` —
-`operator@cadastre.az` and `user@cadastre.az`, with `apps/server/.env.example`
-carrying the local passwords. The seed leaves an account that exists alone, so
-changing a password in `.env` afterwards does nothing.
+seeded at start-up — `cadastre-operator` and `cadastre-user`, both with the
+password `12345678`, which is what `SEED_OPERATOR_PASSWORD` and
+`SEED_USER_PASSWORD` default to so a fresh clone needs no `.env` edited before
+it can be signed into. The identifier is a **login, not an email**: nothing
+validates the field as an address. The seed leaves an account that exists alone,
+so changing a password in `.env` afterwards does nothing.
 
 ```bash
 curl -c jar -X POST localhost:3000/api/auth/login \
   -H 'content-type: application/json' \
-  -d '{"email":"operator@cadastre.az","password":"operator-local"}'
+  -d '{"login":"cadastre-operator","password":"12345678"}'
 curl -b jar localhost:3000/api/packages
 ```
 
@@ -69,8 +71,8 @@ is no Nest CLI: it cannot load TypeScript 7 — see the rakes below.
 
 | Service  | Where                 | Credentials                                 |
 | -------- | --------------------- | ------------------------------------------- |
-| API      | http://localhost:3000 | `operator@cadastre.az` / `operator-local`   |
-| Web      | http://localhost:5173 | the same, or `user@cadastre.az`             |
+| API      | http://localhost:3000 | `cadastre-operator` / `12345678`            |
+| Web      | http://localhost:5173 | the same, or `cadastre-user`                |
 | Register | http://localhost:3100 | — (the stand-in; `pnpm dev` starts it too)  |
 | Postgres | localhost:5432        | `postgres/postgres`                         |
 | RustFS   | localhost:9000        | `rustfsadmin/rustfsadmin` (console on 9001) |

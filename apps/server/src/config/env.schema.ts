@@ -2,7 +2,10 @@ import { randomBytes } from 'node:crypto';
 
 import { z } from 'zod';
 
-import type { AccountsModuleOptions } from '@cadastre/accounts';
+import {
+  DEFAULT_SEED_PASSWORD,
+  type AccountsModuleOptions,
+} from '@cadastre/accounts';
 import { PASSWORD_MIN_LENGTH } from '@cadastre/api-contracts/accounts';
 import type { SessionOptions } from '@cadastre/api-gateway';
 import type { LoggerModuleOptions } from '@cadastre/logger';
@@ -61,21 +64,32 @@ export const EnvironmentSchema = z
       .transform(v => v === 'true'),
 
     // ── Seed accounts ─────────────────────────────────────────────────────
-    // The two accounts the office starts with — operator@cadastre.az and
-    // user@cadastre.az — so that a stack brought up from nothing can be signed
-    // into. The addresses are fixed in the context; only the passwords are
+    // The two accounts the office starts with — `cadastre-operator` and
+    // `cadastre-user` — so that a stack brought up from nothing can be signed
+    // into. The logins are fixed in the context; only the passwords are
     // configured, and only here.
     //
-    // No default, deliberately. A default would be a password published in this
-    // repository and in force on every stand whose operator did not think to
-    // override it. Absent means that account is not seeded, and the start-up
-    // log says so by name.
+    // They default, and the default is published in this repository. That is
+    // the trade COMM-118 asked for and it is the right one for this product:
+    // `pnpm dev` and `docker compose up` on a fresh clone have to produce a
+    // stack somebody can sign into with no file to edit first, because the
+    // alternative is a stand that migrated, seeded nothing, and is diagnosed at
+    // the sign-in screen by somebody with no reason to suspect the environment.
+    // What it costs — a known password on any stand whose operator did not
+    // override it — is said out loud at start-up, by the seeder, naming the
+    // variable below.
     //
     // Held to the same floor a registration is — from the contract's own
     // constant, so the office cannot be seeded with a password the public form
-    // would have refused.
-    SEED_OPERATOR_PASSWORD: z.string().min(PASSWORD_MIN_LENGTH).optional(),
-    SEED_USER_PASSWORD: z.string().min(PASSWORD_MIN_LENGTH).optional(),
+    // would have refused. That floor is eight because this default is.
+    SEED_OPERATOR_PASSWORD: z
+      .string()
+      .min(PASSWORD_MIN_LENGTH)
+      .default(DEFAULT_SEED_PASSWORD),
+    SEED_USER_PASSWORD: z
+      .string()
+      .min(PASSWORD_MIN_LENGTH)
+      .default(DEFAULT_SEED_PASSWORD),
 
     WEB_ORIGIN: z.string().nonempty().default('http://localhost:5173'),
 

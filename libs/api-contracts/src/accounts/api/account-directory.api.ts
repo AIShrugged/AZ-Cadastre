@@ -19,9 +19,9 @@ export interface AccountDirectoryApi {
    * Opens an account for an applicant. Always a `user`: the role is not the
    * caller's to choose (see `RegisterAccountRequestSchema`).
    *
-   * Refused with `EMAIL_ALREADY_TAKEN` where an account already answers to that
-   * address — a 409, because the request is well formed and it is the world
-   * that has no room for it.
+   * Refused with `LOGIN_ALREADY_TAKEN` where an account already answers to that
+   * login — a 409, because the request is well formed and it is the world that
+   * has no room for it.
    */
   register(request: RegisterAccountRequest): Promise<AccountDto>;
 
@@ -29,9 +29,9 @@ export interface AccountDirectoryApi {
    * Whether these credentials are somebody's, and whose.
    *
    * Refused with `INVALID_CREDENTIALS` and nothing else — the same refusal for
-   * an address no account answers to and for the wrong password against one
-   * that exists. Two refusals here would be a way to ask this system which of
-   * its addresses are real, one request at a time.
+   * a login no account answers to and for the wrong password against one that
+   * exists. Two refusals here would be a way to ask this system which of its
+   * logins are real, one request at a time.
    */
   authenticate(request: LoginRequest): Promise<AccountDto>;
 

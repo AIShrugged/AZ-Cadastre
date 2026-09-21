@@ -52,14 +52,24 @@ services:
       - SESSION_COOKIE_SECURE=false
 
       # ── The two seeded accounts ──────────────────────────────────────────
-      # operator@cadastre.az and user@cadastre.az, put in at start-up if they
-      # are not there already. Demo passwords: change them, and note that
-      # changing them here afterwards does nothing — the seed leaves an account
-      # that exists alone rather than resetting a credential somebody may have
-      # changed (ADR-0029), and there is no route that changes one yet
-      # (TECH_DEBT §16).
-      - SEED_OPERATOR_PASSWORD=operator-demo-password
-      - SEED_USER_PASSWORD=user-demo-password
+      # Put in at start-up if they are not there already, so that
+      # `docker compose up` on a fresh clone gives a stack somebody can sign
+      # into with nothing edited:
+      #
+      #   | login             | password | role     | first / last name    |
+      #   | ----------------- | -------- | -------- | -------------------- |
+      #   | cadastre-operator | 12345678 | operator | Cadastre / Operator  |
+      #   | cadastre-user     | 12345678 | user     | Cadastre / Applicant |
+      #
+      # They are logins and not addresses: nothing validates them as email.
+      # These passwords are published in this repository and the server warns
+      # about them on every start — CHANGE THEM before anybody else can reach
+      # the stand. Note that changing them here afterwards does nothing: the
+      # seed leaves an account that exists alone rather than resetting a
+      # credential somebody may have changed (ADR-0029), and there is no route
+      # that changes one yet (TECH_DEBT §16).
+      - SEED_OPERATOR_PASSWORD=12345678
+      - SEED_USER_PASSWORD=12345678
 
       # Logging. One structured line per event on stdout, which is where
       # `docker logs` reads it (ADR-0008). The image already sets LOG_PRETTY=false

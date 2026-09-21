@@ -298,8 +298,16 @@ docker run --rm --network cadastre_default \
 Every route under `/api` needs a session except `POST /api/auth/register`,
 `POST /api/auth/login`, `POST /api/auth/logout` and `GET /api/auth/me`
 (ADR-0029). Two accounts are put in at start-up, from the passwords the compose
-file carries: `operator@cadastre.az` (the office — everything) and
-`user@cadastre.az` (an applicant — their own submissions and nothing else).
+file carries, so `docker compose up` on a fresh clone gives a stack somebody can
+sign into with nothing edited:
+
+| login               | password   | role     | first / last name    |
+| ------------------- | ---------- | -------- | -------------------- |
+| `cadastre-operator` | `12345678` | operator | Cadastre / Operator  |
+| `cadastre-user`     | `12345678` | user     | Cadastre / Applicant |
+
+The identifier is a **login and not an email address** — `cadastre-operator` is
+not one — and nothing in the system validates the field as an address.
 
 Three variables decide it, and the first two matter on a real stand:
 
@@ -313,9 +321,12 @@ Three variables decide it, and the first two matter on a real stand:
   `Secure` cookie there is one the browser never sends back, and the symptom is
   a login that appears to work and then 401s. `true` the day there is TLS.
 - **`SEED_OPERATOR_PASSWORD` / `SEED_USER_PASSWORD`** — change them before
-  anyone else opens the stand. Changing them _afterwards_ does nothing: the seed
-  leaves an existing account alone rather than resetting a credential, and there
-  is no route that changes a password yet.
+  anyone else opens the stand. They default to `12345678`, which is published in
+  this repository and in the table above, and the server logs a warning on every
+  start where a seeded account is still using it, naming the variable that
+  replaces it. Changing them _afterwards_ does nothing: the seed leaves an
+  existing account alone rather than resetting a credential, and there is no
+  route that changes a password yet.
 
 `WEB_ORIGIN` is one origin and never a wildcard, because the API answers with
 `credentials: true` and a browser refuses that combined with `*`.

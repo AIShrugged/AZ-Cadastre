@@ -11,11 +11,17 @@ beforeAll(() => {
   baseUrl = inject('baseUrl');
 });
 
-function someone(): { email: string; password: string; fullName: string } {
+function someone(): {
+  login: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+} {
   return {
-    email: `applicant-${crypto.randomUUID()}@example.az`,
-    password: 'a-password-long-enough',
-    fullName: 'Rəşad Məmmədov',
+    login: `applicant-${crypto.randomUUID()}`,
+    password: 'long-enough',
+    firstName: 'Rəşad',
+    lastName: 'Məmmədov',
   };
 }
 
@@ -37,8 +43,9 @@ describe('POST /api/auth/register', () => {
 
     expect(status).toBe(201);
     expect(body).toMatchObject({
-      email: applicant.email,
-      fullName: applicant.fullName,
+      login: applicant.login,
+      firstName: applicant.firstName,
+      lastName: applicant.lastName,
       // Never an operator, whatever is sent: the office's own accounts are not
       // handed out by a public form.
       role: 'user',
@@ -46,14 +53,27 @@ describe('POST /api/auth/register', () => {
     expect(body.id).toMatch(/^[0-9a-f-]{36}$/);
   });
 
+  it('takes an address as an ordinary login, without validating it as one', async () => {
+    const api = new RestClient(baseUrl);
+    const applicant = {
+      ...someone(),
+      login: `Aysel.${crypto.randomUUID()}@example.az`,
+    };
+
+    const { body } = await api.auth.register(applicant);
+
+    expect(body.login).toBe(applicant.login.toLowerCase());
+  });
+
   it('never answers with the credential', async () => {
     const api = new RestClient(baseUrl);
     const { body } = await api.auth.register(someone());
 
     expect(Object.keys(body).sort()).toEqual([
-      'email',
-      'fullName',
+      'firstName',
       'id',
+      'lastName',
+      'login',
       'role',
     ]);
   });
@@ -66,7 +86,7 @@ describe('POST /api/auth/register', () => {
     await expect(api.auth.me()).rejects.toMatchObject({ status: 401 });
   });
 
-  it('takes an address differing only in case as the same address', async () => {
+  it('takes a login differing only in case as the same login', async () => {
     const api = new RestClient(baseUrl);
     const applicant = someone();
 
@@ -75,15 +95,15 @@ describe('POST /api/auth/register', () => {
     await expect(
       api.auth.registerRaw({
         ...applicant,
-        email: applicant.email.toUpperCase(),
+        login: applicant.login.toUpperCase(),
       }),
     ).rejects.toMatchObject({
       status: 409,
-      body: { code: 'EMAIL_ALREADY_TAKEN' },
+      body: { code: 'LOGIN_ALREADY_TAKEN' },
     });
   });
 
-  it('refuses an address that is already somebody’s with 409', async () => {
+  it('refuses a login that is already somebody’s with 409', async () => {
     const api = new RestClient(baseUrl);
     const applicant = someone();
 
@@ -91,15 +111,16 @@ describe('POST /api/auth/register', () => {
 
     await expect(api.auth.register(applicant)).rejects.toMatchObject({
       status: 409,
-      body: { code: 'EMAIL_ALREADY_TAKEN' },
+      body: { code: 'LOGIN_ALREADY_TAKEN' },
     });
   });
 
   it.each([
-    ['no email', { password: 'a-password-long-enough', fullName: 'A' }],
-    ['not an email', { email: 'nope', password: 'a-password-long-enough', fullName: 'A' }], // prettier-ignore
-    ['a password below the floor', { email: 'a@b.az', password: 'short', fullName: 'A' }], // prettier-ignore
-    ['an empty name', { email: 'a@b.az', password: 'a-password-long-enough', fullName: '   ' }], // prettier-ignore
+    ['no login', { password: 'long-enough', firstName: 'A', lastName: 'B' }],
+    ['a login below the floor', { login: 'ab', password: 'long-enough', firstName: 'A', lastName: 'B' }], // prettier-ignore
+    ['a password below the floor', { login: 'somebody', password: 'short', firstName: 'A', lastName: 'B' }], // prettier-ignore
+    ['an empty first name', { login: 'somebody', password: 'long-enough', firstName: '   ', lastName: 'B' }], // prettier-ignore
+    ['no last name', { login: 'somebody', password: 'long-enough', firstName: 'A' }], // prettier-ignore
   ])('refuses %s with 400', async (_case, body) => {
     const api = new RestClient(baseUrl);
 
@@ -107,6 +128,16 @@ describe('POST /api/auth/register', () => {
       status: 400,
       body: { code: 'VALIDATION_FAILED' },
     });
+  });
+
+  // Eight is the floor and the seeded accounts are opened with exactly eight,
+  // so a floor that crept back up would take `docker compose up` with it.
+  it('accepts a password of exactly eight characters', async () => {
+    const api = new RestClient(baseUrl);
+
+    await expect(
+      api.auth.register({ ...someone(), password: '12345678' }),
+    ).resolves.toMatchObject({ status: 201 });
   });
 });
 
@@ -120,7 +151,7 @@ describe('POST /api/auth/login', () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
-      email: SEEDED_OPERATOR.email,
+      login: SEEDED_OPERATOR.login,
       role: 'operator',
     });
 
@@ -144,23 +175,23 @@ describe('POST /api/auth/login', () => {
     const { status, body } = await api.auth.me();
 
     expect(status).toBe(200);
-    expect(body).toMatchObject({ email: SEEDED_USER.email, role: 'user' });
+    expect(body).toMatchObject({ login: SEEDED_USER.login, role: 'user' });
   });
 
-  it('answers the same 401 for an unknown address and a wrong password', async () => {
+  it('answers the same 401 for an unknown login and a wrong password', async () => {
     const api = new RestClient(baseUrl);
 
     const unknown = await api.auth
-      .login({ email: 'nobody@cadastre.az', password: 'whatever-it-is' })
+      .login({ login: 'nobody-at-all', password: 'whatever-it-is' })
       .catch((error: unknown) => error as ApiError);
     const wrong = await api.auth
-      .login({ email: SEEDED_OPERATOR.email, password: 'not-the-password' })
+      .login({ login: SEEDED_OPERATOR.login, password: 'not-the-password' })
       .catch((error: unknown) => error as ApiError);
 
     expect(unknown).toBeInstanceOf(ApiError);
     expect(wrong).toBeInstanceOf(ApiError);
     // Byte for byte the same answer: anything that told the two apart would be
-    // a way to ask this system which of its addresses are real.
+    // a way to ask this system which of its logins are real.
     expect((unknown as ApiError).body).toEqual((wrong as ApiError).body);
     expect((unknown as ApiError).body).toMatchObject({
       statusCode: 401,
@@ -168,23 +199,23 @@ describe('POST /api/auth/login', () => {
     });
   });
 
-  it('refuses a malformed address with the same 401, not a 400', async () => {
+  it('refuses a login the registration form would not accept with the same 401, not a 400', async () => {
     const api = new RestClient(baseUrl);
 
     await expect(
-      api.auth.loginRaw({ email: 'not-an-address', password: 'x' }),
+      api.auth.loginRaw({ login: 'ab', password: 'x' }),
     ).rejects.toMatchObject({
       status: 401,
       body: { code: 'INVALID_CREDENTIALS' },
     });
   });
 
-  it('signs in with the address in any case', async () => {
+  it('signs in with the login in any case', async () => {
     const api = new RestClient(baseUrl);
 
     const { status } = await api.auth.login({
       ...SEEDED_USER,
-      email: SEEDED_USER.email.toUpperCase(),
+      login: SEEDED_USER.login.toUpperCase(),
     });
 
     expect(status).toBe(200);
@@ -220,6 +251,23 @@ describe('GET /api/auth/me', () => {
     });
   });
 
+  it('gives a registered applicant back both parts of their name', async () => {
+    const api = new RestClient(baseUrl);
+    const applicant = someone();
+
+    await api.auth.register(applicant);
+    await api.auth.login(applicant);
+
+    await expect(api.auth.me()).resolves.toMatchObject({
+      body: {
+        login: applicant.login,
+        firstName: applicant.firstName,
+        lastName: applicant.lastName,
+        role: 'user',
+      },
+    });
+  });
+
   it('is 401 on a forged cookie', async () => {
     const response = await fetch(`${baseUrl}/api/auth/me`, {
       headers: {
@@ -232,7 +280,7 @@ describe('GET /api/auth/me', () => {
 });
 
 describe('the seed', () => {
-  it('put both accounts in, with the roles they are named for', async () => {
+  it('put both accounts in, with the roles and names they are named for', async () => {
     const operator = new RestClient(baseUrl);
     const user = new RestClient(baseUrl);
 
@@ -240,10 +288,20 @@ describe('the seed', () => {
     await user.auth.login(SEEDED_USER);
 
     await expect(operator.auth.me()).resolves.toMatchObject({
-      body: { email: 'operator@cadastre.az', role: 'operator' },
+      body: {
+        login: 'cadastre-operator',
+        firstName: 'Cadastre',
+        lastName: 'Operator',
+        role: 'operator',
+      },
     });
     await expect(user.auth.me()).resolves.toMatchObject({
-      body: { email: 'user@cadastre.az', role: 'user' },
+      body: {
+        login: 'cadastre-user',
+        firstName: 'Cadastre',
+        lastName: 'Applicant',
+        role: 'user',
+      },
     });
   });
 });

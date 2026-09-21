@@ -50,6 +50,10 @@ export class AuthController {
   /**
    * Opens an applicant's account. 201, and the account as it now stands.
    *
+   * The identifier is a login and not an address, and the name arrives as two
+   * fields — see `RegisterAccountRequestSchema`, which is where both decisions
+   * are written down.
+   *
    * It does not sign them in. Registering and signing in are two things a
    * person does, and a registration that quietly issued a session would make
    * the second one impossible to test and the first one impossible to do on

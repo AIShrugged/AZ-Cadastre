@@ -3,19 +3,20 @@ import { z } from 'zod';
 import { AccountDtoSchema } from './account.dto.js';
 
 /**
- * What a sign-in is made of. No length rule on the password, deliberately: the
+ * What a sign-in is made of. No length rule on either field, deliberately: the
  * credential offered is either the one on file or it is not, and refusing a
- * short one before checking it would tell a caller that no account here was
- * ever opened with a password that short.
+ * short password — or a login below the registration floor — before checking it
+ * would tell a caller something about what this system has on file.
  */
 export const LoginRequestSchema = z.object({
   /**
-   * Not `z.email()`, and that is the point: an address the schema refused would
-   * come back 400 from the edge, and a 400 where a wrong password gets a 401 is
-   * a way to tell an address this system has never seen from one it has. The
-   * context reads it and answers the one refusal a sign-in has.
+   * Folded the same way a registration folds it, and bounded by nothing else:
+   * a login the registration schema would have refused comes back 401 here like
+   * any other credential that is not somebody's, and a 400 where a wrong
+   * password gets a 401 is a way to tell a login this system has never seen
+   * from one it has.
    */
-  email: z.string().trim().toLowerCase(),
+  login: z.string().trim().toLowerCase(),
   password: z.string(),
 });
 export type LoginRequest = z.infer<typeof LoginRequestSchema>;

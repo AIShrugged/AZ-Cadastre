@@ -13,9 +13,10 @@ import type { AccountView } from '../../../read-models/index.js';
  */
 export class RegisterAccountCommand extends Command<AccountView> {
   constructor(
-    public readonly email: string,
+    public readonly login: string,
     public readonly password: string,
-    public readonly fullName: string,
+    public readonly firstName: string,
+    public readonly lastName: string,
     public readonly role: string,
   ) {
     super();

@@ -9,16 +9,25 @@ import { Logger } from '@cadastre/logger';
 
 import {
   ACCOUNTS_OPTIONS,
+  DEFAULT_SEED_PASSWORD,
   type AccountsModuleOptions,
 } from '../../accounts.module-defs.js';
-import { EmailAlreadyTakenException } from '../../application/exceptions/index.js';
+import { LoginAlreadyTakenException } from '../../application/exceptions/index.js';
 import { RegisterAccountCommand } from '../../application/use-cases/index.js';
 
 type SeedAccount = {
-  readonly email: string;
-  readonly fullName: string;
+  readonly login: string;
+  readonly firstName: string;
+  readonly lastName: string;
   readonly role: 'operator' | 'user';
-  readonly password: string | undefined;
+  readonly password: string;
+  /**
+   * The environment variable that replaces the published default. Named in the
+   * seeder rather than looked up, because nothing under `packages/` reads
+   * `process.env` — this is a string in a warning, and the warning is useless
+   * without it.
+   */
+  readonly overriddenBy: string;
 };
 
 /**
@@ -55,47 +64,66 @@ export class AccountSeeder implements OnApplicationBootstrap {
     }
   }
 
+  /**
+   * Both of them, every time. The second exists so that a fresh stand has an
+   * applicant to look at the product as well as an operator: self-registration
+   * is the real path onto an applicant's account and works regardless, but
+   * somebody reading the README should not have to register before they can see
+   * the half of the product that is not the office's.
+   */
   private wanted(): readonly SeedAccount[] {
     return [
       {
-        email: 'operator@cadastre.az',
-        fullName: 'Cadastre Operator',
+        login: 'cadastre-operator',
+        firstName: 'Cadastre',
+        lastName: 'Operator',
         role: 'operator',
         password: this.options.seed.operatorPassword,
+        overriddenBy: 'SEED_OPERATOR_PASSWORD',
       },
       {
-        email: 'user@cadastre.az',
-        fullName: 'Cadastre Applicant',
+        login: 'cadastre-user',
+        firstName: 'Cadastre',
+        lastName: 'Applicant',
         role: 'user',
         password: this.options.seed.userPassword,
+        overriddenBy: 'SEED_USER_PASSWORD',
       },
     ];
   }
 
   private async seed(account: SeedAccount): Promise<void> {
-    if (account.password === undefined || account.password === '') {
-      // Said out loud, with the variable's own name in it: a stand nobody can
-      // sign into is otherwise diagnosed at the login screen.
-      this.logger.warn('Seed account not created: no password configured', {
-        email: account.email,
-        role: account.role,
-      });
-
-      return;
+    /*
+     * Said out loud on every start where it is true, and with the variable's own
+     * name in it. The default is what makes a fresh clone signable-into, and it
+     * is published in this repository — so the one thing that must never happen
+     * is a deployment carrying it without anybody noticing. A line that named no
+     * variable would be a warning nobody can act on.
+     */
+    if (account.password === DEFAULT_SEED_PASSWORD) {
+      this.logger.warn(
+        'Seed account is using the published development password',
+        {
+          login: account.login,
+          role: account.role,
+          overrideWith: account.overriddenBy,
+        },
+      );
     }
 
     try {
       await this.commands.execute(
         new RegisterAccountCommand(
-          account.email,
+          account.login,
           account.password,
-          account.fullName,
+          account.firstName,
+          account.lastName,
           account.role,
         ),
       );
 
       this.logger.log('Seed account created', {
-        email: account.email,
+        login: account.login,
         role: account.role,
       });
     } catch (error) {
@@ -104,9 +132,9 @@ export class AccountSeeder implements OnApplicationBootstrap {
        * also what a second replica racing this one gets. Either way the account
        * exists, which is all this was for.
        */
-      if (error instanceof EmailAlreadyTakenException) {
+      if (error instanceof LoginAlreadyTakenException) {
         this.logger.debug('Seed account already present', {
-          email: account.email,
+          login: account.login,
           role: account.role,
         });
 

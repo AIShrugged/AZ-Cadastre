@@ -5191,6 +5191,22 @@ describe('VerificationPackage corrected by hand', () => {
       ).toThrow(DocumentNotInPackageException);
     });
 
+    // The order the two tests come in, pinned: a document id that names nothing
+    // in this package names nothing whatever the package is doing, so the run
+    // must not turn this answer into `PackageNotTakingFilesException`
+    // (COMM-128).
+    it('refuses a document that is not in this package while a run reads it', () => {
+      const built = aSegmentedPackage();
+
+      expect(() =>
+        built.verification.editFields(
+          DocumentId.of(anId()),
+          [stated('property_address', AS_THE_OPERATOR_READS_IT)],
+          OPERATOR,
+        ),
+      ).toThrow(DocumentNotInPackageException);
+    });
+
     it('refuses a paper a better scan has already replaced', () => {
       const built = aReadPackage(2);
       const replacement = aDocumentOf(

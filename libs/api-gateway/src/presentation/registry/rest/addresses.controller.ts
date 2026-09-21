@@ -14,6 +14,7 @@ import {
 } from '@cadastre/api-contracts/registry';
 
 import { RegistryClientPort } from '../../../application/ports/index.js';
+import { RequiresRole } from '../../http/session/index.js';
 
 /**
  * The archive register's lookup, published at this system's own origin.
@@ -28,6 +29,15 @@ import { RegistryClientPort } from '../../../application/ports/index.js';
  * body is validated by the contract's own schema, and a refusal comes back as
  * the same `ErrorBody` a verification refusal does.
  */
+/*
+ * The office's alone. The register is where the archive is searched and
+ * measured, and neither question is about anybody's own submission — an
+ * applicant asking it would be asking what the archive holds about other
+ * people's property. A 403 and not a 404: it is the route that is none of their
+ * business, and that the office has an archive search reveals nothing about
+ * anybody (ADR-0029).
+ */
+@RequiresRole('operator')
 @Controller('addresses')
 export class AddressesController {
   constructor(

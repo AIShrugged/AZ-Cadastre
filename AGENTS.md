@@ -12,14 +12,17 @@ documents they hold, extracts the fields a Verification Profile asks for, checks
 those fields against each other across documents, and reports what it found and
 how sure it is. The inspector decides; the system never does.
 
-One bounded context — `packages/verification` — because the system does one
-thing and a second context would today be a folder of related features rather
-than a second language. It owns its database, its migrations and its Nest
-module. What it promises the rest of the world is in `libs/api-contracts`; the
-HTTP edge that calls it is `libs/api-gateway`; the only place that knows both
-exist is `apps/server`. Why the tree is shaped this way: ADR-0006. What each
-project is and is deliberately not: `CONTEXT-MAP.md`. The context's own
-vocabulary: `packages/verification/CONTEXT.md`.
+Two bounded contexts. `packages/verification` is the one the product is about:
+everything to do with papers, confidences and reports. `packages/accounts` is
+who may use the system — an account, its role, its credential — and it arrived
+with sign-in (ADR-0029) rather than being planned for. Each owns its database,
+its migrations and its Nest module, and neither imports the other. What they
+promise the rest of the world is in `libs/api-contracts`; the HTTP edge that
+calls them is `libs/api-gateway`, which also owns the session cookie and the two
+guards over every route; the only place that knows both contexts exist is
+`apps/server`. Why the tree is shaped this way: ADR-0006. What each project is
+and is deliberately not: `CONTEXT-MAP.md`. The contexts' own vocabularies:
+`packages/verification/CONTEXT.md` and `packages/accounts/CONTEXT.md`.
 
 The rules the layout answers to are in `RULE.md`. Where the code departs from
 them on purpose, there is an ADR or an entry in `TECH_DEBT.md` — never silence.
@@ -27,21 +30,38 @@ them on purpose, there is an ADR or an entry in `TECH_DEBT.md` — never silence
 ## Local development
 
 ```bash
-pnpm install                 # postinstall runs `prisma generate` in both schemas
+pnpm install                 # postinstall runs `prisma generate` in every schema
 docker compose up -d postgres rustfs
+docker exec cadastre-postgres createdb -U postgres cadastre-accounts
 docker exec cadastre-postgres createdb -U postgres cadastre-registry
 pnpm --filter @cadastre/verification db:migrate
+pnpm --filter @cadastre/accounts db:migrate
 pnpm --filter @cadastre/registry-stub db:migrate && \
   pnpm --filter @cadastre/registry-stub db:seed
 pnpm dev                     # watches every package and starts the server
 ```
 
-Two databases, not one. `cadastre-db` belongs to the verification context, which
-owns it; `cadastre-registry` belongs to the archive register, which is a system
-outside this one that happens to run on the same server (ADR-0010). The compose
-file creates the second through an init script the postgres image runs **only on
-a new data directory** — on a volume that already exists, the `createdb` line
-above is how it appears.
+Three databases, not one. `cadastre-db` belongs to the verification context,
+which owns it; `cadastre-accounts` belongs to the accounts context, for the same
+reason (ADR-0029); `cadastre-registry` belongs to the archive register, which is
+a system outside this one that happens to run on the same server (ADR-0010). The
+compose file creates the last two through an init script the postgres image runs
+**only on a new data directory** — on a volume that already exists, the
+`createdb` lines above are how they appear.
+
+Everything under `/api` needs a session except the four `/api/auth` routes, so
+the first call of any manual poke at the API is a sign-in. Two accounts are
+seeded at start-up from `SEED_OPERATOR_PASSWORD` and `SEED_USER_PASSWORD` —
+`operator@cadastre.az` and `user@cadastre.az`, with `apps/server/.env.example`
+carrying the local passwords. The seed leaves an account that exists alone, so
+changing a password in `.env` afterwards does nothing.
+
+```bash
+curl -c jar -X POST localhost:3000/api/auth/login \
+  -H 'content-type: application/json' \
+  -d '{"email":"operator@cadastre.az","password":"operator-local"}'
+curl -b jar localhost:3000/api/packages
+```
 
 `pnpm dev` is `tsc --watch` per package plus `node --watch build/main.js`, wired
 by nx (`dev` depends on `watch`, `watch` depends on `build` and `^watch`). There
@@ -49,8 +69,8 @@ is no Nest CLI: it cannot load TypeScript 7 — see the rakes below.
 
 | Service  | Where                 | Credentials                                 |
 | -------- | --------------------- | ------------------------------------------- |
-| API      | http://localhost:3000 | —                                           |
-| Web      | http://localhost:5173 | —                                           |
+| API      | http://localhost:3000 | `operator@cadastre.az` / `operator-local`   |
+| Web      | http://localhost:5173 | the same, or `user@cadastre.az`             |
 | Register | http://localhost:3100 | — (the stand-in; `pnpm dev` starts it too)  |
 | Postgres | localhost:5432        | `postgres/postgres`                         |
 | RustFS   | localhost:9000        | `rustfsadmin/rustfsadmin` (console on 9001) |
@@ -197,6 +217,16 @@ schematic: it will take the dev loop down with it.
 package, not its source (ADR-0006). Until `tsc --watch` has run — that is what
 `pnpm dev` starts — an edit in `libs/` is invisible. If something makes no sense,
 check that the watcher is alive before reading the code again.
+
+**Every API call in a spec or a script started answering 401.** _2026-09-21._
+Not a bug: COMM-115 put a session in front of everything under `/api` except the
+four `/api/auth` routes (ADR-0029). The API set signs in through
+`apps/server/test/harness/sign-in.ts`, and `RestClient` keeps the cookie the way
+a browser does — a spec that builds one with `new RestClient(...)` and never
+calls `auth.login` is an anonymous caller and gets a 401 before its body is even
+validated. The one that costs time is a raw `fetch` inside a spec: it does not
+go through the client, so it carries no cookie. `sessionHeader(api)` is what
+those cases use.
 
 **A relative import reaches into another project and the linter is quiet.** The
 boundary rules match on package names, so they cannot see

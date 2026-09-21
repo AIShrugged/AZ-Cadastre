@@ -3,6 +3,7 @@ import { Controller, Get, Inject } from '@nestjs/common';
 import type { RegistrySummaryResponse } from '@cadastre/api-contracts/registry';
 
 import { RegistryClientPort } from '../../../application/ports/index.js';
+import { RequiresRole } from '../../http/session/index.js';
 
 /**
  * How much of the archive the register holds, published at this system's own
@@ -19,6 +20,15 @@ import { RegistryClientPort } from '../../../application/ports/index.js';
  * as the register gave it, and a register that is down or that refuses us comes
  * back as the same `ErrorBody` a lookup's refusal does.
  */
+/*
+ * The office's alone. The register is where the archive is searched and
+ * measured, and neither question is about anybody's own submission — an
+ * applicant asking it would be asking what the archive holds about other
+ * people's property. A 403 and not a 404: it is the route that is none of their
+ * business, and that the office has an archive search reveals nothing about
+ * anybody (ADR-0029).
+ */
+@RequiresRole('operator')
 @Controller('registry')
 export class RegistrySummaryController {
   constructor(

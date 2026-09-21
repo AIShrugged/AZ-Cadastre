@@ -74,6 +74,7 @@ import {
   DocumentType as DocumentTypeValue,
   FailureReason,
   FieldKey as FieldKeyValue,
+  OwnerAccountId,
   PackageId,
   PackageStanding,
   PackageStatus,
@@ -107,6 +108,9 @@ export type VerificationPackageState = {
   readonly id: PackageId;
   readonly version: number;
   readonly profile: VerificationProfile;
+  // The account that submitted it, or none. Null is every package the office
+  // took in before there were accounts (ADR-0029).
+  readonly owner: OwnerAccountId | null;
   // What the office declared when it took the submission in. Held apart from
   // everything the pipeline read, and never merged with it.
   readonly declared: DeclaredAtIntake;
@@ -125,6 +129,7 @@ export type VerificationPackageState = {
 
 export class VerificationPackage extends AggregateRoot<PackageId> {
   readonly #profile: VerificationProfile;
+  readonly #owner: OwnerAccountId | null;
   readonly #declared: DeclaredAtIntake;
   #status: PackageStatus;
   #files: SourceFile[];
@@ -137,6 +142,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   private constructor(state: VerificationPackageState) {
     super(state.id, state.version);
     this.#profile = state.profile;
+    this.#owner = state.owner;
     this.#declared = state.declared;
     this.#status = state.status;
     this.#files = [...state.files];
@@ -155,6 +161,13 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     // submission that declares nothing is the ordinary one: intake may know
     // neither figure, and nothing about the run depends on it being told.
     declared: DeclaredAtIntake = DeclaredAtIntake.none(),
+    /*
+     * Who submitted it. Last and defaulted, so that a caller with no account to
+     * name — a fixture, a spec about the pipeline — writes the submission it
+     * always wrote. It is never read off a request body: the edge takes it from
+     * the session, so a case cannot be filed in somebody else's name.
+     */
+    owner: OwnerAccountId | null = null,
   ): VerificationPackage {
     if (files.length === 0) throw new PackageMustHaveAFileException();
 
@@ -165,6 +178,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       id,
       version: 0,
       profile,
+      owner,
       declared,
       status: PackageStatus.PENDING,
       files,
@@ -219,6 +233,22 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
 
   get profile(): VerificationProfile {
     return this.#profile;
+  }
+
+  /** The account that submitted this package, or none (ADR-0029). */
+  get owner(): OwnerAccountId | null {
+    return this.#owner;
+  }
+
+  /**
+   * Whether this package is `account`'s to see and to add to.
+   *
+   * `false` for a package with no owner, whoever asks. An unowned submission is
+   * not everybody's — it is the office's, and the office does not come through
+   * here: its calls carry no account to be scoped to (ADR-0029).
+   */
+  isOwnedBy(account: OwnerAccountId): boolean {
+    return this.#owner !== null && this.#owner.value === account.value;
   }
 
   /*

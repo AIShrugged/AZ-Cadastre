@@ -8,6 +8,7 @@ import {
   DeclaredAtIntake,
   DocumentType,
   Filename,
+  OwnerAccountId,
   StorageKey,
   VerificationProfile,
   type PackageId,
@@ -53,6 +54,7 @@ export class CreatePackageHandler implements ICommandHandler<
           : null,
         builtYear: declared.builtYear ?? null,
       }),
+      OwnerAccountId.orNone(command.ownerAccountId),
     );
 
     await this.packages.save(submitted);

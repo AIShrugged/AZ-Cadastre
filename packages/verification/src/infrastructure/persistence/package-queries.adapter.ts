@@ -44,6 +44,7 @@ import {
   ReportStatus,
   VerificationProfile,
   type FieldRef,
+  type OwnerAccountId,
   type PackageId,
 } from '../../domain/value-objects/index.js';
 
@@ -402,11 +403,18 @@ export class PackageQueriesAdapter extends PackageQueries {
     return row ? PackageQueriesAdapter.toSummary(row) : null;
   }
 
-  async findDetail(id: PackageId): Promise<PackageDetailView | null> {
+  async findDetail(
+    id: PackageId,
+    owner: OwnerAccountId | null,
+  ): Promise<PackageDetailView | null> {
     if (!isStoredId(id)) return null;
 
-    const row = await this.prisma.verificationPackage.findUnique({
-      where: { id: id.value },
+    // `findFirst` and not `findUnique`: the owner is part of the condition, so
+    // a package somebody else owns is no rows rather than a row that is then
+    // thrown away — which is what makes "not yours" and "not there" the same
+    // answer all the way down (ADR-0029).
+    const row = await this.prisma.verificationPackage.findFirst({
+      where: { id: id.value, ...PackageQueriesAdapter.ownedBy(owner) },
       select: {
         ...SUMMARY_COLUMNS,
         report: REPORT_COLUMNS,
@@ -966,9 +974,24 @@ export class PackageQueriesAdapter extends PackageQueries {
       });
     }
 
+    const owned = PackageQueriesAdapter.ownedBy(criteria.owner);
+
+    if (owned.ownerAccountId !== undefined) conditions.push(owned);
+
     // The search and the two filters narrow together: a term inside a standing,
-    // not a term or a standing.
+    // not a term or a standing — and all of it inside the scope.
     return conditions.length > 0 ? { AND: conditions } : {};
+  }
+
+  /**
+   * The scope as a condition. `null` adds nothing, which is the office looking
+   * at the whole register; an account adds the column, which is an applicant
+   * looking at their own.
+   */
+  private static ownedBy(
+    owner: OwnerAccountId | null,
+  ): Prisma.VerificationPackageWhereInput {
+    return owner === null ? {} : { ownerAccountId: owner.value };
   }
 
   /**

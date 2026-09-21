@@ -28,6 +28,7 @@ export {
   toOverviewDto,
   toSummaryDto,
 } from './package.mapper.js';
+export { loadInScope } from './scoped-package.js';
 export {
   RunVerificationCommand,
   RunVerificationHandler,

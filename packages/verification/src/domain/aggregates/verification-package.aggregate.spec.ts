@@ -490,6 +490,7 @@ describe('VerificationPackage', () => {
   describe('when it is rebuilt from storage', () => {
     it('records nothing', () => {
       const restored = VerificationPackage.restore({
+        owner: null,
         id: PackageId.of(anId()),
         version: 4,
         profile: VerificationProfile.CADASTRE,
@@ -511,6 +512,7 @@ describe('VerificationPackage', () => {
       const document = aDocumentOf(file.id, range(1, 1));
 
       const restored = VerificationPackage.restore({
+        owner: null,
         id: PackageId.of(anId()),
         version: 7,
         profile: VerificationProfile.CADASTRE,
@@ -532,6 +534,7 @@ describe('VerificationPackage', () => {
 
     it('refuses nothing, so a package written before a rule can still be read', () => {
       const restored = VerificationPackage.restore({
+        owner: null,
         id: PackageId.of(anId()),
         version: 1,
         profile: VerificationProfile.CADASTRE,
@@ -1703,6 +1706,7 @@ describe('VerificationPackage', () => {
     it('counts an unsealed paper against the package', () => {
       const { verification } = aCompletePackage();
       const stripped = VerificationPackage.restore({
+        owner: null,
         id: verification.id,
         version: 2,
         profile: VerificationProfile.CADASTRE,
@@ -1749,6 +1753,7 @@ describe('VerificationPackage', () => {
       expect(kindsOf(verification)).toContain('UnreadableDocument');
 
       const reread = VerificationPackage.restore({
+        owner: null,
         id: verification.id,
         version: 2,
         profile: VerificationProfile.CADASTRE,
@@ -2546,6 +2551,7 @@ describe('VerificationPackage', () => {
       verification.complete();
 
       const reread = VerificationPackage.restore({
+        owner: null,
         id: verification.id,
         version: 2,
         profile: VerificationProfile.CADASTRE,

@@ -74,6 +74,7 @@ const EVERYTHING = new ListPackagesQuery(
   undefined,
   LIST_PACKAGES_MAX_LIMIT,
   0,
+  null,
 );
 
 /*
@@ -125,7 +126,7 @@ describe('approving what the archive register answered', () => {
   it('writes down what was concluded, the remark, and when it was signed', async () => {
     // act
     const detail: PackageDetailView = await queries.execute(
-      new GetPackageQuery(approved.value),
+      new GetPackageQuery(approved.value, null),
     );
 
     // assert
@@ -145,7 +146,7 @@ describe('approving what the archive register answered', () => {
   it('records the answers the register had given at that moment', async () => {
     // act
     const detail: PackageDetailView = await queries.execute(
-      new GetPackageQuery(approved.value),
+      new GetPackageQuery(approved.value, null),
     );
 
     // assert — the same answers the checks themselves carry
@@ -187,7 +188,7 @@ describe('approving what the archive register answered', () => {
       new GetPackageSummaryQuery(approved.value),
     );
     const detail: PackageDetailView = await queries.execute(
-      new GetPackageQuery(approved.value),
+      new GetPackageQuery(approved.value, null),
     );
 
     // assert
@@ -223,6 +224,7 @@ describe('approving what the archive register answered', () => {
           undefined,
           LIST_PACKAGES_MAX_LIMIT,
           0,
+          null,
         ),
       );
 
@@ -248,16 +250,20 @@ describe('approving what the archive register answered', () => {
 
     beforeAll(async () => {
       await commands.execute(
-        new AddFilesCommand(approved.value, [
-          {
-            originalFilename: 'elave-sened.pdf',
-            contentType: 'application/pdf',
-            storageKey: 'uploads/approval/elave-sened.pdf',
-          },
-        ]),
+        new AddFilesCommand(
+          approved.value,
+          [
+            {
+              originalFilename: 'elave-sened.pdf',
+              contentType: 'application/pdf',
+              storageKey: 'uploads/approval/elave-sened.pdf',
+            },
+          ],
+          null,
+        ),
       );
       await waitForTerminalStatus(queries, approved);
-      reread = await queries.execute(new GetPackageQuery(approved.value));
+      reread = await queries.execute(new GetPackageQuery(approved.value, null));
     });
 
     it('keeps the approval on file and says when it stopped being in force', () => {
@@ -306,7 +312,7 @@ describe('approving what the archive register answered', () => {
         ),
       );
       const detail: PackageDetailView = await queries.execute(
-        new GetPackageQuery(approved.value),
+        new GetPackageQuery(approved.value, null),
       );
 
       // assert — newest first, and only one of them in force
@@ -358,7 +364,7 @@ describe('approving an archive search that was never made', () => {
     const commands = module.get(CommandBus);
     const queries = module.get(QueryBus);
     const detail: PackageDetailView = await queries.execute(
-      new GetPackageQuery(unasked.value),
+      new GetPackageQuery(unasked.value, null),
     );
     expect(detail.registryChecks).toEqual([]);
 

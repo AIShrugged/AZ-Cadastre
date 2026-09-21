@@ -106,7 +106,7 @@ describe('a verification run whose register contradicts the package', () => {
       new CreatePackageCommand('cadastre', submission('registry-differs')),
     );
     await waitForTerminalStatus(queries, id);
-    detail = await queries.execute(new GetPackageQuery(id.value));
+    detail = await queries.execute(new GetPackageQuery(id.value, null));
   });
 
   afterAll(async () => {
@@ -239,7 +239,7 @@ describe('a verification run whose register holds no record', () => {
       new CreatePackageCommand('cadastre', submission('registry-absent')),
     );
     await waitForTerminalStatus(queries, id);
-    detail = await queries.execute(new GetPackageQuery(id.value));
+    detail = await queries.execute(new GetPackageQuery(id.value, null));
   });
 
   afterAll(async () => {
@@ -334,7 +334,7 @@ describe('a verification run whose archive is short one of the papers', () => {
       new CreatePackageCommand('cadastre', submission('registry-short')),
     );
     await waitForTerminalStatus(queries, id);
-    detail = await queries.execute(new GetPackageQuery(id.value));
+    detail = await queries.execute(new GetPackageQuery(id.value, null));
   });
 
   afterAll(async () => {

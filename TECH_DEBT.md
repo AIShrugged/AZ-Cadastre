@@ -38,6 +38,16 @@ shapes are the same tree. Split into `libs/contracts/<ctx>` with `.` and
 `./events` entries, and add the lint rule that forbids `apps/web` the `./events`
 entry. Doing it now would be structure with nothing in it.
 
+**The moment has half arrived (COMM-115).** There is a second context now —
+`packages/accounts` — and its published language went into this same package as
+`@cadastre/api-contracts/accounts` (ADR-0029). The subpath exports are what keep
+it bearable: a consumer that wants accounts imports `/accounts` and gets zod and
+four shapes, not the verification tree. What is now true and was not is the first
+half of the paragraph above — the browser bundle carries both languages, and
+nothing stops `packages/verification` importing `@cadastre/api-contracts/accounts`
+by accident. There are still no integration events, so the `./events` half of
+this entry has not fired.
+
 ## 3. No browser set
 
 **Not done.** Three of the four sets in `reference/testing.md` exist: unit,
@@ -309,6 +319,18 @@ screen no longer needing that address does not close it. Nor does it publish the
 import: that endpoint stays outside the contract on purpose, and the paragraph
 about it above is the live half of this entry.
 
+**Half of "put the register behind the same auth as everything else" is now
+possible (COMM-115).** There is an "everything else" to be behind: every route
+of `/api` needs a session and the registry routes need an operator's, so the
+archive search, the address lookup and the summary are the office's alone
+(ADR-0029). That is the _gateway's_ side. The register's own process is exactly
+as open as it was — it takes a write from anybody who can reach
+`registry:3100`, the `3100:3100` mapping still publishes it, and the browser
+still posts a workbook straight at it through the `/registry` proxy. So the
+first instruction above is unchanged and still first: **drop the `3100:3100`
+port mapping.** What has changed is that the second one now has an answer — the
+register can be given a caller it can name, because callers have names.
+
 ## 11. The year a house was built is the date of a paper about it
 
 **Not done.** Which provision of Article 8 a case falls under turns first on
@@ -438,3 +460,50 @@ archive does hold goes unconfirmed.
 
 **What to do.** When the customer names the sections, change the pairs in
 `property_of_record`. Nothing else reads them.
+
+---
+
+## 16. A session cannot be ended anywhere but in the browser that asked
+
+**Not done.** The session is a signed statement and not a row: `<payload>.<HMAC>`
+in an httpOnly cookie, holding an account id and an expiry (ADR-0029). Nothing
+records that it was issued, so nothing can record that it is over.
+`POST /api/auth/logout` clears the cookie in the browser that called it and does
+nothing else.
+
+Four things ride with it, all deliberate and none of them free:
+
+- **A copy goes on working.** A token taken off the wire, out of a proxy log or
+  off a shared machine is accepted until it expires — a week by default
+  (`SESSION_TTL`). Signing out does not shorten that.
+- **Changing the secret signs everybody out.** It is the only revocation there
+  is, and it is all-or-nothing. When `SESSION_SECRET` is not set, the composition
+  root invents one per process — so a restart signs everybody out and a second
+  replica accepts nothing the first one issued. The start-up line says which of
+  the two is happening.
+- **There is no password reset and no email verification.** An applicant who
+  forgets their password has no way back in, and an address nobody proved they
+  own can open an account.
+- **An account cannot be changed or closed.** `packages/accounts` has
+  `register`, `authenticate` and `findOne` and nothing else: no role change, no
+  password change, no deletion. The seeded operator's password is whatever the
+  environment said the first time the stack came up, because the seed
+  deliberately leaves an existing account alone rather than resetting it.
+
+**How it fires.** A laptop is lost, or an operator leaves, and there is nothing
+to do about it but change `SESSION_SECRET` and sign out the entire office — or
+wait a week. The quieter one: a stand is brought up with no `SESSION_SECRET`, the
+office signs in, the container restarts for an unrelated reason, and everybody is
+at the login screen with nothing in the log except the line that said it at
+start-up.
+
+**What to do.** The ordered version, cheapest first. Set `SESSION_SECRET` on
+every deployment — that is configuration, not work, and it removes the second
+bullet. Then, when revocation is actually wanted, an opaque session id in a table
+of the accounts context: one row per sign-in, deleted on logout, swept when
+expired. That is one write per sign-in and one read per request beyond the
+account lookup the guard already makes, and it makes `logout` mean what people
+think it means. Password reset and email verification are each a feature with a
+mail sender behind them and are not this entry's to smuggle in — but note that
+the second one is what makes "an address nobody proved they own" stop being
+true, and the registration route is open to the internet.

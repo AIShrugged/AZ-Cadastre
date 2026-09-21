@@ -14,6 +14,7 @@ import type { TestProject } from 'vitest/node';
 
 import { startRegister, type StartedRegister } from './register.js';
 import { startServer, type StartedServer } from './server.js';
+import { SEEDED_OPERATOR, SEEDED_USER } from './sign-in.js';
 
 // The same images the product runs on. A moving tag would make a failing run a
 // different question every time.
@@ -30,6 +31,13 @@ const BUCKET = 'documents';
  * pass here and fail on a deployment.
  */
 const REGISTRY_DATABASE = 'registry_api_test';
+
+/*
+ * And a third, because accounts own theirs too and deliberately not the
+ * verification context's (ADR-0029). A set that put them in one would let a
+ * join nobody meant to write pass here and fail on a deployment.
+ */
+const ACCOUNTS_DATABASE = 'accounts_api_test';
 
 let postgres: StartedPostgreSqlContainer | undefined;
 let storage: StartedTestContainer | undefined;
@@ -72,6 +80,31 @@ export async function setup(project: TestProject): Promise<void> {
       'verification',
     ),
     env: { ...process.env, DATABASE_URL: databaseUrl },
+    stdio: 'inherit',
+  });
+
+  // The accounts context's own database, migrated the same way. Seeding is the
+  // server's own doing at start-up, off the two passwords below.
+  const accountsUrl = withDatabase(databaseUrl, ACCOUNTS_DATABASE);
+
+  await postgres.exec([
+    'createdb',
+    '-U',
+    postgres.getUsername(),
+    ACCOUNTS_DATABASE,
+  ]);
+
+  execFileSync('pnpm', ['exec', 'prisma', 'migrate', 'deploy'], {
+    cwd: path.join(
+      import.meta.dirname,
+      '..',
+      '..',
+      '..',
+      '..',
+      'packages',
+      'accounts',
+    ),
+    env: { ...process.env, DATABASE_URL: accountsUrl },
     stdio: 'inherit',
   });
 
@@ -124,7 +157,19 @@ export async function setup(project: TestProject): Promise<void> {
     SERVICE_PORT: '3210',
     SERVICE_HOST: '127.0.0.1',
     DATABASE_URL: databaseUrl,
+    ACCOUNTS_DATABASE_URL: accountsUrl,
     WEB_ORIGIN: 'http://localhost:5173',
+    /*
+     * A fixed secret, so that a token this set issues is one the server still
+     * accepts — and so a spec can be written about a token that has expired
+     * without waiting a week for one. Not a secret in any other sense: it opens
+     * a database that is thrown away when the run ends.
+     */
+    SESSION_SECRET: 'api-test-session-secret-not-a-secret',
+    SESSION_COOKIE_SECURE: 'false',
+    // What the seeded accounts are opened with. The set signs in as both.
+    SEED_OPERATOR_PASSWORD: SEEDED_OPERATOR.password,
+    SEED_USER_PASSWORD: SEEDED_USER.password,
     S3_ENDPOINT: `http://${storage.getHost()}:${storage.getMappedPort(9000)}`,
     S3_REGION: 'rustfs',
     S3_BUCKET: BUCKET,

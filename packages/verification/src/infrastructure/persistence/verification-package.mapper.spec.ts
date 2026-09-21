@@ -112,6 +112,7 @@ function aPackageRow(overrides: Partial<PackageRow> = {}): PackageRow {
     id: anId(),
     status: 'Processing',
     profileKey: 'cadastre',
+    ownerAccountId: null,
     declaredLegalBasis: null,
     declaredBuiltYear: null,
     version: 3,
@@ -792,6 +793,7 @@ describe('VerificationPackageMapper', () => {
         PageRange.of(PageNumber.of(1), PageNumber.of(2)),
       );
       const aggregate = VerificationPackage.restore({
+        owner: null,
         id: PackageId.of(anId()),
         version: 2,
         profile: VerificationProfile.CADASTRE,
@@ -829,6 +831,7 @@ describe('VerificationPackageMapper', () => {
   describe('the approval of an archive search', () => {
     it('writes the conclusion, the remark and what was approved', () => {
       const aggregate = VerificationPackage.restore({
+        owner: null,
         id: PackageId.of(anId()),
         version: 2,
         profile: VerificationProfile.CADASTRE,

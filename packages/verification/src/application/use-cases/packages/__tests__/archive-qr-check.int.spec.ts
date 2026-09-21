@@ -87,7 +87,9 @@ describe('the Rusadze package, held against the National Archive by its QR code'
       ]),
     );
     await waitForTerminalStatus(queries, id);
-    detail = toDetailDto(await queries.execute(new GetPackageQuery(id.value)));
+    detail = toDetailDto(
+      await queries.execute(new GetPackageQuery(id.value, null)),
+    );
     order = detail.files
       .flatMap(file => file.documents)
       .find(document => document.type === 'homestead_land_allocation_decision');

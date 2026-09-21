@@ -109,6 +109,7 @@ export {
   type SuppliedForDto,
   type TitleDocumentStandingDto,
 } from './package.dto.js';
+export type { PackageScope } from './package-scope.dto.js';
 export {
   ArchiveTallyDtoSchema,
   FindingCountDtoSchema,

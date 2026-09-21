@@ -1,0 +1,35 @@
+// Aggregate root: somebody who may use the system.
+
+/// What an account may do. Two roles and not a list of permissions: the table
+/// of who may call what is written against the job somebody holds, and it lives
+/// at the edge where a refusal becomes a status code (ADR-0029).
+enum AccountRole {
+  operator
+  user
+}
+
+model Account {
+  id String @id @db.Uuid
+
+  /// The address the account is found by, and the only thing it is found by.
+  /// Stored folded to lower case — the value object folds it — so that this
+  /// index means what a person expects by "already taken".
+  email String @unique
+
+  fullName String
+
+  role AccountRole
+
+  /// The argon2id digest, and never a password. The column is named for what it
+  /// holds so that nobody reading a query has to wonder.
+  passwordHash String
+
+  /// Optimistic concurrency: every aggregate carries a version that takes part
+  /// in every write.
+  version Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("accounts")
+}

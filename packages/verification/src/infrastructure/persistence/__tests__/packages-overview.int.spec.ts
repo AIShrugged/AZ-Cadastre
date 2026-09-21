@@ -100,7 +100,7 @@ describe('the summary of a period', () => {
   /** The submissions this file made, as the detail view reports them. */
   const details = (): Promise<PackageDetailView[]> =>
     Promise.all(
-      submitted.map(id => queries.execute(new GetPackageQuery(id.value))),
+      submitted.map(id => queries.execute(new GetPackageQuery(id.value, null))),
     );
 
   it('counts the submissions of the period along the conveyor', async () => {

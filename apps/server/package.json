@@ -20,6 +20,7 @@
     ]
   },
   "dependencies": {
+    "@cadastre/accounts": "workspace:*",
     "@cadastre/api-contracts": "workspace:*",
     "@cadastre/api-gateway": "workspace:*",
     "@cadastre/logger": "workspace:*",

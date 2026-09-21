@@ -99,12 +99,15 @@ docker build -f apps/registry-stub/Dockerfile -t ekalkutin/cadastre-registry:lat
 
 ### It needs a database, and not the context's one
 
-`cadastre-db` belongs to the verification context, which owns it. The register
-gets `cadastre-registry` — the compose file creates it through an init script the
-postgres image runs **only when it creates the data directory**, so on a volume
-that already exists it has to be made by hand:
+`cadastre-db` belongs to the verification context, which owns it; the accounts
+context owns `cadastre-accounts` for the same reason (ADR-0029). The register
+gets `cadastre-registry` — the compose file creates the two it does not get from
+`POSTGRES_DB` through an init script the postgres image runs **only when it
+creates the data directory**, so on a volume that already exists they have to be
+made by hand:
 
 ```bash
+docker exec cadastre-postgres createdb -U postgres cadastre-accounts
 docker exec cadastre-postgres createdb -U postgres cadastre-registry
 ```
 
@@ -172,8 +175,9 @@ The docker-compose configuration includes:
 - **Migrate** (`ekalkutin/cadastre-migrator`): not a service — a one-off job
   behind the `migrate` profile, so `up` never starts it. See
   [Migrations](#migrations)
-- **PostgreSQL**: two databases on port 5432 — `cadastre-db` for the
-  verification context, `cadastre-registry` for the register
+- **PostgreSQL**: three databases on port 5432 — `cadastre-db` for the
+  verification context, `cadastre-accounts` for the accounts context, and
+  `cadastre-registry` for the register
 - **RustFS**: S3-compatible storage on ports 9000/9001
 
 **Access services:**
@@ -261,8 +265,9 @@ engine — is baked in at build time, so applying a migration on the stand reach
 no package registry.
 
 ```bash
-docker compose run --rm migrate            # both databases
+docker compose run --rm migrate            # every database
 docker compose run --rm migrate core       # cadastre-db only
+docker compose run --rm migrate accounts   # cadastre-accounts only
 docker compose run --rm migrate registry   # cadastre-registry only
 docker compose run --rm migrate status     # report what is pending, apply nothing
 ```
@@ -276,16 +281,44 @@ tidier and costs two things: two containers booting together race for the same
 database, and a stand rolled back by pulling the previous tag migrates itself
 forward on the way there.
 
-Outside compose it is a plain `docker run`, and it names its two databases
+Outside compose it is a plain `docker run`, and it names each database
 separately on purpose — there is no bare `DATABASE_URL`, because one unnamed URL
-is how the register's tables end up in the verification context's database:
+is how one owner's tables end up in another's database:
 
 ```bash
 docker run --rm --network cadastre_default \
   -e CORE_DATABASE_URL='postgresql://postgres:postgres@postgres:5432/cadastre-db?schema=public' \
+  -e ACCOUNTS_DATABASE_URL='postgresql://postgres:postgres@postgres:5432/cadastre-accounts?schema=public' \
   -e REGISTRY_DATABASE_URL='postgresql://postgres:postgres@postgres:5432/cadastre-registry?schema=public' \
   ekalkutin/cadastre-migrator:latest
 ```
+
+## Signing in
+
+Every route under `/api` needs a session except `POST /api/auth/register`,
+`POST /api/auth/login`, `POST /api/auth/logout` and `GET /api/auth/me`
+(ADR-0029). Two accounts are put in at start-up, from the passwords the compose
+file carries: `operator@cadastre.az` (the office — everything) and
+`user@cadastre.az` (an applicant — their own submissions and nothing else).
+
+Three variables decide it, and the first two matter on a real stand:
+
+- **`SESSION_SECRET`** — the key every session cookie is signed with. Leave it
+  unset and the server invents one per process: a restart signs everybody out,
+  and a second replica accepts nothing the first one issued. The start-up line
+  says which of the two is happening (`sessions: configured secret` or
+  `generated secret — sessions end at restart`). Changing it is also the only
+  way to end every session at once (TECH_DEBT §16).
+- **`SESSION_COOKIE_SECURE`** — `false` on plain HTTP, and it has to be: a
+  `Secure` cookie there is one the browser never sends back, and the symptom is
+  a login that appears to work and then 401s. `true` the day there is TLS.
+- **`SEED_OPERATOR_PASSWORD` / `SEED_USER_PASSWORD`** — change them before
+  anyone else opens the stand. Changing them _afterwards_ does nothing: the seed
+  leaves an existing account alone rather than resetting a credential, and there
+  is no route that changes a password yet.
+
+`WEB_ORIGIN` is one origin and never a wildcard, because the API answers with
+`credentials: true` and a browser refuses that combined with `*`.
 
 ## Building and Pushing Images
 

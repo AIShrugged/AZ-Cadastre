@@ -97,7 +97,7 @@ describe('files added to a package that already exists', () => {
   };
 
   const detailOf = async (id: PackageId): Promise<PackageDetailView> =>
-    queries.execute(new GetPackageQuery(id.value));
+    queries.execute(new GetPackageQuery(id.value, null));
 
   beforeAll(async () => {
     ({ module } = await startContext(inject('databaseUrl')));
@@ -117,9 +117,11 @@ describe('files added to a package that already exists', () => {
 
     // act
     await commands.execute(
-      new AddFilesCommand(id.value, [
-        aFile('added-run', 'sexsiyyet-vesiqe.pdf'),
-      ]),
+      new AddFilesCommand(
+        id.value,
+        [aFile('added-run', 'sexsiyyet-vesiqe.pdf')],
+        null,
+      ),
     );
     await waitForTerminalStatus(queries, id);
 
@@ -149,7 +151,11 @@ describe('files added to a package that already exists', () => {
 
     // act
     await commands.execute(
-      new AddFilesCommand(id.value, [aFile('added-keep', 'arxiv-arayis.pdf')]),
+      new AddFilesCommand(
+        id.value,
+        [aFile('added-keep', 'arxiv-arayis.pdf')],
+        null,
+      ),
     );
     await waitForTerminalStatus(queries, id);
 
@@ -178,9 +184,11 @@ describe('files added to a package that already exists', () => {
       await paused.module
         .get(CommandBus)
         .execute(
-          new AddFilesCommand(id.value, [
-            aFile('added-report', 'torpaq-plan.pdf'),
-          ]),
+          new AddFilesCommand(
+            id.value,
+            [aFile('added-report', 'torpaq-plan.pdf')],
+            null,
+          ),
         );
       await held.asked;
 
@@ -218,9 +226,11 @@ describe('files added to a package that already exists', () => {
       // act / assert
       await expect(
         pausedCommands.execute(
-          new AddFilesCommand(id.value, [
-            aFile('added-busy', 'sexsiyyet-vesiqe.pdf'),
-          ]),
+          new AddFilesCommand(
+            id.value,
+            [aFile('added-busy', 'sexsiyyet-vesiqe.pdf')],
+            null,
+          ),
         ),
       ).rejects.toThrow(PackageNotTakingFilesException);
 
@@ -236,9 +246,11 @@ describe('files added to a package that already exists', () => {
   it('answers PACKAGE_NOT_FOUND for a package nobody submitted', async () => {
     await expect(
       commands.execute(
-        new AddFilesCommand('00000000-0000-4000-8000-000000000000', [
-          aFile('added-missing', 'erize-qeydiyyat.pdf'),
-        ]),
+        new AddFilesCommand(
+          '00000000-0000-4000-8000-000000000000',
+          [aFile('added-missing', 'erize-qeydiyyat.pdf')],
+          null,
+        ),
       ),
     ).rejects.toThrow(PackageNotFoundException);
   });

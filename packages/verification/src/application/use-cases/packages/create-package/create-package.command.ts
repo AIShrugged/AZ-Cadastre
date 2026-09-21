@@ -24,6 +24,12 @@ export class CreatePackageCommand extends Command<PackageId> {
     // Absent is a submission that declares nothing, which is what every package
     // taken in before intake asked is.
     public readonly declared: DeclaredAtIntakeInput = {},
+    /**
+     * The account that submitted it, off the session and never off the request
+     * body. `null` is a submission with no owner, which is what every package
+     * taken in before there were accounts is (ADR-0029).
+     */
+    public readonly ownerAccountId: string | null = null,
   ) {
     super();
   }

@@ -20,6 +20,12 @@ export class ListPackagesQuery extends Query<PackageListPage> {
     public readonly reportStatus: string | undefined,
     public readonly limit: number,
     public readonly offset: number,
+    /**
+     * Whose submissions this page is drawn from: an account id, or `null` for
+     * every one the office holds. Not a filter a caller sends — it is the scope
+     * the edge worked out from the session (ADR-0029).
+     */
+    public readonly ownerAccountId: string | null,
   ) {
     super();
   }

@@ -1,14 +1,21 @@
 import { beforeAll, describe, expect, inject, it } from 'vitest';
 
-import { ApiError, RestClient } from '@cadastre/api-client';
+import { ApiError, type RestClient } from '@cadastre/api-client';
 import { ErrorBodySchema } from '@cadastre/api-contracts/shared';
+
+import { asOperator, sessionHeader } from '../harness/sign-in.js';
 
 let baseUrl: string;
 let api: RestClient;
 
-beforeAll(() => {
+/*
+ * Signed in as the office, because everything under `/api` needs a session now
+ * and the archive is the office's to search (ADR-0029). The cases about who may
+ * call what are in `auth/access.e2e.spec.ts`; this file is about the route.
+ */
+beforeAll(async () => {
   baseUrl = inject('baseUrl');
-  api = new RestClient(baseUrl);
+  api = await asOperator(baseUrl);
 });
 
 /*
@@ -102,7 +109,7 @@ describe('POST /api/addresses/lookup', () => {
     // act
     const response = await fetch(`${baseUrl}/api/addresses/lookup`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...sessionHeader(api) },
       body: JSON.stringify({ street: 'Nəsimi küçəsi' }),
     });
     const body: unknown = await response.json();

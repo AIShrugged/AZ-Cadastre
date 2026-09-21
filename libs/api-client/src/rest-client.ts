@@ -1,6 +1,14 @@
 import { z } from 'zod';
 
 import {
+  AccountDtoSchema,
+  LoginRequestSchema,
+  RegisterAccountRequestSchema,
+  type AccountDto,
+  type LoginRequest,
+  type RegisterAccountRequest,
+} from '@cadastre/api-contracts/accounts';
+import {
   AddressLookupRequestSchema,
   AddressLookupResponseSchema,
   ArchiveSearchRequestSchema,
@@ -77,7 +85,60 @@ export class ApiError extends Error {
  * about being a client rather than a second implementation.
  */
 export class RestClient {
+  /**
+   * The session cookie, kept the way a browser keeps it.
+   *
+   * A jar and not a header a caller sets, because the session is a cookie by
+   * design (ADR-0029) and a client that carried it any other way would prove
+   * the API works for a caller nobody has. It holds one cookie because this API
+   * sets one.
+   */
+  #session: string | null = null;
+
   constructor(private readonly baseUrl: string) {}
+
+  // --- auth ---------------------------------------------------------------
+
+  auth = {
+    /** Opens an applicant's account. Does not sign in — `login` does that. */
+    register: (
+      request: RegisterAccountRequest,
+    ): Promise<ApiResponse<AccountDto>> =>
+      this.request(
+        'POST',
+        '/api/auth/register',
+        AccountDtoSchema,
+        RegisterAccountRequestSchema.parse(request),
+      ),
+
+    /** Deliberately unvalidated, for the specs that check the API's own refusals. */
+    registerRaw: (body: unknown): Promise<ApiResponse<unknown>> =>
+      this.request('POST', '/api/auth/register', z.unknown(), body),
+
+    /** Signs in, and keeps the session for every call this client makes after it. */
+    login: (request: LoginRequest): Promise<ApiResponse<AccountDto>> =>
+      this.request(
+        'POST',
+        '/api/auth/login',
+        AccountDtoSchema,
+        LoginRequestSchema.parse(request),
+      ),
+
+    /** Deliberately unvalidated, for the specs that check the API's own refusals. */
+    loginRaw: (body: unknown): Promise<ApiResponse<unknown>> =>
+      this.request('POST', '/api/auth/login', z.unknown(), body),
+
+    logout: (): Promise<ApiResponse<unknown>> =>
+      this.request('POST', '/api/auth/logout', z.unknown()),
+
+    me: (): Promise<ApiResponse<AccountDto>> =>
+      this.request('GET', '/api/auth/me', AccountDtoSchema),
+  };
+
+  /** What the client is currently carrying, for the specs that assert on it. */
+  get session(): string | null {
+    return this.#session;
+  }
 
   // --- addresses ----------------------------------------------------------
 
@@ -332,11 +393,18 @@ export class RestClient {
     schema: z.ZodType<T>,
     body?: unknown,
   ): Promise<ApiResponse<T>> {
+    const headers: Record<string, string> = {};
+
+    if (body !== undefined) headers['content-type'] = 'application/json';
+    if (this.#session !== null) headers.cookie = this.#session;
+
     const response = await fetch(`${this.baseUrl}${path}`, {
       method,
-      headers: body === undefined ? {} : { 'content-type': 'application/json' },
+      headers,
       body: body === undefined ? undefined : JSON.stringify(body),
     });
+
+    this.remember(response);
 
     const text = await response.text();
     const payload: unknown = text === '' ? undefined : JSON.parse(text);
@@ -346,6 +414,34 @@ export class RestClient {
     }
 
     return { status: response.status, body: schema.parse(payload) };
+  }
+
+  /**
+   * Whatever the server set, kept or dropped as a browser would.
+   *
+   * Only the `name=value` part is kept: the flags are the browser's business,
+   * and asserting on them belongs to the spec that reads the header directly.
+   * An expiry in the past is the server clearing the cookie — that is what
+   * `POST /auth/logout` sends — and it drops the session here too, so a client
+   * that has signed out really is signed out.
+   */
+  private remember(response: Response): void {
+    const header = response.headers.getSetCookie?.() ?? [];
+
+    for (const cookie of header) {
+      const pair = cookie.split(';')[0];
+
+      if (pair === undefined) continue;
+
+      const separator = pair.indexOf('=');
+
+      if (separator <= 0) continue;
+
+      const cleared =
+        /expires=Thu, 01 Jan 1970/i.test(cookie) || /max-age=0/i.test(cookie);
+
+      this.#session = cleared ? null : pair.trim();
+    }
   }
 }
 

@@ -58,6 +58,7 @@ const EVERYTHING = new ListPackagesQuery(
   undefined,
   LIST_PACKAGES_MAX_LIMIT,
   0,
+  null,
 );
 
 describe('PackageQueriesAdapter', () => {
@@ -110,7 +111,7 @@ describe('PackageQueriesAdapter', () => {
       new GetPackageSummaryQuery(finished.value),
     );
     const detail: PackageDetailView = await queries.execute(
-      new GetPackageQuery(finished.value),
+      new GetPackageQuery(finished.value, null),
     );
 
     // assert
@@ -143,7 +144,7 @@ describe('PackageQueriesAdapter', () => {
       new GetPackageSummaryQuery(finished.value),
     );
     const detail: PackageDetailView = await queries.execute(
-      new GetPackageQuery(finished.value),
+      new GetPackageQuery(finished.value, null),
     );
 
     // assert
@@ -219,7 +220,7 @@ describe('PackageQueriesAdapter', () => {
         new GetPackageSummaryQuery(finished.value),
       );
       const detail: PackageDetailView = await queries.execute(
-        new GetPackageQuery(finished.value),
+        new GetPackageQuery(finished.value, null),
       );
 
       // assert — the same reading the detail view lists, never a second one
@@ -302,7 +303,7 @@ describe('PackageQueriesAdapter', () => {
        * be reporting silence from an archive nobody asked (ADR-0009).
        */
       const detail: PackageDetailView = await queries.execute(
-        new GetPackageQuery(unnamed.value),
+        new GetPackageQuery(unnamed.value, null),
       );
 
       expect(detail.registryChecks).toEqual([]);
@@ -323,7 +324,7 @@ describe('PackageQueriesAdapter', () => {
       new GetPackageSummaryQuery(finished.value),
     );
     const detail: PackageDetailView = await queries.execute(
-      new GetPackageQuery(finished.value),
+      new GetPackageQuery(finished.value, null),
     );
 
     // assert
@@ -342,7 +343,7 @@ describe('PackageQueriesAdapter', () => {
   it('carries the pages and their recognised text into the detail view', async () => {
     // act
     const detail: PackageDetailView = await queries.execute(
-      new GetPackageQuery(finished.value),
+      new GetPackageQuery(finished.value, null),
     );
 
     // assert
@@ -392,6 +393,7 @@ describe('PackageQueriesAdapter', () => {
           undefined,
           LIST_PACKAGES_MAX_LIMIT,
           0,
+          null,
         ),
       );
 
@@ -416,6 +418,7 @@ describe('PackageQueriesAdapter', () => {
           undefined,
           LIST_PACKAGES_MAX_LIMIT,
           0,
+          null,
         ),
       );
 
@@ -435,6 +438,7 @@ describe('PackageQueriesAdapter', () => {
           undefined,
           LIST_PACKAGES_MAX_LIMIT,
           0,
+          null,
         ),
       );
 
@@ -451,6 +455,7 @@ describe('PackageQueriesAdapter', () => {
           undefined,
           LIST_PACKAGES_MAX_LIMIT,
           0,
+          null,
         ),
       );
 
@@ -481,6 +486,7 @@ describe('PackageQueriesAdapter', () => {
             undefined,
             LIST_PACKAGES_MAX_LIMIT,
             0,
+            null,
           ),
         );
 
@@ -508,6 +514,7 @@ describe('PackageQueriesAdapter', () => {
             status.value,
             LIST_PACKAGES_MAX_LIMIT,
             0,
+            null,
           ),
         );
 
@@ -544,6 +551,7 @@ describe('PackageQueriesAdapter', () => {
           undefined,
           LIST_PACKAGES_MAX_LIMIT,
           0,
+          null,
         ),
       );
 
@@ -568,6 +576,7 @@ describe('PackageQueriesAdapter', () => {
           undefined,
           LIST_PACKAGES_MAX_LIMIT,
           0,
+          null,
         ),
       );
 
@@ -582,6 +591,7 @@ describe('PackageQueriesAdapter', () => {
           undefined,
           LIST_PACKAGES_MAX_LIMIT,
           0,
+          null,
         ),
       );
 
@@ -604,6 +614,7 @@ describe('PackageQueriesAdapter', () => {
           ReportStatus.OK.value,
           LIST_PACKAGES_MAX_LIMIT,
           0,
+          null,
         ),
       );
 
@@ -620,7 +631,7 @@ describe('PackageQueriesAdapter', () => {
 
       // act
       const first: PackageListPage = await queries.execute(
-        new ListPackagesQuery(undefined, undefined, undefined, 1, 0),
+        new ListPackagesQuery(undefined, undefined, undefined, 1, 0, null),
       );
 
       // assert — the tally counts what the criteria matched, not what the page
@@ -638,7 +649,14 @@ describe('PackageQueriesAdapter', () => {
       const walked: string[] = [];
       for (let offset = 0; offset < all.total; offset++) {
         const page: PackageListPage = await queries.execute(
-          new ListPackagesQuery(undefined, undefined, undefined, 1, offset),
+          new ListPackagesQuery(
+            undefined,
+            undefined,
+            undefined,
+            1,
+            offset,
+            null,
+          ),
         );
         walked.push(...page.items.map(summary => summary.id));
       }
@@ -654,7 +672,14 @@ describe('PackageQueriesAdapter', () => {
 
       // act
       const past: PackageListPage = await queries.execute(
-        new ListPackagesQuery(undefined, undefined, undefined, 10, all.total),
+        new ListPackagesQuery(
+          undefined,
+          undefined,
+          undefined,
+          10,
+          all.total,
+          null,
+        ),
       );
 
       // assert

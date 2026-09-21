@@ -10,6 +10,7 @@ import type {
   PackageDetailDto,
   PackageDto,
   PackagesApi,
+  PackageScope,
   PackagesOverviewRequest,
   PackagesOverviewResponse,
   SupplyDocumentRequest,
@@ -43,7 +44,10 @@ export class PackagesService implements PackagesApi {
     private readonly queries: QueryBus,
   ) {}
 
-  async create(request: CreatePackageRequest): Promise<PackageDto> {
+  async create(
+    request: CreatePackageRequest,
+    ownerAccountId: string | null,
+  ): Promise<PackageDto> {
     const packageId = await this.commands.execute(
       new CreatePackageCommand(
         request.profileKey,
@@ -52,6 +56,7 @@ export class PackagesService implements PackagesApi {
         // the case beside it. A request that declares nothing is the one this
         // endpoint has always taken.
         request.declared ?? {},
+        ownerAccountId,
       ),
     );
 
@@ -60,9 +65,13 @@ export class PackagesService implements PackagesApi {
     );
   }
 
-  async addFiles(id: string, request: AddFilesRequest): Promise<PackageDto> {
+  async addFiles(
+    id: string,
+    request: AddFilesRequest,
+    scope: PackageScope,
+  ): Promise<PackageDto> {
     const packageId = await this.commands.execute(
-      new AddFilesCommand(id, request.files),
+      new AddFilesCommand(id, request.files, ownerOf(scope)),
     );
 
     return toSummaryDto(
@@ -73,6 +82,7 @@ export class PackagesService implements PackagesApi {
   async supplyDocument(
     id: string,
     request: SupplyDocumentRequest,
+    scope: PackageScope,
   ): Promise<PackageDto> {
     const packageId = await this.commands.execute(
       new SupplyDocumentCommand(
@@ -80,6 +90,7 @@ export class PackagesService implements PackagesApi {
         request.file,
         request.expectedType,
         request.replacesDocumentId ?? null,
+        ownerOf(scope),
       ),
     );
 
@@ -101,10 +112,19 @@ export class PackagesService implements PackagesApi {
       new ApproveArchiveSearchCommand(id, request.summary, request.comment),
     );
 
-    return this.findOne(packageId.value);
+    /*
+     * `null` and not the caller's own account: only the office may approve an
+     * archive search, so the call that gets here is never an applicant's, and
+     * scoping the read that follows it to an account would be scoping it to
+     * nobody (ADR-0029).
+     */
+    return this.findOne(packageId.value, null);
   }
 
-  async findMany(request: ListPackagesRequest): Promise<ListPackagesResponse> {
+  async findMany(
+    request: ListPackagesRequest,
+    scope: PackageScope,
+  ): Promise<ListPackagesResponse> {
     const page = await this.queries.execute(
       new ListPackagesQuery(
         request.search,
@@ -112,14 +132,17 @@ export class PackagesService implements PackagesApi {
         request.reportStatus,
         request.limit,
         request.offset,
+        ownerOf(scope),
       ),
     );
 
     return toListDto(page, request);
   }
 
-  async findOne(id: string): Promise<PackageDetailDto> {
-    return toDetailDto(await this.queries.execute(new GetPackageQuery(id)));
+  async findOne(id: string, scope: PackageScope): Promise<PackageDetailDto> {
+    return toDetailDto(
+      await this.queries.execute(new GetPackageQuery(id, ownerOf(scope))),
+    );
   }
 
   async overview(
@@ -131,4 +154,17 @@ export class PackagesService implements PackagesApi {
 
     return toOverviewDto(view, request);
   }
+}
+
+/**
+ * The contract's scope as the use cases take it: an account id, or `null` for
+ * every submission the office holds.
+ *
+ * The one place the two spellings meet. The contract says it as an object so
+ * that `null` is a decision somebody wrote down rather than an argument they
+ * forgot; the commands say it as the id, because that is what they put in a
+ * WHERE clause.
+ */
+function ownerOf(scope: PackageScope): string | null {
+  return scope === null ? null : scope.ownerAccountId;
 }

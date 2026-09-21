@@ -97,6 +97,23 @@ export {
   spentApprovals,
 } from './model/archive-search';
 
+export type { Competence } from './model/archive-qr';
+export {
+  COMPETENCE_KEY,
+  COMPETENCE_TONE,
+  comparesLines,
+  competence,
+  QR_FIELD_ORDER,
+  QR_STATUS_KEY,
+  QR_STATUS_NOTE,
+  QR_STATUS_TONE,
+  QR_VERDICT_KEY,
+  QR_VERDICT_TONE,
+  qrDisagreements,
+  qrFields,
+  qrSpeaksAgainst,
+} from './model/archive-qr';
+
 export {
   APPLICANT_REPORT_KEY,
   REPORT_KEY,
@@ -221,6 +238,7 @@ export {
   OUTCOME_ICON,
   RegistryOutcomeMark,
 } from './ui/outcome-mark';
+export { ArchiveQrStatusMark, QR_STATUS_ICON } from './ui/archive-qr-mark';
 export {
   ReadingFigure,
   READING_INK,

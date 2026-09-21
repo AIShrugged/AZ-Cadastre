@@ -11,8 +11,13 @@
 # can cross (ADR-0010).
 #
 # The official image runs this once, when the data directory is created. On a
-# volume that already exists it does not run at all, and the databases have to
-# be created by hand:
+# volume that already exists it does not run at all — which matters less than it
+# looks like it should, because `prisma migrate deploy` creates the database its
+# URL names when it is missing, and the migrator runs before anything serves
+# traffic. This script is the convenience, not the guarantee.
+#
+# The guarantee is gone the day the migrator connects as a role that may not
+# create databases. Then, and only then, they are made by hand first:
 #
 #   docker exec cadastre-postgres createdb -U postgres cadastre-accounts
 #   docker exec cadastre-postgres createdb -U postgres cadastre-registry

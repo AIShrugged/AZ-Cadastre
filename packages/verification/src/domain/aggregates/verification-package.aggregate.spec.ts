@@ -1269,7 +1269,7 @@ describe('VerificationPackage', () => {
     /*
      * The customer's decision: no paper with a QR code, the step is skipped and
      * the report says so — as "there was nothing to check this with", never as
-     * a fault of the applicant (ADR-0028).
+     * a fault of the applicant (ADR-0031).
      */
     describe('where no paper of the package prints a QR code', () => {
       function qrFindings(verification: VerificationPackage) {
@@ -1279,8 +1279,8 @@ describe('VerificationPackage', () => {
       }
 
       // The complete package, its plan-scheme read again without the code.
-      function aCompletePackageWithoutACode() {
-        const built = aCompletePackage();
+      function aCompletePackageWithoutACode(extraSheets = 0) {
+        const built = aCompletePackage(extraSheets);
         built.verification.recordExtractedFields(built.documents[0]!.id, [
           stated('property_address', 'Zığ qəsəbəsi, Əliyev küçəsi 12'),
           stated('land_category', 'Fərdi yaşayış tikintisi üçün torpaq'),
@@ -1326,15 +1326,61 @@ describe('VerificationPackage', () => {
         expect(finding?.message).not.toContain('"operation_acceptance_act"');
       });
 
+      /*
+       * With no paper to file a line against, this one is the whole of what can
+       * be said, and it is compiled even though nothing else in the report
+       * speaks of a QR code at all (ADR-0032).
+       */
       it('says the package carries no paper of a kind that prints one', () => {
         const { verification, document } = aSegmentedPackage();
         verification.classify(document.id, aClassification('sketch_project'));
 
         verification.complete();
 
-        expect(qrFindings(verification)[0]?.message).toContain(
+        const [finding, ...more] = qrFindings(verification);
+        expect(finding?.message).toContain(
           'no paper of a kind that prints one',
         );
+        expect(more).toEqual([]);
+        expect(
+          verification.report?.issues.filter(
+            issue => issue.kind.value === 'RegistryUnconfirmed',
+          ),
+        ).toEqual([]);
+      });
+
+      /*
+       * A package carrying both kinds keeps the line, naming only the paper
+       * that has none of its own: the plan-scheme is held against MQS, which is
+       * not connected, so nothing else would ever say its code went unread
+       * (ADR-0032).
+       */
+      it('names only the papers no line of their own speaks for', () => {
+        const { verification, documents } = aCompletePackageWithoutACode(1);
+        const title = documents[4]!;
+
+        verification.classify(
+          title.id,
+          aClassification('homestead_land_allocation_decision'),
+        );
+        verification.recordArchiveQrCheck(
+          title.id,
+          ArchiveQrCheck.noQrCode(new Date('2026-09-21T12:00:00.000Z')),
+        );
+        verification.complete();
+
+        const [finding] = qrFindings(verification);
+        expect(finding?.message).toContain('"land_plot_plan"');
+        expect(finding?.message).not.toContain(
+          '"homestead_land_allocation_decision"',
+        );
+        expect(
+          verification.report?.issues.filter(
+            issue =>
+              issue.kind.value === 'RegistryUnconfirmed' &&
+              issue.documentId?.equals(title.id) === true,
+          ),
+        ).toHaveLength(1);
       });
 
       it('is not said where a paper printed a code', () => {
@@ -1850,7 +1896,7 @@ describe('VerificationPackage', () => {
         span_dimensions: 'A—B 4,20 m; B—C 3,60 m',
       },
     ];
-    // A lease-or-use title under items 1.4 and 2.7 (ADR-0028).
+    // A lease-or-use title under items 1.4 and 2.7 (ADR-0030).
     const ORDER: Paper = ['disposal_order', {}];
     const LEASE: Paper = [
       'homestead_land_allocation_decision',
@@ -2003,7 +2049,7 @@ describe('VerificationPackage', () => {
     });
 
     // The customer's answer of 2026-09-16: a title of the other class than
-    // the provision is a mismatch (ADR-0028).
+    // the provision is a mismatch (ADR-0030).
     it('says a lease-or-use title does not found a case a plan words as ownership', () => {
       const built = aCase(
         2010,
@@ -2924,7 +2970,7 @@ describe('VerificationPackage', () => {
    * falls under 8.0.9.1.2, which asks for nothing beyond the title (ADR-0025).
    * The plan-scheme states the address, so the register has something to be
    * asked about, and prints its QR code, so the check by QR code has something
-   * to be made on (ADR-0028). `extraSheets` more are segmented and left unplaced, for a spec
+   * to be made on (ADR-0031). `extraSheets` more are segmented and left unplaced, for a spec
    * to do with as it needs.
    */
   function aCompletePackage(extraSheets = 0) {
@@ -4466,6 +4512,34 @@ describe('VerificationPackage supplied with a document', () => {
       return built;
     }
 
+    /*
+     * Two homestead allotment orders, placed and read, neither of them with a
+     * code among its lines: the package the archive cannot be asked about at
+     * all, and the one both the package line and the per-paper lines used to
+     * speak of (ADR-0032).
+     */
+    function titlesWithoutACode(howMany = 2) {
+      const built = aSegmentedPackage(howMany);
+
+      for (const document of built.documents) {
+        built.verification.classify(
+          document.id,
+          aClassification('homestead_land_allocation_decision'),
+        );
+        built.verification.recordExtractedFields(document.id, [
+          aReading('document_no', '1471'),
+          aReading('issue_date', '29.10.1998'),
+        ]);
+        built.verification.recordArchiveQrCheck(
+          document.id,
+          ArchiveQrCheck.noQrCode(CHECKED_AT),
+        );
+      }
+      built.verification.commit();
+
+      return built;
+    }
+
     function agreeingLines(): readonly ArchiveQrFieldCheck[] {
       return ARCHIVE_QR_FIELDS.map(name =>
         ArchiveQrFieldCheck.of({
@@ -4641,6 +4715,25 @@ describe('VerificationPackage supplied with a document', () => {
       const [unconfirmed] = issuesOf(verification, 'RegistryUnconfirmed');
       expect(unconfirmed?.message).toContain('no QR reference');
       expect(unconfirmed?.kind.isInformational).toBe(true);
+    });
+
+    /*
+     * One line per paper and not one more. The package-wide line would say the
+     * same absence over again and name the very papers that follow it, which is
+     * the inspector reading the list and then reading it a second time
+     * (ADR-0032).
+     */
+    it('says a paper with no code read off it once, and against that paper', () => {
+      const { verification, documents } = titlesWithoutACode();
+
+      verification.complete();
+
+      expect(
+        issuesOf(verification, 'RegistryUnconfirmed').map(
+          issue => issue.documentId?.value,
+        ),
+      ).toEqual(documents.map(one => one.id.value));
+      expect(issuesOf(verification, 'QrCodeUnavailable')).toEqual([]);
     });
 
     // The answer is about what the paper says, and a file arriving elsewhere

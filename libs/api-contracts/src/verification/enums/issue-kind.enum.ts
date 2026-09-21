@@ -89,7 +89,7 @@ export const IssueKindSchema = z.enum([
   // fault of the applicant and not the same line as IntegrationNotConnected,
   // which is a paper read and not confirmed: here there is no paper to confirm.
   // Never counted against the package, and never to read as a finding either —
-  // it says "nothing to check this with", not "something is wrong" (ADR-0028).
+  // it says "nothing to check this with", not "something is wrong" (ADR-0031).
   'QrCodeUnavailable',
   // A Decree 439 paper held against the National Archive Fund by its QR
   // reference, and the archive's copy says something else — a line differs, or

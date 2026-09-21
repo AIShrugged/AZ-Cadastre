@@ -121,7 +121,7 @@ describe('VerificationProfile', () => {
   });
 
   // What the check of authenticity by QR code is made on, and what it is
-  // skipped for want of (ADR-0028).
+  // skipped for want of (ADR-0031).
   describe('the papers that print a QR code', () => {
     const carriers = VerificationProfile.CADASTRE.qrCarriers.map(
       type => type.value,

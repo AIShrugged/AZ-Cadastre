@@ -1359,7 +1359,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
    * provision it falls under could not be decided, that a title the package
    * carries is dated outside the window it is a title in, and that a title is of
    * the other class than a provision the case falls under, or would fall under
-   * on the right an extract or a plan words, rests on (ADR-0028).
+   * on the right an extract or a plan words, rests on (ADR-0030).
    */
   private againstTheProvision(
     provision: CaseProvision | null,
@@ -1502,7 +1502,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
 
   /*
    * The check of authenticity by QR code, where the package gives it nothing to
-   * be made on (ADR-0028).
+   * be made on (ADR-0031, ADR-0032).
    *
    * Skipped, and said once, where no paper in force had a code read off it —
    * whether the package carries no paper of a kind that prints one or carries
@@ -1510,6 +1510,14 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
    * and the step is then the paper's source to confirm, which the report
    * already says for every paper it only read. Never held against the package:
    * the applicant is not at fault for there being nothing to check.
+   *
+   * It names only the papers nothing else says this of. A Decree 439 paper the
+   * archive was not asked about for want of a code already carries that on a
+   * line of its own, against the sheet the inspector opens — `againstTheArchive`
+   * — and naming it here as well is one absence told twice, first over the
+   * package and then over each of the same papers (ADR-0032). Where every
+   * carrier in force is such a paper, those lines say the whole of it and this
+   * one is not compiled at all.
    */
   private withoutAQrCode(): readonly ValidationIssue[] {
     const carriers = this.#profile.qrCarriers;
@@ -1532,7 +1540,15 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
 
     if (printed) return [];
 
-    const types = carrying
+    // A paper the archive answered about has a line of its own — and with no
+    // code read anywhere, the only answer it can hold is `NoQrCode`.
+    const unsaid = carrying.filter(
+      ({ document }) => document.archiveQrCheck === null,
+    );
+
+    if (carrying.length > 0 && unsaid.length === 0) return [];
+
+    const types = unsaid
       .map(one => one.type)
       .filter(
         (type, index, all) => all.findIndex(one => one.equals(type)) === index,

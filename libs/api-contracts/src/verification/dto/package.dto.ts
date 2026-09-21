@@ -635,7 +635,7 @@ export type ProvisionStandingDto = z.infer<typeof ProvisionStandingDtoSchema>;
 export const TitleDocumentStandingDtoSchema = z.object({
   documentId: z.string(),
   documentType: z.string(),
-  // Every title names a right since ADR-0028; kept nullable so the contract
+  // Every title names a right since ADR-0030; kept nullable so the contract
   // does not move.
   landRight: LandRightSchema.nullable(),
   dated: z

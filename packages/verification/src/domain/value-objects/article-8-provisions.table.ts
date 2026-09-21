@@ -136,7 +136,7 @@ export const ARTICLE_8_PROVISIONS: ProvisionsDeclaration = {
     // Not in the contract's list under this name. The order of an executive
     // authority allotting a parcel is a decision on allocating a plot, and the
     // customer has filed it under items 1.4 and 2.7: a lease-or-use title by its
-    // kind, whatever an extract beside it words (ADR-0028).
+    // kind, whatever an extract beside it words (ADR-0030).
     {
       item: '1.4',
       type: 'disposal_order',

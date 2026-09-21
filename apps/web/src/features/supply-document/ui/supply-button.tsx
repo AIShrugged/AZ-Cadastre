@@ -29,6 +29,7 @@ import {
 } from '@/entities/verification-package';
 import { failureCode, uploadDocument } from '@/shared/api';
 import { translateOr, useI18n } from '@/shared/i18n';
+import { cn } from '@/shared/lib/cn';
 import { ACCEPT, MAX_MB } from '@/shared/lib/document-file';
 import { Button } from '@/shared/ui/button';
 import type { DocumentGapDto } from '@cadastre/api-contracts/verification';
@@ -47,10 +48,16 @@ export function SupplyButton({
   /** False while a run is under way: the package takes no files then, and the
    *  panel above says so in a sentence rather than leaving a dead button. */
   accepting,
+  quiet = false,
 }: {
   packageId: string;
   gap: DocumentGapDto;
   accepting: boolean;
+  /** Drawn as an offer rather than an answer to a shortfall — the row is a
+   *  paper the profile takes at any time, or an alternative under the fold.
+   *  Outlined, all of these buttons carried the same weight as the one beside a
+   *  missing title deed. The hit area is unchanged; only the frame goes. */
+  quiet?: boolean;
 }) {
   const { t } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -123,9 +130,9 @@ export function SupplyButton({
         }}
       />
       <Button
-        variant='outline'
+        variant={quiet ? 'ghost' : 'outline'}
         size='sm'
-        className='shrink-0'
+        className={cn('shrink-0', quiet && 'text-muted-foreground')}
         disabled={!accepting || busy}
         aria-disabled={!accepting || busy}
         // The picker's own label says nothing about which row it belongs to, and

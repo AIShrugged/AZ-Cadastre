@@ -10,10 +10,14 @@
  * by a compiler that never sees the server. A mismatch then surfaces here, named,
  * instead of as an `undefined` three components away.
  */
+import type { ThunkDispatch, UnknownAction } from '@reduxjs/toolkit';
+import { useDispatch } from 'react-redux';
+
 import { api } from '@/shared/api';
 import {
   AddFilesResponseSchema,
   ApproveArchiveSearchResponseSchema,
+  EditDocumentFieldsResponseSchema,
   GetPackageResponseSchema,
   ListPackagesResponseSchema,
   SupplyDocumentResponseSchema,
@@ -23,6 +27,8 @@ import {
   type ApproveArchiveSearchResponse,
   type CreatePackageRequest,
   type CreatePackageResponse,
+  type EditDocumentFieldsRequest,
+  type EditDocumentFieldsResponse,
   type GetPackageResponse,
   type ListPackagesRequestInput,
   type SupplyDocumentRequest,
@@ -145,6 +151,36 @@ export const packagesApi = api.injectEndpoints({
       ],
     }),
     /*
+     * What an operator read off the paper where the engine read it wrong, or
+     * did not read it at all (ADR-0033).
+     *
+     * One call per document and never per field: the body carries every
+     * correction made to one paper, because the save re-opens the package and
+     * verifies it afresh — a call per keystroke would be one run per keystroke,
+     * each of them reading a form still being filled in.
+     *
+     * It answers with the package as it now stands, so the screen the
+     * correction was made on re-renders off the answer instead of asking again.
+     * Only the bare tag is named here: the detail the caller is looking at is
+     * written straight into the cache by the caller, and naming `{ Package, id }`
+     * as well would send this screen round a refetch it has already been given
+     * the answer to. The register's rows are another matter — the package is
+     * back in the queue and its row says something else now.
+     */
+    editDocumentFields: build.mutation<
+      EditDocumentFieldsResponse,
+      { id: string; documentId: string; body: EditDocumentFieldsRequest }
+    >({
+      query: ({ id, documentId, body }) => ({
+        url: `/packages/${id}/documents/${documentId}/fields`,
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (response: unknown) =>
+        EditDocumentFieldsResponseSchema.parse(response),
+      invalidatesTags: ['Package'],
+    }),
+    /*
      * The one write on this resource a person makes rather than the engine:
      * their sign-off on what the archive register answered about the
      * submission, and the conclusion they drew from it (ADR-0016).
@@ -178,6 +214,40 @@ export const {
   useGetPackageQuery,
   useCreatePackageMutation,
   useAddFilesMutation,
+  useEditDocumentFieldsMutation,
   useSupplyDocumentMutation,
   useApproveArchiveSearchMutation,
 } = packagesApi;
+
+/**
+ * A dispatch that will take RTK Query's own cache thunks.
+ *
+ * `AppDispatch` (`shared/lib/store-hooks`) is deliberately state-agnostic so
+ * that entities and features need not import the app's store type, and it
+ * promises `unknown` state. The cache writes are the one thing that does not
+ * fit: they read the api slice back out of the store, so their type names the
+ * state they need, and `unknown` is not it. `never` is — a dispatch that
+ * asserts nothing about the store rather than asserting the wrong thing, and
+ * one that accepts a thunk over any state without an `any` anywhere. The store
+ * it is actually handed is the app's, which holds the slice.
+ */
+type CacheDispatch = ThunkDispatch<never, unknown, UnknownAction>;
+
+/**
+ * Putting a package the server has just answered with where the detail screen
+ * is already reading it.
+ *
+ * Every write on a package answers with the whole package, which exists so that
+ * the screen that made the write re-renders off the answer instead of asking
+ * again for what it has just been told. Without this the screen would show the
+ * pre-write package until a refetch came back — and on a correction that means
+ * showing a settled case with a report for as long as the round trip takes,
+ * when the case has in fact re-opened.
+ */
+export function useKeepPackage(): (pkg: GetPackageResponse) => void {
+  const dispatch = useDispatch<CacheDispatch>();
+
+  return pkg => {
+    dispatch(packagesApi.util.upsertQueryData('getPackage', pkg.id, pkg));
+  };
+}

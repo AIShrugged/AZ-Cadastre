@@ -88,6 +88,11 @@ export class CrossCheck {
     public readonly confidence: Confidence,
     public readonly note: string,
     values: readonly CheckedValue[],
+    // Whether the package has moved on under it. A check made over readings a
+    // correction has since changed is still evidence — it is what the
+    // inspector was last told — but it is no longer an answer about the
+    // package as it now stands (ADR-0036).
+    public readonly isOutrun: boolean = false,
   ) {
     this.#values = [...values];
   }
@@ -120,6 +125,7 @@ export class CrossCheck {
     confidence: Confidence;
     note: string;
     values: readonly CheckedValue[];
+    isOutrun?: boolean;
   }): CrossCheck {
     return new CrossCheck(
       state.key,
@@ -127,6 +133,27 @@ export class CrossCheck {
       state.confidence,
       state.note,
       state.values,
+      state.isOutrun ?? false,
+    );
+  }
+
+  /*
+   * The same verdict, marked as one the package has outrun.
+   *
+   * The verdict itself is untouched on purpose: a correction must not blank
+   * the checklist an operator is looking at, so what the last run concluded
+   * stays readable until the next run replaces it (ADR-0036). What the mark
+   * changes is that the package no longer counts this check as made, so the
+   * run that follows makes it again.
+   */
+  outrun(): CrossCheck {
+    return new CrossCheck(
+      this.key,
+      this.verdict,
+      this.confidence,
+      this.note,
+      this.#values,
+      true,
     );
   }
 

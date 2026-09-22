@@ -9,11 +9,14 @@ import { LoggerModule } from '@cadastre/logger';
 
 import {
   ArchiveRegistryPort,
+  CrossChecker,
   FieldExtractor,
   ObjectStorage,
   OcrProvider,
   PdfSplitter,
   QrCodeReader,
+  type CrossCheckAnswer,
+  type CrossCheckRequest,
   type PresignedDownload,
   type PresignedUpload,
   type PresignUploadRequest,
@@ -35,6 +38,7 @@ import {
 } from '../src/domain/value-objects/index.js';
 import {
   ArchiveRegistryAdapter,
+  CrossCheckerAdapter,
   FieldExtractorAdapter,
   OcrProviderAdapter,
 } from '../src/infrastructure/adapters/index.js';
@@ -200,6 +204,9 @@ export type Overrides = {
   // package with no gaps in it. A spec about what happens to a field a paper
   // did **not** yield therefore has to bring a reader that leaves one.
   readonly extractor?: FieldExtractor;
+  // Offered for the same reason the extractor is: which checks a run actually
+  // made is only visible from the port that was asked to make them.
+  readonly crossChecker?: CrossChecker;
 };
 
 /**
@@ -251,6 +258,25 @@ export class StubRegistry extends ArchiveRegistryPort {
       };
     },
   };
+}
+
+/**
+ * The offline cross-checker, with a note of which checks it was asked to make.
+ *
+ * Which checks a run actually made is only visible from the port: the package
+ * holds one answer per check either way, so a verdict worked out again and a
+ * verdict left alone look identical on the read side.
+ */
+export class ACountingCrossChecker extends CrossChecker {
+  readonly asked: string[] = [];
+
+  readonly #offline = new CrossCheckerAdapter();
+
+  override async check(request: CrossCheckRequest): Promise<CrossCheckAnswer> {
+    this.asked.push(request.spec.key.value);
+
+    return this.#offline.check(request);
+  }
 }
 
 export function testOptions(databaseUrl: string): VerificationModuleOptions {
@@ -328,6 +354,8 @@ export async function startContext(
     .useValue(overrides.registry ?? new ArchiveRegistryAdapter())
     .overrideProvider(FieldExtractor)
     .useValue(overrides.extractor ?? new FieldExtractorAdapter())
+    .overrideProvider(CrossChecker)
+    .useValue(overrides.crossChecker ?? new CrossCheckerAdapter())
     .compile();
 
   await module.init();

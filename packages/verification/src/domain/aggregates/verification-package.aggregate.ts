@@ -666,8 +666,13 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     return new Set(values.map(value => value.documentId.value)).size >= 2;
   }
 
+  // A check the package has outrun does not count as made: the verdict is kept
+  // so the inspector still has something to read, and the run that follows
+  // makes it again (ADR-0036).
   hasMade(key: CrossCheckKey): boolean {
-    return this.#crossChecks.some(check => check.key.equals(key));
+    return this.#crossChecks.some(
+      check => check.key.equals(key) && !check.isOutrun,
+    );
   }
 
   recordCrossCheck(check: CrossCheck): void {
@@ -809,24 +814,28 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   /**
    * An operator states, by hand, what one of a package's papers says.
    *
-   * The same event as a file arriving, with a smaller blast radius, and it
-   * follows the same road on purpose (ADR-0013): the package re-opens,
-   * everything worked out *across* it is discarded, and the run that follows
-   * re-reads nothing it has already read. What makes the radius smaller is that
-   * one paper's readings changed rather than the envelope — so the sheets, the
-   * text, the segmentation, the classification and every other document's
-   * fields and archive answer all stand.
+   * The same event as a file arriving with a much smaller blast radius, and no
+   * longer the same road: a file arriving changes the envelope and discards
+   * everything worked out across it (ADR-0013), while a correction changes one
+   * reading of one paper and discards only what rested on that reading
+   * (ADR-0036). The sheets, the text, the segmentation, the classification and
+   * every other document's fields and archive answer stand either way.
    *
-   * Four things go, and each for its own reason. Every cross-document check and
-   * every registry check, because the edited value may be a side of any of them
-   * and working out which is a guess this system should not be making. The
-   * report, because it was compiled from them. The archive QR check **of this
-   * document only**, because the question put to the archive is built out of
-   * this paper's fields and nothing on another paper changes it. And every
-   * value carried over from the key just edited, wherever in the package it
-   * sits — a pointer at a reading that no longer exists is not a value the
-   * package states (ADR-0023), and `gatherFromThePackage` derives it again off
-   * what is now in force.
+   * What a correction does, each for its own reason. Every cross-document
+   * check is marked as one the package has outrun: they are all made again by
+   * the run that follows — the whole sweep, because a corrected value reaches
+   * further than the checks that name the key it was typed under — and until
+   * that run replaces them the inspector goes on reading the verdicts they
+   * had, rather than an empty checklist. The registry checks that rest on the
+   * edited reading go and are asked again; the ones that do not are kept, and
+   * the signature on the archive search is spent only where one of them went.
+   * The report, because the checks it was compiled from are being made again.
+   * The archive QR check **of this document only**, because the question put
+   * to the archive is built out of this paper's fields and nothing on another
+   * paper changes it. And every value carried over from the key just edited,
+   * wherever in the package it sits — a pointer at a reading that no longer
+   * exists is not a value the package states (ADR-0023), and
+   * `gatherFromThePackage` derives it again off what is now in force.
    *
    * Answers whether anything actually changed. An edit whose every entry
    * already holds that value is a no-op: nothing is discarded, no run starts,
@@ -909,7 +918,11 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       ),
     );
     this.replaceDocument(this.documentWith(documentId).withoutArchiveQrCheck());
-    this.reopen();
+    this.invalidateAfter(
+      documentId,
+      classification.type,
+      changed.map(edit => edit.key),
+    );
     this.apply(new DocumentFieldsEdited(this.id, documentId, changed.length));
 
     return true;
@@ -961,12 +974,13 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
    * Everything worked out *across* the package, discarded, and the package put
    * back in the queue.
    *
-   * The one place that says what re-opening means, because there are now two
-   * ways in — a file arriving and an operator correcting a value — and a second
-   * list of what to discard beside the first is how the two come to disagree.
-   * The cross-document checks and the register's answers were worked out over a
-   * package that has since changed, and a report compiled from them would
-   * describe a submission nobody made (ADR-0013).
+   * A file arriving is the one way in. It changes what the envelope holds, so
+   * nothing worked out over the envelope survives it: the cross-document
+   * checks and the register's answers were made over a package that has since
+   * changed, and a report compiled from them would describe a submission
+   * nobody made (ADR-0013). A correction does not come through here — it
+   * changes one reading of one paper, and what it discards is worked out from
+   * that reading rather than declared wholesale (ADR-0036).
    *
    * What each file says on its own is untouched, which is what makes the run
    * that follows cheap: its sheets, their text, the documents carved out of
@@ -980,6 +994,91 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     // The archive search went with them, so anything signed for it is spent:
     // what was approved is no longer what the package holds (ADR-0016).
     this.spendArchiveSearchApproval();
+  }
+
+  /*
+   * What one corrected reading discards, and no more (ADR-0036).
+   *
+   * The cross-document checks are all marked outrun and none is thrown away.
+   * Both halves are deliberate. Every one of them is made again by the run
+   * that follows — the requester asked for the full sweep, and they are right
+   * that a corrected value reaches past the checks that happen to name the key
+   * it was typed under: what a paper states decides which papers are compared
+   * at all. And none of them is blanked, because the operator who pressed save
+   * is looking at that checklist, and a rail that empties itself for the
+   * length of a run tells them the package lost its answers rather than that
+   * it is working them out again.
+   *
+   * The registry checks are the other way round: the register is asked
+   * something specific, about a value read off a named sheet, so which of them
+   * the edit reaches is derivable and is derived. The ones it does not reach
+   * are kept — an answer the register gave about an address nobody touched is
+   * still that answer — and only where one is dropped is the signature on the
+   * archive search spent, because only then does an approved answer stop
+   * standing (ADR-0016).
+   *
+   * The report goes, because the checks it was compiled from are being made
+   * again; the package goes back in the queue, because that is what starts the
+   * run that makes them.
+   */
+  private invalidateAfter(
+    documentId: DocumentId,
+    type: DocumentType,
+    keys: readonly FieldKey[],
+  ): void {
+    this.#crossChecks = this.#crossChecks.map(check => check.outrun());
+
+    const kept = this.#registryChecks.filter(
+      check => !this.rests(check, documentId, type, keys),
+    );
+    const dropped = kept.length < this.#registryChecks.length;
+
+    this.#registryChecks = kept;
+    this.#report = null;
+    this.#status = PackageStatus.PENDING;
+
+    if (dropped) this.spendArchiveSearchApproval();
+  }
+
+  /*
+   * Whether a registry check rests on one of the readings just corrected.
+   *
+   * Two questions and not one, because a check is both what was asked and what
+   * could be asked. What was asked is on the check itself: every `CheckedValue`
+   * it carries names the document and the key it was read off, and a check
+   * weighing one of the corrected readings was made over something the package
+   * no longer states. What could be asked is the profile's: a key the check's
+   * spec reads off this type is a value it would have used had the package
+   * stated one, so typing a value in under a key that was blank changes the
+   * answer as surely as changing one that was not — and a check kept over that
+   * would be the register answering a question nobody asked it.
+   */
+  private rests(
+    check: RegistryCheck,
+    documentId: DocumentId,
+    type: DocumentType,
+    keys: readonly FieldKey[],
+  ): boolean {
+    const corrected = (value: CheckedValue): boolean =>
+      value.isFrom(documentId) && keys.some(key => key.equals(value.fieldKey));
+
+    const weighed = [
+      check.asked,
+      ...check.attributes.map(attribute => attribute.submitted),
+      ...check.documents.map(document => document.carried),
+    ];
+
+    if (weighed.some(corrected)) return true;
+
+    const spec = this.#profile.registryChecks.find(candidate =>
+      candidate.key.equals(check.key),
+    );
+
+    if (!spec) return true;
+
+    return [...spec.subjects, ...spec.attributes.map(one => one.ref)].some(
+      reference => keys.some(key => reference.matches(type, key)),
+    );
   }
 
   // Two files pointing at one object are one file counted twice: a package that
@@ -1479,7 +1578,9 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     spec: CrossCheckSpec,
     candidates: readonly CheckedValue[],
   ): boolean {
-    const made = this.#crossChecks.find(check => check.key.equals(spec.key));
+    const made = this.#crossChecks.find(
+      check => check.key.equals(spec.key) && !check.isOutrun,
+    );
 
     if (made) return made.verdict.agrees;
 
@@ -1497,6 +1598,15 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   complete(): void {
     this.guardUnderWay();
 
+    /*
+     * A verdict the run has just been over and did not renew is a verdict
+     * about a package that no longer exists: the check could not be made this
+     * time — a value it weighed was struck out, or the paper stating it went —
+     * and keeping it would put a finding in the report over readings nobody
+     * holds. It was kept until here so the checklist had something to show
+     * while the run was under way, and that is over (ADR-0036).
+     */
+    this.#crossChecks = this.#crossChecks.filter(check => !check.isOutrun);
     this.compileReport();
     this.#status = PackageStatus.COMPLETED;
     this.apply(new VerificationCompleted(this.id));

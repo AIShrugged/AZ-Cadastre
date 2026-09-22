@@ -3,6 +3,7 @@ import type { TestingModule } from '@nestjs/testing';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 
 import {
+  ACountingCrossChecker,
   startContext,
   waitForTerminalStatus,
 } from '../../../../../test/context-harness.js';
@@ -29,6 +30,7 @@ import type {
   PackageDetailView,
 } from '../../../read-models/index.js';
 import { AddFilesCommand } from '../add-files/index.js';
+import { ApproveArchiveSearchCommand } from '../approve-archive-search/index.js';
 import { CreatePackageCommand } from '../create-package/index.js';
 import { EditDocumentFieldsCommand } from '../edit-document-fields/index.js';
 import { GetPackageQuery } from '../get-package/index.js';
@@ -438,5 +440,203 @@ describe('a value another paper borrowed from the corrected key', () => {
     expect(carried?.takenFrom?.documentId).toBe(
       documentOf(after, 'land_plot_plan')!.id,
     );
+  });
+});
+
+/*
+ * What a correction invalidates, and what it leaves standing (ADR-0036).
+ *
+ * Here rather than only in a unit test because the two halves of it are
+ * statements about the round trip and the run: a registry check the aggregate
+ * dropped has to be *gone* from the database rather than upserted back on the
+ * next save, an approval that was not spent has to still be in force after the
+ * run the correction started, and "every cross-document check is made again"
+ * is a statement about what the run asked the checker for.
+ */
+describe('what a correction leaves the package holding', () => {
+  let module: TestingModule;
+  let commands: CommandBus;
+  let queries: QueryBus;
+  let checker: ACountingCrossChecker;
+
+  beforeAll(async () => {
+    checker = new ACountingCrossChecker();
+    ({ module } = await startContext(inject('databaseUrl'), {
+      extractor: new AMisreadCardNumber(),
+      crossChecker: checker,
+    }));
+    commands = module.get(CommandBus);
+    queries = module.get(QueryBus);
+  });
+
+  afterAll(async () => {
+    await module?.close();
+  });
+
+  const detailOf = async (id: PackageId): Promise<PackageDetailView> =>
+    queries.execute(new GetPackageQuery(id.value, null));
+
+  // A settled package with a person's signature on what the register answered
+  // — the state every case below corrects a field from.
+  async function approved(prefix: string): Promise<PackageId> {
+    const id: PackageId = await commands.execute(
+      new CreatePackageCommand('cadastre', [
+        aFile(prefix, 'sexsiyyet-vesiqe.pdf'),
+        aFile(prefix, 'erize-qeydiyyat.pdf'),
+      ]),
+    );
+    await waitForTerminalStatus(queries, id);
+    await commands.execute(
+      new ApproveArchiveSearchCommand(
+        id.value,
+        'The archive answers for this submission.',
+        undefined,
+      ),
+    );
+
+    return id;
+  }
+
+  const inForce = (detail: PackageDetailView) =>
+    detail.archiveSearchApprovals.filter(
+      approval => approval.supersededAt === null,
+    );
+
+  /*
+   * The identity card's expiry date is neither what the register was asked
+   * about nor one of the values it was told, so the answer it gave still
+   * stands — and so does the signature on it. ADR-0016 ends an approval
+   * because the answers it covered no longer stand, which is not the same
+   * thing as an operator having typed something somewhere.
+   */
+  it('keeps the register answer a correction does not reach, and the signature', async () => {
+    // arrange
+    const id = await approved('kept-answer');
+    const before = await detailOf(id);
+    const card = documentOf(before, 'identity_card')!;
+    expect(before.registryChecks).toHaveLength(1);
+    expect(inForce(before)).toHaveLength(1);
+
+    // act
+    await commands.execute(
+      new EditDocumentFieldsCommand(
+        id.value,
+        card.id,
+        [{ name: 'expiry_date', value: '01.01.2030' }],
+        OPERATOR,
+      ),
+    );
+    await waitForTerminalStatus(queries, id);
+
+    // assert
+    const after = await detailOf(id);
+    expect(after.registryChecks.map(check => check.key)).toEqual(
+      before.registryChecks.map(check => check.key),
+    );
+    expect(inForce(after)).toHaveLength(1);
+  });
+
+  /*
+   * The register was asked about the address printed on this very sheet, so
+   * its answer was given about something the package no longer states: the
+   * check goes, the run asks again, and the signature over the old answer is
+   * spent (ADR-0016).
+   */
+  it('drops the register answer that rests on the corrected reading, and spends the signature', async () => {
+    // arrange
+    const id = await approved('dropped-answer');
+    const before = await detailOf(id);
+    const application = documentOf(before, 'application')!;
+
+    // act
+    await commands.execute(
+      new EditDocumentFieldsCommand(
+        id.value,
+        application.id,
+        [{ name: 'property_address', value: 'Zığ qəsəbəsi, Əliyev küçəsi 21' }],
+        OPERATOR,
+      ),
+    );
+
+    // assert — gone the moment it was saved, and not sitting in the database
+    // to be served on the next read
+    const saved = await detailOf(id);
+    expect(saved.registryChecks).toEqual([]);
+    expect(inForce(saved)).toEqual([]);
+
+    // ...and asked again by the run the correction started
+    await waitForTerminalStatus(queries, id);
+    const after = await detailOf(id);
+    expect(after.registryChecks).toHaveLength(1);
+    expect(after.registryChecks[0]?.asked.value).toBe(
+      'Zığ qəsəbəsi, Əliyev küçəsi 21',
+    );
+  });
+
+  /*
+   * The checklist the operator is looking at when they press save must not go
+   * blank for the length of a run: the verdicts of the last run stay readable
+   * until this one replaces them (ADR-0036).
+   */
+  it('publishes the cross-check verdicts the whole way through the re-run', async () => {
+    // arrange
+    const id = await approved('verdicts-stand');
+    const before = await detailOf(id);
+    const card = documentOf(before, 'identity_card')!;
+    const keys = before.crossChecks.map(check => check.key);
+    expect(keys.length).toBeGreaterThan(0);
+
+    // act
+    await commands.execute(
+      new EditDocumentFieldsCommand(
+        id.value,
+        card.id,
+        [{ name: 'expiry_date', value: '02.02.2031' }],
+        OPERATOR,
+      ),
+    );
+
+    // assert — the save answers with the checklist it had, not an empty one.
+    // The report is a different thing and does go: it is compiled from the
+    // checks that are being made again, and half of it would be a finding
+    // about a package nobody submitted.
+    const saved = await detailOf(id);
+    expect(saved.crossChecks.map(check => check.key)).toEqual(keys);
+    expect(saved.report).toBeNull();
+
+    await waitForTerminalStatus(queries, id);
+    expect((await detailOf(id)).crossChecks.map(check => check.key)).toEqual(
+      keys,
+    );
+  });
+
+  /*
+   * The full sweep the requester asked for: every Cross-document Check is made
+   * again, and not only the ones naming the key that was typed into. The
+   * expiry date of an identity card is named by no cross-check at all, and
+   * both of the checks this package can make are still put to the checker
+   * again (ADR-0036).
+   */
+  it('makes every cross-document check again, whatever key was corrected', async () => {
+    // arrange
+    const id = await approved('full-sweep');
+    const before = await detailOf(id);
+    const card = documentOf(before, 'identity_card')!;
+    const made = before.crossChecks.map(check => check.key).toSorted();
+    checker.asked.length = 0;
+
+    // act
+    await commands.execute(
+      new EditDocumentFieldsCommand(
+        id.value,
+        card.id,
+        [{ name: 'expiry_date', value: '03.03.2032' }],
+        OPERATOR,
+      ),
+    );
+    await waitForTerminalStatus(queries, id);
+
+    // assert
+    expect(checker.asked.toSorted()).toEqual(made);
   });
 });

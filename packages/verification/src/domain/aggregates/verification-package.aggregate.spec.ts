@@ -5122,7 +5122,7 @@ describe('VerificationPackage corrected by hand', () => {
     ).toBeUndefined();
   });
 
-  it('discards the cross-checks, the register and the report, and re-opens', () => {
+  it('discards the report and re-opens', () => {
     const built = aVerifiedSubmission();
 
     built.verification.editFields(
@@ -5131,14 +5131,64 @@ describe('VerificationPackage corrected by hand', () => {
       OPERATOR,
     );
 
-    expect(built.verification.crossChecks).toEqual([]);
-    expect(built.verification.registryChecks).toEqual([]);
     expect(built.verification.report).toBeNull();
     expect(built.verification.status.equals(PackageStatus.PENDING)).toBe(true);
   });
 
+  /*
+   * The checklist an operator is looking at when they press save must not
+   * empty itself for the length of a run: the verdicts stand until the run
+   * replaces them, and the package counts none of them as made (ADR-0036).
+   */
+  it('keeps every cross-check verdict readable and counts none as made', () => {
+    const built = aVerifiedSubmission();
+
+    built.verification.editFields(
+      built.plan.id,
+      [stated('property_address', AS_THE_OPERATOR_READS_IT)],
+      OPERATOR,
+    );
+
+    expect(built.verification.crossChecks).toHaveLength(1);
+    expect(built.verification.crossChecks[0]?.verdict).toBe(
+      CrossCheckVerdict.MATCH,
+    );
+    expect(built.verification.hasMade(ADDRESS.key)).toBe(false);
+  });
+
+  /*
+   * The full sweep the requester asked for: a corrected value reaches past the
+   * checks that name the key it was typed under, because what a paper states
+   * decides which papers are compared at all (ADR-0036).
+   */
+  it('has every cross-check to make again, whatever key was corrected', () => {
+    const built = aVerifiedSubmission();
+
+    built.verification.editFields(
+      built.edited.id,
+      [stated('order_no', '1417')],
+      OPERATOR,
+    );
+
+    expect(built.verification.hasMade(ADDRESS.key)).toBe(false);
+  });
+
+  // The register was asked about the address read off this very sheet, so its
+  // answer was given about something the package no longer states.
+  it("drops the register's answer that rests on the corrected reading", () => {
+    const built = aVerifiedSubmission();
+
+    built.verification.editFields(
+      built.plan.id,
+      [stated('property_address', AS_THE_OPERATOR_READS_IT)],
+      OPERATOR,
+    );
+
+    expect(built.verification.registryChecks).toEqual([]);
+  });
+
   // What was approved covered answers the package no longer holds (ADR-0016).
-  it('spends the signature on the archive search', () => {
+  it('spends the signature on the archive search when one of them goes', () => {
     const built = aVerifiedSubmission();
 
     built.verification.editFields(
@@ -5151,6 +5201,70 @@ describe('VerificationPackage corrected by hand', () => {
     expect(typesOf(built.verification)).toContain(
       'verification.ArchiveSearchApprovalSpent',
     );
+  });
+
+  /*
+   * The other half of ADR-0016, and the reason the approval is not spent on
+   * every edit: an approval covering answers that still stand is a signature
+   * over something the person did read. The disposal order is neither what the
+   * register was asked about nor a value it was told, so its correction leaves
+   * the answer — and the signature on it — exactly where they were.
+   */
+  it('keeps an answer the correction does not reach, and the signature with it', () => {
+    const built = aVerifiedSubmission();
+
+    built.verification.editFields(
+      built.edited.id,
+      [stated('order_no', '1417')],
+      OPERATOR,
+    );
+
+    expect(built.verification.registryChecks).toHaveLength(1);
+    expect(
+      built.verification.registryChecks[0]?.key.equals(OF_RECORD.key),
+    ).toBe(true);
+    expect(built.verification.archiveSearchApproval).not.toBeNull();
+    expect(typesOf(built.verification)).not.toContain(
+      'verification.ArchiveSearchApprovalSpent',
+    );
+  });
+
+  /*
+   * A key the register reads off this type but the package had nothing under:
+   * typing a value in changes what the register would be told as surely as
+   * changing one that was there, so the answer given without it goes too
+   * (ADR-0036).
+   */
+  it('drops an answer the corrected key would now be part of', () => {
+    const built = aVerifiedSubmission();
+
+    built.verification.editFields(
+      built.plan.id,
+      [stated('cadastral_number', '40-12-345-67')],
+      OPERATOR,
+    );
+
+    expect(built.verification.registryChecks).toEqual([]);
+    expect(built.verification.archiveSearchApproval).toBeNull();
+  });
+
+  /*
+   * A verdict the run has been over and did not renew is about a package that
+   * no longer exists — the check could not be made this time — and the report
+   * must not be compiled from it (ADR-0036).
+   */
+  it('drops a verdict the run that followed could not make again', () => {
+    const built = aVerifiedSubmission();
+
+    built.verification.editFields(
+      built.plan.id,
+      [stated('property_address', AS_THE_OPERATOR_READS_IT)],
+      OPERATOR,
+    );
+    built.verification.start();
+    built.verification.complete();
+
+    expect(built.verification.crossChecks).toEqual([]);
   });
 
   /*

@@ -28,6 +28,13 @@ model CrossCheck {
   /// shown the check built from the values below, in their own language.
   note String
 
+  /// Whether the package has moved on under this verdict. A correction marks
+  /// every check outrun rather than deleting it: the verdict stays readable
+  /// while the run that follows makes them all again, and a checklist that
+  /// blanked itself for the length of a run would read as answers lost
+  /// (ADR-0036). Cleared by the run that records the check afresh.
+  outrun Boolean @default(false)
+
   values CrossCheckValue[]
 
   createdAt DateTime @default(now())

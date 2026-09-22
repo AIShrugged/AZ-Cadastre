@@ -1,10 +1,16 @@
 /**
- * What the National Archive Fund said about one Decree 439 paper, as a reader
- * has to be able to take it in (ADR-0028).
+ * What the National Archive Fund said about the disposal order, as a reader has
+ * to be able to take it in (ADR-0028).
  *
- * An answer about **one document** and not about the package: each paper prints
+ * An answer about **one document** and not about the package: the paper prints
  * its own QR reference and names its own file in the archive, so the answer is
  * drawn in the document's own entry and never in the package's panels.
+ *
+ * And about **one source**. The National Archive is asked, over the link its
+ * own code carries, and its answer stands alone: nothing in this block is
+ * corroborated against, supplemented by or held beside our own archive register
+ * (COMM-141). The register panel in the package's own view is a separate
+ * reading of a separate question and says so in its own words.
  *
  * Two vocabularies, neither invented here: how the check as a whole came out
  * (`ArchiveQrCheckStatus`) and how one line of the paper stood against the
@@ -179,12 +185,12 @@ export function qrSpeaksAgainst(check: ArchiveQrCheckDto): boolean {
 }
 
 /**
- * How the sheet's own signature stood, where the issuer verified one
+ * How the sheet's own signature stood, where the archive verified one
  * (ADR-0034).
  *
  * A fact about the sheet and not about what it says, so it is drawn beside the
- * table and never as a row in it — and it is the one thing a signature service
- * answers, so on those papers it is the whole of the block.
+ * table and never as a row in it — and where the archive answered about the
+ * sheet rather than about what it says, it is the whole of the block.
  */
 export type SignatureStanding = 'verified' | 'failed';
 
@@ -205,3 +211,62 @@ export const SIGNATURE_KEY: Record<SignatureStanding, string> = {
   verified: 'detail.qr.signature_verified',
   failed: 'detail.qr.signature_failed',
 };
+
+/**
+ * What the signature block names, besides the verified/failed mark, in the
+ * order it reads them out.
+ *
+ * Five particulars and one order, fixed here rather than at the point of
+ * drawing: who signed and when are about the act, the issuing organisation,
+ * the structural subdivision and the certificate's validity period are about
+ * the credential the act was made with — and a block whose lines moved between
+ * two papers of the same kind is a block an inspector cannot scan.
+ *
+ * None of them is a row of the comparison table. The table holds the paper
+ * against the National Archive's copy line by line; these say how the sheet was
+ * signed, which is a claim of a different kind and is why it is drawn beside
+ * the table and never in it.
+ */
+export const SIGNATURE_LINE_ORDER = [
+  'signedBy',
+  'signedOn',
+  'organisation',
+  'unit',
+  'certificateValidity',
+] as const;
+
+export type SignatureLineName = (typeof SIGNATURE_LINE_ORDER)[number];
+
+export const SIGNATURE_LINE_KEY: Record<SignatureLineName, string> = {
+  signedBy: 'detail.qr.signed_by',
+  signedOn: 'detail.qr.signed_on',
+  organisation: 'detail.qr.cert_organisation',
+  unit: 'detail.qr.cert_unit',
+  certificateValidity: 'detail.qr.cert_validity',
+};
+
+export type SignatureLine = {
+  readonly name: SignatureLineName;
+  readonly value: string;
+};
+
+/**
+ * The particulars this signature actually states, in order.
+ *
+ * Every one of the five is nullable on the contract, and a source that states
+ * none of them still verifies a signature — so the block degrades to the
+ * verified/failed mark alone rather than to five labels pointing at nothing.
+ * A value present but blank is the same silence as a null and is dropped with
+ * it: whitespace a service sent is not a particular the archive stated.
+ */
+export function signatureLines(check: ArchiveQrCheckDto): SignatureLine[] {
+  const signature = check.signature;
+
+  if (!signature) return [];
+
+  return SIGNATURE_LINE_ORDER.flatMap(name => {
+    const value = signature[name]?.trim();
+
+    return value ? [{ name, value }] : [];
+  });
+}

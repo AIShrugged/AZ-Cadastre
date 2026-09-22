@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { DICTS, LOCALES } from '@/shared/i18n';
 import {
   ArchiveQrCheckStatusSchema,
   ArchiveQrFieldNameSchema,
@@ -8,6 +9,7 @@ import {
   type ArchiveQrCheckStatus,
   type ArchiveQrFieldCheckDto,
   type ArchiveQrFieldVerdict,
+  type ArchiveQrSignatureDto,
 } from '@cadastre/api-contracts/verification';
 
 import {
@@ -24,6 +26,11 @@ import {
   qrDisagreements,
   qrFields,
   qrSpeaksAgainst,
+  SIGNATURE_KEY,
+  SIGNATURE_LINE_KEY,
+  SIGNATURE_LINE_ORDER,
+  signatureLines,
+  signatureStanding,
 } from './archive-qr';
 
 const STATUSES = ArchiveQrCheckStatusSchema.options;
@@ -46,6 +53,20 @@ const line = (
  *  comes back with. */
 const allEight = (verdict: ArchiveQrFieldVerdict = 'Match') =>
   NAMES.map(name => line(name, verdict));
+
+/** Everything the archive's signature panel can state, all of it present —
+ *  the six values the disposal order's block is now expected to carry. */
+const signed = (
+  over: Partial<ArchiveQrSignatureDto> = {},
+): ArchiveQrSignatureDto => ({
+  signedBy: 'Məmmədov Anar',
+  organisation: 'Azərbaycan Respublikası Milli Arxiv Fondu',
+  unit: 'Sənədlərin rəqəmsallaşdırılması şöbəsi',
+  signedOn: '2026-01-14T17:07:07.000+04:00',
+  certificateValidity: '14.01.2025 — 14.01.2028',
+  valid: true,
+  ...over,
+});
 
 const check = (
   status: ArchiveQrCheckStatus,
@@ -210,4 +231,145 @@ describe('whether the issuing body could issue the paper', () => {
     expect(COMPETENCE_TONE.unknown).toBe('silent');
     expect(COMPETENCE_TONE.unknown).not.toBe(COMPETENCE_TONE.incompetent);
   });
+});
+
+/**
+ * The signature panel the archive returns with the disposal order.
+ *
+ * Six values and not four: who signed, when, the organisation that issued the
+ * signing certificate, the structural subdivision, how long that certificate
+ * is valid, and whether the signature verified (COMM-141/COMM-142). The first
+ * five are nullable on the contract and a block that drew five empty labels for
+ * a source that stated none of them would be inventing an absence.
+ */
+describe('what the signature on the sheet states', () => {
+  it('reads out every particular the archive stated, in one order', () => {
+    const lines = signatureLines(check('Confirmed', { signature: signed() }));
+
+    expect(lines.map(line => line.name)).toEqual([...SIGNATURE_LINE_ORDER]);
+    expect(lines.map(line => line.value)).toEqual([
+      'Məmmədov Anar',
+      '2026-01-14T17:07:07.000+04:00',
+      'Azərbaycan Respublikası Milli Arxiv Fondu',
+      'Sənədlərin rəqəmsallaşdırılması şöbəsi',
+      '14.01.2025 — 14.01.2028',
+    ]);
+  });
+
+  it('carries the certificate validity period through as the source worded it', () => {
+    const lines = signatureLines(
+      check('Confirmed', {
+        signature: signed({ certificateValidity: 'etibarlıdır 3 il' }),
+      }),
+    );
+
+    expect(lines.find(line => line.name === 'certificateValidity')?.value).toBe(
+      'etibarlıdır 3 il',
+    );
+  });
+
+  // Each of the five is nullable, and a label with nothing under it states an
+  // absence nobody claimed.
+  it.each([...SIGNATURE_LINE_ORDER])('draws no line where %s is null', name => {
+    const lines = signatureLines(
+      check('Confirmed', { signature: signed({ [name]: null }) }),
+    );
+
+    expect(lines.map(line => line.name)).not.toContain(name);
+    expect(lines).toHaveLength(SIGNATURE_LINE_ORDER.length - 1);
+  });
+
+  // Whitespace a service sent is not a particular the archive stated.
+  it('treats a blank value as the silence it is', () => {
+    expect(
+      signatureLines(
+        check('Confirmed', { signature: signed({ unit: '   ' }) }),
+      ).map(line => line.name),
+    ).not.toContain('unit');
+  });
+
+  // A signature can verify with nothing said about how it was made, and the
+  // mark is then the whole of the answer — it must still be drawn.
+  it('leaves the verified mark standing alone where nothing else is stated', () => {
+    const bare = check('Confirmed', {
+      signature: {
+        signedBy: null,
+        organisation: null,
+        unit: null,
+        signedOn: null,
+        certificateValidity: null,
+        valid: true,
+      },
+    });
+
+    expect(signatureLines(bare)).toEqual([]);
+    expect(signatureStanding(bare)).toBe('verified');
+  });
+
+  it('has nothing to read out where the archive verified no signature', () => {
+    expect(signatureLines(check('Confirmed'))).toEqual([]);
+    expect(signatureStanding(check('Confirmed'))).toBeNull();
+  });
+
+  /**
+   * These keys reach `t` through a lookup and not as a literal, so
+   * `keys-used.spec` — which scans the sources for `t('…')` — cannot see them.
+   * A missing word would render as `detail.qr.cert_validity` beside a
+   * signature, in all three languages, exactly as COMM-81 shipped.
+   */
+  it.each(LOCALES.map(l => l.id))('%s has a word for every line', locale => {
+    const keys = [
+      ...Object.values(SIGNATURE_LINE_KEY),
+      ...Object.values(SIGNATURE_KEY),
+      ...Object.values(QR_STATUS_KEY),
+      ...Object.values(QR_STATUS_NOTE),
+      ...Object.values(QR_VERDICT_KEY),
+      ...Object.values(COMPETENCE_KEY),
+    ];
+
+    expect(keys.filter(key => !(key in DICTS[locale]))).toEqual([]);
+  });
+
+  // The five lines are filled in by the value and nothing else; a label that
+  // lost its slot would print its wording with the value dropped.
+  it.each(LOCALES.map(l => l.id))('%s leaves a slot for the value', locale => {
+    const wordless = Object.values(SIGNATURE_LINE_KEY).filter(
+      key => !DICTS[locale][key]?.includes('{value}'),
+    );
+
+    expect(wordless).toEqual([]);
+  });
+});
+
+/**
+ * The block answers for the National Archive and for nothing else (COMM-141).
+ *
+ * The register panel elsewhere in the view speaks of "the archive" too, so the
+ * QR block's own words have to name which archive they mean — otherwise a
+ * reader takes a National Archive verdict for our register's, which is the one
+ * reading this change exists to make impossible.
+ */
+describe('which archive the block speaks for', () => {
+  const NAMES_THE_ARCHIVE = [
+    'detail.qr.confirmed',
+    'detail.qr.differs',
+    'detail.qr.in_archive',
+    'detail.qr.confirmed_note',
+    'detail.qr.differs_note',
+    'detail.qr.not_found_note',
+    'detail.qr.no_code_note',
+  ];
+
+  it.each(LOCALES.map(l => l.id))(
+    '%s never leaves the archive unnamed',
+    locale => {
+      const bare = NAMES_THE_ARCHIVE.filter(key => {
+        const word = DICTS[locale][key] ?? '';
+
+        return !/National Archive|Национальн|Milli Arxiv/i.test(word);
+      });
+
+      expect(bare).toEqual([]);
+    },
+  );
 });

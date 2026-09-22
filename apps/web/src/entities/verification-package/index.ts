@@ -111,7 +111,12 @@ export {
   spentApprovals,
 } from './model/archive-search';
 
-export type { Competence, SignatureStanding } from './model/archive-qr';
+export type {
+  Competence,
+  SignatureLine,
+  SignatureLineName,
+  SignatureStanding,
+} from './model/archive-qr';
 export {
   COMPETENCE_KEY,
   COMPETENCE_TONE,
@@ -127,7 +132,10 @@ export {
   qrFields,
   qrSpeaksAgainst,
   SIGNATURE_KEY,
+  SIGNATURE_LINE_KEY,
+  SIGNATURE_LINE_ORDER,
   SIGNATURE_TONE,
+  signatureLines,
   signatureStanding,
 } from './model/archive-qr';
 

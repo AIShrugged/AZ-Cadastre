@@ -357,7 +357,7 @@ const en: Dict = {
   'detail.f.provision_none_sub': 'No provision covers this case',
   'detail.f.not_connected_sub': 'Not confirmed: state system not connected',
   'detail.f.qr_unavailable_sub':
-    'No paper of the package prints a QR code — the step was skipped',
+    'No disposal order of the package prints a QR code — the step was skipped',
   'detail.f.missing_any_sub': 'Any one of these is enough',
   'common.or': 'or',
   'doctype.approved_design': 'Approved design',
@@ -536,22 +536,26 @@ const en: Dict = {
   'detail.reg.holding_unknown': 'the district archive does not keep these',
 
   // ── The National Archive Fund, by QR code (ADR-0028) ──────────────────
-  // An answer about one Decree 439 paper and not about the package. The two
-  // silences below — no file under the reference, no reference read off the
-  // paper — are neither of them a fault, and their words are what say so.
+  // An answer about the disposal order and about no other paper, drawn from the
+  // National Archive and from no other source: nothing here is corroborated
+  // against our own register, whose panel is a separate reading and keeps its
+  // own `detail.reg.*` words. That is why the archive is named in full wherever
+  // this block speaks of it — "the archive" alone would read as either one.
+  // The two silences below — no file under the reference, no reference read off
+  // the paper — are neither of them a fault, and their words are what say so.
   'detail.qr.title': 'Checked by QR code against the National Archive',
-  'detail.qr.confirmed': 'Archive copy agrees',
-  'detail.qr.differs': 'Archive copy disagrees',
+  'detail.qr.confirmed': 'National Archive copy agrees',
+  'detail.qr.differs': 'National Archive copy disagrees',
   'detail.qr.not_found': 'No file under this reference',
   'detail.qr.no_code': 'No QR code read',
   'detail.qr.confirmed_note':
-    'The archive found its copy, every line held against it agrees, and the body that issued the paper could issue one of this kind.',
+    'The National Archive found its copy, every line held against it agrees, and the body that issued the paper could issue one of this kind.',
   'detail.qr.differs_note':
-    'The archive found its copy, and it does not bear the paper out: the lines marked below differ, or the issuing body had no power to issue a paper of this kind.',
+    'The National Archive found its copy, and it does not bear the paper out: the lines marked below differ, or the issuing body had no power to issue a paper of this kind.',
   'detail.qr.not_found_note':
-    'The QR code was read and the archive holds nothing under it. Its fonds are partial, so this says nothing against the paper — and nothing for it either.',
+    'The QR code was read and the National Archive holds nothing under it. Its fonds are partial, so this says nothing against the paper — and nothing for it either.',
   'detail.qr.no_code_note':
-    'No QR code could be decoded from this paper, so the archive was not asked. Nothing was checked and nothing is held against the package.',
+    'No QR code could be decoded from this paper, so the National Archive was not asked. Nothing was checked and nothing is held against the package.',
   'detail.qr.issuer_not_connected': 'Its issuer is not connected',
   'detail.qr.issuer_not_connected_note':
     'The QR code was decoded, and it is issued by {issuer}, which this system cannot ask. The sheet did its part; nothing was checked and nothing is held against the package.',
@@ -559,13 +563,16 @@ const en: Dict = {
   'detail.qr.signature': 'Signature on the sheet:',
   'detail.qr.signature_verified': 'verified with the issuer',
   'detail.qr.signature_failed': 'did not verify with the issuer',
-  'detail.qr.signed_by': 'signed by {who}',
-  'detail.qr.signed_on': 'on {when}',
+  'detail.qr.signed_by': 'signed by {value}',
+  'detail.qr.signed_on': 'signed on {value}',
+  'detail.qr.cert_organisation': 'certificate issued by {value}',
+  'detail.qr.cert_unit': 'structural subdivision: {value}',
+  'detail.qr.cert_validity': 'certificate valid: {value}',
   'detail.qr.reference': 'QR reference:',
   'detail.qr.no_reference': 'nothing was decoded',
   'detail.qr.checked_at': 'checked {when}',
   'detail.qr.in_document': 'On the paper',
-  'detail.qr.in_archive': 'In the archive',
+  'detail.qr.in_archive': 'In the National Archive',
   'detail.qr.silent': 'no value stated',
   'detail.qr.col_field': 'Line',
   'detail.qr.col_verdict': 'Result',
@@ -1642,7 +1649,7 @@ const ru: Dict = {
   'detail.f.provision_none_sub': 'Ни один пункт не подходит',
   'detail.f.not_connected_sub': 'Не подтверждено: госсистема не подключена',
   'detail.f.qr_unavailable_sub':
-    'Ни в одном документе пакета нет QR-кода — шаг пропущен',
+    'Ни в одной выписке распоряжения пакета нет QR-кода — шаг пропущен',
   'detail.f.missing_any_sub': 'Достаточно любого из них',
   'common.or': 'или',
   'doctype.approved_design': 'Утверждённый проект',
@@ -1820,18 +1827,18 @@ const ru: Dict = {
 
   // ── Национальный архив, по QR-коду (ADR-0028) ─────────────────────────
   'detail.qr.title': 'Сверка по QR-коду с Национальным архивом',
-  'detail.qr.confirmed': 'Копия архива подтверждает',
-  'detail.qr.differs': 'Копия архива расходится',
+  'detail.qr.confirmed': 'Копия Национального архива подтверждает',
+  'detail.qr.differs': 'Копия Национального архива расходится',
   'detail.qr.not_found': 'По ссылке дела нет',
   'detail.qr.no_code': 'QR-код не прочитан',
   'detail.qr.confirmed_note':
-    'Архив нашёл свою копию, все сверенные строки совпали, а выдавший орган имел право выдавать такой документ.',
+    'Национальный архив нашёл свою копию, все сверенные строки совпали, а выдавший орган имел право выдавать такой документ.',
   'detail.qr.differs_note':
-    'Архив нашёл свою копию, и она документ не подтверждает: отмеченные ниже строки расходятся либо выдавший орган не имел права выдавать такой документ.',
+    'Национальный архив нашёл свою копию, и она документ не подтверждает: отмеченные ниже строки расходятся либо выдавший орган не имел права выдавать такой документ.',
   'detail.qr.not_found_note':
-    'QR-код прочитан, но по нему в архиве ничего не числится. Фонды неполны, поэтому это не говорит против документа — но и не подтверждает его.',
+    'QR-код прочитан, но по нему в Национальном архиве ничего не числится. Фонды неполны, поэтому это не говорит против документа — но и не подтверждает его.',
   'detail.qr.no_code_note':
-    'С документа не удалось раскодировать QR-код, поэтому архив не спрашивали. Ничего не проверено и ничего пакету не вменяется.',
+    'С документа не удалось раскодировать QR-код, поэтому Национальный архив не спрашивали. Ничего не проверено и ничего пакету не вменяется.',
   'detail.qr.issuer_not_connected': 'Выдавший код сервис не подключён',
   'detail.qr.issuer_not_connected_note':
     'QR-код раскодирован, он ведёт в {issuer} — к этому сервису система обратиться не может. Со стороны документа всё в порядке; ничего не проверено и ничего пакету не вменяется.',
@@ -1839,13 +1846,16 @@ const ru: Dict = {
   'detail.qr.signature': 'Подпись на листе:',
   'detail.qr.signature_verified': 'подтверждена выдавшим сервисом',
   'detail.qr.signature_failed': 'не подтверждена выдавшим сервисом',
-  'detail.qr.signed_by': 'подписал {who}',
-  'detail.qr.signed_on': 'от {when}',
+  'detail.qr.signed_by': 'подписал: {value}',
+  'detail.qr.signed_on': 'дата подписания: {value}',
+  'detail.qr.cert_organisation': 'сертификат выдан: {value}',
+  'detail.qr.cert_unit': 'структурное подразделение: {value}',
+  'detail.qr.cert_validity': 'срок действия сертификата: {value}',
   'detail.qr.reference': 'Ссылка QR-кода:',
   'detail.qr.no_reference': 'ничего не раскодировано',
   'detail.qr.checked_at': 'проверено {when}',
   'detail.qr.in_document': 'В документе',
-  'detail.qr.in_archive': 'В архиве',
+  'detail.qr.in_archive': 'В Национальном архиве',
   'detail.qr.silent': 'значение не указано',
   'detail.qr.col_field': 'Строка',
   'detail.qr.col_verdict': 'Результат',
@@ -2879,7 +2889,7 @@ const az: Dict = {
   'detail.f.provision_none_sub': 'Heç bir bənd uyğun gəlmir',
   'detail.f.not_connected_sub': 'Təsdiqlənməyib: dövlət sistemi qoşulmayıb',
   'detail.f.qr_unavailable_sub':
-    'Paketin heç bir sənədində QR kod yoxdur — addım buraxıldı',
+    'Paketin heç bir sərəncamdan çıxarışında QR kod yoxdur — addım buraxıldı',
   'detail.f.missing_any_sub': 'Bunlardan hər hansı biri kifayətdir',
   'common.or': 'və ya',
   'doctype.approved_design': 'Təsdiq edilmiş layihə',
@@ -3057,18 +3067,18 @@ const az: Dict = {
 
   // ── Milli Arxiv Fondu, QR kod üzrə (ADR-0028) ─────────────────────────
   'detail.qr.title': 'Milli Arxivlə QR kod üzrə yoxlama',
-  'detail.qr.confirmed': 'Arxiv nüsxəsi təsdiqləyir',
-  'detail.qr.differs': 'Arxiv nüsxəsi fərqlənir',
+  'detail.qr.confirmed': 'Milli Arxiv nüsxəsi təsdiqləyir',
+  'detail.qr.differs': 'Milli Arxiv nüsxəsi fərqlənir',
   'detail.qr.not_found': 'Bu istinad üzrə iş yoxdur',
   'detail.qr.no_code': 'QR kod oxunmadı',
   'detail.qr.confirmed_note':
-    'Arxiv öz nüsxəsini tapdı, yoxlanan bütün sətirlər uyğun gəldi və sənədi verən orqanın belə sənəd vermək səlahiyyəti var idi.',
+    'Milli Arxiv öz nüsxəsini tapdı, yoxlanan bütün sətirlər uyğun gəldi və sənədi verən orqanın belə sənəd vermək səlahiyyəti var idi.',
   'detail.qr.differs_note':
-    'Arxiv öz nüsxəsini tapdı və o, sənədi təsdiqləmir: aşağıda işarələnmiş sətirlər fərqlənir və ya verən orqanın belə sənəd vermək səlahiyyəti olmayıb.',
+    'Milli Arxiv öz nüsxəsini tapdı və o, sənədi təsdiqləmir: aşağıda işarələnmiş sətirlər fərqlənir və ya verən orqanın belə sənəd vermək səlahiyyəti olmayıb.',
   'detail.qr.not_found_note':
-    'QR kod oxundu, lakin arxivdə onun üzrə heç nə yoxdur. Fondlar tam deyil, ona görə bu, sənədin əleyhinə deyil — lehinə də deyil.',
+    'QR kod oxundu, lakin Milli Arxivdə onun üzrə heç nə yoxdur. Fondlar tam deyil, ona görə bu, sənədin əleyhinə deyil — lehinə də deyil.',
   'detail.qr.no_code_note':
-    'Sənəddən QR kod açılmadı, ona görə arxivə sorğu verilmədi. Heç nə yoxlanmayıb və paketə heç nə aid edilmir.',
+    'Sənəddən QR kod açılmadı, ona görə Milli Arxivə sorğu verilmədi. Heç nə yoxlanmayıb və paketə heç nə aid edilmir.',
   'detail.qr.issuer_not_connected': 'Kodu verən xidmət qoşulmayıb',
   'detail.qr.issuer_not_connected_note':
     'QR kod açıldı, o, {issuer} ünvanına aparır — sistem bu xidmətə sorğu verə bilmir. Sənəd öz işini görüb; heç nə yoxlanmayıb və paketə heç nə aid edilmir.',
@@ -3076,13 +3086,16 @@ const az: Dict = {
   'detail.qr.signature': 'Vərəqdəki imza:',
   'detail.qr.signature_verified': 'verən xidmət tərəfindən təsdiqləndi',
   'detail.qr.signature_failed': 'verən xidmət tərəfindən təsdiqlənmədi',
-  'detail.qr.signed_by': 'imzalayan: {who}',
-  'detail.qr.signed_on': 'tarix: {when}',
+  'detail.qr.signed_by': 'imzalayan: {value}',
+  'detail.qr.signed_on': 'imzalanma tarixi: {value}',
+  'detail.qr.cert_organisation': 'sertifikatı verən təşkilat: {value}',
+  'detail.qr.cert_unit': 'struktur bölmə: {value}',
+  'detail.qr.cert_validity': 'sertifikatın qüvvədə olma müddəti: {value}',
   'detail.qr.reference': 'QR istinadı:',
   'detail.qr.no_reference': 'heç nə açılmayıb',
   'detail.qr.checked_at': 'yoxlanıb {when}',
   'detail.qr.in_document': 'Sənəddə',
-  'detail.qr.in_archive': 'Arxivdə',
+  'detail.qr.in_archive': 'Milli Arxivdə',
   'detail.qr.silent': 'dəyər göstərilməyib',
   'detail.qr.col_field': 'Sətir',
   'detail.qr.col_verdict': 'Nəticə',

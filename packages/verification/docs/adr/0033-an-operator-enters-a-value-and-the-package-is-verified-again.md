@@ -1,6 +1,7 @@
 # An operator enters a value, and the package is verified again from the stage the correction reaches
 
-Date: 2026-09-21. Status: accepted.
+Date: 2026-09-21. Status: accepted; point 9 superseded by
+[ADR-0036](./0036-a-correction-invalidates-what-rested-on-it-and-the-cross-document-sweep-is-made-again.md).
 
 Extends [ADR-0023](./0023-a-value-carries-its-origin.md), which gave a field an
 origin and closed by saying that an operator entering a value was a door this
@@ -116,6 +117,16 @@ that would make the whole feature worthless.
    carried over from the edited key of the edited document, wherever in the
    package it sits — a pointer at a reading that no longer exists is not a value
    the package states.
+
+   > **Superseded by
+   > [ADR-0036](./0036-a-correction-invalidates-what-rested-on-it-and-the-cross-document-sweep-is-made-again.md).**
+   > The premise — that which checks an edit affects cannot be worked out — was
+   > wrong: a `CheckedValue` names the document and key it was read off. A
+   > correction now marks every Cross-document Check outrun and makes them all
+   > again without blanking the checklist, drops only the Registry Checks that
+   > rested on the corrected reading, and spends the archive-search approval
+   > only where one of them was dropped. The report, the Archive QR Check of
+   > the edited paper and the carried-over values are as this point says.
 
 10. **What it keeps is what makes the re-run cheap.** Pages, recognised text,
     segmentation, classification, every other document's extracted fields and

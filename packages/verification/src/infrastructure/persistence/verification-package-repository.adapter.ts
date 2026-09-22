@@ -407,11 +407,13 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
         verdict: check.verdict,
         confidence: check.confidence,
         note: check.note,
+        outrun: check.outrun,
       },
       update: {
         verdict: check.verdict,
         confidence: check.confidence,
         note: check.note,
+        outrun: check.outrun,
       },
     });
 

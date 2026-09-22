@@ -11,10 +11,13 @@ let api: RestClient;
  * The route an operator corrects a field through, over HTTP (ADR-0033).
  *
  * What this set can reach is the edge: the schema in front of the handler, the
- * refusals and the statuses they come back as. It cannot reach a *corrected
- * value*, because no bytes are ever uploaded here — the pipeline finds nothing
- * to split, so these packages hold no documents to correct a field on. What a
- * correction does to a package is the integration set's
+ * refusals and the statuses they come back as, and what the package still
+ * publishes after one. It cannot reach a *corrected value*, because no bytes
+ * are ever uploaded here — the pipeline finds nothing to split, so these
+ * packages hold no documents to correct a field on. What a correction does to
+ * a package — which registry checks it drops, which it keeps, and the
+ * cross-document verdicts it leaves standing while the re-run makes them all
+ * again (ADR-0036) — is the integration set's
  * (`operator-corrections.int.spec.ts`), against the real database and the real
  * run.
  *
@@ -122,6 +125,35 @@ describe('the route an operator corrects a field through', () => {
     // assert
     expect(failure.body.statusCode).toBe(404);
     expect(failure.body.code).toBe('DOCUMENT_NOT_IN_PACKAGE');
+  });
+
+  /*
+   * A refused correction invalidates nothing.
+   *
+   * Worth a case of its own now that a correction no longer discards the whole
+   * of what was worked out across the package but only the part of it that
+   * rested on the edited reading (ADR-0036): the call that works out which
+   * part that is runs after every refusal, and a package left short of its
+   * report by an edit the route turned away would be the worst of both.
+   */
+  it('leaves the package exactly as it was when it refuses', async () => {
+    // arrange
+    const id = await aPackage();
+    const { body: before } = await api.packages.findOne(id);
+
+    // act
+    await refusalOf(
+      api.packages.editDocumentFields(id, MISSING, {
+        fields: [{ name: 'document_no', value: 'AZE7654321' }],
+      }),
+    );
+
+    // assert
+    const { body: after } = await api.packages.findOne(id);
+    expect(after.status).toBe(before.status);
+    expect(after.report?.generatedAt).toBe(before.report?.generatedAt);
+    expect(after.crossChecks).toEqual(before.crossChecks);
+    expect(after.registryChecks).toEqual(before.registryChecks);
   });
 
   /*

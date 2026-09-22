@@ -121,6 +121,7 @@ export type CrossCheckRow = {
   readonly verdict: string;
   readonly confidence: number;
   readonly note: string;
+  readonly outrun: boolean;
   readonly values: readonly CheckedValueRow[];
 };
 
@@ -307,6 +308,7 @@ export type CrossCheckWrite = {
   readonly verdict: CrossCheckVerdictColumn;
   readonly confidence: number;
   readonly note: string;
+  readonly outrun: boolean;
   readonly values: readonly CheckedValueWrite[];
 };
 
@@ -532,6 +534,7 @@ export class VerificationPackageMapper {
         verdict: VerificationPackageMapper.verdictColumn(check.verdict),
         confidence: check.confidence.value,
         note: check.note,
+        outrun: check.isOutrun,
         values: check.values.map((value, position) => ({
           documentId: value.documentId.value,
           documentType: value.documentType.value,
@@ -721,6 +724,7 @@ export class VerificationPackageMapper {
       verdict: CrossCheckVerdict.of(row.verdict),
       confidence: Confidence.of(row.confidence),
       note: row.note,
+      isOutrun: row.outrun,
       // A value whose document a later run removed is dropped rather than
       // guessed at: the check keeps the sides it can still point the inspector
       // to.

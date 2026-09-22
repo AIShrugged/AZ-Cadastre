@@ -479,6 +479,12 @@ export class PackageQueriesAdapter extends PackageQueries {
                     qrReference: true,
                     checkedAt: true,
                     issuingAuthorityCompetent: true,
+                    issuer: true,
+                    signatureSignedBy: true,
+                    signatureOrganisation: true,
+                    signatureUnit: true,
+                    signatureSignedOn: true,
+                    signatureValid: true,
                     fields: {
                       orderBy: { position: 'asc' },
                       select: {

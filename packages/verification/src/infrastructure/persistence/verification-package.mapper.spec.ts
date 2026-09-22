@@ -55,7 +55,11 @@ function aPageRow(overrides: Partial<PageRow> = {}): PageRow {
     pageNumber: 1,
     imageStorageKey: `pages/${anId()}.png`,
     imageContentType: 'image/png',
-    ocr: { text: 'REPUBLIC OF AZERBAIJAN\nPASSPORT', confidence: 0.91 },
+    ocr: {
+      text: 'REPUBLIC OF AZERBAIJAN\nPASSPORT',
+      confidence: 0.91,
+      codes: [],
+    },
     ...overrides,
   };
 }
@@ -200,7 +204,11 @@ describe('VerificationPackageMapper', () => {
       const row = aPackageRow({
         sourceFiles: [
           aSourceFileRow({
-            pages: [aPageRow({ ocr: { text: 'PASSPORT', confidence: 0.77 } })],
+            pages: [
+              aPageRow({
+                ocr: { text: 'PASSPORT', confidence: 0.77, codes: [] },
+              }),
+            ],
           }),
         ],
       });
@@ -372,7 +380,11 @@ describe('VerificationPackageMapper', () => {
       const row = aPackageRow({
         sourceFiles: [
           aSourceFileRow({
-            pages: [aPageRow({ ocr: { text: 'PASSPORT', confidence: 1.4 } })],
+            pages: [
+              aPageRow({
+                ocr: { text: 'PASSPORT', confidence: 1.4, codes: [] },
+              }),
+            ],
           }),
         ],
       });
@@ -636,6 +648,15 @@ describe('VerificationPackageMapper', () => {
         qrReference: 'https://qr.esd.milliarxiv.gov.az/F130-S1-I476-V98',
         checkedAt: new Date('2026-09-16T12:00:00.000Z'),
         issuingAuthorityCompetent: true,
+        issuer: null,
+        // The archive's holdings answer says nothing about the sheet's own
+        // signature; the columns are here so the round trip covers them
+        // (ADR-0034).
+        signatureSignedBy: null,
+        signatureOrganisation: null,
+        signatureUnit: null,
+        signatureSignedOn: null,
+        signatureValid: null,
         fields: names.map(name =>
           name === 'plot_area'
             ? {

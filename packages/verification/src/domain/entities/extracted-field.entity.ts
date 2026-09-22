@@ -73,6 +73,37 @@ export class ExtractedField {
   }
 
   /**
+   * A value a machine decoded off the sheet rather than read off it — today the
+   * one `qr_code` line, taken from the QR symbol itself (ADR-0034).
+   *
+   * The confidence is 1 and is set here rather than taken, for the same reason
+   * an operator's correction is: a QR symbol carries its own error correction,
+   * so a payload came back whole or did not come back. There is no probability
+   * to attach, and letting a caller attach one would put a value that cannot be
+   * misread into the report's low-confidence findings.
+   *
+   * The origin is `ReadOnThisDocument` and not one of its own: it was read on
+   * this document, off this sheet, which is the whole of what the origin
+   * records and what everything downstream asks it.
+   */
+  static decodedOnThisDocument(
+    key: FieldKey,
+    value: FieldValue,
+    foundOn: PageNumber,
+  ): ExtractedField {
+    return new ExtractedField(
+      key,
+      value,
+      Confidence.of(1),
+      foundOn,
+      FieldOrigin.READ_ON_THIS_DOCUMENT,
+      null,
+      null,
+      null,
+    );
+  }
+
+  /**
    * What an operator typed off the paper in front of them, because the reader
    * got this field wrong or never got it at all.
    *

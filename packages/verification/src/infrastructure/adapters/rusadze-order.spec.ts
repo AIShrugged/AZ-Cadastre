@@ -89,16 +89,20 @@ describe('the Rusadze order, as the offline providers pass it between them', () 
     }
   });
 
-  it('is found in the archive under the reference printed beside its code', async () => {
+  /*
+   * The reference is no longer passed from stand-in to stand-in through a
+   * field: it is decoded off the symbol on the sheet (ADR-0034). What still has
+   * to hold is that the sheet the reader prints and the paper the archive holds
+   * are one paper — a transcription citing a reference the archive knows
+   * nothing of would contradict itself on screen.
+   */
+  it('is found in the archive under the reference its sheet prints', async () => {
     const text = await transcribe();
-    const qrReference = (await read(text)).find(
-      field => field.key.value === 'qr_code',
-    )?.value.value;
+    const [, qrReference = ''] = /^QR: (.+)$/mu.exec(text) ?? [];
 
-    expect(text).toContain(`QR: ${qrReference}`);
+    expect(qrReference).not.toBe('');
     expect(
-      (await new NationalArchiveAdapter().lookupByQr(qrReference ?? ''))
-        .outcome,
+      (await new NationalArchiveAdapter().lookupByQr(qrReference)).outcome,
     ).toBe('Found');
   });
 });

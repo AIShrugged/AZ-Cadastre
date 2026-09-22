@@ -609,16 +609,31 @@ export class ValidationIssue {
     type: DocumentType,
     check: ArchiveQrCheck,
   ): ValidationIssue {
-    const why =
+    /*
+     * Three absences and three sentences, because they send the inspector to
+     * three different places: nothing on the sheet to ask by, nobody here to
+     * ask, and an archive that looked and holds nothing (ADR-0034).
+     *
+     * The third is the only one the archive is the subject of. Saying "the
+     * National Archive Fund did not confirm this" of a code issued by the
+     * register would be a claim about a search nobody made.
+     */
+    const message =
       check.status === 'NoQrCode'
-        ? 'no QR reference was read off it, so the archive was not asked'
-        : `the archive holds nothing under its QR reference ${check.qrReference}`;
+        ? `The National Archive Fund did not confirm this "${type.value}": ` +
+          'no QR code was decoded off it, so the archive was not asked.'
+        : check.status === 'IssuerNotConnected'
+          ? `The QR code on this "${type.value}" was decoded and not ` +
+            `followed: it is issued by ` +
+            `${check.issuer ?? 'a service this system cannot ask'}, which is ` +
+            'not connected to this system.'
+          : `The National Archive Fund did not confirm this "${type.value}": ` +
+            `the archive holds nothing under its QR reference ` +
+            `${check.qrReference}.`;
 
     return ValidationIssue.of({
       kind: IssueKind.REGISTRY_UNCONFIRMED,
-      message:
-        `The National Archive Fund did not confirm this "${type.value}": ` +
-        `${why}.`,
+      message,
       documentId: document.documentId,
       sourceFileId: document.sourceFileId,
       documentType: type,

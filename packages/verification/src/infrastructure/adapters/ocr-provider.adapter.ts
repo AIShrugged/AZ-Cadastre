@@ -10,6 +10,18 @@ import {
 
 const MOCK_OCR_LATENCY_MS = 1200;
 
+/*
+ * The reference the decoder reads off sheet 6 of the real Rusadze package, and
+ * the one the offline archive holds.
+ *
+ * Nothing reads a code off a transcription any more — it is decoded from the
+ * symbol (ADR-0034) — but a stand-in sheet naming a different paper than the
+ * stand-in archive holds would be a demo that contradicts itself on screen.
+ */
+const RUSADZE_QR =
+  'https://qr.esd.milliarxiv.gov.az/info/' +
+  'ZJvhzrotBTaKufxeEAVCshnMir5G0fjuTBO%2FsM8MvnHWubgPkFzZVz2M9%2F5D7xEU';
+
 @Injectable()
 export class OcrProviderAdapter extends OcrProvider {
   // Nothing throttles a fake, so a whole file's worth of pages can go at once
@@ -48,8 +60,8 @@ function fakeText(key: string): string {
   // allots), and a plain `serencam.pdf` still reads as the extract below.
   //
   // The Rusadze case: the archive's certified copy of the order allotting the
-  // homestead plot, held against the National Archive Fund by the QR reference
-  // printed on it (ADR-0028). Every line DECREE_439_FIELDS asks of such a paper
+  // homestead plot, held against the National Archive Fund by the QR code on it
+  // (ADR-0028). Every line DECREE_439_FIELDS asks of such a paper
   // is on it, worded as the offline extractor reads it and referenced as the
   // offline archive holds it — DECREE_439_VALUES in field-extractor.adapter.ts
   // and HELD in national-archive.adapter.ts, which rusadze-order.spec.ts holds
@@ -72,7 +84,7 @@ function fakeText(key: string): string {
         'yolun solunda',
       '439 saylı Fərmanın 2.7-ci bəndi',
       'EAS: Fond-130, siy.1, i-476, vər.98',
-      'QR: https://qr.esd.milliarxiv.gov.az/F130-S1-I476-V98',
+      `QR: ${RUSADZE_QR}`,
       '[stamp: SABUNÇU RAYON İCRA HAKİMİYYƏTİ]',
       '[signature]',
     ].join('\n');

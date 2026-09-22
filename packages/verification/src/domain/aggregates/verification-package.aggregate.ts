@@ -60,7 +60,7 @@ import {
 import {
   attestationOf,
   gapsIn,
-  isHeldAgainstTheArchiveByQr,
+  isCheckedByItsQrCode,
   looksLikeTheSameValue,
   provisionOf,
   yearIn,
@@ -78,6 +78,7 @@ import {
   DocumentType as DocumentTypeValue,
   FailureReason,
   FieldKey as FieldKeyValue,
+  FieldValue,
   OwnerAccountId,
   PackageId,
   PackageStanding,
@@ -99,7 +100,6 @@ import {
   type EditorAccountId,
   type FieldKey,
   type FieldRef,
-  type FieldValue,
   type OcrResult,
   type PageId,
   type RecognisedText,
@@ -1111,10 +1111,11 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     this.guardUnderWay();
     const document = this.documentWith(documentId);
     const classification = document.classification;
+    const readings = this.withTheDecodedQrCode(documentId, fields);
 
     if (classification?.isPlaced) {
       const schema = this.#profile.schemaFor(classification.type);
-      for (const field of fields) {
+      for (const field of readings) {
         if (!schema.declares(field.key)) {
           throw new FieldNotInSchemaException(
             field.key.value,
@@ -1124,24 +1125,81 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       }
     }
 
-    this.replaceDocument(document.withFields(fields));
-    this.apply(new FieldsExtracted(this.id, documentId, fields.length));
+    this.replaceDocument(document.withFields(readings));
+    this.apply(new FieldsExtracted(this.id, documentId, readings.length));
   }
 
   /*
-   * The documents in force that are to be held against the National Archive
-   * Fund by their QR code and have not been yet (ADR-0028).
+   * The `qr_code` line of a paper is the code decoded off its sheets, and never
+   * what a reader made of the picture (ADR-0034).
    *
-   * Only placed documents whose type the profile sources from the archive with
-   * every line the check compares — `isHeldAgainstTheArchiveByQr`. A paper
-   * already answered for is not asked again: what it says has not changed, and
-   * a file arriving elsewhere in the package does not change it either.
+   * Any `qr_code` the extractor returned is dropped before it is looked at. A
+   * reader asked to transcribe a QR symbol answers with a description of it —
+   * `[QR code]`, the mark the transcription puts where a picture was — and that
+   * is worse than nothing: it is a non-empty value, so everything downstream
+   * reads it as a code that was successfully read, and the report then says
+   * nothing at all about a step that never happened.
+   *
+   * The first code across the paper's sheets, in sheet order. A paper is asked
+   * about by one reference; where its sheets carry several — the certified copy
+   * and the order stapled behind it print the same one twice — they are the same
+   * symbol reproduced, and the first is as good as the last.
+   */
+  private withTheDecodedQrCode(
+    documentId: DocumentId,
+    fields: readonly ExtractedField[],
+  ): readonly ExtractedField[] {
+    const withoutTheReaders = fields.filter(
+      field => !field.key.equals(VerificationProfile.QR_CODE),
+    );
+    const type = this.documentWith(documentId).classification?.type;
+
+    // A code found on the sheets of a paper whose profile asks for none is not
+    // that paper's code — a sketch design sharing a sheet with a certified copy
+    // does not thereby print a QR code, and `qr_code` is not in its schema to
+    // put one in.
+    if (
+      !type ||
+      !this.#profile.schemaFor(type).declares(VerificationProfile.QR_CODE)
+    ) {
+      return withoutTheReaders;
+    }
+
+    const decoded = this.sheetsOf(documentId).flatMap(sheet =>
+      (sheet.ocr?.codes ?? []).map(code => ({ code, foundOn: sheet.number })),
+    );
+    const [first] = decoded;
+
+    if (!first) return withoutTheReaders;
+
+    return [
+      ...withoutTheReaders,
+      ExtractedField.decodedOnThisDocument(
+        VerificationProfile.QR_CODE,
+        FieldValue.create(first.code),
+        first.foundOn,
+      ),
+    ];
+  }
+
+  /*
+   * The documents in force whose QR code is to be resolved and has not been yet
+   * (ADR-0028, widened by ADR-0034).
+   *
+   * Every placed document of a type that prints a code — `isCheckedByItsQrCode`
+   * — and not only the Decree 439 papers the archive holds copies of. A paper
+   * whose code leads somewhere this system cannot follow is still asked, and
+   * still gets a line of its own saying so, which is what a register extract
+   * with a code on its face was missing.
+   *
+   * A paper already answered for is not asked again: what it says has not
+   * changed, and a file arriving elsewhere in the package does not change it
+   * either.
    */
   get awaitingArchiveQrCheck(): readonly Document[] {
     return this.documentsInForce.filter(
       document =>
-        document.archiveQrCheck === null &&
-        this.isHeldAgainstTheArchive(document),
+        document.archiveQrCheck === null && this.hasAQrCodeToResolve(document),
     );
   }
 
@@ -1162,7 +1220,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     const document = this.documentWith(documentId);
     const type = document.classification?.type;
 
-    if (!type || !this.isHeldAgainstTheArchive(document)) {
+    if (!type || !this.hasAQrCodeToResolve(document)) {
       throw new DocumentNotHeldAgainstTheArchiveException(
         documentId.value,
         type?.value ?? null,
@@ -1182,7 +1240,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
 
     const document = this.documentWith(documentId);
 
-    if (!this.isHeldAgainstTheArchive(document)) {
+    if (!this.hasAQrCodeToResolve(document)) {
       throw new DocumentNotHeldAgainstTheArchiveException(
         documentId.value,
         document.classification?.type.value ?? null,
@@ -1193,13 +1251,13 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     this.apply(new ArchiveQrCheckMade(this.id, documentId, check.status));
   }
 
-  private isHeldAgainstTheArchive(document: Document): boolean {
+  private hasAQrCodeToResolve(document: Document): boolean {
     const classification = document.classification;
 
     return (
       classification !== null &&
       classification.isPlaced &&
-      isHeldAgainstTheArchiveByQr(this.#profile.specFor(classification.type))
+      isCheckedByItsQrCode(this.#profile.specFor(classification.type))
     );
   }
 

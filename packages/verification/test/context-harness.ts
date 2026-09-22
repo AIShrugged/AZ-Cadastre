@@ -13,6 +13,7 @@ import {
   ObjectStorage,
   OcrProvider,
   PdfSplitter,
+  QrCodeReader,
   type PresignedDownload,
   type PresignedUpload,
   type PresignUploadRequest,
@@ -101,6 +102,29 @@ export class FixedPageSplitter extends PdfSplitter {
   }
 }
 
+/**
+ * The codes a sheet of this set prints.
+ *
+ * There is no real image behind these storage keys — the splitter fabricates
+ * the pages and the reader fabricates their text — so there is no symbol to
+ * decode either, and a spec about a QR check has to say what the sheet prints
+ * the same way it says what the sheet reads (ADR-0034). Keyed off the storage
+ * key, so a package of several files gives each of them its own code or none.
+ */
+export class SheetsPrinting extends QrCodeReader {
+  constructor(private readonly codes: Readonly<Record<string, string>> = {}) {
+    super();
+  }
+
+  override async read(image: PageImage): Promise<readonly string[]> {
+    const printed = Object.entries(this.codes).find(([fragment]) =>
+      image.storageKey.value.includes(fragment),
+    );
+
+    return printed ? [printed[1]] : [];
+  }
+}
+
 /** The offline OCR without its 1.2s-per-page demo latency. */
 export class InstantOcr extends OcrProvider {
   override readonly pagesAtOnce = 8;
@@ -168,6 +192,7 @@ export type Harness = {
  */
 export type Overrides = {
   readonly ocr?: OcrProvider;
+  readonly codes?: QrCodeReader;
   readonly splitter?: PdfSplitter;
   readonly storage?: InMemoryObjectStorage;
   readonly registry?: ArchiveRegistryPort;
@@ -253,7 +278,9 @@ export function testOptions(databaseUrl: string): VerificationModuleOptions {
     // No register process in this set: the stand-in built into the context
     // answers unless a spec overrides the port with one of its own.
     registry: { provider: 'mock', url: '', timeoutMs: 1000 },
-    nationalArchive: { provider: 'mock' },
+    // Likewise: nothing in this set leaves the machine, so the archive is the
+    // stand-in and the URL is never dialled.
+    nationalArchive: { provider: 'mock', url: '', timeoutMs: 1000 },
   };
 }
 
@@ -295,6 +322,8 @@ export async function startContext(
     .useValue(overrides.splitter ?? new FixedPageSplitter())
     .overrideProvider(OcrProvider)
     .useValue(overrides.ocr ?? new InstantOcr())
+    .overrideProvider(QrCodeReader)
+    .useValue(overrides.codes ?? new SheetsPrinting())
     .overrideProvider(ArchiveRegistryPort)
     .useValue(overrides.registry ?? new ArchiveRegistryAdapter())
     .overrideProvider(FieldExtractor)

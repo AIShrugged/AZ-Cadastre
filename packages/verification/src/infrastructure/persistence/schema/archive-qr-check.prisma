@@ -11,10 +11,11 @@
 /// What came of it. `NotFound` and `NoQrCode` are absences of evidence and never
 /// a fault in the package.
 enum ArchiveQrCheckStatus {
-  Confirmed // found, every line both sides state agrees, and the issuer was competent
-  Differs // found, and a line differs or the issuer had no competence
+  Confirmed // found, every line both sides state agrees, the signature verified, and the issuer was competent
+  Differs // found, and a line differs, the signature did not verify, or the issuer had no competence
   NotFound // the archive holds nothing under the reference
-  NoQrCode // no QR reference was read off the paper, so nothing was asked
+  NoQrCode // no QR code was decoded off the paper, so nothing was asked
+  IssuerNotConnected // a code was decoded and whoever issued it is not connected to this system (ADR-0034)
 }
 
 /// How one line of the paper stood against the archive's copy. `NotStated` is
@@ -34,8 +35,25 @@ model ArchiveQrCheck {
 
   status ArchiveQrCheckStatus
 
-  /// The text of the QR code as it was read off the paper. Null on `NoQrCode`.
+  /// The payload of the QR code, as the decoder read it off the symbol. Null on
+  /// `NoQrCode`.
   qrReference String?
+
+  /// Whoever issued the code, as the reference names them — the host of the
+  /// link. Set on `IssuerNotConnected`, where it is the whole of what the report
+  /// can say; null everywhere else, and null there too for a payload that is not
+  /// a link (ADR-0034).
+  issuer String?
+
+  /// What the issuer said about the sheet itself rather than about what it says:
+  /// who signed the electronic original, for which body and section, and whether
+  /// that signature verifies (ADR-0034). Null from a service that holds records
+  /// and verifies no signatures, and on every status but `Confirmed`/`Differs`.
+  signatureSignedBy     String?
+  signatureOrganisation String?
+  signatureUnit         String?
+  signatureSignedOn     String?
+  signatureValid        Boolean?
 
   /// When the archive was asked — or, on `NoQrCode`, when the stage found there
   /// was nothing to ask.

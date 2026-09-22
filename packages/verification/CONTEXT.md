@@ -60,12 +60,16 @@ A paper confirming the right over the land, which every Article 8 Provision asks
 _Avoid_: ground document, land document, legal basis (which is what the office declares at intake)
 
 **Document Source**:
-Where the policy expects a paper of a Document Type to come from: the envelope, or a state system that confirms it — MQS, the Licences Portal, the Urban Planning Committee, the National Archive. None of the systems is connected. A paper sourced from one is read like any other and reported as read and not confirmed, so reading never passes for confirmation (ADR-0025) — except a Decree 439 paper, which is put to an Archive QR Check against a stand-in for the archive (ADR-0028).
+Where the policy expects a paper of a Document Type to come from: the envelope, or a state system that confirms it — MQS, the Licences Portal, the Urban Planning Committee, the National Archive. None of the systems is connected. A paper sourced from one is read like any other and reported as read and not confirmed, so reading never passes for confirmation (ADR-0025) — except a paper that prints a QR code, which is put to an Archive QR Check of its own (ADR-0028, ADR-0034).
 _Avoid_: integration flag, origin (which is a Field Origin)
 
 **Archive QR Check**:
-One Decree 439 paper held against the National Archive Fund's copy of it, found by the text printed for the paper's QR code. The archive states its copy and the kind of body that issued it; the check judges eight lines — Match, Mismatch or NotStated — and, as a fact of its own, whether that body was competent to issue a paper of that kind. It comes to Confirmed, Differs, NotFound or NoQrCode, and belongs to the Document, not to the package (ADR-0028). No archive is connected: only the offline stand-in answers.
-_Avoid_: QR decoding (the picture is never decoded), registry check (which is about the property, not a paper)
+What became of resolving the QR code decoded off one paper. Made for every type whose schema declares `qr_code` — thirteen of them, the register extract and the plan of the plot among them (ADR-0034). Eleven of those the archive can also be held to line by line: it states its copy and the kind of body that issued it, and the check judges eight lines — Match, Mismatch or NotStated — and, as a fact of its own, whether that body was competent to issue a paper of that kind. An answer may instead be about the sheet: the archive's live service verifies the signature on a certified copy and states nothing about what the paper says. It comes to Confirmed, Differs, NotFound, NoQrCode or IssuerNotConnected, and belongs to the Document, not to the package (ADR-0028, ADR-0034).
+_Avoid_: registry check (which is about the property, not a paper)
+
+**QR Code**:
+The payload decoded from the symbol printed on a sheet — a link into the service that issued the paper, or a bare reference. Never transcribed and never read off the page: a symbol carries its own error correction, so a payload came back whole or did not come back, and there is no confidence to attach to it (ADR-0034). It is the `qr_code` line of the paper it was found on, and of no other.
+_Avoid_: QR reference read off the sheet, QR text
 
 **Supporting Documents**:
 No longer part of the language. What papers a case needs beyond its envelope was a table of height bands we invented (ADR-0013); since ADR-0025 it is the Article 8 Provision the case falls under, and the papers it names are papers of the package. Reports written before carry the old finding, and it still reads the way it did.

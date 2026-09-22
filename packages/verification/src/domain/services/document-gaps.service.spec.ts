@@ -248,6 +248,28 @@ describe('gapsIn', () => {
       expect(reasonsFor(documents, 'sketch_project')).toEqual(['UnusableScan']);
     });
 
+    /*
+     * A code is decoded off the symbol and never read off the sheet
+     * (ADR-0034), so a paper that yields none was not read badly — and the
+     * customer's decision is that an absent code is not a fault of the
+     * applicant at all (ADR-0031). Offering to replace the sheet would say the
+     * opposite, on every carrier of a package whose papers simply print none.
+     */
+    it('does not offer a paper that yielded everything but its QR code', () => {
+      const documents = aWholePackage().map(document =>
+        document.type === 'land_plot_plan'
+          ? {
+              ...document,
+              readings: document.readings.filter(
+                reading => reading.key !== 'qr_code',
+              ),
+            }
+          : document,
+      );
+
+      expect(reasonsFor(documents, 'land_plot_plan')).toEqual([]);
+    });
+
     it('offers a document with a reading under the floor, however little under', () => {
       const documents = aWholePackage().map(document =>
         document.type === 'sketch_project'

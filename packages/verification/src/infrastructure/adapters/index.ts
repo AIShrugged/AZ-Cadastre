@@ -12,6 +12,7 @@ import {
   ObjectStorage,
   OcrProvider,
   PdfSplitter,
+  QrCodeReader,
 } from '../../application/ports/outbound/index.js';
 import {
   VERIFICATION_OPTIONS,
@@ -24,6 +25,7 @@ import { DocumentClassifierAdapter } from './document-classifier.adapter.js';
 import { DocumentSegmenterAdapter } from './document-segmenter.adapter.js';
 import { FieldExtractorAdapter } from './field-extractor.adapter.js';
 import { HttpArchiveRegistryAdapter } from './http-archive-registry.adapter.js';
+import { HttpNationalArchiveAdapter } from './http-national-archive.adapter.js';
 import { NationalArchiveAdapter } from './national-archive.adapter.js';
 import { ObjectStorageAdapter } from './object-storage.adapter.js';
 import { OcrProviderAdapter } from './ocr-provider.adapter.js';
@@ -35,10 +37,12 @@ import {
   OpenRouterSegmenterAdapter,
 } from './openrouter/index.js';
 import { PdfSplitterAdapter } from './pdf-splitter.adapter.js';
+import { QrCodeReaderAdapter } from './qr-code-reader.adapter.js';
 
 export { ArchiveRegistryAdapter } from './archive-registry.adapter.js';
 export { CrossCheckerAdapter } from './cross-checker.adapter.js';
 export { HttpArchiveRegistryAdapter } from './http-archive-registry.adapter.js';
+export { HttpNationalArchiveAdapter } from './http-national-archive.adapter.js';
 export { DocumentClassifierAdapter } from './document-classifier.adapter.js';
 export { DocumentSegmenterAdapter } from './document-segmenter.adapter.js';
 export { FieldExtractorAdapter } from './field-extractor.adapter.js';
@@ -54,6 +58,7 @@ export {
 } from './openrouter/index.js';
 export { renderPdfPages } from './pdf-page-renderer.js';
 export { PdfSplitterAdapter } from './pdf-splitter.adapter.js';
+export { QrCodeReaderAdapter } from './qr-code-reader.adapter.js';
 
 /**
  * The five model-backed stages each answer to one port and are chosen per
@@ -67,6 +72,12 @@ export { PdfSplitterAdapter } from './pdf-splitter.adapter.js';
 export const VERIFICATION_ADAPTERS: Provider[] = [
   { provide: ObjectStorage, useClass: ObjectStorageAdapter },
   { provide: PdfSplitter, useClass: PdfSplitterAdapter },
+  /*
+   * The decoder has no provider to choose between and never will: a QR symbol
+   * is read by arithmetic, not by a model, so there is nothing for a stand-in
+   * to stand in for and nothing an API key would buy (ADR-0034).
+   */
+  { provide: QrCodeReader, useClass: QrCodeReaderAdapter },
   {
     provide: OcrProvider,
     useFactory: (
@@ -142,19 +153,20 @@ export const VERIFICATION_ADAPTERS: Provider[] = [
     inject: [VERIFICATION_OPTIONS, Logger],
   },
   /*
-   * The National Archive Fund, asked by the QR reference a Decree 439 paper
-   * prints (ADR-0028). Only the offline stand-in exists: there is no archive
-   * to point it at yet, and the option is here so connecting one is a binding
-   * and not a change to the stage.
+   * The National Archive Fund, asked by the QR code decoded off a paper
+   * (ADR-0028, ADR-0034). Same shape as the register above and chosen the same
+   * way: `mock` is the stand-in built into the context, `http` is the archive's
+   * own electronic document service.
    */
   {
     provide: NationalArchivePort,
-    useFactory: (options: VerificationModuleOptions): NationalArchivePort => {
-      switch (options.nationalArchive.provider) {
-        case 'mock':
-          return new NationalArchiveAdapter();
-      }
-    },
-    inject: [VERIFICATION_OPTIONS],
+    useFactory: (
+      options: VerificationModuleOptions,
+      logger: Logger,
+    ): NationalArchivePort =>
+      options.nationalArchive.provider === 'http'
+        ? new HttpNationalArchiveAdapter(options, logger)
+        : new NationalArchiveAdapter(),
+    inject: [VERIFICATION_OPTIONS, Logger],
   },
 ];

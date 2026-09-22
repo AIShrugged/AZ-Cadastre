@@ -143,7 +143,19 @@ describe('VerificationProfile', () => {
 
     it('leave out a paper that prints none', () => {
       expect(carriers).not.toContain('sketch_project');
-      expect(carriers).not.toContain('disposal_order');
+      expect(carriers).not.toContain('identity_card');
+      expect(carriers).not.toContain('payment_receipt');
+    });
+
+    /*
+     * Both were read as printing no code until ADR-0034, and the customer's own
+     * package disagreed on both: the archive's certificate in it prints a code
+     * and so does the order stapled behind it, and they are the two sheets of
+     * that package whose codes resolve anywhere at all.
+     */
+    it('include the two papers the archive certifies copies of', () => {
+      expect(carriers).toContain('archive_certificate');
+      expect(carriers).toContain('disposal_order');
     });
   });
 

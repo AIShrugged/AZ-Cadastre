@@ -15,6 +15,7 @@ import {
   type ArchivedPaper,
 } from '../../../../domain/services/index.js';
 import {
+  ArchiveQrSignature,
   Confidence,
   CrossCheck,
   FailureReason,
@@ -44,6 +45,7 @@ import {
   NationalArchivePort,
   OcrProvider,
   PdfSplitter,
+  QrCodeReader,
   VerificationPackageRepository,
   type ArchivedDocument,
 } from '../../../ports/outbound/index.js';
@@ -69,6 +71,7 @@ export class RunVerificationHandler implements ICommandHandler<
     @Inject(IdGenerator) private readonly ids: IdGenerator,
     @Inject(PdfSplitter) private readonly pdf: PdfSplitter,
     @Inject(OcrProvider) private readonly ocr: OcrProvider,
+    @Inject(QrCodeReader) private readonly qr: QrCodeReader,
     @Inject(DocumentSegmenter) private readonly segmenter: DocumentSegmenter,
     @Inject(DocumentClassifier) private readonly classifier: DocumentClassifier,
     @Inject(FieldExtractor) private readonly extractor: FieldExtractor,
@@ -348,8 +351,35 @@ export class RunVerificationHandler implements ICommandHandler<
       });
 
       const startedAt = Date.now();
+      /*
+       * The transcription and the codes are asked for together, per sheet
+       * (ADR-0034). The reader is a network call and the decoder is the CPU,
+       * so the one fills the other's wait; and they are recorded in one write
+       * because `Page.recognised` is the only way a sheet gains either.
+       *
+       * A decoder that throws is a sheet with no codes and never a sheet that
+       * failed: the transcription is what the run cannot go on without, and
+       * losing it over a picture nobody could read would be the tail wagging
+       * the dog.
+       */
       const readings = await Promise.allSettled(
-        batch.map(page => this.ocr.recognise(page.image)),
+        batch.map(async page => {
+          const [text, codes] = await Promise.all([
+            this.ocr.recognise(page.image),
+            this.qr.read(page.image).catch((error: unknown) => {
+              this.logger.warn('Sheet could not be scanned for QR codes', {
+                packageId: packageId.value,
+                sourceFileId: sourceFileId.value,
+                sheet: page.number.value,
+                error,
+              });
+
+              return [] as readonly string[];
+            }),
+          ]);
+
+          return text.withCodes(codes);
+        }),
       );
 
       let recognised = 0;
@@ -379,6 +409,9 @@ export class RunVerificationHandler implements ICommandHandler<
           sheet: page.number.value,
           characters: reading.value.text.value.length,
           confidence: round(reading.value.confidence.value),
+          // How many, never the payloads: a code off somebody's papers resolves
+          // to their document (ADR-0008).
+          codes: reading.value.codes.length,
         });
 
         verification.recordRecognition(sourceFileId, page.id, reading.value);
@@ -548,7 +581,18 @@ export class RunVerificationHandler implements ICommandHandler<
       })),
     });
 
-    if (fields.length === 0) return;
+    /*
+     * A paper the extractor read nothing off still has its QR code recorded:
+     * the code is decoded off the sheet and not read off the text, so it is
+     * there whether or not a reader could make anything of the page around it
+     * (ADR-0034). Returning here would lose it — and a scan too poor to read is
+     * exactly the sheet whose code is worth the most.
+     */
+    const decoded = verification
+      .sheetsOf(documentId)
+      .some(sheet => (sheet.ocr?.codes.length ?? 0) > 0);
+
+    if (fields.length === 0 && !decoded) return;
 
     verification.recordExtractedFields(documentId, fields);
     await this.packages.save(verification);
@@ -813,15 +857,16 @@ export class RunVerificationHandler implements ICommandHandler<
   }
 
   /*
-   * One Decree 439 paper held against the National Archive Fund, asked by the
-   * QR reference printed on it.
+   * One paper's QR code resolved with whoever issued it.
    *
-   * The archive answers with its copy and no verdict; which lines agree and
-   * whether the issuer was competent are the domain's (ADR-0028). A paper with
-   * no QR reference read off it is not a question anyone can put, and is
-   * recorded as exactly that rather than left looking unasked. An archive that
-   * throws leaves the paper unchecked, and the report says it was not
-   * confirmed.
+   * The archive answers with what it holds and no verdict; which lines agree,
+   * whether the issuer was competent and what a verified signature is worth are
+   * the domain's (ADR-0028, ADR-0034). A code that resolves somewhere this
+   * system cannot follow is recorded as that and not as an archive that looked
+   * and found nothing — the archive never looked. A paper with no code decoded
+   * off it is not a question anyone can put, and is recorded as exactly that
+   * rather than left looking unasked. An archive that throws leaves the paper
+   * unchecked, and the report says it was not confirmed.
    */
   private async askTheArchive(
     packageId: PackageId,
@@ -843,6 +888,9 @@ export class RunVerificationHandler implements ICommandHandler<
       qrReference: question.qrReference,
       archived:
         answer?.outcome === 'Found' ? archivedPaperOf(answer.document) : null,
+      ...(answer?.outcome === 'NotRecognised'
+        ? { unaskedIssuer: answer.issuer }
+        : {}),
       checkedAt: new Date(),
     });
 
@@ -861,6 +909,10 @@ export class RunVerificationHandler implements ICommandHandler<
         name: field.name,
         verdict: field.verdict,
       })),
+      // Whether the sheet's own signature verified, never who signed it: the
+      // signer is a named person off somebody's papers (ADR-0008).
+      signatureValid: check.signature?.valid ?? null,
+      issuer: check.issuer,
       note: answer?.note ?? null,
       durationMs: Date.now() - startedAt,
     });
@@ -940,14 +992,17 @@ function archivedPaperOf(document: ArchivedDocument): ArchivedPaper {
     lines: {
       document_no: document.documentNo,
       issue_date: document.issuedOn,
-      issuing_authority: document.issuingAuthority.name,
+      issuing_authority: document.issuingAuthority?.name ?? null,
       holder_name: document.holderName,
       property_address: document.propertyAddress,
       plot_area: document.plotArea,
       decree_item: document.decreeItem,
       archive_reference: document.archiveReference,
     },
-    issuingAuthorityKind: document.issuingAuthority.kind,
+    issuingAuthorityKind: document.issuingAuthority?.kind ?? null,
+    signature: document.signature
+      ? ArchiveQrSignature.of(document.signature)
+      : null,
   };
 }
 

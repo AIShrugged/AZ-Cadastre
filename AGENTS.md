@@ -97,6 +97,17 @@ through the address rules, the offline stand-in will report as
 records it holds — a register with an empty database and a register that holds
 nothing under an address look identical from the caller's side.
 
+One stage has no provider to choose and never will. The QR codes on a sheet are
+decoded from the symbols themselves — arithmetic, not a model, so there is
+nothing for a stand-in to stand in for and nothing an API key would buy
+(ADR-0034). What the code _resolves to_ is a provider choice like the rest:
+`NATIONAL_ARCHIVE_PROVIDER=mock` is a stand-in holding one paper, `http` calls
+the archive's own electronic document service, which says who signed a certified
+copy and whether the signature verifies. `mock` is the default because pointing
+it at the real thing sends a case id off the machine. A code issued by anybody
+else — the register's `e-emlak.gov.az`, a notary's `notariat.az` — is never sent
+anywhere, and the report says per paper that its issuer is not connected.
+
 The stub's records are a **seed and not fixtures**: `db:seed` is idempotent and
 re-runnable, and `db:reset` runs it. What is in it is the customer's own two
 cases — one that confirms on every attribute and every paper, one whose figures

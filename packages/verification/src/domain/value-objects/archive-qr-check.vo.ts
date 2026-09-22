@@ -25,6 +25,9 @@ export const ARCHIVE_QR_STATUSES = [
   'Differs',
   'NotFound',
   'NoQrCode',
+  // A code was decoded and the service that issued it is not connected to this
+  // system, so nothing was asked (ADR-0034).
+  'IssuerNotConnected',
 ] as const;
 
 export type ArchiveQrStatus = (typeof ARCHIVE_QR_STATUSES)[number];
@@ -34,6 +37,46 @@ export type ArchiveQrStatus = (typeof ARCHIVE_QR_STATUSES)[number];
 export const ARCHIVE_QR_VERDICTS = ['Match', 'Mismatch', 'NotStated'] as const;
 
 export type ArchiveQrVerdict = (typeof ARCHIVE_QR_VERDICTS)[number];
+
+/**
+ * What the issuer said about the sheet itself: who signed the electronic
+ * original, for which body, and whether that signature verifies (ADR-0034).
+ *
+ * Kept whole rather than reduced to `valid`, because an inspector holding a
+ * sealed sheet wants to see the same name the seal carries — a signature that
+ * verifies for the wrong office is a finding, and only the name shows it.
+ */
+export class ArchiveQrSignature {
+  private constructor(
+    public readonly signedBy: string | null,
+    public readonly organisation: string | null,
+    public readonly unit: string | null,
+    public readonly signedOn: string | null,
+    public readonly valid: boolean,
+  ) {}
+
+  static of(state: {
+    signedBy: string | null;
+    organisation: string | null;
+    unit: string | null;
+    signedOn: string | null;
+    valid: boolean;
+  }): ArchiveQrSignature {
+    return new ArchiveQrSignature(
+      blank(state.signedBy),
+      blank(state.organisation),
+      blank(state.unit),
+      blank(state.signedOn),
+      state.valid,
+    );
+  }
+}
+
+function blank(raw: string | null): string | null {
+  const trimmed = raw?.trim() ?? '';
+
+  return trimmed.length === 0 ? null : trimmed;
+}
 
 /** One line of the paper, beside what the archive's copy says of it. */
 export class ArchiveQrFieldCheck {
@@ -101,11 +144,27 @@ export class ArchiveQrCheck {
     public readonly checkedAt: Date,
     public readonly issuingAuthorityCompetent: boolean | null,
     public readonly fields: readonly ArchiveQrFieldCheck[],
+    // What the issuer said about the sheet. Null on every status but
+    // `Confirmed` and `Differs`, and on those two only where the service that
+    // answered verifies signatures at all (ADR-0034).
+    public readonly signature: ArchiveQrSignature | null,
+    // Whoever issued the code, where the reference names them — the host of the
+    // link, as a person would read it off the paper. Carried on
+    // `IssuerNotConnected`, where it is the whole of what the report can say.
+    public readonly issuer: string | null,
   ) {}
 
-  // No QR reference was read off the paper, so there was nothing to ask.
+  // No QR code was decoded off the paper, so there was nothing to ask.
   static noQrCode(checkedAt: Date): ArchiveQrCheck {
-    return new ArchiveQrCheck('NoQrCode', null, checkedAt, null, []);
+    return new ArchiveQrCheck(
+      'NoQrCode',
+      null,
+      checkedAt,
+      null,
+      [],
+      null,
+      null,
+    );
   }
 
   // Asked, and the archive returned nothing under the reference.
@@ -116,6 +175,31 @@ export class ArchiveQrCheck {
       checkedAt,
       null,
       [],
+      null,
+      null,
+    );
+  }
+
+  /*
+   * A code that resolves somewhere nothing here can follow it (ADR-0034).
+   *
+   * Never asked and so never answered: it is the absence `IntegrationNotConnected`
+   * states for a whole type, narrowed to the one sheet and naming the service
+   * that would settle it.
+   */
+  static issuerNotConnected(
+    qrReference: string,
+    issuer: string | null,
+    checkedAt: Date,
+  ): ArchiveQrCheck {
+    return new ArchiveQrCheck(
+      'IssuerNotConnected',
+      ArchiveQrCheck.referenceOf(qrReference),
+      checkedAt,
+      null,
+      [],
+      null,
+      blank(issuer),
     );
   }
 
@@ -127,14 +211,23 @@ export class ArchiveQrCheck {
   static found(state: {
     qrReference: string;
     checkedAt: Date;
-    issuingAuthorityCompetent: boolean;
+    // Null where there was nothing to judge competence by — a type the Decree's
+    // table does not cover, which is every paper the check gained in ADR-0034.
+    // Unknown is not a fault: only an explicit `false` is.
+    issuingAuthorityCompetent: boolean | null;
     fields: readonly ArchiveQrFieldCheck[];
+    signature?: ArchiveQrSignature | null;
   }): ArchiveQrCheck {
     ArchiveQrCheck.guardEveryLineOnce(state.fields);
 
+    const signature = state.signature ?? null;
+    // A signature that does not verify is the sheet itself disagreeing with the
+    // record of it, which is a stronger finding than any single line: the lines
+    // are what the paper says, and this is whether the paper is the paper.
     const differs =
-      !state.issuingAuthorityCompetent ||
-      state.fields.some(field => field.differs);
+      state.issuingAuthorityCompetent === false ||
+      state.fields.some(field => field.differs) ||
+      signature?.valid === false;
 
     return new ArchiveQrCheck(
       differs ? 'Differs' : 'Confirmed',
@@ -142,6 +235,8 @@ export class ArchiveQrCheck {
       state.checkedAt,
       state.issuingAuthorityCompetent,
       ArchiveQrCheck.inPublishedOrder(state.fields),
+      signature,
+      null,
     );
   }
 
@@ -151,6 +246,8 @@ export class ArchiveQrCheck {
     checkedAt: Date;
     issuingAuthorityCompetent: boolean | null;
     fields: readonly ArchiveQrFieldCheck[];
+    signature?: ArchiveQrSignature | null;
+    issuer?: string | null;
   }): ArchiveQrCheck {
     switch (state.status) {
       case 'NoQrCode':
@@ -160,13 +257,20 @@ export class ArchiveQrCheck {
           state.qrReference ?? '',
           state.checkedAt,
         );
+      case 'IssuerNotConnected':
+        return ArchiveQrCheck.issuerNotConnected(
+          state.qrReference ?? '',
+          state.issuer ?? null,
+          state.checkedAt,
+        );
       case 'Confirmed':
       case 'Differs':
         return ArchiveQrCheck.found({
           qrReference: state.qrReference ?? '',
           checkedAt: state.checkedAt,
-          issuingAuthorityCompetent: state.issuingAuthorityCompetent ?? false,
+          issuingAuthorityCompetent: state.issuingAuthorityCompetent,
           fields: state.fields,
+          signature: state.signature ?? null,
         });
       default:
         throw new InvalidArchiveQrCheckException(
@@ -183,10 +287,15 @@ export class ArchiveQrCheck {
     return this.status === 'Differs';
   }
 
-  // Asked about and not confirmed, for want of an answer rather than because
-  // the answer disagreed: nothing under the reference, or no reference at all.
+  // Not confirmed for want of an answer rather than because the answer
+  // disagreed: nothing under the reference, no code on the sheet, or a code
+  // whose issuer this system cannot ask.
   get isUnanswered(): boolean {
-    return this.status === 'NotFound' || this.status === 'NoQrCode';
+    return (
+      this.status === 'NotFound' ||
+      this.status === 'NoQrCode' ||
+      this.status === 'IssuerNotConnected'
+    );
   }
 
   get mismatched(): readonly ArchiveQrFieldCheck[] {

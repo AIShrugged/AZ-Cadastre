@@ -2,6 +2,7 @@ import {
   ARCHIVE_QR_FIELDS,
   ArchiveQrCheck,
   ArchiveQrFieldCheck,
+  ArchiveQrSignature,
   FieldKey,
   IssuingCompetence,
   type ArchiveQrField,
@@ -14,19 +15,36 @@ import {
 import { looksLikeTheSameValue } from './value-agreement.service.js';
 
 /*
- * Whether a paper of this type is held against the National Archive Fund by the
- * QR reference printed on it (ADR-0028).
+ * Whether a paper of this type has its QR code resolved (ADR-0034).
  *
- * Worked out from what the profile already declares rather than flagged on it:
- * a paper the policy sources from the archive, read for its QR code and for
- * every line the archive's copy is compared on, whose issuing body's competence
- * the Decree settles. A paper short of any of those has nothing the check could
- * be made with, and stays `IntegrationNotConnected`.
+ * Every type whose schema declares `qr_code`, and nothing else. Until ADR-0034
+ * this also asked that the profile source the paper from the National Archive
+ * and declare all eight lines the archive's copy is compared on — which left
+ * the two papers most inspectors actually look at, the register extract and the
+ * plan of the plot, with a code on the sheet and no line in the report about
+ * it. The narrower rule was a consequence of the check having one possible
+ * answer; now that a code can resolve to an issuer this system cannot ask, a
+ * paper whose code leads elsewhere gets a line saying exactly that, which is
+ * more than the type-wide `IntegrationNotConnected` it used to get.
+ *
+ * What a paper is compared *on* did not widen with it: a type that declares
+ * none of the eight lines is held against nothing, and its answer is about the
+ * sheet — who issued the code and whether the signature on it verifies.
+ */
+export function isCheckedByItsQrCode(spec: DocumentTypeSpec): boolean {
+  return spec.schema.declares(FieldKey.create('qr_code'));
+}
+
+/*
+ * Whether the archive's copy of this type can be compared line by line: the
+ * paper is sourced from the archive, declares every line the copy is held
+ * against, and its issuing body's competence is something the Decree settles
+ * (ADR-0028). Eleven types answer today.
  */
 export function isHeldAgainstTheArchiveByQr(spec: DocumentTypeSpec): boolean {
   return (
     spec.source === 'NationalArchive' &&
-    spec.schema.declares(FieldKey.create('qr_code')) &&
+    isCheckedByItsQrCode(spec) &&
     ARCHIVE_QR_FIELDS.every(field =>
       spec.schema.declares(FieldKey.create(field)),
     ) &&
@@ -41,7 +59,12 @@ export function isHeldAgainstTheArchiveByQr(spec: DocumentTypeSpec): boolean {
  */
 export type ArchivedPaper = {
   readonly lines: Readonly<Record<ArchiveQrField, string | null>>;
-  readonly issuingAuthorityKind: IssuingAuthorityKind;
+  // Null where the answer says nothing about who issued the paper, which is
+  // every answer that is about the sheet rather than about what it says.
+  readonly issuingAuthorityKind: IssuingAuthorityKind | null;
+  // What the issuer says about the sheet rather than about the paper: null from
+  // a service that holds records and does not verify signatures (ADR-0034).
+  readonly signature: ArchiveQrSignature | null;
 };
 
 /**
@@ -57,6 +80,9 @@ export function archiveQrCheckOf(question: {
   readonly stated: (field: ArchiveQrField) => string | null;
   readonly qrReference: string | null;
   readonly archived: ArchivedPaper | null;
+  // Whoever issued the code, where the reference names them and this system
+  // cannot ask them. Null means the issuer was asked (ADR-0034).
+  readonly unaskedIssuer?: string | null;
   readonly checkedAt: Date;
 }): ArchiveQrCheck {
   const reference = question.qrReference?.trim() ?? '';
@@ -64,31 +90,76 @@ export function archiveQrCheckOf(question: {
   if (reference.length === 0)
     return ArchiveQrCheck.noQrCode(question.checkedAt);
 
+  if (question.unaskedIssuer !== undefined) {
+    return ArchiveQrCheck.issuerNotConnected(
+      reference,
+      question.unaskedIssuer,
+      question.checkedAt,
+    );
+  }
+
   if (!question.archived) {
     return ArchiveQrCheck.notFound(reference, question.checkedAt);
   }
 
   const archived = question.archived;
+  const fields = ARCHIVE_QR_FIELDS.map(name => {
+    const documentValue = stated(question.stated(name));
+    const archiveValue = stated(archived.lines[name]);
+
+    return ArchiveQrFieldCheck.of({
+      name,
+      documentValue,
+      archiveValue,
+      verdict: verdictOn(name, documentValue, archiveValue),
+    });
+  });
+
+  /*
+   * An answer that holds nothing this paper can be held against is not a
+   * confirmation of it (ADR-0034).
+   *
+   * `found` would otherwise read eight `NotStated` lines as "nothing
+   * disagrees" and answer `Confirmed` — the paper confirmed by an entry that
+   * says nothing about it, which is the one verdict this check must never
+   * produce. From the caller's side that is the same thing as an empty
+   * shelf, so it is told the same way.
+   */
+  const evidence =
+    fields.some(field => field.verdict !== 'NotStated') ||
+    archived.signature !== null;
+
+  if (!evidence) return ArchiveQrCheck.notFound(reference, question.checkedAt);
 
   return ArchiveQrCheck.found({
     qrReference: reference,
     checkedAt: question.checkedAt,
-    issuingAuthorityCompetent: IssuingCompetence.competent(
+    issuingAuthorityCompetent: competenceOf(
       question.type,
       archived.issuingAuthorityKind,
     ),
-    fields: ARCHIVE_QR_FIELDS.map(name => {
-      const documentValue = stated(question.stated(name));
-      const archiveValue = stated(archived.lines[name]);
-
-      return ArchiveQrFieldCheck.of({
-        name,
-        documentValue,
-        archiveValue,
-        verdict: verdictOn(name, documentValue, archiveValue),
-      });
-    }),
+    fields,
+    signature: archived.signature,
   });
+}
+
+/*
+ * Whether the body that issued the paper could issue one of this kind — and
+ * `null` wherever that is not a question anybody answered.
+ *
+ * Two ways of not being a question. The Decree's table settles eleven types and
+ * says nothing about the rest, so for a register extract there is no rule to
+ * apply; and an answer that names no issuing body has named nobody to apply one
+ * to. Either way `competent` would answer `false` for want of an input, turning
+ * "no rule" and "no answer" into "no power" (ADR-0034).
+ */
+function competenceOf(
+  type: DocumentType,
+  kind: IssuingAuthorityKind | null,
+): boolean | null {
+  if (kind === null || !IssuingCompetence.covers(type)) return null;
+
+  return IssuingCompetence.competent(type, kind);
 }
 
 function stated(raw: string | null): string | null {

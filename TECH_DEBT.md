@@ -412,7 +412,7 @@ listed beneath its bar with its own mark, its name, its count and its share, so
 no value is ever carried by a fill alone — and the archive's five answers each
 carry a distinct glyph on top of that.
 
-## 14. Three checks the policy names are declared and not made, and the fourth is a stand-in
+## 14. Three checks the policy names are declared and not made, and the archive answers a different question
 
 **Not done.** Every paper declares where the policy expects it to come from
 (ADR-0025): the package, MQS, the Licences Portal, the Urban Planning
@@ -422,29 +422,34 @@ read like any other and reported as `IntegrationNotConnected`; so is a fact the
 policy takes from a system rather than a paper — the notification of a house
 built from 2026.
 
-The National Archive has a port since ADR-0028, and **only a mock behind it**
-(`NATIONAL_ARCHIVE_PROVIDER=mock`, the only value). A Decree 439 paper is held
-against the archive's copy of it by the text printed for its QR code, never by
-decoding the picture: the stand-in holds the one paper of the Rusadze case, and
-every other reference comes back `NotFound` (`RegistryUnconfirmed`,
-informational). The archive certificate, which carries no QR code, is still
-`IntegrationNotConnected`.
+The National Archive is connected since ADR-0034 — `NATIONAL_ARCHIVE_PROVIDER=http`
+calls its electronic document service, and `mock` is still the default because
+pointing it at the real thing sends a case id off the machine. But **what that
+service answers is not what ADR-0028 asks it**: it verifies the signature on a
+certified copy — who signed it, for which body, whether it still verifies — and
+states nothing about the paper's contents. So the eight-line comparison against
+the archive's own copy has a port, a verdict and a report, and still no live
+counterparty; on `mock` it runs against a stand-in holding one paper.
 
-**How it fires.** Every report on a package carrying a plan of the plot holds
-at least one such line, because the plan is sourced from MQS. A design licence
-that has been revoked, a permit the committee never issued — each reads exactly
-as a valid one does, and the report says only that it was not checked. A forged
-archival reference now reads as not found rather than as not checked, which is
-no better evidence: the stand-in knows one paper. And on `mock` every Decree 439
-paper reads as the Rusadze order, so a demo run confirms a paper whatever the
+A code whose issuer is not connected at all — the register's `e-emlak.gov.az`,
+a notary's `notariat.az` — is now told per paper as `IssuerNotConnected`
+(informational) instead of as the type-wide `IntegrationNotConnected`.
+
+**How it fires.** A design licence that has been revoked, a permit the committee
+never issued — each reads exactly as a valid one does, and the report says only
+that it was not checked. A Decree 439 paper whose code resolves in the archive
+comes back confirmed on its signature and on no line of its contents, which is
+weaker evidence than the comparison ADR-0028 describes and must not be read as
+it. And on `mock` every Decree 439 paper is read by the offline extractor as the
+Rusadze order, so a demo run over that package confirms it whatever else the
 envelope holds.
 
 **What to do.** One outbound port per remaining system, behind the same shape
 the archive register has (ADR-0009), answering facts and never verdicts.
 Connecting one turns its `IntegrationNotConnected` lines into answers; the
-source declarations do not move. For the National Archive the port, the verdict
-and the report are done: what is missing is a sample of real QR links, whether
-the site may be read by a server at all, and an adapter behind the port.
+source declarations do not move. For the National Archive what is missing is a
+holdings API — somewhere to ask what the archive's copy of a paper _says_ — and
+the `ArchivedDocument` shape is already the question to ask it.
 
 ## 15. Which section of the archive keeps which title is our reading
 

@@ -15,9 +15,10 @@
  * The distinction it exists to hold: **the archive contradicting the paper and
  * the archive having nothing to say are not the same news.** `NotFound` is an
  * absence of evidence — the reference was asked and the fonds hold no file
- * under it — and `NoQrCode` is not even a question that was put. Neither is
- * held against the submission (ADR-0031), so neither may borrow a fault's
- * colour; `Differs` is the only status that reports one.
+ * under it — `NoQrCode` is not even a question that was put, and
+ * `IssuerNotConnected` is a question this system cannot put to anybody. None of
+ * the three is held against the submission (ADR-0031, ADR-0034), so none may
+ * borrow a fault's colour; `Differs` is the only status that reports one.
  */
 import type { OutcomeTone } from '@/shared/ui/outcome-mark';
 import type {
@@ -43,6 +44,10 @@ export const QR_STATUS_TONE: Record<ArchiveQrCheckStatus, OutcomeTone> = {
   Differs: 'issues',
   NotFound: 'silent',
   NoQrCode: 'silent',
+  // The third silence: the code was read and there is nobody here to ask. It
+  // is the most hopeful of the three — the sheet did its part — and still not
+  // a pass, so it keeps the same tone and is told apart by its sentence.
+  IssuerNotConnected: 'silent',
 };
 
 /** The status itself, in the reader's language. */
@@ -51,6 +56,7 @@ export const QR_STATUS_KEY: Record<ArchiveQrCheckStatus, string> = {
   Differs: 'detail.qr.differs',
   NotFound: 'detail.qr.not_found',
   NoQrCode: 'detail.qr.no_code',
+  IssuerNotConnected: 'detail.qr.issuer_not_connected',
 };
 
 /** What the status means for this paper, said in a sentence — the whole of the
@@ -60,6 +66,7 @@ export const QR_STATUS_NOTE: Record<ArchiveQrCheckStatus, string> = {
   Differs: 'detail.qr.differs_note',
   NotFound: 'detail.qr.not_found_note',
   NoQrCode: 'detail.qr.no_code_note',
+  IssuerNotConnected: 'detail.qr.issuer_not_connected_note',
 };
 
 /**
@@ -138,9 +145,12 @@ export function qrFields(
 /**
  * Whether there is a line-by-line comparison to draw.
  *
- * `NotFound` and `NoQrCode` carry no lines — nothing was held against anything
- * — and an empty table under them would read as a table that failed to load.
- * They get the status and the sentence, which is the whole of what is known.
+ * Every status but `Confirmed` and `Differs` carries no lines — nothing was
+ * held against anything — and an empty table under them would read as a table
+ * that failed to load. They get the status and the sentence, which is the whole
+ * of what is known. So does an answer that was about the sheet rather than
+ * about what it says: a signature service states no lines at all (ADR-0034),
+ * and the signature block below is what it has to show.
  */
 export function comparesLines(check: ArchiveQrCheckDto): boolean {
   return (
@@ -167,3 +177,31 @@ export function qrDisagreements(check: ArchiveQrCheckDto): number {
 export function qrSpeaksAgainst(check: ArchiveQrCheckDto): boolean {
   return check.status === 'Differs';
 }
+
+/**
+ * How the sheet's own signature stood, where the issuer verified one
+ * (ADR-0034).
+ *
+ * A fact about the sheet and not about what it says, so it is drawn beside the
+ * table and never as a row in it — and it is the one thing a signature service
+ * answers, so on those papers it is the whole of the block.
+ */
+export type SignatureStanding = 'verified' | 'failed';
+
+export function signatureStanding(
+  check: ArchiveQrCheckDto,
+): SignatureStanding | null {
+  if (!check.signature) return null;
+
+  return check.signature.valid ? 'verified' : 'failed';
+}
+
+export const SIGNATURE_TONE: Record<SignatureStanding, 'ok' | 'issues'> = {
+  verified: 'ok',
+  failed: 'issues',
+};
+
+export const SIGNATURE_KEY: Record<SignatureStanding, string> = {
+  verified: 'detail.qr.signature_verified',
+  failed: 'detail.qr.signature_failed',
+};

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  ArchiveQrSignature,
   DocumentType,
   IssuingCompetence,
   VerificationProfile,
@@ -9,6 +10,7 @@ import {
 
 import {
   archiveQrCheckOf,
+  isCheckedByItsQrCode,
   isHeldAgainstTheArchiveByQr,
   type ArchivedPaper,
 } from './archive-qr-verdict.service.js';
@@ -51,6 +53,9 @@ function theArchivesCopy(
       ...lines,
     },
     issuingAuthorityKind,
+    // A holdings answer says nothing about the sheet's own signature: it is the
+    // signature-verifying service that does, and this is not it (ADR-0034).
+    signature: null,
   };
 }
 
@@ -60,6 +65,7 @@ function check(
     qrReference?: string | null;
     type?: DocumentType;
     paper?: Partial<Record<ArchiveQrField, string | null>>;
+    unaskedIssuer?: string | null;
   } = {},
 ) {
   const paper = { ...ON_THE_PAPER, ...options.paper };
@@ -69,8 +75,38 @@ function check(
     stated: field => paper[field] ?? null,
     qrReference: options.qrReference === undefined ? QR : options.qrReference,
     archived,
+    ...('unaskedIssuer' in options
+      ? { unaskedIssuer: options.unaskedIssuer }
+      : {}),
     checkedAt: CHECKED_AT,
   });
+}
+
+// The archive's copy states nothing about the sheet's own signature; a
+// signature service states nothing but that (ADR-0034).
+function aSignedSheet(valid: boolean): ArchivedPaper {
+  return {
+    lines: {
+      document_no: null,
+      issue_date: null,
+      issuing_authority: null,
+      holder_name: null,
+      property_address: null,
+      plot_area: null,
+      decree_item: null,
+      archive_reference: null,
+    },
+    // A signature service names the office that attested the copy and not the
+    // body that issued the paper, so there is nobody here to judge.
+    issuingAuthorityKind: null,
+    signature: ArchiveQrSignature.of({
+      signedBy: 'Məmmədov Anar',
+      organisation: 'Milli Arxiv Fondu',
+      unit: 'Bakı filialı',
+      signedOn: '2026-01-14T09:12:00Z',
+      valid,
+    }),
+  };
 }
 
 describe('holding a Decree 439 paper against the National Archive by its QR code', () => {
@@ -218,14 +254,30 @@ describe('which papers are held against the National Archive by their QR code', 
     ]);
   });
 
-  // Sourced from the archive, and nothing on it to ask by or compare.
-  it('does not hold the archive certificate, which carries no QR code', () => {
+  /*
+   * The certificate prints a code and is resolved like any other carrier
+   * (ADR-0034), and it still declares none of the Decree's eight lines — so it
+   * is asked about and never compared line by line. The two predicates are
+   * different questions and this is the paper that shows it.
+   */
+  it('resolves the archive certificate without holding it against eight lines', () => {
     const certificate = profile.specFor(
       DocumentType.create('archive_certificate'),
     );
 
     expect(certificate.source).toBe('NationalArchive');
+    expect(isCheckedByItsQrCode(certificate)).toBe(true);
     expect(isHeldAgainstTheArchiveByQr(certificate)).toBe(false);
+  });
+
+  // The two papers an inspector actually opens first. Neither was asked about
+  // at all before ADR-0034, code on the face of it or not.
+  it('resolves the register extract and the plan of the plot', () => {
+    for (const type of ['state_register_extract', 'land_plot_plan']) {
+      expect(
+        isCheckedByItsQrCode(profile.specFor(DocumentType.create(type))),
+      ).toBe(true);
+    }
   });
 
   // A paper the table forgot would silently fall back to "not connected"; one
@@ -238,5 +290,79 @@ describe('which papers are held against the National Archive by their QR code', 
     expect(IssuingCompetence.types.map(type => type.value).toSorted()).toEqual(
       held.toSorted(),
     );
+  });
+});
+
+/*
+ * The answers that are not the archive's copy of a paper (ADR-0034).
+ *
+ * Every one of them is an absence, and the point of each is that it is a
+ * *different* absence: the reader found no code, the issuer is somebody this
+ * system cannot ask, the archive looked and holds nothing, the archive answered
+ * about the sheet and not about what it says.
+ */
+describe('resolving a QR code that is not the archive holding a copy', () => {
+  it('says the issuer was never asked, and names it', () => {
+    const answer = check(null, { unaskedIssuer: 'e-emlak.gov.az' });
+
+    expect(answer.status).toBe('IssuerNotConnected');
+    expect(answer.issuer).toBe('e-emlak.gov.az');
+    expect(answer.qrReference).toBe(QR);
+    expect(answer.isUnanswered).toBe(true);
+    expect(answer.differs).toBe(false);
+  });
+
+  // A payload that is not a link names nobody, and nothing may be guessed.
+  it('names no issuer where the reference names none', () => {
+    expect(check(null, { unaskedIssuer: null }).issuer).toBeNull();
+  });
+
+  /*
+   * The one verdict this check must never produce: a paper confirmed by an
+   * entry that says nothing about it. Eight `NotStated` lines are not "nothing
+   * disagrees" — from the caller's side they are an empty shelf, and they are
+   * told the same way.
+   */
+  it('reads an answer that states nothing at all as nothing found', () => {
+    const empty: ArchivedPaper = {
+      ...aSignedSheet(true),
+      signature: null,
+    };
+
+    expect(check(empty).status).toBe('NotFound');
+  });
+
+  it('confirms a sheet whose signature the issuer verified, and keeps who signed it', () => {
+    const answer = check(aSignedSheet(true));
+
+    expect(answer.status).toBe('Confirmed');
+    expect(answer.signature?.signedBy).toBe('Məmmədov Anar');
+    expect(answer.fields.every(field => field.verdict === 'NotStated')).toBe(
+      true,
+    );
+  });
+
+  // Stronger than any single line: the lines are what the paper says, and this
+  // is whether the paper is the paper.
+  it('holds a sheet whose signature did not verify against the package', () => {
+    const answer = check(aSignedSheet(false));
+
+    expect(answer.status).toBe('Differs');
+    expect(answer.differs).toBe(true);
+  });
+
+  /*
+   * Competence is a question the Decree answers about eleven types and about no
+   * other. Answering `false` for want of a row would turn "no rule" into "no
+   * power", and every register extract would read as issued by a body with no
+   * authority to issue it.
+   */
+  it('leaves competence unjudged for a paper the Decree says nothing about', () => {
+    const answer = check(aSignedSheet(true), {
+      type: DocumentType.create('state_register_extract'),
+    });
+
+    expect(answer.issuingAuthorityCompetent).toBeNull();
+    expect(answer.status).toBe('Confirmed');
   });
 });

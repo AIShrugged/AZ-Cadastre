@@ -729,6 +729,12 @@ describe('toDetailDto', () => {
                   qrReference: 'https://qr.esd.milliarxiv.gov.az/F130',
                   checkedAt: new Date('2026-09-16T12:00:00.000Z'),
                   issuingAuthorityCompetent: true,
+                  issuer: null,
+                  signatureSignedBy: null,
+                  signatureOrganisation: null,
+                  signatureUnit: null,
+                  signatureSignedOn: null,
+                  signatureValid: null,
                   fields: [
                     {
                       name: 'plot_area',
@@ -750,6 +756,10 @@ describe('toDetailDto', () => {
       qrReference: 'https://qr.esd.milliarxiv.gov.az/F130',
       checkedAt: '2026-09-16T12:00:00.000Z',
       issuingAuthorityCompetent: true,
+      issuer: null,
+      // The archive's holdings answer says nothing about the sheet's own
+      // signature (ADR-0034).
+      signature: null,
       fields: [
         {
           name: 'plot_area',

@@ -31,6 +31,7 @@ export {
   NationalArchivePort,
   type ArchiveQrAnswer,
   type ArchivedDocument,
+  type ArchivedSignature,
 } from './national-archive.port.js';
 export { OcrProvider } from './ocr-provider.port.js';
 export {
@@ -44,4 +45,5 @@ export {
   type PdfSplitRequest,
   type SplitPage,
 } from './pdf-splitter.port.js';
+export { QrCodeReader } from './qr-code-reader.port.js';
 export { VerificationPackageRepository } from './verification-package-repository.port.js';

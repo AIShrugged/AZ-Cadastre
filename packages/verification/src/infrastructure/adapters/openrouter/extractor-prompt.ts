@@ -1,4 +1,7 @@
-import type { DocumentTypeSpec } from '../../../domain/value-objects/index.js';
+import {
+  VerificationProfile,
+  type DocumentTypeSpec,
+} from '../../../domain/value-objects/index.js';
 
 /*
  * What the reader of a document is told: the paper it is holding, the keys the
@@ -76,9 +79,16 @@ export function extractionInstructions(spec: DocumentTypeSpec): string {
  * The keys, each with its label and — where the profile declared one — the
  * sentence that says which value is meant. Indented under the key rather than
  * run onto its line so that a key still reads as a key in a list of twenty.
+ *
+ * `qr_code` is left out of the list although the schema declares it: the code
+ * is decoded from the symbol and never read off the page (ADR-0034). Asked for
+ * it, a reader answers with the mark the transcription puts where the picture
+ * was — `[QR code]` — and a value that describes a picture is worse than no
+ * value, because the rest of the system cannot tell it from a code.
  */
 function fieldList(spec: DocumentTypeSpec): string {
   return spec.schema.specs
+    .filter(field => !field.key.equals(VerificationProfile.QR_CODE))
     .map(field =>
       field.note === null
         ? `- ${field.key.value}: ${field.label}`

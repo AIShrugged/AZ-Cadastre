@@ -139,8 +139,11 @@ const ATTESTED = [
   '[signature]',
 ].join('\n');
 
-function anOcrResult(text = ATTESTED): OcrResult {
-  return OcrResult.of(RecognisedText.of(text), Confidence.of(0.9));
+function anOcrResult(
+  text = ATTESTED,
+  codes: readonly string[] = [],
+): OcrResult {
+  return OcrResult.of(RecognisedText.of(text), Confidence.of(0.9), codes);
 }
 
 function aClassification(type = 'identity_card'): Classification {
@@ -176,6 +179,10 @@ type Options = {
   profile?: VerificationProfile;
   files?: readonly SourceFile[];
   declared?: DeclaredAtIntake;
+  // What the decoder got off each sheet. A paper's `qr_code` comes from here
+  // and from nowhere else, so a spec about a QR check has to put it on the
+  // sheet rather than among the readings (ADR-0034).
+  codes?: readonly string[];
 };
 
 function aPackage(options: Options = {}) {
@@ -205,7 +212,11 @@ function aReadPackage(sheets = 1, options: Options = {}) {
 
   built.verification.splitIntoPages(built.file.id, pages);
   for (const page of pages) {
-    built.verification.recordRecognition(built.file.id, page.id, anOcrResult());
+    built.verification.recordRecognition(
+      built.file.id,
+      page.id,
+      anOcrResult(ATTESTED, options.codes ?? []),
+    );
   }
   built.verification.commit();
 
@@ -1289,15 +1300,10 @@ describe('VerificationPackage', () => {
         );
       }
 
-      // The complete package, its plan-scheme read again without the code.
+      // The complete package, its sheets read with no code decoded off any of
+      // them (ADR-0034).
       function aCompletePackageWithoutACode(extraSheets = 0) {
-        const built = aCompletePackage(extraSheets);
-        built.verification.recordExtractedFields(built.documents[0]!.id, [
-          stated('property_address', 'Zığ qəsəbəsi, Əliyev küçəsi 12'),
-          stated('land_category', 'Fərdi yaşayış tikintisi üçün torpaq'),
-        ]);
-
-        return built;
+        return aCompletePackage(extraSheets, []);
       }
 
       it('says once that the check by QR code was skipped', () => {
@@ -2984,8 +2990,16 @@ describe('VerificationPackage', () => {
    * to be made on (ADR-0031). `extraSheets` more are segmented and left unplaced, for a spec
    * to do with as it needs.
    */
-  function aCompletePackage(extraSheets = 0) {
-    const built = aSegmentedPackage(4 + extraSheets);
+  function aCompletePackage(
+    extraSheets = 0,
+    codes: readonly string[] = [
+      'https://e-emlak.gov.az/eemdk/az/CheckElectronExtract/qr?r=1',
+    ],
+  ) {
+    // Every sheet carries the plan-scheme's code, because the decoder is what
+    // puts a `qr_code` on a paper and the plan is the one carrier here that is
+    // placed (ADR-0034).
+    const built = aSegmentedPackage(4 + extraSheets, { codes });
     const [plan, design, title, act] = built.documents;
 
     built.verification.classify(plan!.id, aClassification('land_plot_plan'));
@@ -2997,7 +3011,6 @@ describe('VerificationPackage', () => {
     built.verification.recordExtractedFields(plan!.id, [
       stated('property_address', 'Zığ qəsəbəsi, Əliyev küçəsi 12'),
       stated('land_category', 'Fərdi yaşayış tikintisi üçün torpaq'),
-      stated('qr_code', 'https://e-emdk.gov.az/plan/RN-2010-000112'),
     ]);
     built.verification.recordExtractedFields(design!.id, [
       stated('building_height', '7,4 m'),
@@ -4510,20 +4523,19 @@ describe('VerificationPackage supplied with a document', () => {
       );
     }
 
-    // One homestead allotment order, placed and read, with its QR code among
-    // the lines — or the paper of another type where one is named.
+    // One homestead allotment order, placed and read, with its QR code decoded
+    // off the sheet — or the paper of another type where one is named.
     function aTitle(type = 'homestead_land_allocation_decision') {
-      const built = aSegmentedPackage(1);
+      const built = aSegmentedPackage(1, { codes: [QR] });
 
       built.verification.classify(built.document.id, aClassification(type));
       built.verification.recordExtractedFields(
         built.document.id,
-        type === 'archive_certificate'
-          ? [aReading('certificate_no', 'ARX-2025-0417')]
+        type === 'identity_card'
+          ? [aReading('first_name', 'ELÇİN')]
           : [
               aReading('document_no', '1471'),
               aReading('issue_date', '29.10.1998'),
-              aReading('qr_code', QR),
             ],
       );
       built.verification.commit();
@@ -4591,6 +4603,81 @@ describe('VerificationPackage supplied with a document', () => {
       );
     }
 
+    /*
+     * COMM-133, and the whole of what ADR-0034 is for.
+     *
+     * The reader, asked to transcribe a QR code, answers with the mark the
+     * transcription puts where the picture was — `[QR code]` — and on the
+     * customer's own package that is exactly what it did. The value is
+     * non-empty, so everything downstream read it as a code that had been read:
+     * the archive was asked by it, the report said nothing about the step, and
+     * the one sheet whose code mattered went unchecked in silence.
+     */
+    it('takes the code off the sheet and never from the reader', () => {
+      const { verification, document } = aTitle();
+
+      verification.recordExtractedFields(document.id, [
+        aReading('qr_code', '[QR code]'),
+      ]);
+
+      expect(verification.archiveQrQuestionOf(document.id).qrReference).toBe(
+        QR,
+      );
+    });
+
+    /*
+     * A scan too poor to read is exactly the sheet whose code is worth the
+     * most: the symbol carries its own error correction and the prose around it
+     * does not.
+     */
+    it('records the code of a paper the reader got nothing else off', () => {
+      const built = aSegmentedPackage(1, { codes: [QR] });
+
+      built.verification.classify(
+        built.document.id,
+        aClassification('homestead_land_allocation_decision'),
+      );
+      built.verification.recordExtractedFields(built.document.id, []);
+
+      expect(
+        built.verification.archiveQrQuestionOf(built.document.id).qrReference,
+      ).toBe(QR);
+    });
+
+    // A code found on the sheets of a paper the profile asks none of is not
+    // that paper's code, and `qr_code` is not in its schema to put one in.
+    it('puts no code on a paper whose profile asks for none', () => {
+      const built = aSegmentedPackage(1, { codes: [QR] });
+
+      built.verification.classify(
+        built.document.id,
+        aClassification('identity_card'),
+      );
+      built.verification.recordExtractedFields(built.document.id, [
+        aReading('first_name', 'ELÇİN'),
+      ]);
+
+      expect(
+        built.verification
+          .documentWith(built.document.id)
+          .fieldsReadHere.map(field => field.key.value),
+      ).toEqual(['first_name']);
+    });
+
+    // A decoded symbol came back whole or did not come back, so there is no
+    // probability to attach — and a value that cannot be misread has no place
+    // among the report's low-confidence findings.
+    it('holds a decoded code at full confidence', () => {
+      const { verification, document } = aTitle();
+
+      const code = verification
+        .documentWith(document.id)
+        .fieldsReadHere.find(field => field.key.value === 'qr_code');
+
+      expect(code?.confidence.value).toBe(1);
+      expect(code?.wasReadHere).toBe(true);
+    });
+
     it('waits on a placed Decree 439 paper until the archive has answered for it', () => {
       const { verification, document } = aTitle();
 
@@ -4630,10 +4717,14 @@ describe('VerificationPackage supplied with a document', () => {
       );
     });
 
-    // The archive certificate is sourced from the archive too, but it carries
-    // no QR code and none of the Decree's lines: there is nothing to ask by.
+    /*
+     * The identity card prints no QR code and the profile asks it for none, so
+     * there is nothing to resolve and no answer to keep. The archive
+     * certificate used to stand here; it does not any more, because the
+     * customer's own package prints a code on it (ADR-0034).
+     */
     it('refuses an answer for a paper the check is not made for', () => {
-      const { verification, document } = aTitle('archive_certificate');
+      const { verification, document } = aTitle('identity_card');
 
       expect(verification.awaitingArchiveQrCheck).toEqual([]);
       expect(() =>
@@ -4732,7 +4823,7 @@ describe('VerificationPackage supplied with a document', () => {
       verification.complete();
 
       const [unconfirmed] = issuesOf(verification, 'RegistryUnconfirmed');
-      expect(unconfirmed?.message).toContain('no QR reference');
+      expect(unconfirmed?.message).toContain('no QR code was decoded');
       expect(unconfirmed?.kind.isInformational).toBe(true);
     });
 

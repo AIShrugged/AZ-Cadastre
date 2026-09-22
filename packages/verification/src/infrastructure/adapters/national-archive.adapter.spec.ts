@@ -12,10 +12,16 @@ import { NationalArchiveAdapter } from './national-archive.adapter.js';
 
 const HOMESTEAD = DocumentType.create('homestead_land_allocation_decision');
 
+// The code the decoder reads off sheet 6 of the Rusadze package, which is what
+// the stand-in is keyed by (ADR-0034).
+const RUSADZE_QR =
+  'https://qr.esd.milliarxiv.gov.az/info/' +
+  'ZJvhzrotBTaKufxeEAVCshnMir5G0fjuTBO%2FsM8MvnHWubgPkFzZVz2M9%2F5D7xEU';
+
 describe('NationalArchiveAdapter', () => {
-  it('answers nothing under a reference it does not hold', async () => {
+  it('answers nothing under a reference of its own it does not hold', async () => {
     const answer = await new NationalArchiveAdapter().lookupByQr(
-      'https://e-emdk.gov.az/plan/RN-2025-004312',
+      'https://qr.esd.milliarxiv.gov.az/info/nothing-is-filed-here',
     );
 
     expect(answer.outcome).toBe('NotFound');
@@ -23,10 +29,42 @@ describe('NationalArchiveAdapter', () => {
   });
 
   /*
+   * A package carries codes from several services, and the archive must not
+   * answer about a code the register issued: `NotFound` there would read as the
+   * archive having looked, which is a claim about the paper nobody made
+   * (ADR-0034).
+   */
+  it('refuses a reference it did not issue, and names who did', async () => {
+    const answer = await new NationalArchiveAdapter().lookupByQr(
+      'https://e-emlak.gov.az/eemdk/az/CheckElectronExtract/qr?r=1&q=2&t=3',
+    );
+
+    expect(answer.outcome).toBe('NotRecognised');
+    if (answer.outcome !== 'NotRecognised') return;
+    expect(answer.issuer).toBe('e-emlak.gov.az');
+  });
+
+  // One of the two packages in `INPUTS/` carries a code whose whole payload is
+  // a document number. There is no issuer to name, and nothing may be guessed.
+  it('names no issuer for a payload that is not a link', async () => {
+    const answer = await new NationalArchiveAdapter().lookupByQr('1126012493');
+
+    expect(answer.outcome).toBe('NotRecognised');
+    if (answer.outcome !== 'NotRecognised') return;
+    expect(answer.issuer).toBeNull();
+  });
+
+  /*
    * The offline extractor and the offline archive are two halves of one demo,
-   * and a run with every provider on `mock` has to confirm the Rusadze order
-   * rather than always failing to find it. Held here, over both adapters and
-   * the domain rule between them, so the two stand-ins cannot drift apart.
+   * and a run with every provider on `mock` over the real Rusadze PDF has to
+   * confirm the order rather than fail to find it. Held here, over both
+   * adapters and the domain rule between them, so the two stand-ins cannot
+   * drift apart.
+   *
+   * The reference is the decoder's and no longer the extractor's: a QR code is
+   * read off the symbol and is not a field anybody returns (ADR-0034). What
+   * this still holds together is the half that can drift — the lines the
+   * extractor reads against the lines the archive states.
    */
   it('bears out the paper the offline extractor reads, on every line', async () => {
     const [fields, archive] = [
@@ -39,8 +77,8 @@ describe('NationalArchiveAdapter', () => {
     ];
     const read = (key: string) =>
       fields.find(field => field.key.value === key)?.value.value ?? null;
-    const qrReference = read('qr_code');
-    const answer = await archive.lookupByQr(qrReference ?? '');
+    const qrReference = RUSADZE_QR;
+    const answer = await archive.lookupByQr(qrReference);
 
     expect(answer.outcome).toBe('Found');
     if (answer.outcome !== 'Found') return;
@@ -54,14 +92,15 @@ describe('NationalArchiveAdapter', () => {
         lines: {
           document_no: document.documentNo,
           issue_date: document.issuedOn,
-          issuing_authority: document.issuingAuthority.name,
+          issuing_authority: document.issuingAuthority?.name ?? null,
           holder_name: document.holderName,
           property_address: document.propertyAddress,
           plot_area: document.plotArea,
           decree_item: document.decreeItem,
           archive_reference: document.archiveReference,
         },
-        issuingAuthorityKind: document.issuingAuthority.kind,
+        issuingAuthorityKind: document.issuingAuthority?.kind ?? null,
+        signature: null,
       },
       checkedAt: new Date(),
     });
@@ -71,19 +110,26 @@ describe('NationalArchiveAdapter', () => {
     expect(check.fields.every(field => field.verdict === 'Match')).toBe(true);
   });
 
-  // Only the Decree 439 papers read as the Rusadze order: the demo persona's
-  // other papers keep the values every other spec already relies on.
-  it('leaves the offline extractor reading every other paper as before', async () => {
-    const fields = await new FieldExtractorAdapter().extract({
-      text: RecognisedText.of(''),
-      sheets: [],
-      spec: VerificationProfile.CADASTRE.specFor(
-        DocumentType.create('land_plot_plan'),
-      ),
-    });
+  /*
+   * The offline extractor returns no `qr_code` for any paper, and must not
+   * start returning one again (ADR-0034).
+   *
+   * A stand-in value here would be dropped on the way into the aggregate, which
+   * is worse than absent: it would read as a stand-in that still works, and the
+   * next reader would spend an afternoon finding out it does not.
+   */
+  it('offers no QR code of its own for any paper', async () => {
+    for (const spec of VerificationProfile.CADASTRE.specs) {
+      const fields = await new FieldExtractorAdapter().extract({
+        text: RecognisedText.of(''),
+        sheets: [],
+        spec,
+      });
 
-    expect(
-      fields.find(field => field.key.value === 'qr_code')?.value.value,
-    ).toBe('https://e-emdk.gov.az/plan/RN-2025-004312');
+      expect(
+        fields.some(field => field.key.value === 'qr_code'),
+        `${spec.type.value} was given a QR code by the offline extractor`,
+      ).toBe(false);
+    }
   });
 });

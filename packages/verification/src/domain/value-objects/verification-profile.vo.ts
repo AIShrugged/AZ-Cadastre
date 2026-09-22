@@ -556,10 +556,20 @@ export class DocumentTypeSpec {
  */
 type Fields = Declaration['fields'];
 
+/*
+ * The line a paper prints its QR code on, as the profile describes it to a
+ * reader of the profile — never to a reader of the sheet.
+ *
+ * No extractor is asked for this key: the payload is decoded off the symbol,
+ * which is arithmetic and not a reading (ADR-0034). Until then the note told a
+ * model to transcribe the text printed beside the code and never to read the
+ * picture, and on the customer's own package that produced `[QR code]` — the
+ * mark a transcription puts where a picture was — on the one sheet whose code
+ * mattered.
+ */
 const QR_NOTE =
-  'only the text the sheet prints for the code — the link or the reference ' +
-  'under or beside it. Never read the picture of the code itself: a decoded ' +
-  'guess is a value nobody can check against the paper.';
+  'the payload of the QR code printed on the sheet, decoded from the symbol ' +
+  'itself. Never transcribed and never read off the page.';
 
 const HEIGHT_NOTE =
   'the height marked on the section from the ±0.000 datum to the underside of ' +
@@ -890,14 +900,7 @@ export class VerificationProfile {
             'Issuing authority',
             'the territorial office that issued the plan.',
           ],
-          [
-            'qr_code',
-            'QR code',
-            'only the text the sheet prints for the code — the link or the ' +
-              'reference under or beside it. Never read the picture of the ' +
-              'code itself: a decoded guess is a value nobody can check ' +
-              'against the paper.',
-          ],
+          ['qr_code', 'QR code', QR_NOTE],
         ],
       },
       {
@@ -928,6 +931,10 @@ export class VerificationProfile {
           ['applicant_name', 'Applicant name'],
           ['property_address', 'Property address'],
           ['plot_area', 'Plot area'],
+          // An order that reaches a package as the archive's certified copy of
+          // it carries the archive's code, and one of the two customer packages
+          // does exactly that (ADR-0034).
+          ['qr_code', 'QR code', QR_NOTE],
         ],
       },
       {
@@ -1102,6 +1109,15 @@ export class VerificationProfile {
           ['issue_date', 'Issue date'],
           ['property_address', 'Property address'],
           ['owner_name', 'Owner name'],
+          /*
+           * ADR-0028 read the certificate as a paper that carries no code, and
+           * left it `IntegrationNotConnected` for good. The customer's own
+           * package disagrees: the archive's certificate in it prints a code
+           * that resolves in the archive's electronic document service, and it
+           * is the one sheet of that package whose code the reader could make
+           * out at all (ADR-0034).
+           */
+          ['qr_code', 'QR code', QR_NOTE],
         ],
       },
       {

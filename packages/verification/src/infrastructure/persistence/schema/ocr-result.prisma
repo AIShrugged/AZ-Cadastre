@@ -9,6 +9,16 @@ model OcrResult {
   text       String // recognized text for the whole page
   confidence Float // page-level OCR confidence (0..1)
 
+  /// The payloads of the QR codes decoded off the sheet, in the order they were
+  /// found (ADR-0034). Empty for a sheet that prints none — and for one whose
+  /// codes the decoder could not lock onto, which is a distinction nothing here
+  /// can make: an absent code and an unread one look the same from a database.
+  ///
+  /// Beside the transcription rather than in a table of its own because they are
+  /// written together, read together and replaced together; a code is a string
+  /// nothing joins on.
+  codes String[] @default([])
+
   /// Optional bounding boxes as returned by the OcrProvider port, stored as-is:
   /// [{ text, x, y, w, h, confidence }]. Display-only for the MVP, so kept as
   /// JSON rather than its own table (no cross-box queries needed).

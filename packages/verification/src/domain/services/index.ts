@@ -15,6 +15,7 @@
  */
 export {
   archiveQrCheckOf,
+  isCheckedByItsQrCode,
   isHeldAgainstTheArchiveByQr,
   type ArchivedPaper,
 } from './archive-qr-verdict.service.js';

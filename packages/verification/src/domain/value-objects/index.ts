@@ -10,6 +10,7 @@ export {
   ARCHIVE_QR_VERDICTS,
   ArchiveQrCheck,
   ArchiveQrFieldCheck,
+  ArchiveQrSignature,
   type ArchiveQrField,
   type ArchiveQrStatus,
   type ArchiveQrVerdict,

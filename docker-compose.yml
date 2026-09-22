@@ -123,6 +123,23 @@ services:
       - REGISTRY_URL=http://registry:3100
       - REGISTRY_TIMEOUT_MS=5000
 
+      # The National Archive Fund, asked by the QR code decoded off a paper
+      # (ADR-0034). `http` calls the archive's own electronic document service —
+      # the one the codes on its certified copies resolve to — and it answers
+      # who signed the copy and whether that signature still verifies.
+      #
+      # This is the one setting here that sends something off the machine that
+      # is not ours: the case id printed on the applicant's sheet. It goes to
+      # the body that issued the sheet and printed the code inviting the check,
+      # and to nobody else — a code issued by the register or by a notary is
+      # never sent anywhere. Set it back to `mock` and the stand-in built into
+      # the context answers instead, holding one paper.
+      - NATIONAL_ARCHIVE_PROVIDER=http
+      - NATIONAL_ARCHIVE_URL=https://api.esd.milliarxiv.gov.az/signature-info/api
+      # An archive that does not answer never fails a verification: the paper is
+      # left unchecked and the report says it was not confirmed.
+      - NATIONAL_ARCHIVE_TIMEOUT_MS=5000
+
       # OpenRouter (optional, only needed if switching from mock to openrouter)
       - OPENROUTER_API_KEY=
       - OPENROUTER_BASE_URL=https://openrouter.ai/api/v1

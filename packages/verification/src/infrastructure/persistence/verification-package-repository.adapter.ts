@@ -569,8 +569,13 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
         pageId: stored.id,
         text: page.ocr.text,
         confidence: page.ocr.confidence,
+        codes: [...page.ocr.codes],
       },
-      update: { text: page.ocr.text, confidence: page.ocr.confidence },
+      update: {
+        text: page.ocr.text,
+        confidence: page.ocr.confidence,
+        codes: [...page.ocr.codes],
+      },
     });
   }
 }

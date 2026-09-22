@@ -45,6 +45,7 @@ import {
   NationalArchivePort,
   OcrProvider,
   PdfSplitter,
+  QrCodeReader,
   VerificationPackageRepository,
   type ArchiveQrAnswer,
   type ClassificationRequest,
@@ -128,6 +129,16 @@ class RenderingSplitter extends PdfSplitter {
 class RefusingSplitter extends PdfSplitter {
   override split(): Promise<readonly SplitPage[]> {
     throw new Error('no PDF is split in this test');
+  }
+}
+
+/*
+ * A sheet with no QR code on it, which is what nearly every sheet of a
+ * submission is. A spec that needs one decoded hands in its own reader.
+ */
+class NoQrCodes extends QrCodeReader {
+  override async read(): Promise<readonly string[]> {
+    return [];
   }
 }
 
@@ -334,6 +345,9 @@ function pipelineOver(
   extractor: FieldExtractor = new NoFields(),
   crossChecker: CrossChecker = new RecordingCrossChecker(),
   registry: ArchiveRegistryPort = new RecordingRegistry(),
+  // Last, so the specs that hand in a splitter and a segmenter positionally do
+  // not each have to name a decoder they have nothing to say about.
+  codes: QrCodeReader = new NoQrCodes(),
 ): {
   run: () => Promise<void>;
   packages: InMemoryPackages;
@@ -346,6 +360,7 @@ function pipelineOver(
     new SequentialIds(),
     pdf,
     ocr,
+    codes,
     segmenter,
     classifier,
     extractor,
@@ -598,6 +613,7 @@ describe('RunVerificationHandler', () => {
       new SequentialIds(),
       splitter,
       new RecordingOcr(),
+      new NoQrCodes(),
       new SegmenterCuttingAt(),
       new RecordingClassifier(),
       new NoFields(),
@@ -726,6 +742,7 @@ describe('RunVerificationHandler', () => {
         new SequentialIds(),
         new RenderingSplitter(3),
         new RecordingOcr(),
+        new NoQrCodes(),
         segmenter,
         new RecordingClassifier(),
         new NoFields(),
@@ -884,6 +901,7 @@ describe('RunVerificationHandler', () => {
         new SequentialIds(),
         new RenderingSplitter(2),
         new RecordingOcr(),
+        new NoQrCodes(),
         new SegmenterCuttingAt([2]),
         new CardThenApplication(),
         new NamesOnTheDocument(),

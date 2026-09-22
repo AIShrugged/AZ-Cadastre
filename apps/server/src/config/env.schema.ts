@@ -180,10 +180,30 @@ export const EnvironmentSchema = z
     // stage is abandoned and the report says the property was not confirmed.
     REGISTRY_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
 
-    // The National Archive Fund, asked by the QR reference a Decree 439 paper
-    // prints (ADR-0028). `mock` is the only value: no archive is connected, and
-    // the stand-in built into the context holds one paper.
-    NATIONAL_ARCHIVE_PROVIDER: z.enum(['mock']).default('mock'),
+    /*
+     * The National Archive Fund, asked by the QR code decoded off a paper
+     * (ADR-0028, ADR-0034).
+     *
+     * `mock` is the default and the stand-in built into the context: it holds
+     * the one paper the repository has a case for and needs no network. `http`
+     * asks the archive's own electronic document service — the one the codes on
+     * its certified copies resolve to — which answers who signed the electronic
+     * original and whether the signature verifies. Pointing it at the real
+     * service sends a case id off this machine, which is why it is not the
+     * default.
+     */
+    NATIONAL_ARCHIVE_PROVIDER: z.enum(['mock', 'http']).default('mock'),
+    NATIONAL_ARCHIVE_URL: z
+      .string()
+      .nonempty()
+      .default('https://api.esd.milliarxiv.gov.az/signature-info/api'),
+    // An archive that does not answer must not hold up a verification: the
+    // paper is left unchecked and the report says it was not confirmed.
+    NATIONAL_ARCHIVE_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(5000),
   })
   .transform(env => ({
     service: {
@@ -292,6 +312,8 @@ export const EnvironmentSchema = z
       },
       nationalArchive: {
         provider: env.NATIONAL_ARCHIVE_PROVIDER,
+        url: env.NATIONAL_ARCHIVE_URL,
+        timeoutMs: env.NATIONAL_ARCHIVE_TIMEOUT_MS,
       },
     } satisfies VerificationModuleOptions,
   }));

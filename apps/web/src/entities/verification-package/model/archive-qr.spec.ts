@@ -53,6 +53,10 @@ const check = (
 ): ArchiveQrCheckDto => ({
   status,
   qrReference: status === 'NoQrCode' ? null : 'NAF-439/1997-04812',
+  // Named only where the code was decoded and nobody here could be asked
+  // (ADR-0034).
+  issuer: status === 'IssuerNotConnected' ? 'e-emlak.gov.az' : null,
+  signature: null,
   checkedAt: '2026-09-21T09:15:00.000Z',
   issuingAuthorityCompetent:
     status === 'Confirmed' ? true : status === 'Differs' ? false : null,

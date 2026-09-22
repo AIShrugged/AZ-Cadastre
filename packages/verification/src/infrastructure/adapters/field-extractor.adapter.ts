@@ -42,7 +42,6 @@ const MOCK_VALUES: Record<string, string> = {
     'N4 (X 4470204,55; Y 8512365,75) — 26,10 m',
   plan_basis:
     'Bakı Şəhər İcra Hakimiyyətinin 12.09.2025 tarixli R-1147 saylı sərəncamı',
-  qr_code: 'https://e-emdk.gov.az/plan/RN-2025-004312',
 
   order_no: 'R-1147',
   issuing_authority: 'Bakı Şəhər İcra Hakimiyyəti',
@@ -134,8 +133,16 @@ const DECREE_439_VALUES: Record<string, string> = {
   plot_area: '400,0 kv.m',
   decree_item: '2.7',
   archive_reference: 'Fond-130, siy.1, i-476, vər.98',
-  qr_code: 'https://qr.esd.milliarxiv.gov.az/F130-S1-I476-V98',
 };
+
+/*
+ * No `qr_code` in either table, although both kinds of paper print one.
+ *
+ * A QR code is not a field a reader returns any more: it is decoded off the
+ * sheet, and the aggregate puts it on the paper whatever the extractor said
+ * (ADR-0034). A value here would be dropped on the way in, which is worse than
+ * absent — it would read as a stand-in that still works.
+ */
 
 const MOCK_CONFIDENCE = 0.92;
 

@@ -256,6 +256,12 @@ export type ArchiveQrCheckView = {
   qrReference: string | null;
   checkedAt: Date;
   issuingAuthorityCompetent: boolean | null;
+  issuer: string | null;
+  signatureSignedBy: string | null;
+  signatureOrganisation: string | null;
+  signatureUnit: string | null;
+  signatureSignedOn: string | null;
+  signatureValid: boolean | null;
   fields: readonly {
     name: string;
     documentValue: string | null;

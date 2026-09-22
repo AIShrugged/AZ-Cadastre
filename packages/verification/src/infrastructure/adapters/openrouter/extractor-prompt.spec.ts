@@ -7,6 +7,10 @@ import {
 
 import { extractionInstructions } from './extractor-prompt.js';
 
+// Declared by the profile and never asked of a reader: it is decoded off the
+// symbol on the sheet (ADR-0034).
+const DECODED = VerificationProfile.QR_CODE;
+
 const specOf = (type: string) =>
   VerificationProfile.CADASTRE.specFor(DocumentType.create(type));
 
@@ -20,6 +24,8 @@ describe('extractionInstructions', () => {
 
       expect(prompt).toContain(spec.type.value);
       for (const field of spec.schema.specs) {
+        if (field.key.equals(DECODED)) continue;
+
         expect(prompt).toContain(`- ${field.key.value}: ${field.label}`);
       }
     }
@@ -44,7 +50,7 @@ describe('extractionInstructions', () => {
       const prompt = extractionInstructions(spec);
 
       for (const field of spec.schema.specs) {
-        if (field.note === null) continue;
+        if (field.note === null || field.key.equals(DECODED)) continue;
 
         expect(prompt).toContain(field.note);
       }
@@ -95,12 +101,23 @@ describe('extractionInstructions', () => {
     expect(extractionInstructions(SKETCH_DESIGN)).toMatch(/floor plans/i);
   });
 
-  // The value is what the sheet prints, and a QR code prints nothing a reader
-  // can quote. A decoded guess is a value the inspector cannot check.
-  it('forbids reading the picture of a QR code', () => {
-    expect(extractionInstructions(PLAN_SCHEME)).toMatch(
-      /never read the picture of the code/i,
-    );
+  /*
+   * A reader asked for a QR code answers with the mark the transcription puts
+   * where the picture was — `[QR code]` — and that value is worse than none: it
+   * is non-empty, so everything downstream reads it as a code that was
+   * successfully read, and the report then says nothing at all about a step
+   * that never happened. This is the whole of COMM-133 (ADR-0034).
+   */
+  it('never asks a reader for a QR code, on any type that prints one', () => {
+    for (const type of VerificationProfile.CADASTRE.qrCarriers) {
+      const prompt = extractionInstructions(
+        VerificationProfile.CADASTRE.specFor(type),
+      );
+
+      expect(prompt, `${type.value} was asked for its QR code`).not.toContain(
+        '- qr_code:',
+      );
+    }
   });
 
   it('keeps telling the reader that an absent value is a null and not a guess', () => {

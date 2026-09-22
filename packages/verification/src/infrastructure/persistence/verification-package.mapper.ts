@@ -11,6 +11,7 @@ import {
   ApprovedCheck,
   ArchiveQrCheck,
   ArchiveQrFieldCheck,
+  ArchiveQrSignature,
   ArchiveSearchApproval,
   CheckedValue,
   Classification,
@@ -206,6 +207,12 @@ export type ArchiveQrCheckRow = {
   readonly qrReference: string | null;
   readonly checkedAt: Date;
   readonly issuingAuthorityCompetent: boolean | null;
+  readonly issuer: string | null;
+  readonly signatureSignedBy: string | null;
+  readonly signatureOrganisation: string | null;
+  readonly signatureUnit: string | null;
+  readonly signatureSignedOn: string | null;
+  readonly signatureValid: boolean | null;
   readonly fields: readonly ArchiveQrFieldRow[];
 };
 
@@ -227,6 +234,7 @@ export type PageRow = {
 export type OcrRow = {
   readonly text: string;
   readonly confidence: number;
+  readonly codes: readonly string[];
 };
 
 export type FieldRow = {
@@ -381,6 +389,12 @@ export type ArchiveQrCheckWrite = {
   readonly qrReference: string | null;
   readonly checkedAt: Date;
   readonly issuingAuthorityCompetent: boolean | null;
+  readonly issuer: string | null;
+  readonly signatureSignedBy: string | null;
+  readonly signatureOrganisation: string | null;
+  readonly signatureUnit: string | null;
+  readonly signatureSignedOn: string | null;
+  readonly signatureValid: boolean | null;
   readonly fields: readonly {
     readonly name: string;
     readonly documentValue: string | null;
@@ -401,6 +415,7 @@ export type PageWrite = {
 export type OcrWrite = {
   readonly text: string;
   readonly confidence: number;
+  readonly codes: readonly string[];
 };
 
 export type FieldWrite = {
@@ -477,6 +492,7 @@ export class VerificationPackageMapper {
             ? {
                 text: page.ocr.text.value,
                 confidence: page.ocr.confidence.value,
+                codes: page.ocr.codes,
               }
             : null,
         })),
@@ -848,6 +864,20 @@ export class VerificationPackageMapper {
             checkedAt: row.archiveQrCheck.checkedAt,
             issuingAuthorityCompetent:
               row.archiveQrCheck.issuingAuthorityCompetent,
+            issuer: row.archiveQrCheck.issuer,
+            // Rebuilt only where the service said whether it verifies: the flag
+            // is what makes a signature block a statement rather than four
+            // empty strings.
+            signature:
+              row.archiveQrCheck.signatureValid === null
+                ? null
+                : ArchiveQrSignature.of({
+                    signedBy: row.archiveQrCheck.signatureSignedBy,
+                    organisation: row.archiveQrCheck.signatureOrganisation,
+                    unit: row.archiveQrCheck.signatureUnit,
+                    signedOn: row.archiveQrCheck.signatureSignedOn,
+                    valid: row.archiveQrCheck.signatureValid,
+                  }),
             fields: row.archiveQrCheck.fields.map(field =>
               ArchiveQrFieldCheck.of(field),
             ),
@@ -869,6 +899,12 @@ export class VerificationPackageMapper {
       qrReference: check.qrReference,
       checkedAt: check.checkedAt,
       issuingAuthorityCompetent: check.issuingAuthorityCompetent,
+      issuer: check.issuer,
+      signatureSignedBy: check.signature?.signedBy ?? null,
+      signatureOrganisation: check.signature?.organisation ?? null,
+      signatureUnit: check.signature?.unit ?? null,
+      signatureSignedOn: check.signature?.signedOn ?? null,
+      signatureValid: check.signature?.valid ?? null,
       fields: check.fields.map((field, position) => ({
         name: field.name,
         documentValue: field.documentValue,
@@ -963,6 +999,7 @@ export class VerificationPackageMapper {
         ? OcrResult.of(
             RecognisedText.of(row.ocr.text),
             Confidence.of(row.ocr.confidence),
+            row.ocr.codes,
           )
         : null,
     );

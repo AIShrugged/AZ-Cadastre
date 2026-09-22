@@ -77,6 +77,8 @@ import {
   RegistryOutcomeMark,
   requiredShortfall,
   requiredTypes,
+  SIGNATURE_KEY,
+  signatureStanding,
   speaksAgainst,
   stageStatuses,
   STANDING_NOTE,
@@ -114,6 +116,7 @@ import {
   relativeAgo,
   translateOr,
   useI18n,
+  type Locale,
 } from '@/shared/i18n';
 import { cn } from '@/shared/lib/cn';
 import type { Jump } from '@/shared/lib/jump';
@@ -1396,12 +1399,31 @@ function QrValue({
   );
 }
 
+/*
+ * When the sheet was signed, as a person reads a date.
+ *
+ * The archive's service answers an ISO-8601 instant with the Baku offset on it
+ * — `2026-01-14T17:07:07.000+04:00` — and printing that to an inspector would
+ * be printing a machine's answer at them. It is a free-form string on the
+ * contract all the same, because the next service to answer here need not use
+ * ISO at all, so anything that will not parse is shown exactly as it came
+ * (ADR-0034).
+ */
+function signedOnReadably(signedOn: string, locale: Locale): string {
+  const at = new Date(signedOn);
+
+  return Number.isNaN(at.getTime())
+    ? signedOn
+    : `${formatDate(signedOn, locale)} · ${formatTime(signedOn)}`;
+}
+
 function ArchiveQrCheck({ check }: { check: ArchiveQrCheckDto }) {
   const { t, locale } = useI18n();
   const table = comparesLines(check);
   const differences = qrDisagreements(check);
   const standing = competence(check);
   const competenceTone = COMPETENCE_TONE[standing];
+  const signature = signatureStanding(check);
   const when = `${formatDate(check.checkedAt, locale)} · ${formatTime(check.checkedAt)}`;
 
   return (
@@ -1433,7 +1455,13 @@ function ArchiveQrCheck({ check }: { check: ArchiveQrCheckDto }) {
       </summary>
       <div className='mt-1 border-t border-rule pl-5'>
         <p className='max-w-[70ch] py-2 text-[0.8125rem] leading-relaxed text-muted-foreground'>
-          {t(QR_STATUS_NOTE[check.status])}
+          {/* The only note with anything to fill in: the service the code
+              resolves to, which is the whole of what this status can say.
+              A payload that is not a link names nobody, and the sentence says
+              so rather than leaving a hole in itself (ADR-0034). */}
+          {t(QR_STATUS_NOTE[check.status], {
+            issuer: check.issuer ?? t('detail.qr.issuer_unnamed'),
+          })}
         </p>
         {/* What was actually read off the paper and sent to the archive. An
             answer about a reference the reader cannot see is an answer they
@@ -1502,6 +1530,44 @@ function ArchiveQrCheck({ check }: { check: ArchiveQrCheckDto }) {
             {t(COMPETENCE_KEY[standing])}
           </span>
         </p>
+        {/* What the issuer said about the sheet rather than about what it says
+            (ADR-0034). Beside the table and never a row in it, for the reason
+            competence is: a signature that verifies says nobody altered this
+            sheet, which is a different claim from any line agreeing. On a
+            paper held against a signature service it is the whole of the
+            answer, so it carries the signer and the day as well. */}
+        {signature && (
+          <p className='flex flex-wrap items-baseline gap-2 border-t border-rule py-2 text-[0.8125rem]'>
+            <span className='text-muted-foreground'>
+              {t('detail.qr.signature')}
+            </span>
+            <span
+              className={cn(
+                'inline-flex items-baseline gap-1.5',
+                signature === 'failed' ? 'text-issues-ink' : 'text-foreground',
+              )}
+            >
+              {signature === 'verified' ? (
+                <CheckIcon className='size-3 shrink-0 translate-y-0.5 text-ok-ink' />
+              ) : (
+                <TriangleAlertIcon className='size-3 shrink-0 translate-y-0.5 text-issues-ink' />
+              )}
+              {t(SIGNATURE_KEY[signature])}
+            </span>
+            {check.signature?.signedBy && (
+              <span className='text-muted-foreground'>
+                {t('detail.qr.signed_by', { who: check.signature.signedBy })}
+              </span>
+            )}
+            {check.signature?.signedOn && (
+              <span className='text-muted-foreground'>
+                {t('detail.qr.signed_on', {
+                  when: signedOnReadably(check.signature.signedOn, locale),
+                })}
+              </span>
+            )}
+          </p>
+        )}
       </div>
     </details>
   );

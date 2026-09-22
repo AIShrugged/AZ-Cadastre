@@ -420,6 +420,20 @@ function toArchiveQrCheckDto(
     qrReference: view.qrReference,
     checkedAt: view.checkedAt.toISOString(),
     issuingAuthorityCompetent: view.issuingAuthorityCompetent,
+    issuer: view.issuer,
+    // Published only where the service said whether it verifies: the flag is
+    // what makes a signature block a statement rather than four empty strings
+    // (ADR-0034).
+    signature:
+      view.signatureValid === null
+        ? null
+        : {
+            signedBy: view.signatureSignedBy,
+            organisation: view.signatureOrganisation,
+            unit: view.signatureUnit,
+            signedOn: view.signatureSignedOn,
+            valid: view.signatureValid,
+          },
     fields: view.fields.map(field => ({
       name: field.name as ArchiveQrFieldCheckDto['name'],
       documentValue: field.documentValue,

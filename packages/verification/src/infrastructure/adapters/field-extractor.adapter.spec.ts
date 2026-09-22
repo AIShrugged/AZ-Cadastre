@@ -39,6 +39,14 @@ function extract(
   });
 }
 
+/*
+ * Every key of a schema except `qr_code`, which no extractor answers: the code
+ * is decoded off the symbol on the sheet and put on the paper by the aggregate
+ * (ADR-0034).
+ */
+const asked = (schema: FieldSchema) =>
+  schema.specs.filter(field => !field.key.equals(VerificationProfile.QR_CODE));
+
 describe('FieldExtractorAdapter', () => {
   it('answers with a value for every field the type declares', async () => {
     const schema = VerificationProfile.CADASTRE.schemaFor(IDENTITY_CARD);
@@ -76,7 +84,7 @@ describe('FieldExtractorAdapter', () => {
     for (const spec of VerificationProfile.CADASTRE.specs) {
       const fields = await extract(spec.schema, spec.type);
 
-      expect(fields.length).toBe(spec.schema.specs.length);
+      expect(fields.length).toBe(asked(spec.schema).length);
     }
   });
 
@@ -94,7 +102,7 @@ describe('FieldExtractorAdapter', () => {
       const fields = await extract(spec.schema, spec.type);
 
       expect(fields.map(field => field.key.value)).toEqual(
-        spec.schema.specs.map(field => field.key.value),
+        asked(spec.schema).map(field => field.key.value),
       );
     }
   });

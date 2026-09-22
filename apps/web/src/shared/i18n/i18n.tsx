@@ -551,9 +551,18 @@ const en: Dict = {
   'detail.qr.not_found_note':
     'The QR code was read and the archive holds nothing under it. Its fonds are partial, so this says nothing against the paper — and nothing for it either.',
   'detail.qr.no_code_note':
-    'No QR reference could be read off this paper, so the archive was not asked. Nothing was checked and nothing is held against the package.',
+    'No QR code could be decoded from this paper, so the archive was not asked. Nothing was checked and nothing is held against the package.',
+  'detail.qr.issuer_not_connected': 'Its issuer is not connected',
+  'detail.qr.issuer_not_connected_note':
+    'The QR code was decoded, and it is issued by {issuer}, which this system cannot ask. The sheet did its part; nothing was checked and nothing is held against the package.',
+  'detail.qr.issuer_unnamed': 'a service this system cannot ask',
+  'detail.qr.signature': 'Signature on the sheet:',
+  'detail.qr.signature_verified': 'verified with the issuer',
+  'detail.qr.signature_failed': 'did not verify with the issuer',
+  'detail.qr.signed_by': 'signed by {who}',
+  'detail.qr.signed_on': 'on {when}',
   'detail.qr.reference': 'QR reference:',
-  'detail.qr.no_reference': 'nothing was read',
+  'detail.qr.no_reference': 'nothing was decoded',
   'detail.qr.checked_at': 'checked {when}',
   'detail.qr.in_document': 'On the paper',
   'detail.qr.in_archive': 'In the archive',
@@ -1822,9 +1831,18 @@ const ru: Dict = {
   'detail.qr.not_found_note':
     'QR-код прочитан, но по нему в архиве ничего не числится. Фонды неполны, поэтому это не говорит против документа — но и не подтверждает его.',
   'detail.qr.no_code_note':
-    'С документа не удалось прочитать ссылку QR-кода, поэтому архив не спрашивали. Ничего не проверено и ничего пакету не вменяется.',
+    'С документа не удалось раскодировать QR-код, поэтому архив не спрашивали. Ничего не проверено и ничего пакету не вменяется.',
+  'detail.qr.issuer_not_connected': 'Выдавший код сервис не подключён',
+  'detail.qr.issuer_not_connected_note':
+    'QR-код раскодирован, он ведёт в {issuer} — к этому сервису система обратиться не может. Со стороны документа всё в порядке; ничего не проверено и ничего пакету не вменяется.',
+  'detail.qr.issuer_unnamed': 'сервис, к которому система обратиться не может',
+  'detail.qr.signature': 'Подпись на листе:',
+  'detail.qr.signature_verified': 'подтверждена выдавшим сервисом',
+  'detail.qr.signature_failed': 'не подтверждена выдавшим сервисом',
+  'detail.qr.signed_by': 'подписал {who}',
+  'detail.qr.signed_on': 'от {when}',
   'detail.qr.reference': 'Ссылка QR-кода:',
-  'detail.qr.no_reference': 'ничего не прочитано',
+  'detail.qr.no_reference': 'ничего не раскодировано',
   'detail.qr.checked_at': 'проверено {when}',
   'detail.qr.in_document': 'В документе',
   'detail.qr.in_archive': 'В архиве',
@@ -3050,9 +3068,18 @@ const az: Dict = {
   'detail.qr.not_found_note':
     'QR kod oxundu, lakin arxivdə onun üzrə heç nə yoxdur. Fondlar tam deyil, ona görə bu, sənədin əleyhinə deyil — lehinə də deyil.',
   'detail.qr.no_code_note':
-    'Sənəddən QR istinadı oxunmadı, ona görə arxivə sorğu verilmədi. Heç nə yoxlanmayıb və paketə heç nə aid edilmir.',
+    'Sənəddən QR kod açılmadı, ona görə arxivə sorğu verilmədi. Heç nə yoxlanmayıb və paketə heç nə aid edilmir.',
+  'detail.qr.issuer_not_connected': 'Kodu verən xidmət qoşulmayıb',
+  'detail.qr.issuer_not_connected_note':
+    'QR kod açıldı, o, {issuer} ünvanına aparır — sistem bu xidmətə sorğu verə bilmir. Sənəd öz işini görüb; heç nə yoxlanmayıb və paketə heç nə aid edilmir.',
+  'detail.qr.issuer_unnamed': 'sistemin sorğu verə bilmədiyi xidmət',
+  'detail.qr.signature': 'Vərəqdəki imza:',
+  'detail.qr.signature_verified': 'verən xidmət tərəfindən təsdiqləndi',
+  'detail.qr.signature_failed': 'verən xidmət tərəfindən təsdiqlənmədi',
+  'detail.qr.signed_by': 'imzalayan: {who}',
+  'detail.qr.signed_on': 'tarix: {when}',
   'detail.qr.reference': 'QR istinadı:',
-  'detail.qr.no_reference': 'heç nə oxunmayıb',
+  'detail.qr.no_reference': 'heç nə açılmayıb',
   'detail.qr.checked_at': 'yoxlanıb {when}',
   'detail.qr.in_document': 'Sənəddə',
   'detail.qr.in_archive': 'Arxivdə',

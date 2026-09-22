@@ -1,6 +1,6 @@
 import { Confidence } from '../value-objects/confidence.vo.js';
 import { DocumentType } from '../value-objects/document-type.vo.js';
-import type { VerificationProfile } from '../value-objects/verification-profile.vo.js';
+import { VerificationProfile } from '../value-objects/verification-profile.vo.js';
 
 import { provisionOf } from './case-provision.service.js';
 
@@ -144,6 +144,14 @@ export function gapsIn(
  *
  * A type the profile declares no fields for can still be offered on the
  * placement alone; it simply has no fields to be short of.
+ *
+ * `qr_code` is not one of the fields, although the schema declares it. A code
+ * is decoded off the symbol and not read off the sheet (ADR-0034), so a sheet
+ * that yields no code is not a sheet that was read badly — and a package whose
+ * papers simply do not print codes would otherwise offer to replace every one
+ * of them. That absence is already told, as the thing it is: the QR check says
+ * there was nothing to check with, and the customer's own decision is that it
+ * is not a fault of the applicant (ADR-0031).
  */
 function wasReadBadly(
   profile: VerificationProfile,
@@ -160,7 +168,8 @@ function wasReadBadly(
   const read = new Set(document.readings.map(reading => reading.key));
   const unread = profile
     .schemaFor(type)
-    .specs.some(spec => !read.has(spec.key.value));
+    .specs.filter(spec => !spec.key.equals(VerificationProfile.QR_CODE))
+    .some(spec => !read.has(spec.key.value));
 
   return (
     unread ||

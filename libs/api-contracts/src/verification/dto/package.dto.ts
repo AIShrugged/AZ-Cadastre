@@ -330,20 +330,46 @@ export type ArchiveQrFieldCheckDto = z.infer<
   typeof ArchiveQrFieldCheckDtoSchema
 >;
 
+// What the issuer said about the sheet itself rather than about what it says:
+// who signed the electronic original, for which body and section, and whether
+// that signature verifies (ADR-0034). Null where the service that answered
+// holds records and verifies no signatures.
+export const ArchiveQrSignatureDtoSchema = z.object({
+  signedBy: z.string().nullable(),
+  organisation: z.string().nullable(),
+  unit: z.string().nullable(),
+  // As the service words it; not parsed into a date here, because a value this
+  // is only ever shown as is a value nothing should be inferred from.
+  signedOn: z.string().nullable(),
+  valid: z.boolean(),
+});
+export type ArchiveQrSignatureDto = z.infer<typeof ArchiveQrSignatureDtoSchema>;
+
 export const ArchiveQrCheckDtoSchema = z.object({
   status: ArchiveQrCheckStatusSchema,
-  // The text of the QR code as it was read off the paper. Null on `NoQrCode`.
+  // The payload of the QR code, as the decoder read it off the symbol. Null on
+  // `NoQrCode`.
   qrReference: z.string().nullable(),
+  // Whoever issued the code, as the reference names them. Set on
+  // `IssuerNotConnected`; null everywhere else, and null there too for a payload
+  // that is not a link.
+  issuer: z.string().nullable(),
+  // Null on every status but `Confirmed` and `Differs`, and on those two where
+  // the service that answered verifies no signatures.
+  signature: ArchiveQrSignatureDtoSchema.nullable(),
   // ISO-8601. When the archive was asked, or — on `NoQrCode` — when the check
   // found there was nothing to ask.
   checkedAt: z.string().datetime(),
   // Whether the body that issued the paper was competent to issue a paper of
   // that kind. A fact of its own and not a string comparison: the name can
   // match the archive and the body still have had no such power. Null where
-  // there was nothing to judge it by (`NotFound`, `NoQrCode`).
+  // there was nothing to judge it by — no answer at all, or a type the Decree's
+  // table of competence says nothing about.
   issuingAuthorityCompetent: z.boolean().nullable(),
   // Every line held against the archive, in the order `ArchiveQrFieldName`
-  // names them. Empty on `NotFound` and `NoQrCode`.
+  // names them. Empty wherever nothing was compared — every status but
+  // `Confirmed` and `Differs`, and those two too where the issuer answered about
+  // the sheet rather than about what it says.
   fields: z.array(ArchiveQrFieldCheckDtoSchema),
 });
 export type ArchiveQrCheckDto = z.infer<typeof ArchiveQrCheckDtoSchema>;

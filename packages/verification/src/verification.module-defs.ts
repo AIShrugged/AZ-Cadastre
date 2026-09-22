@@ -63,11 +63,15 @@ export type VerificationModuleOptions = {
     url: string;
     timeoutMs: number;
   };
-  // The National Archive Fund, asked by the QR reference a Decree 439 paper
-  // prints (ADR-0028). `mock` is the only answer there is: no archive is
-  // connected, and the stand-in built into the context holds one paper.
+  // The National Archive Fund, asked by the QR code decoded off a paper
+  // (ADR-0028, ADR-0034). `mock` answers from the stand-in built into the
+  // context, which holds one paper; `http` asks the archive's own electronic
+  // document service, which says who signed a certified copy and whether the
+  // signature verifies.
   nationalArchive: {
-    provider: 'mock';
+    provider: 'mock' | 'http';
+    url: string;
+    timeoutMs: number;
   };
 };
 

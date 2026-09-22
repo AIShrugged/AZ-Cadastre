@@ -16,6 +16,9 @@ export type ArchivedSignature = {
   // The section of that body the signer belongs to, where the service names it.
   unit: string | null;
   signedOn: string | null;
+  // How long the signing certificate is good for, in the words the panel or the
+  // service states it in. Null where neither states one (ADR-0035).
+  certificateValidity: string | null;
   // Never null: a service that cannot say whether a signature verifies has said
   // nothing about the sheet, and answers with no signature block at all.
   valid: boolean;

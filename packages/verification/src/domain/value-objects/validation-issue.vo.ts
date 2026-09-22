@@ -533,10 +533,10 @@ export class ValidationIssue {
     return ValidationIssue.of({
       kind: IssueKind.QR_CODE_UNAVAILABLE,
       message:
-        'No paper of the package prints a QR code, so authenticity was not ' +
-        'checked by QR code: there was nothing to check it with.' +
+        'Authenticity was not checked by QR code: there was nothing to check ' +
+        'it with.' +
         (carriers.length === 0
-          ? ' The package carries no paper of a kind that prints one.'
+          ? ' The package carries no paper whose QR code this system resolves.'
           : ` No code was read off the ${named}.`),
     });
   }

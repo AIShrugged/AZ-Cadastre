@@ -484,6 +484,7 @@ export class PackageQueriesAdapter extends PackageQueries {
                     signatureOrganisation: true,
                     signatureUnit: true,
                     signatureSignedOn: true,
+                    signatureCertificateValidity: true,
                     signatureValid: true,
                     fields: {
                       orderBy: { position: 'asc' },

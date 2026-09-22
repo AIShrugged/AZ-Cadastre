@@ -15,36 +15,54 @@ import {
 import { looksLikeTheSameValue } from './value-agreement.service.js';
 
 /*
- * Whether a paper of this type has its QR code resolved (ADR-0034).
+ * The one paper this system resolves a QR code for: the order of the executive
+ * authority allotting the parcel, or the extract from it a package actually
+ * carries (ADR-0035).
+ */
+export const QR_CHECKED_TYPE = 'disposal_order';
+
+/*
+ * Whether a paper of this type has its QR code resolved (ADR-0035, narrowing
+ * ADR-0034).
  *
- * Every type whose schema declares `qr_code`, and nothing else. Until ADR-0034
- * this also asked that the profile source the paper from the National Archive
- * and declare all eight lines the archive's copy is compared on — which left
- * the two papers most inspectors actually look at, the register extract and the
- * plan of the plot, with a code on the sheet and no line in the report about
- * it. The narrower rule was a consequence of the check having one possible
- * answer; now that a code can resolve to an issuer this system cannot ask, a
- * paper whose code leads elsewhere gets a line saying exactly that, which is
- * more than the type-wide `IntegrationNotConnected` it used to get.
+ * The disposal order and nothing else. ADR-0034 widened this to every type
+ * whose schema declares `qr_code` — thirteen of them — on the reasoning that a
+ * sheet with a code on its face deserved a line about that code. What the
+ * customer wants checked is one paper: the extract from the disposal order,
+ * resolved at the National Archive Fund and nowhere else. A register extract's
+ * code is issued by the register, and answering about it here told an inspector
+ * that a second system exists rather than anything about the sheet in hand.
  *
- * What a paper is compared *on* did not widen with it: a type that declares
- * none of the eight lines is held against nothing, and its answer is about the
- * sheet — who issued the code and whether the signature on it verifies.
+ * Every other type falls back to what it said before its code was resolved: a
+ * paper this system sources from outside the package and cannot ask about is
+ * `IntegrationNotConnected` again, which is where ADR-0034 found it.
+ *
+ * The schema is still asked, so a profile that stops printing `qr_code` on its
+ * disposal order stops asking about one rather than asking with nothing.
  */
 export function isCheckedByItsQrCode(spec: DocumentTypeSpec): boolean {
-  return spec.schema.declares(FieldKey.create('qr_code'));
+  return (
+    spec.type.value === QR_CHECKED_TYPE &&
+    spec.schema.declares(FieldKey.create('qr_code'))
+  );
 }
 
 /*
  * Whether the archive's copy of this type can be compared line by line: the
- * paper is sourced from the archive, declares every line the copy is held
- * against, and its issuing body's competence is something the Decree settles
- * (ADR-0028). Eleven types answer today.
+ * paper is sourced from the archive, prints a code, declares every line the
+ * copy is held against, and its issuing body's competence is something the
+ * Decree settles (ADR-0028).
+ *
+ * No longer a narrowing of `isCheckedByItsQrCode`, which since ADR-0035 answers
+ * for one paper the archive is not the source of. This says what kind of paper
+ * a Decree 439 comparison is *about*, and the offline extractor is the only
+ * thing that still asks it — it is how a stand-in run produces a sheet with all
+ * eight lines on it.
  */
 export function isHeldAgainstTheArchiveByQr(spec: DocumentTypeSpec): boolean {
   return (
     spec.source === 'NationalArchive' &&
-    isCheckedByItsQrCode(spec) &&
+    spec.schema.declares(FieldKey.create('qr_code')) &&
     ARCHIVE_QR_FIELDS.every(field =>
       spec.schema.declares(FieldKey.create(field)),
     ) &&

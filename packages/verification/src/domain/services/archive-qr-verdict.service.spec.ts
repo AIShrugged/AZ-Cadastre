@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ArchiveQrSignature,
   DocumentType,
+  FieldKey,
   IssuingCompetence,
   VerificationProfile,
   type ArchiveQrField,
@@ -255,29 +256,50 @@ describe('which papers are held against the National Archive by their QR code', 
   });
 
   /*
-   * The certificate prints a code and is resolved like any other carrier
-   * (ADR-0034), and it still declares none of the Decree's eight lines — so it
-   * is asked about and never compared line by line. The two predicates are
-   * different questions and this is the paper that shows it.
+   * The extract from the disposal order, and nothing else (ADR-0035).
+   *
+   * ADR-0034 resolved the code on any paper that printed one; the customer
+   * wants one paper checked, and this is the assertion that says which.
    */
-  it('resolves the archive certificate without holding it against eight lines', () => {
+  it('resolves the disposal order and no other type', () => {
+    const resolved = profile.specs
+      .filter(spec => isCheckedByItsQrCode(spec))
+      .map(spec => spec.type.value);
+
+    expect(resolved).toEqual(['disposal_order']);
+  });
+
+  /*
+   * The papers ADR-0034 had widened the check to, each of which printed a code
+   * and each of which is now back to what it said before its code was resolved
+   * — a register extract and a plan of the plot state nothing about the
+   * archive, and an archive certificate is `IntegrationNotConnected` again.
+   */
+  it('resolves neither the archive certificate, the register extract nor the plan', () => {
+    for (const type of [
+      'archive_certificate',
+      'state_register_extract',
+      'land_plot_plan',
+    ]) {
+      const spec = profile.specFor(DocumentType.create(type));
+
+      expect(spec.schema.declares(FieldKey.create('qr_code'))).toBe(true);
+      expect(isCheckedByItsQrCode(spec)).toBe(false);
+    }
+  });
+
+  /*
+   * Still true of the certificate, and it is no longer the same question as
+   * the one above: what a Decree 439 comparison is *about* is one thing, and
+   * which paper has its code resolved is another (ADR-0035).
+   */
+  it('holds the archive certificate against no eight lines', () => {
     const certificate = profile.specFor(
       DocumentType.create('archive_certificate'),
     );
 
     expect(certificate.source).toBe('NationalArchive');
-    expect(isCheckedByItsQrCode(certificate)).toBe(true);
     expect(isHeldAgainstTheArchiveByQr(certificate)).toBe(false);
-  });
-
-  // The two papers an inspector actually opens first. Neither was asked about
-  // at all before ADR-0034, code on the face of it or not.
-  it('resolves the register extract and the plan of the plot', () => {
-    for (const type of ['state_register_extract', 'land_plot_plan']) {
-      expect(
-        isCheckedByItsQrCode(profile.specFor(DocumentType.create(type))),
-      ).toBe(true);
-    }
   });
 
   // A paper the table forgot would silently fall back to "not connected"; one

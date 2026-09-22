@@ -656,6 +656,7 @@ describe('VerificationPackageMapper', () => {
         signatureOrganisation: null,
         signatureUnit: null,
         signatureSignedOn: null,
+        signatureCertificateValidity: null,
         signatureValid: null,
         fields: names.map(name =>
           name === 'plot_area'

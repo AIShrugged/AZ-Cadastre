@@ -45,6 +45,10 @@ export type ArchiveQrVerdict = (typeof ARCHIVE_QR_VERDICTS)[number];
  * Kept whole rather than reduced to `valid`, because an inspector holding a
  * sealed sheet wants to see the same name the seal carries — a signature that
  * verifies for the wrong office is a finding, and only the name shows it.
+ *
+ * Six lines since ADR-0035: the signature panel of the archive's own signed PDF
+ * states a validity period for the certificate as well, and it is read off the
+ * sheet where the service's metadata is silent about it.
  */
 export class ArchiveQrSignature {
   private constructor(
@@ -52,6 +56,17 @@ export class ArchiveQrSignature {
     public readonly organisation: string | null,
     public readonly unit: string | null,
     public readonly signedOn: string | null,
+    /*
+     * How long the signing certificate is good for, in the words the panel
+     * prints it in — "14.01.2025 - 14.01.2027", a single expiry date, whatever
+     * the sheet says (ADR-0035).
+     *
+     * Never parsed into dates. An inspector is shown this beside the signer's
+     * name and decides for themselves whether the signature was made inside it;
+     * turning two words off a scan into a pair of instants would invent a
+     * precision the reading never had, and a wrong one would read as a fact.
+     */
+    public readonly certificateValidity: string | null,
     public readonly valid: boolean,
   ) {}
 
@@ -60,6 +75,9 @@ export class ArchiveQrSignature {
     organisation: string | null;
     unit: string | null;
     signedOn: string | null;
+    // Absent from an answer made before the signed PDF was digitised, and from
+    // a service that states no validity period at all.
+    certificateValidity?: string | null;
     valid: boolean;
   }): ArchiveQrSignature {
     return new ArchiveQrSignature(
@@ -67,6 +85,7 @@ export class ArchiveQrSignature {
       blank(state.organisation),
       blank(state.unit),
       blank(state.signedOn),
+      blank(state.certificateValidity ?? null),
       state.valid,
     );
   }

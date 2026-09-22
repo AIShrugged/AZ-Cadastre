@@ -293,29 +293,23 @@ describe('a verification run whose archive is short one of the papers', () => {
   const registry = new StubRegistry(
     answering({
       documents: [
+        // The paper its register never had a column for, which must not be
+        // reported as missing beside the one that is.
         {
           name: 'Ərizə',
           type: 'application',
-          holding: 'Held',
-          number: '1126012493',
-          issuedOn: '28.01.2026',
-          location: { folder: '05', pages: '12-dən 38' },
-        },
-        // The one the archive recorded that it does not have.
-        {
-          name: 'Sərəncam çıxarışı',
-          type: 'disposal_order',
-          holding: 'NotHeld',
+          holding: 'Unknown',
           number: null,
           issuedOn: null,
           location: null,
         },
-        // And one its register never had a column for, which must not be
-        // reported as missing beside the one that is.
+        // The one the archive recorded that it does not have. It used to be
+        // the decree extract; the register is not asked about that paper since
+        // ADR-0035, so the minus is against the certificate.
         {
           name: 'Arayış',
           type: 'archive_certificate',
-          holding: 'Unknown',
+          holding: 'NotHeld',
           number: null,
           issuedOn: null,
           location: null,
@@ -343,9 +337,7 @@ describe('a verification run whose archive is short one of the papers', () => {
 
   it("asks the archive about the papers in the register's own words", () => {
     // act / assert — and only about the ones the package actually carries
-    expect(registry.askedFor).toEqual([
-      ['Ərizə', 'Sərəncam çıxarışı', 'Arayış'],
-    ]);
+    expect(registry.askedFor).toEqual([['Ərizə', 'Arayış']]);
   });
 
   it('records the check as incomplete rather than as a contradiction', () => {
@@ -364,8 +356,8 @@ describe('a verification run whose archive is short one of the papers', () => {
 
     // assert
     expect(findings).toHaveLength(1);
-    expect(findings[0]?.documentType).toBe('disposal_order');
-    expect(findings[0]?.message).toContain('Sərəncam çıxarışı');
+    expect(findings[0]?.documentType).toBe('archive_certificate');
+    expect(findings[0]?.message).toContain('Arayış');
   });
 
   // Silence is not absence: a column that area's register never kept must not
@@ -377,7 +369,7 @@ describe('a verification run whose archive is short one of the papers', () => {
     );
 
     // assert
-    expect(findings.some(finding => finding.message.includes('Arayış'))).toBe(
+    expect(findings.some(finding => finding.message.includes('Ərizə'))).toBe(
       false,
     );
   });
@@ -405,9 +397,8 @@ describe('a verification run whose archive is short one of the papers', () => {
     expect(
       documents.map(document => [document.documentType, document.holding]),
     ).toEqual([
-      ['application', 'Held'],
-      ['disposal_order', 'NotHeld'],
-      ['archive_certificate', 'Unknown'],
+      ['application', 'Unknown'],
+      ['archive_certificate', 'NotHeld'],
     ]);
   });
 

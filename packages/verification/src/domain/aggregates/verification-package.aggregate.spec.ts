@@ -1275,9 +1275,11 @@ describe('VerificationPackage', () => {
 
     /*
      * "Clean" is about what is held against the package, not about the report
-     * being empty. A good package still carries a message — the plan of the
-     * plot is a paper the policy confirms through MQS, which is not connected —
-     * and that is stated for the record, so the outcome is still OK (ADR-0025).
+     * being empty. A good package still carries two messages — the plan of the
+     * plot is a paper the policy confirms through MQS, which is not connected,
+     * and this envelope carries no extract from a disposal order, which is the
+     * one paper a QR code is resolved for (ADR-0025, ADR-0035). Both are stated
+     * for the record, so the outcome is still OK.
      */
     it('reads as clean when every paper its provision asks for was found', () => {
       const { verification } = aCompletePackage();
@@ -1285,7 +1287,10 @@ describe('VerificationPackage', () => {
       verification.complete();
 
       expect(verification.report?.status.value).toBe('OK');
-      expect(kindsOf(verification)).toEqual(['IntegrationNotConnected']);
+      expect(kindsOf(verification)).toEqual([
+        'IntegrationNotConnected',
+        'QrCodeUnavailable',
+      ]);
     });
 
     /*
@@ -1304,6 +1309,26 @@ describe('VerificationPackage', () => {
       // them (ADR-0034).
       function aCompletePackageWithoutACode(extraSheets = 0) {
         return aCompletePackage(extraSheets, []);
+      }
+
+      /*
+       * The same envelope with the one paper a code is resolved for in it — an
+       * extract from the disposal order — and still nothing decoded off any
+       * sheet (ADR-0035).
+       */
+      function anOrderThatPrintedNoCode(extraSheets = 0) {
+        const built = aCompletePackageWithoutACode(extraSheets + 1);
+        const order = built.documents[4]!;
+
+        built.verification.classify(
+          order.id,
+          aClassification('disposal_order'),
+        );
+        built.verification.recordExtractedFields(order.id, [
+          stated('order_no', '1471'),
+        ]);
+
+        return { ...built, order };
       }
 
       it('says once that the check by QR code was skipped', () => {
@@ -1329,15 +1354,19 @@ describe('VerificationPackage', () => {
         );
       });
 
-      it('names the papers that could have carried one', () => {
-        const { verification } = aCompletePackageWithoutACode();
+      it('names the paper that could have carried one', () => {
+        const { verification } = anOrderThatPrintedNoCode();
 
         verification.complete();
 
-        // The plan-scheme is a kind that prints a code; the sketch design, the
-        // certificate and the act are not, and are not named.
+        /*
+         * The extract from the disposal order is the one kind whose code is
+         * resolved since ADR-0035. The plan-scheme prints one too and is not
+         * named: nothing asks about it, so its blank line stops nothing.
+         */
         const [finding] = qrFindings(verification);
-        expect(finding?.message).toContain('"land_plot_plan"');
+        expect(finding?.message).toContain('"disposal_order"');
+        expect(finding?.message).not.toContain('"land_plot_plan"');
         expect(finding?.message).not.toContain('"registration_certificate"');
         expect(finding?.message).not.toContain('"sketch_project"');
         expect(finding?.message).not.toContain('"operation_acceptance_act"');
@@ -1356,7 +1385,7 @@ describe('VerificationPackage', () => {
 
         const [finding, ...more] = qrFindings(verification);
         expect(finding?.message).toContain(
-          'no paper of a kind that prints one',
+          'no paper whose QR code this system resolves',
         );
         expect(more).toEqual([]);
         expect(
@@ -1367,45 +1396,43 @@ describe('VerificationPackage', () => {
       });
 
       /*
-       * A package carrying both kinds keeps the line, naming only the paper
-       * that has none of its own: the plan-scheme is held against MQS, which is
-       * not connected, so nothing else would ever say its code went unread
-       * (ADR-0032).
+       * The one carrier in force already carries a line of its own, so this one
+       * is not compiled at all: an absence told once, against the sheet the
+       * inspector opens, rather than twice (ADR-0032).
        */
-      it('names only the papers no line of their own speaks for', () => {
-        const { verification, documents } = aCompletePackageWithoutACode(1);
-        const title = documents[4]!;
+      it('is not said where the paper itself already says it', () => {
+        const { verification, order } = anOrderThatPrintedNoCode();
 
-        verification.classify(
-          title.id,
-          aClassification('homestead_land_allocation_decision'),
-        );
         verification.recordArchiveQrCheck(
-          title.id,
+          order.id,
           ArchiveQrCheck.noQrCode(new Date('2026-09-21T12:00:00.000Z')),
         );
         verification.complete();
 
-        const [finding] = qrFindings(verification);
-        expect(finding?.message).toContain('"land_plot_plan"');
-        expect(finding?.message).not.toContain(
-          '"homestead_land_allocation_decision"',
-        );
+        expect(qrFindings(verification)).toEqual([]);
         expect(
           verification.report?.issues.filter(
             issue =>
               issue.kind.value === 'RegistryUnconfirmed' &&
-              issue.documentId?.equals(title.id) === true,
+              issue.documentId?.equals(order.id) === true,
           ),
         ).toHaveLength(1);
       });
 
       it('is not said where a paper printed a code', () => {
-        const { verification } = aCompletePackage();
+        const built = aCompletePackage(1);
+        const order = built.documents[4]!;
 
-        verification.complete();
+        built.verification.classify(
+          order.id,
+          aClassification('disposal_order'),
+        );
+        built.verification.recordExtractedFields(order.id, [
+          stated('order_no', '1471'),
+        ]);
+        built.verification.complete();
 
-        expect(qrFindings(verification)).toEqual([]);
+        expect(qrFindings(built.verification)).toEqual([]);
       });
     });
 
@@ -1506,7 +1533,10 @@ describe('VerificationPackage', () => {
 
       verification.complete();
 
-      expect(kindsOf(verification)).toEqual(['IntegrationNotConnected']);
+      expect(kindsOf(verification)).toEqual([
+        'IntegrationNotConnected',
+        'QrCodeUnavailable',
+      ]);
     });
 
     it('reports a document that read fine and is not of a type the profile asks for', () => {
@@ -1566,6 +1596,7 @@ describe('VerificationPackage', () => {
       expect(kindsOf(built.verification)).toEqual([
         'ExtraDocument',
         'IntegrationNotConnected',
+        'QrCodeUnavailable',
       ]);
       expect(built.verification.report?.status.value).toBe('OK');
     });
@@ -4510,7 +4541,7 @@ describe('VerificationPackage supplied with a document', () => {
    * takes it only for a paper the check is for, and says what it means in the
    * report — in place of the line that says the archive was never asked.
    */
-  describe('when a Decree 439 paper is held against the National Archive by its QR code', () => {
+  describe('when the disposal order is held against the National Archive by its QR code', () => {
     const QR = 'https://qr.esd.milliarxiv.gov.az/F130-S1-I476-V98';
     const CHECKED_AT = new Date('2026-09-16T12:00:00.000Z');
 
@@ -4523,9 +4554,15 @@ describe('VerificationPackage supplied with a document', () => {
       );
     }
 
-    // One homestead allotment order, placed and read, with its QR code decoded
-    // off the sheet — or the paper of another type where one is named.
-    function aTitle(type = 'homestead_land_allocation_decision') {
+    /*
+     * One extract from the order allotting the parcel, placed and read, with
+     * its QR code decoded off the sheet — or the paper of another type where
+     * one is named.
+     *
+     * The disposal order is the one paper this check answers for since
+     * ADR-0035, and it prints its document number as `order_no`.
+     */
+    function aTitle(type = 'disposal_order') {
       const built = aSegmentedPackage(1, { codes: [QR] });
 
       built.verification.classify(built.document.id, aClassification(type));
@@ -4534,7 +4571,7 @@ describe('VerificationPackage supplied with a document', () => {
         type === 'identity_card'
           ? [aReading('first_name', 'ELÇİN')]
           : [
-              aReading('document_no', '1471'),
+              aReading('order_no', '1471'),
               aReading('issue_date', '29.10.1998'),
             ],
       );
@@ -4544,10 +4581,10 @@ describe('VerificationPackage supplied with a document', () => {
     }
 
     /*
-     * Two homestead allotment orders, placed and read, neither of them with a
-     * code among its lines: the package the archive cannot be asked about at
-     * all, and the one both the package line and the per-paper lines used to
-     * speak of (ADR-0032).
+     * Two extracts from the order allotting the parcel, placed and read,
+     * neither of them with a code among its lines: the package the archive
+     * cannot be asked about at all, and the one both the package line and the
+     * per-paper lines used to speak of (ADR-0032).
      */
     function titlesWithoutACode(howMany = 2) {
       const built = aSegmentedPackage(howMany);
@@ -4555,10 +4592,10 @@ describe('VerificationPackage supplied with a document', () => {
       for (const document of built.documents) {
         built.verification.classify(
           document.id,
-          aClassification('homestead_land_allocation_decision'),
+          aClassification('disposal_order'),
         );
         built.verification.recordExtractedFields(document.id, [
-          aReading('document_no', '1471'),
+          aReading('order_no', '1471'),
           aReading('issue_date', '29.10.1998'),
         ]);
         built.verification.recordArchiveQrCheck(
@@ -4635,7 +4672,7 @@ describe('VerificationPackage supplied with a document', () => {
 
       built.verification.classify(
         built.document.id,
-        aClassification('homestead_land_allocation_decision'),
+        aClassification('disposal_order'),
       );
       built.verification.recordExtractedFields(built.document.id, []);
 
@@ -4695,8 +4732,10 @@ describe('VerificationPackage supplied with a document', () => {
 
       const question = verification.archiveQrQuestionOf(document.id);
 
-      expect(question.type.value).toBe('homestead_land_allocation_decision');
+      expect(question.type.value).toBe('disposal_order');
       expect(question.qrReference).toBe(QR);
+      // Printed as `order_no` on this paper, and the archive's word for the
+      // same line is `document_no` (ADR-0035).
       expect(question.stated('document_no')).toBe('1471');
       expect(question.stated('holder_name')).toBeNull();
     });
@@ -4746,14 +4785,23 @@ describe('VerificationPackage supplied with a document', () => {
       ).toEqual([]);
     });
 
-    it('says a paper nobody asked the archive about was read and not confirmed, as before', () => {
+    /*
+     * The disposal order is a paper of the package — the applicant hands it in
+     * — so nothing was ever going to confirm it through a state system, and
+     * there is no `IntegrationNotConnected` line about it to replace. What the
+     * archive's silence costs it is its own line, and that is `againstTheArchive`
+     * (ADR-0035).
+     */
+    it('says nothing about an integration for a paper the package itself carries', () => {
       const { verification, document } = aTitle();
 
       verification.complete();
 
-      const [unasked] = issuesOf(verification, 'IntegrationNotConnected');
-      expect(unasked?.documentId?.equals(document.id)).toBe(true);
-      expect(unasked?.message).toContain('National Archive Fund');
+      expect(
+        issuesOf(verification, 'IntegrationNotConnected').filter(issue =>
+          issue.documentId?.equals(document.id),
+        ),
+      ).toEqual([]);
     });
 
     it('files a line the archive differs on against the package, naming both sides', () => {
@@ -4774,9 +4822,7 @@ describe('VerificationPackage supplied with a document', () => {
 
       const [mismatch] = issuesOf(verification, 'ArchiveQrMismatch');
       expect(mismatch?.documentId?.equals(document.id)).toBe(true);
-      expect(mismatch?.documentType?.value).toBe(
-        'homestead_land_allocation_decision',
-      );
+      expect(mismatch?.documentType?.value).toBe('disposal_order');
       expect(mismatch?.message).toContain('holder_name');
       expect(mismatch?.message).toContain('Qusadze Vera Vladimirovna');
       expect(mismatch?.message).toContain('Məmmədova Aynur Rəşid qızı');
@@ -4938,12 +4984,9 @@ describe('VerificationPackage corrected by hand', () => {
     ];
 
     for (const [index, title] of [edited, other].entries()) {
-      built.verification.classify(
-        title.id,
-        aClassification('homestead_land_allocation_decision'),
-      );
+      built.verification.classify(title.id, aClassification('disposal_order'));
       built.verification.recordExtractedFields(title.id, [
-        read('document_no', '1471', index + 1),
+        read('order_no', '1471', index + 1),
         read('issue_date', '29.10.1998', index + 1),
         read('qr_code', QR, index + 1),
       ]);
@@ -5120,7 +5163,7 @@ describe('VerificationPackage corrected by hand', () => {
 
     built.verification.editFields(
       built.edited.id,
-      [stated('document_no', '1417')],
+      [stated('order_no', '1417')],
       OPERATOR,
     );
 
@@ -5161,7 +5204,7 @@ describe('VerificationPackage corrected by hand', () => {
     );
 
     expect(
-      fieldOn(built.verification, built.other, 'document_no')?.value.value,
+      fieldOn(built.verification, built.other, 'order_no')?.value.value,
     ).toBe('1471');
     expect(
       fieldOn(built.verification, built.sketch, 'project_name')?.value.value,

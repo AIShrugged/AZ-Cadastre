@@ -59,15 +59,17 @@ describe('ArchiveRegistryAdapter', () => {
 
   /*
    * The one record here whose file is short a paper, so the offline pipeline
-   * can reach `Incomplete` at all — the outcome a Decree 439 title turns on
-   * (ADR-0010).
+   * can reach `Incomplete` at all (ADR-0010). The minus is against the archive
+   * certificate: the register is not asked about the disposal order any more,
+   * and a minus against a paper nobody asks about is an outcome no run reaches
+   * (ADR-0035).
    */
   it('says when the archive recorded that it does not hold one', async () => {
     const answer = await registry.addresses.lookup({
       address:
         'Bakı şəhəri, Xəzər rayonu, Hövsan qəsəbəsi, Nəsimi küçəsi, ev 4',
       attributes: [],
-      documents: [{ name: 'Sərəncam çıxarışı', type: 'disposal_order' }],
+      documents: [{ name: 'Arayış', type: 'archive_certificate' }],
     });
 
     expect(answer.documents[0]?.holding).toBe('NotHeld');

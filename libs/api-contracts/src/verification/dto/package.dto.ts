@@ -341,6 +341,10 @@ export const ArchiveQrSignatureDtoSchema = z.object({
   // As the service words it; not parsed into a date here, because a value this
   // is only ever shown as is a value nothing should be inferred from.
   signedOn: z.string().nullable(),
+  // The certificate's validity period, as the sheet or the service words it;
+  // never parsed into dates here. Null where neither states one — every check
+  // stored before the signed PDF was digitised restores as null (ADR-0035).
+  certificateValidity: z.string().nullable(),
   valid: z.boolean(),
 });
 export type ArchiveQrSignatureDto = z.infer<typeof ArchiveQrSignatureDtoSchema>;
@@ -391,8 +395,9 @@ export const DocumentDtoSchema = z.object({
   attestation: DocumentAttestationDtoSchema.nullable(),
   fields: z.array(FieldDtoSchema),
   // What the National Archive Fund said about this paper, by the QR reference
-  // printed on it (ADR-0028). Null on a document that is not a Decree 439 paper
-  // and on one the check has not been made for yet.
+  // printed on it (ADR-0028). Present on the order allotting the parcel — or an
+  // extract from it — and on no other type; null everywhere else, and null on a
+  // disposal order the check has not been made for yet (ADR-0035).
   archiveQrCheck: ArchiveQrCheckDtoSchema.nullable(),
   /*
    * The document that replaced this one, and when — null on a document in force,

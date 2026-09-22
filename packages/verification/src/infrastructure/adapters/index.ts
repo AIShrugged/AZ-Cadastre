@@ -38,6 +38,7 @@ import {
 } from './openrouter/index.js';
 import { PdfSplitterAdapter } from './pdf-splitter.adapter.js';
 import { QrCodeReaderAdapter } from './qr-code-reader.adapter.js';
+import { SignedPdfDigitiser } from './signed-pdf.digitiser.js';
 
 export { ArchiveRegistryAdapter } from './archive-registry.adapter.js';
 export { CrossCheckerAdapter } from './cross-checker.adapter.js';
@@ -59,6 +60,8 @@ export {
 export { renderPdfPages } from './pdf-page-renderer.js';
 export { PdfSplitterAdapter } from './pdf-splitter.adapter.js';
 export { QrCodeReaderAdapter } from './qr-code-reader.adapter.js';
+export { SignedPdfDigitiser } from './signed-pdf.digitiser.js';
+export { readSignedSheet } from './signed-sheet.reading.js';
 
 /**
  * The five model-backed stages each answer to one port and are chosen per
@@ -162,11 +165,24 @@ export const VERIFICATION_ADAPTERS: Provider[] = [
     provide: NationalArchivePort,
     useFactory: (
       options: VerificationModuleOptions,
+      storage: ObjectStorage,
+      ocr: OcrProvider,
       logger: Logger,
     ): NationalArchivePort =>
       options.nationalArchive.provider === 'http'
-        ? new HttpNationalArchiveAdapter(options, logger)
+        ? new HttpNationalArchiveAdapter(
+            options,
+            logger,
+            /*
+             * The signed PDF behind the code's link is read with the pipeline's
+             * own renderer and the pipeline's own OCR provider (ADR-0035) — so
+             * a deployment reading its packages with OpenRouter reads the
+             * archive's copies with it too, and one that reads them offline
+             * reads both offline.
+             */
+            new SignedPdfDigitiser(storage, ocr, logger, options.pdf),
+          )
         : new NationalArchiveAdapter(),
-    inject: [VERIFICATION_OPTIONS, Logger],
+    inject: [VERIFICATION_OPTIONS, ObjectStorage, OcrProvider, Logger],
   },
 ];

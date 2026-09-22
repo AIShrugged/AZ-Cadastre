@@ -5,6 +5,8 @@ import type { Logger } from '@cadastre/logger';
 
 import {
   NationalArchivePort,
+  type ArchivedDocument,
+  type ArchivedSignature,
   type ArchiveQrAnswer,
 } from '../../application/ports/outbound/index.js';
 import type { VerificationModuleOptions } from '../../verification.module-defs.js';
@@ -14,6 +16,8 @@ import {
 } from '../exceptions/index.js';
 
 import { issuerOf, NATIONAL_ARCHIVE_HOST } from './national-archive.adapter.js';
+import type { SignedPdfDigitiser } from './signed-pdf.digitiser.js';
+import { readSignedSheet } from './signed-sheet.reading.js';
 
 const VERIFY_QR = '/v1/signature-info/verifyQr';
 
@@ -36,10 +40,12 @@ const VERIFY_QR = '/v1/signature-info/verifyQr';
  * address. So the eight lines of ADR-0028's comparison come back empty from it
  * and the answer is about the sheet instead.
  *
- * `contentUrl` is read and deliberately dropped. It expires in an hour, and an
- * inspector opens a report long after the run that made it: a stored link that
- * is dead by the time anybody clicks it is worse than no link, because it looks
- * like the archive lost the file.
+ * `contentUrl` is the «Sənədi yüklə» download — the archive's own signed copy of
+ * the paper — and it is followed inside this call, while the link is still live
+ * (ADR-0035). It is never stored: it expires in an hour, and an inspector opens
+ * a report long after the run that made it, so a saved link that is dead by the
+ * time anybody clicks it is worse than no link, because it looks like the
+ * archive lost the file. What is kept is what the file said.
  *
  * Every field is optional and the object is loose on purpose. The shape is the
  * service's and not a published contract — `expiredDate`, which its own web
@@ -53,6 +59,16 @@ const VerifyQrAnswerSchema = z.looseObject({
   org: z.string().nullish(),
   unit: z.string().nullish(),
   signatureValidity: z.boolean().nullish(),
+  // The «Sənədi yüklə» download: a presigned link to the signed PDF, good for
+  // an hour (ADR-0035).
+  contentUrl: z.string().nullish(),
+  /*
+   * What the service's own web client renders as the certificate's validity,
+   * where the answer carries it at all — it was absent from the one real answer
+   * this adapter was written against, which is why the sheet is the first
+   * source for the line and this is only the fallback.
+   */
+  expiredDate: z.string().nullish(),
 });
 
 /**
@@ -74,6 +90,10 @@ export class HttpNationalArchiveAdapter extends NationalArchivePort {
   constructor(
     private readonly options: VerificationModuleOptions,
     private readonly logger: Logger,
+    // The reader of the signed PDF the code's link serves (ADR-0035). Optional
+    // so a deployment — or a spec — can ask the service and nothing else, in
+    // which case the answer is the metadata alone, as it was before ADR-0035.
+    private readonly signedPdf?: SignedPdfDigitiser,
   ) {
     super();
   }
@@ -147,45 +167,50 @@ export class HttpNationalArchiveAdapter extends NationalArchivePort {
       durationMs: Date.now() - startedAt,
     });
 
+    const metadata = signatureOf(answer);
+    const sheet = answer.contentUrl
+      ? await this.signedPdf?.digitise(
+          answer.contentUrl,
+          this.options.nationalArchive.timeoutMs,
+        )
+      : null;
+    const read = sheet ? readSignedSheet(sheet.text) : null;
+
     return {
       outcome: 'Found',
-      document: {
-        /*
-         * Eight nulls, and they are the truth: this service states nothing
-         * about what the paper says. The domain reads a record that states
-         * nothing and holds no signature as an empty shelf — so the one thing
-         * that makes this answer worth anything is the block below it.
-         */
-        documentNo: null,
-        issuedOn: null,
-        /*
-         * The service names the office that attested the copy, which is not the
-         * body that issued the paper. Offering it here would have the archive's
-         * own Baku branch judged on whether it could allot land in 1998, and it
-         * would fail — so the body is left unnamed and competence unjudged. The
-         * office is on the signature block below, where it belongs.
-         */
-        issuingAuthority: null,
-        holderName: null,
-        propertyAddress: null,
-        plotArea: null,
-        decreeItem: null,
-        archiveReference: null,
-        signature:
-          answer.signatureValidity === null ||
-          answer.signatureValidity === undefined
-            ? null
-            : {
-                signedBy: answer.signerName ?? null,
-                organisation: answer.org ?? null,
-                unit: answer.unit ?? null,
-                signedOn: answer.signatureDate ?? null,
-                valid: answer.signatureValidity,
-              },
-      },
+      document: read
+        ? {
+            /*
+             * The archive's own copy of the paper, as its signed PDF states it
+             * (ADR-0035).
+             *
+             * The lines come off the file the code leads to and not off the
+             * `verifyQr` answer, which states nothing about what the paper says.
+             * The issuing body stays unnamed even when the sheet prints one: it
+             * is what competence is judged on, and a name read off a scan is a
+             * reading, not the archive's record of whose fund the paper sits in
+             * — offering it would have the check answer "no power" on a
+             * misread word (ADR-0034).
+             */
+            documentNo: read.lines.document_no,
+            issuedOn: read.lines.issue_date,
+            issuingAuthority: null,
+            holderName: read.lines.holder_name,
+            propertyAddress: read.lines.property_address,
+            plotArea: read.lines.plot_area,
+            decreeItem: read.lines.decree_item,
+            archiveReference: read.lines.archive_reference,
+            signature: merged(metadata, read.signature),
+          }
+        : emptyExcept(metadata),
       note:
         `Answered by the National Archive Fund's electronic document service ` +
-        `at ${base}.`,
+        `at ${base}` +
+        (sheet
+          ? `, and its signed copy read ${
+              sheet.how === 'TextLayer' ? 'from its text' : 'by OCR'
+            }.`
+          : '.'),
     };
   }
 
@@ -225,6 +250,98 @@ function caseIdIn(reference: string): string | null {
   } catch {
     return raw;
   }
+}
+
+/*
+ * What the service itself said about the signature, which is all it says about
+ * a sheet it holds no contents for.
+ *
+ * Null where it does not verify signatures at all: a block of four nulls and a
+ * `valid` nobody asserted would read as a service that looked and found nothing
+ * wrong (ADR-0034).
+ */
+function signatureOf(answer: {
+  signerName?: string | null;
+  signatureDate?: string | null;
+  org?: string | null;
+  unit?: string | null;
+  signatureValidity?: boolean | null;
+  expiredDate?: string | null;
+}): ArchivedSignature | null {
+  if (
+    answer.signatureValidity === null ||
+    answer.signatureValidity === undefined
+  ) {
+    return null;
+  }
+
+  return {
+    signedBy: answer.signerName ?? null,
+    organisation: answer.org ?? null,
+    unit: answer.unit ?? null,
+    signedOn: answer.signatureDate ?? null,
+    certificateValidity: answer.expiredDate ?? null,
+    valid: answer.signatureValidity,
+  };
+}
+
+/*
+ * The six lines of the signature panel, the sheet first and the service behind
+ * it (ADR-0035).
+ *
+ * The sheet is preferred for the five that are words: it is the panel the
+ * inspector is looking at, and the service abbreviates. `valid` is the other way
+ * round — the service computed it by checking the signature, and the sheet only
+ * prints what it was told at the time it was rendered, so a cryptographic answer
+ * outranks a printed claim wherever there is one.
+ */
+function merged(
+  metadata: ArchivedSignature | null,
+  sheet: ReturnType<typeof readSignedSheet>['signature'],
+): ArchivedSignature | null {
+  const valid = metadata?.valid ?? sheet.valid;
+
+  // Neither side said whether it verifies, so neither said anything about the
+  // sheet at all.
+  if (valid === null || valid === undefined) return null;
+
+  return {
+    signedBy: sheet.signedBy ?? metadata?.signedBy ?? null,
+    organisation: sheet.organisation ?? metadata?.organisation ?? null,
+    unit: sheet.unit ?? metadata?.unit ?? null,
+    signedOn: sheet.signedOn ?? metadata?.signedOn ?? null,
+    certificateValidity:
+      sheet.certificateValidity ?? metadata?.certificateValidity ?? null,
+    valid,
+  };
+}
+
+/*
+ * Eight nulls, and they are the truth: asked and answered, with nothing read
+ * off the signed copy — no link, no digitiser wired in, or a file that could
+ * not be fetched or read (ADR-0035). The domain reads a record that states
+ * nothing and holds no signature as an empty shelf, so the signature block is
+ * the whole of what this answer is worth.
+ */
+function emptyExcept(signature: ArchivedSignature | null): ArchivedDocument {
+  return {
+    documentNo: null,
+    issuedOn: null,
+    /*
+     * The service names the office that attested the copy, which is not the
+     * body that issued the paper. Offering it here would have the archive's own
+     * Baku branch judged on whether it could allot land in 1998, and it would
+     * fail — so the body is left unnamed and competence unjudged. The office is
+     * on the signature block, where it belongs.
+     */
+    issuingAuthority: null,
+    holderName: null,
+    propertyAddress: null,
+    plotArea: null,
+    decreeItem: null,
+    archiveReference: null,
+    signature,
+  };
 }
 
 // A refusal's body can be a whole error page; the report shows what it says,

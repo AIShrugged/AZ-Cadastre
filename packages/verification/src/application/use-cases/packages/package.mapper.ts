@@ -432,6 +432,7 @@ function toArchiveQrCheckDto(
             organisation: view.signatureOrganisation,
             unit: view.signatureUnit,
             signedOn: view.signatureSignedOn,
+            certificateValidity: view.signatureCertificateValidity,
             valid: view.signatureValid,
           },
     fields: view.fields.map(field => ({

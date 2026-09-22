@@ -91,7 +91,7 @@ services:
       # 300 is the floor at which a photocopied identity card is legible — at
       # 150 its card number is ~40px wide and readers invent one (docs/MODELS.md)
       - PDF_PAGE_DPI=300
-      - PDF_MAX_PAGES=30
+      - PDF_MAX_PAGES=50
 
       # AI providers. Every model here was checked to return token logprobs
       # through OpenRouter: a stage whose route reports none records its reading

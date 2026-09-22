@@ -78,6 +78,8 @@ import {
   requiredShortfall,
   requiredTypes,
   SIGNATURE_KEY,
+  SIGNATURE_LINE_KEY,
+  signatureLines,
   signatureStanding,
   speaksAgainst,
   stageStatuses,
@@ -1424,6 +1426,7 @@ function ArchiveQrCheck({ check }: { check: ArchiveQrCheckDto }) {
   const standing = competence(check);
   const competenceTone = COMPETENCE_TONE[standing];
   const signature = signatureStanding(check);
+  const signatureParticulars = signatureLines(check);
   const when = `${formatDate(check.checkedAt, locale)} · ${formatTime(check.checkedAt)}`;
 
   return (
@@ -1530,43 +1533,57 @@ function ArchiveQrCheck({ check }: { check: ArchiveQrCheckDto }) {
             {t(COMPETENCE_KEY[standing])}
           </span>
         </p>
-        {/* What the issuer said about the sheet rather than about what it says
-            (ADR-0034). Beside the table and never a row in it, for the reason
-            competence is: a signature that verifies says nobody altered this
-            sheet, which is a different claim from any line agreeing. On a
-            paper held against a signature service it is the whole of the
-            answer, so it carries the signer and the day as well. */}
+        {/* What the archive said about the sheet rather than about what it
+            says (ADR-0034). Beside the table and never a row in it, for the
+            reason competence is: a signature that verifies says nobody altered
+            this sheet, which is a different claim from any line agreeing. On an
+            answer that was about the sheet rather than about what it says it is
+            the whole of the block, so it carries the credential's particulars
+            as well.
+
+            The mark first and the particulars under it: whether the signature
+            verified is the finding, and the five lines below are what it was
+            made with. Each is nullable on the contract and a line with nothing
+            in it is not drawn — a source that states none of them leaves the
+            mark standing alone, which is still the whole of the truth it
+            told. */}
         {signature && (
-          <p className='flex flex-wrap items-baseline gap-2 border-t border-rule py-2 text-[0.8125rem]'>
-            <span className='text-muted-foreground'>
-              {t('detail.qr.signature')}
-            </span>
-            <span
-              className={cn(
-                'inline-flex items-baseline gap-1.5',
-                signature === 'failed' ? 'text-issues-ink' : 'text-foreground',
-              )}
-            >
-              {signature === 'verified' ? (
-                <CheckIcon className='size-3 shrink-0 translate-y-0.5 text-ok-ink' />
-              ) : (
-                <TriangleAlertIcon className='size-3 shrink-0 translate-y-0.5 text-issues-ink' />
-              )}
-              {t(SIGNATURE_KEY[signature])}
-            </span>
-            {check.signature?.signedBy && (
+          <div className='border-t border-rule py-2 text-[0.8125rem]'>
+            <p className='flex flex-wrap items-baseline gap-2'>
               <span className='text-muted-foreground'>
-                {t('detail.qr.signed_by', { who: check.signature.signedBy })}
+                {t('detail.qr.signature')}
               </span>
-            )}
-            {check.signature?.signedOn && (
-              <span className='text-muted-foreground'>
-                {t('detail.qr.signed_on', {
-                  when: signedOnReadably(check.signature.signedOn, locale),
-                })}
+              <span
+                className={cn(
+                  'inline-flex items-baseline gap-1.5',
+                  signature === 'failed'
+                    ? 'text-issues-ink'
+                    : 'text-foreground',
+                )}
+              >
+                {signature === 'verified' ? (
+                  <CheckIcon className='size-3 shrink-0 translate-y-0.5 text-ok-ink' />
+                ) : (
+                  <TriangleAlertIcon className='size-3 shrink-0 translate-y-0.5 text-issues-ink' />
+                )}
+                {t(SIGNATURE_KEY[signature])}
               </span>
+            </p>
+            {signatureParticulars.length > 0 && (
+              <ul className='mt-1 flex flex-col gap-0.5 text-[0.75rem] text-muted-foreground'>
+                {signatureParticulars.map(line => (
+                  <li key={line.name} className='max-w-[70ch] leading-snug'>
+                    {t(SIGNATURE_LINE_KEY[line.name], {
+                      value:
+                        line.name === 'signedOn'
+                          ? signedOnReadably(line.value, locale)
+                          : line.value,
+                    })}
+                  </li>
+                ))}
+              </ul>
             )}
-          </p>
+          </div>
         )}
       </div>
     </details>

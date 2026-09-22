@@ -1773,14 +1773,27 @@ export class VerificationProfile {
           ['cadastralNumber', 'land_plot_plan', 'cadastral_number'],
           ['plotArea', 'land_plot_plan', 'plot_area'],
         ],
-        // The three the archive files a case under, in its own words. Only
-        // three, because the archive keeps what a case was decided on and not
-        // what the applicant paid or who they are: there is no column for a
-        // receipt or an identity card in any of the presence registers, and
-        // asking about one would produce silence that reads as an answer.
+        // The papers the archive files a case under, in its own words. Not the
+        // receipt and not the identity card, because the archive keeps what a
+        // case was decided on and not what the applicant paid or who they are:
+        // there is no column for either in any of the presence registers, and
+        // asking about one would produce silence that reads as an answer. And
+        // not the disposal order, which the National Archive Fund answers for
+        // by its QR code and nothing else answers for at all (ADR-0035).
         documents: [
           ['Ərizə', 'application'],
-          ['Sərəncam çıxarışı', 'disposal_order'],
+          /*
+           * The disposal order is not asked about here (ADR-0035).
+           *
+           * It is the one paper the National Archive Fund answers for, and its
+           * verdict rests on that answer alone. Asking our own register whether
+           * it holds a `Sərəncam çıxarışı` for the address put a second,
+           * weaker opinion about the same sheet in the same report — a shelf
+           * that keeps no column for the paper reading as a shortfall in the
+           * package, and a shelf that does keep one reading as corroboration
+           * the archive never gave. The register still answers for the
+           * property; it no longer answers for this paper.
+           */
           ['Arayış', 'archive_certificate'],
           // The title documents the archive's registers keep a column for, under
           // the registers' own words: the Land Committee's state acts, the

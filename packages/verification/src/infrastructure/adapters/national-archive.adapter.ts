@@ -9,17 +9,61 @@ import {
 /*
  * The offline stand-in for the National Archive Fund.
  *
- * It holds the one paper the repository has a real case for, so a run with
- * every provider on `mock` shows the check doing its work: the 1998 allotment
- * order in Rusadze Vera Vladimirovna's package, of which the archive's Baku
- * branch sent certified copies in January 2026 (`INPUTS/Example application and
- * other document- Vera Vladimirovna.pdf`, pp. 4–6).
+ * Two papers, and a run with every provider on `mock` needs both. The first is
+ * the extract from the disposal order the demo package carries — the one type
+ * whose code is resolved since ADR-0035, so it is the only one of these that a
+ * mocked run actually asks about, and its values are the offline extractor's
+ * values on purpose: MOCK_VALUES in field-extractor.adapter.ts.
  *
- * Its values are that copy's values, and the offline extractor reads the same
- * paper the same way on purpose: DECREE_439_VALUES in field-extractor.adapter.ts.
+ * The second is the paper the repository has a real case for: the 1998
+ * allotment order in Rusadze Vera Vladimirovna's package, of which the
+ * archive's Baku branch sent certified copies in January 2026
+ * (`INPUTS/Example application and other document- Vera Vladimirovna.pdf`,
+ * pp. 4–6). Nothing asks about it since ADR-0035 — a homestead allotment
+ * decision is not the disposal order — and it stays because it is the real
+ * shape of an archive's entry and what `rusadze-order.spec.ts` holds the three
+ * offline providers together on.
+ *
  * Any other reference is answered with nothing.
  */
+
+/*
+ * The code the demo's extract from the disposal order prints, as the decoder
+ * reads it off the symbol. Said again in the integration set, where there is no
+ * image behind a storage key to decode one from.
+ */
+const DEMO_DISPOSAL_ORDER_QR =
+  'https://qr.esd.milliarxiv.gov.az/info/' +
+  'R6jQk0hVvCmXpZ2sL8nT4wB1yE7uA3dF%2FQ5oN9rI6cS0gM%2BjH8kP4xW2vY7zD1b';
+
 const HELD: ReadonlyMap<string, ArchivedDocument> = new Map([
+  [
+    DEMO_DISPOSAL_ORDER_QR,
+    {
+      documentNo: 'R-1147',
+      // As an archive database states a date, against the paper's 12.02.2021.
+      issuedOn: '2021-02-12',
+      /*
+       * Named and typed, and the check still judges no competence by it: the
+       * Decree's table says nothing about a disposal order, so there is no rule
+       * to apply and `issuingAuthorityCompetent` is null (ADR-0034).
+       */
+      issuingAuthority: {
+        name: 'Bakı Şəhər İcra Hakimiyyəti',
+        kind: 'LocalExecutiveAuthority',
+      },
+      holderName: 'ELÇİN ƏLİYEV',
+      propertyAddress: 'Bakı ş., Nəsimi r., Azadlıq pr. 12, mən. 43',
+      plotArea: '642 m²',
+      // Neither is a line an extract from a disposal order prints, and the
+      // archive's entry for one carries neither.
+      decreeItem: null,
+      archiveReference: null,
+      // The stand-in holds records and verifies nothing (ADR-0034), and it
+      // serves no signed PDF for the digitiser to read a panel off (ADR-0035).
+      signature: null,
+    },
+  ],
   [
     /*
      * The code printed on sheet 6 of that package, as the decoder reads it off
@@ -111,8 +155,8 @@ export class NationalArchiveAdapter extends NationalArchivePort {
           outcome: 'NotFound',
           note:
             'Answered offline, by the stand-in for the National Archive Fund ' +
-            `built into the context: it holds ${HELD.size} paper and nothing ` +
-            'under this reference.',
+            `built into the context: it holds ${HELD.size} papers and ` +
+            'nothing under this reference.',
         };
   }
 }

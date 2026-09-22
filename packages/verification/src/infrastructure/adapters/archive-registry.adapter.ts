@@ -61,11 +61,13 @@ const HELD: readonly ArchiveRecordDto[] = [
     location: { folder: '31', pages: '06-DƏK səh. 48' },
     // The one record whose file is short a paper, so the offline pipeline can
     // reach the outcome at all. The presence register of this settlement wrote
-    // a minus against the decree extract.
+    // a minus against the archive certificate. It used to be the decree extract
+    // — the register is not asked about that paper since ADR-0035, and a minus
+    // against a paper nobody asks about is an outcome the demo never reaches.
     documents: [
-      ...held(['Ərizə', 'Arayış']),
+      ...held(['Ərizə', 'Sərəncam çıxarışı']),
       {
-        name: 'Sərəncam çıxarışı',
+        name: 'Arayış',
         holding: 'NotHeld',
         number: null,
         issuedOn: null,

@@ -4,6 +4,7 @@ import path from 'node:path';
 import { createCanvas, DOMMatrix, Path2D } from '@napi-rs/canvas';
 import {
   getDocument,
+  type PDFDocumentLoadingTask,
   type PDFDocumentProxy,
 } from 'pdfjs-dist/legacy/build/pdf.mjs';
 
@@ -47,26 +48,81 @@ export type RenderingLimits = {
   maxPages: number;
 };
 
+/*
+ * How much text a PDF has to carry before it counts as a document with a text
+ * layer rather than a scan.
+ *
+ * A scanned sheet is not always empty of text: the tool that produced the file
+ * stamps a footer, a page number or an invisible watermark on it, and a reader
+ * that trusted any text at all would parse those four words and call the sheet
+ * digitised. A page of an actual document carries hundreds of characters
+ * (ADR-0035).
+ */
+const TEXT_LAYER_CHARACTERS = 200;
+
+/**
+ * What a PDF says without being looked at — its text layer, if it has a real
+ * one (ADR-0035).
+ *
+ * `null` where it has none worth the name, which is the signal to render the
+ * pages and read them with the OCR provider instead. The point of asking first
+ * is that a born-digital sheet is read exactly rather than approximately: a
+ * certificate's validity period misread by one digit is worse than unread.
+ */
+export async function textLayerOf(
+  key: StorageKey,
+  pdf: Uint8Array,
+  maxPages: number,
+): Promise<string | null> {
+  const loading = load(pdf);
+  const document = await opened(loading, key);
+
+  try {
+    const sheets: string[] = [];
+
+    for (
+      let number = 1;
+      number <= Math.min(document.numPages, maxPages);
+      number += 1
+    ) {
+      const page = await document.getPage(number);
+
+      try {
+        const content = await page.getTextContent();
+
+        sheets.push(
+          content.items
+            .map(item =>
+              'str' in item ? `${item.str}${item.hasEOL ? '\n' : ''}` : '',
+            )
+            .join(''),
+        );
+      } finally {
+        page.cleanup();
+      }
+    }
+
+    const text = sheets
+      .join('\n')
+      .replaceAll(/[^\S\n]+/gu, ' ')
+      .replaceAll(/ *\n */gu, '\n')
+      .trim();
+
+    return text.replaceAll(/\s/gu, '').length >= TEXT_LAYER_CHARACTERS
+      ? text
+      : null;
+  } finally {
+    await loading.destroy();
+  }
+}
+
 export async function* renderPdfPages(
   key: StorageKey,
   pdf: Uint8Array,
   limits: RenderingLimits,
 ): AsyncGenerator<PageRendering> {
-  const loading = getDocument({
-    data: pdf,
-    standardFontDataUrl: asset('standard_fonts'),
-    cMapUrl: asset('cmaps'),
-    cMapPacked: true,
-    iccUrl: asset('iccs'),
-    wasmUrl: asset('wasm'),
-  });
-
-  let document: PDFDocumentProxy;
-  try {
-    document = await loading.promise;
-  } catch (cause) {
-    throw new UnreadablePdfException(key, cause);
-  }
+  const loading = load(pdf);
+  const document = await opened(loading, key);
 
   try {
     if (document.numPages === 0) throw new EmptyPdfException(key);
@@ -79,6 +135,40 @@ export async function* renderPdfPages(
     }
   } finally {
     await loading.destroy();
+  }
+}
+
+/*
+ * One reading of one file, off bytes the loader owns.
+ *
+ * The copy is not tidiness. pdf.js hands the data to its worker by
+ * *transferring* the ArrayBuffer, which detaches the caller's view: without it
+ * the same file cannot be opened twice — asking for a text layer and then
+ * rendering the pages of the sheet that has none fails with `DataCloneError`,
+ * and so does an ArrayBuffer that came straight off a `Response` (ADR-0035).
+ */
+function load(pdf: Uint8Array): PDFDocumentLoadingTask {
+  const data = new Uint8Array(pdf.byteLength);
+  data.set(pdf);
+
+  return getDocument({
+    data,
+    standardFontDataUrl: asset('standard_fonts'),
+    cMapUrl: asset('cmaps'),
+    cMapPacked: true,
+    iccUrl: asset('iccs'),
+    wasmUrl: asset('wasm'),
+  });
+}
+
+async function opened(
+  loading: PDFDocumentLoadingTask,
+  key: StorageKey,
+): Promise<PDFDocumentProxy> {
+  try {
+    return await loading.promise;
+  } catch (cause) {
+    throw new UnreadablePdfException(key, cause);
   }
 }
 

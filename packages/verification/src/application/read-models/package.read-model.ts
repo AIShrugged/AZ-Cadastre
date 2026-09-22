@@ -261,6 +261,10 @@ export type ArchiveQrCheckView = {
   signatureOrganisation: string | null;
   signatureUnit: string | null;
   signatureSignedOn: string | null;
+  // How long the signing certificate is good for, in the words the panel or the
+  // service states it in. Null on every check stored before the signed PDF was
+  // digitised (ADR-0035).
+  signatureCertificateValidity: string | null;
   signatureValid: boolean | null;
   fields: readonly {
     name: string;

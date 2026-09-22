@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { SilentLogger } from '@cadastre/logger';
 
+import { aPdfOf } from '../../../test/pdf-fixture.js';
 import {
   ObjectStorage,
   type PresignedDownload,
@@ -19,50 +20,6 @@ import {
 import { PdfSplitterAdapter } from './pdf-splitter.adapter.js';
 
 const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47];
-
-function aPdfOf(...pages: string[]): Uint8Array {
-  const objects: string[] = [
-    '<< /Type /Catalog /Pages 2 0 R >>',
-    '',
-    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
-  ];
-  const pageIds = pages.map((_, index) => 4 + index * 2);
-
-  objects[1] =
-    `<< /Type /Pages /Kids [${pageIds.map(id => `${id} 0 R`).join(' ')}] ` +
-    `/Count ${pages.length} >>`;
-
-  for (const [index, text] of pages.entries()) {
-    const content = `BT /F1 24 Tf 72 700 Td (${text}) Tj ET`;
-
-    objects.push(
-      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] ` +
-        `/Resources << /Font << /F1 3 0 R >> >> ` +
-        `/Contents ${pageIds[index]! + 1} 0 R >>`,
-      `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
-    );
-  }
-
-  let body = '%PDF-1.4\n';
-  const offsets: number[] = [];
-
-  for (const [index, object] of objects.entries()) {
-    offsets.push(body.length);
-    body += `${index + 1} 0 obj\n${object}\nendobj\n`;
-  }
-
-  const startxref = body.length;
-  body += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-  for (const offset of offsets) {
-    body += `${String(offset).padStart(10, '0')} 00000 n \n`;
-  }
-  body +=
-    `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\n` +
-    `startxref\n${startxref}\n%%EOF\n`;
-
-  // Latin-1: a PDF's structure is bytes, and every offset above counts them.
-  return new Uint8Array(Buffer.from(body, 'latin1'));
-}
 
 class StorageStandingIn extends ObjectStorage {
   readonly written: PutObjectRequest[] = [];

@@ -734,6 +734,7 @@ describe('toDetailDto', () => {
                   signatureOrganisation: null,
                   signatureUnit: null,
                   signatureSignedOn: null,
+                  signatureCertificateValidity: null,
                   signatureValid: null,
                   fields: [
                     {

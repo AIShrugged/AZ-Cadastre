@@ -53,6 +53,9 @@ model ArchiveQrCheck {
   signatureOrganisation String?
   signatureUnit         String?
   signatureSignedOn     String?
+  /// How long the signing certificate is good for, in the words the panel or
+  /// the service states it in. Never parsed into dates (ADR-0035).
+  signatureCertificateValidity String?
   signatureValid        Boolean?
 
   /// When the archive was asked — or, on `NoQrCode`, when the stage found there

@@ -110,6 +110,21 @@ import {
   type SupplyTarget,
 } from '../value-objects/index.js';
 
+/*
+ * The keys a paper may print one of the archive's eight lines under, besides
+ * the line's own name (ADR-0035).
+ *
+ * The lines are worded as the National Archive Fund words a Decree 439 paper.
+ * A disposal order — the one type still held against it — words two of them its
+ * own way, and this is where the two vocabularies meet: it is a reading of the
+ * same line off the same sheet, not a value carried over from another paper,
+ * which `archiveQrQuestionOf` must never admit (ADR-0023).
+ */
+const ALSO_PRINTED_AS: Partial<Record<ArchiveQrField, readonly string[]>> = {
+  document_no: ['order_no'],
+  holder_name: ['applicant_name'],
+};
+
 /**
  * One correction an operator makes to one field of one document.
  *
@@ -1232,7 +1247,23 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
         field.key.equals(FieldKeyValue.create(key)),
       )?.value.value ?? null;
 
-    return { type, qrReference: readHere('qr_code'), stated: readHere };
+    /*
+     * A line of the comparison, read off this paper under whichever key this
+     * paper prints it as (ADR-0035).
+     *
+     * The eight lines are the archive's words for a Decree 439 paper, and the
+     * disposal order — the one type still held against the archive — declares
+     * two of them under names of its own: its document number is `order_no` and
+     * the person it names is the `applicant_name`. Without this they would come
+     * back null and the line would read `NotStated` against a value the archive
+     * plainly stated, which is silence reported as agreement.
+     */
+    const statedHere = (field: ArchiveQrField): string | null =>
+      readHere(field) ??
+      ALSO_PRINTED_AS[field]?.map(readHere).find(Boolean) ??
+      null;
+
+    return { type, qrReference: readHere('qr_code'), stated: statedHere };
   }
 
   recordArchiveQrCheck(documentId: DocumentId, check: ArchiveQrCheck): void {
@@ -1747,7 +1778,12 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
    * one is not compiled at all.
    */
   private withoutAQrCode(): readonly ValidationIssue[] {
-    const carriers = this.#profile.qrCarriers;
+    // Only the papers whose code is actually resolved. A type that prints a
+    // code nothing asks about since ADR-0035 has no check to skip, so saying
+    // its code was missing would name an absence that stops nothing.
+    const carriers = this.#profile.qrCarriers.filter(carrier =>
+      isCheckedByItsQrCode(this.#profile.specFor(carrier)),
+    );
 
     if (carriers.length === 0) return [];
 

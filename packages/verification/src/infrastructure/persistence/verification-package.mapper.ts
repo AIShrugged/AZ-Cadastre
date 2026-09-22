@@ -212,6 +212,7 @@ export type ArchiveQrCheckRow = {
   readonly signatureOrganisation: string | null;
   readonly signatureUnit: string | null;
   readonly signatureSignedOn: string | null;
+  readonly signatureCertificateValidity: string | null;
   readonly signatureValid: boolean | null;
   readonly fields: readonly ArchiveQrFieldRow[];
 };
@@ -394,6 +395,7 @@ export type ArchiveQrCheckWrite = {
   readonly signatureOrganisation: string | null;
   readonly signatureUnit: string | null;
   readonly signatureSignedOn: string | null;
+  readonly signatureCertificateValidity: string | null;
   readonly signatureValid: boolean | null;
   readonly fields: readonly {
     readonly name: string;
@@ -876,6 +878,10 @@ export class VerificationPackageMapper {
                     organisation: row.archiveQrCheck.signatureOrganisation,
                     unit: row.archiveQrCheck.signatureUnit,
                     signedOn: row.archiveQrCheck.signatureSignedOn,
+                    // Null on every check stored before the signed PDF was
+                    // digitised, which is what an old row restores as.
+                    certificateValidity:
+                      row.archiveQrCheck.signatureCertificateValidity,
                     valid: row.archiveQrCheck.signatureValid,
                   }),
             fields: row.archiveQrCheck.fields.map(field =>
@@ -904,6 +910,8 @@ export class VerificationPackageMapper {
       signatureOrganisation: check.signature?.organisation ?? null,
       signatureUnit: check.signature?.unit ?? null,
       signatureSignedOn: check.signature?.signedOn ?? null,
+      signatureCertificateValidity:
+        check.signature?.certificateValidity ?? null,
       signatureValid: check.signature?.valid ?? null,
       fields: check.fields.map((field, position) => ({
         name: field.name,

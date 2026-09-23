@@ -563,13 +563,21 @@ const en: Dict = {
   'detail.qr.issuer_unreachable_note':
     'The QR code was decoded and {issuer} was asked, and it did not answer. The paper is unchecked for now: nothing was learned about it, and nothing is held against the package.',
   'detail.qr.issuer_unnamed': 'a service this system cannot ask',
-  'detail.qr.signature': 'Signature on the sheet:',
+  // The signature block is about the archive's own electronic copy and not
+  // about the paper it copies, and every word of it says so. Read as the
+  // paper's signature it answers a question nobody put — who signed the
+  // disposal order — with the name of an archivist who signed a file in 2026
+  // (COMM-149).
+  'detail.qr.signature': "Signature on the National Archive's electronic copy:",
+  'detail.qr.signature_note':
+    'It says this file is as the National Archive released it. It says nothing about who signed the paper itself.',
   'detail.qr.signature_verified': 'verified with the issuer',
   'detail.qr.signature_failed': 'did not verify with the issuer',
-  'detail.qr.signed_by': 'signed by {value}',
-  'detail.qr.signed_on': 'signed on {value}',
-  'detail.qr.cert_organisation': 'certificate issued by {value}',
-  'detail.qr.cert_unit': 'structural subdivision: {value}',
+  'detail.qr.signed_by': 'the copy was signed by {value}',
+  'detail.qr.signed_on': 'the copy was signed on {value}',
+  'detail.qr.cert_organisation':
+    "the signer's certificate was issued by {value}",
+  'detail.qr.cert_unit': "the signer's subdivision: {value}",
   'detail.qr.cert_validity': 'certificate valid: {value}',
   'detail.qr.reference': 'QR reference:',
   'detail.qr.no_reference': 'nothing was decoded',
@@ -579,15 +587,25 @@ const en: Dict = {
   'detail.qr.silent': 'no value stated',
   'detail.qr.archive_states_none':
     'The National Archive prints no value for: {fields}. Those lines were not compared.',
+  // The other half of the same silence, and a different fact: not the fonds
+  // keeping no such column, but this system declining to put the line
+  // (ADR-0040).
+  'detail.qr.archive_not_compared':
+    'This system does not hold against the National Archive: {fields}. That is a decision of ours, not silence from the archive.',
   'detail.qr.v_match': 'Agrees',
   'detail.qr.v_mismatch': 'Differs',
   'detail.qr.v_not_stated': 'not stated',
   'detail.qr.v_not_compared': 'not compared',
   'detail.qr.differing': '{n} of {total} differ',
-  'detail.qr.competence': 'Issuing body:',
+  // About the body that issued the paper, and about its powers — not a second
+  // drawing of the "Issuing authority" line of the table, and nothing to do
+  // with whoever signed the archive's copy.
+  'detail.qr.competence': 'Powers of the body that issued the paper:',
   'detail.qr.competent': 'could issue a paper of this kind',
   'detail.qr.incompetent': 'had no power to issue a paper of this kind',
   'detail.qr.competence_unknown': 'nothing to judge its power by',
+  'detail.qr.competence_not_compared':
+    'the issuing body is not held against the archive, so there is nothing to judge its power by',
   'regattr.ownerName': 'Right holder',
   'regattr.cadastralNumber': 'Cadastral number',
   'regattr.plotArea': 'Plot area',
@@ -1850,13 +1868,15 @@ const ru: Dict = {
   'detail.qr.issuer_unreachable_note':
     'QR-код раскодирован, к {issuer} обратились — ответа не было. Документ пока не проверен: о нём ничего не выяснено и ничего пакету не вменяется.',
   'detail.qr.issuer_unnamed': 'сервис, к которому система обратиться не может',
-  'detail.qr.signature': 'Подпись на листе:',
+  'detail.qr.signature': 'Подпись под электронной копией Национального архива:',
+  'detail.qr.signature_note':
+    'Она говорит, что файл не менялся после выгрузки из Национального архива. О том, кто подписал сам документ, она не говорит ничего.',
   'detail.qr.signature_verified': 'подтверждена выдавшим сервисом',
   'detail.qr.signature_failed': 'не подтверждена выдавшим сервисом',
-  'detail.qr.signed_by': 'подписал: {value}',
-  'detail.qr.signed_on': 'дата подписания: {value}',
-  'detail.qr.cert_organisation': 'сертификат выдан: {value}',
-  'detail.qr.cert_unit': 'структурное подразделение: {value}',
+  'detail.qr.signed_by': 'копию подписал: {value}',
+  'detail.qr.signed_on': 'дата подписания копии: {value}',
+  'detail.qr.cert_organisation': 'сертификат подписавшего выдан: {value}',
+  'detail.qr.cert_unit': 'подразделение подписавшего: {value}',
   'detail.qr.cert_validity': 'срок действия сертификата: {value}',
   'detail.qr.reference': 'Ссылка QR-кода:',
   'detail.qr.no_reference': 'ничего не раскодировано',
@@ -1866,15 +1886,19 @@ const ru: Dict = {
   'detail.qr.silent': 'значение не указано',
   'detail.qr.archive_states_none':
     'Национальный архив не приводит: {fields}. Эти строки не сверялись.',
+  'detail.qr.archive_not_compared':
+    'Система не сверяет с Национальным архивом: {fields}. Это её решение, а не молчание архива.',
   'detail.qr.v_match': 'Совпадает',
   'detail.qr.v_mismatch': 'Расходится',
   'detail.qr.v_not_stated': 'не указано',
   'detail.qr.v_not_compared': 'не сверялось',
   'detail.qr.differing': 'расходятся {n} из {total}',
-  'detail.qr.competence': 'Выдавший орган:',
+  'detail.qr.competence': 'Полномочия органа, выдавшего документ:',
   'detail.qr.competent': 'имел право выдавать такой документ',
   'detail.qr.incompetent': 'не имел права выдавать такой документ',
   'detail.qr.competence_unknown': 'судить о его полномочиях не по чему',
+  'detail.qr.competence_not_compared':
+    'орган с архивом не сверяется, поэтому о полномочиях судить не по чему',
   'regattr.ownerName': 'Правообладатель',
   'regattr.cadastralNumber': 'Кадастровый номер',
   'regattr.plotArea': 'Площадь участка',
@@ -3094,13 +3118,15 @@ const az: Dict = {
   'detail.qr.issuer_unreachable_note':
     'QR kod açıldı və {issuer} xidmətinə sorğu verildi, cavab gəlmədi. Sənəd hələlik yoxlanmamış qalır: onun haqqında heç nə öyrənilmədi və paketə heç nə aid edilmir.',
   'detail.qr.issuer_unnamed': 'sistemin sorğu verə bilmədiyi xidmət',
-  'detail.qr.signature': 'Vərəqdəki imza:',
+  'detail.qr.signature': 'Milli Arxivin elektron nüsxəsindəki imza:',
+  'detail.qr.signature_note':
+    'O, faylın Milli Arxivdən verildiyi kimi qaldığını bildirir. Sənədin özünü kimin imzaladığı barədə heç nə demir.',
   'detail.qr.signature_verified': 'verən xidmət tərəfindən təsdiqləndi',
   'detail.qr.signature_failed': 'verən xidmət tərəfindən təsdiqlənmədi',
-  'detail.qr.signed_by': 'imzalayan: {value}',
-  'detail.qr.signed_on': 'imzalanma tarixi: {value}',
-  'detail.qr.cert_organisation': 'sertifikatı verən təşkilat: {value}',
-  'detail.qr.cert_unit': 'struktur bölmə: {value}',
+  'detail.qr.signed_by': 'nüsxəni imzalayan: {value}',
+  'detail.qr.signed_on': 'nüsxənin imzalanma tarixi: {value}',
+  'detail.qr.cert_organisation': 'imzalayanın sertifikatını verən: {value}',
+  'detail.qr.cert_unit': 'imzalayanın struktur bölməsi: {value}',
   'detail.qr.cert_validity': 'sertifikatın qüvvədə olma müddəti: {value}',
   'detail.qr.reference': 'QR istinadı:',
   'detail.qr.no_reference': 'heç nə açılmayıb',
@@ -3110,16 +3136,20 @@ const az: Dict = {
   'detail.qr.silent': 'dəyər göstərilməyib',
   'detail.qr.archive_states_none':
     'Milli Arxiv bunları göstərmir: {fields}. Bu sətirlər tutuşdurulmayıb.',
+  'detail.qr.archive_not_compared':
+    'Sistem bunları Milli Arxivlə tutuşdurmur: {fields}. Bu, sistemin qərarıdır, arxivin susması deyil.',
   'detail.qr.v_match': 'Uyğundur',
   'detail.qr.v_mismatch': 'Fərqlənir',
   'detail.qr.v_not_stated': 'göstərilməyib',
   'detail.qr.v_not_compared': 'tutuşdurulmayıb',
   'detail.qr.differing': '{total} sətirdən {n} fərqlənir',
-  'detail.qr.competence': 'Verən orqan:',
+  'detail.qr.competence': 'Sənədi verən orqanın səlahiyyəti:',
   'detail.qr.competent': 'belə sənəd vermək səlahiyyəti var idi',
   'detail.qr.incompetent': 'belə sənəd vermək səlahiyyəti olmayıb',
   'detail.qr.competence_unknown':
     'səlahiyyəti barədə mühakimə üçün əsas yoxdur',
+  'detail.qr.competence_not_compared':
+    'verən orqan arxivlə tutuşdurulmur, ona görə səlahiyyəti barədə mühakimə üçün əsas yoxdur',
   'regattr.ownerName': 'Hüquq sahibi',
   'regattr.cadastralNumber': 'Kadastr nömrəsi',
   'regattr.plotArea': 'Torpaq sahəsi',

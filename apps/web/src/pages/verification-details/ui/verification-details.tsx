@@ -42,8 +42,8 @@ import {
   attestationLines,
   comparesLines,
   competence,
-  COMPETENCE_KEY,
   COMPETENCE_TONE,
+  competenceKey,
   documentIn,
   ENTRIES_SHOWN,
   entriesOf,
@@ -71,6 +71,7 @@ import {
   QR_VERDICT_TONE,
   qrComparedFields,
   qrDisagreements,
+  qrUncomparedFields,
   qrUnstatedFields,
   ReadingFigure,
   readReport,
@@ -1451,6 +1452,22 @@ function signedOnReadably(signedOn: string, locale: Locale): string {
     : `${formatDate(signedOn, locale)} · ${formatTime(signedOn)}`;
 }
 
+/**
+ * The lines of a sentence that names lines, in the reader's words.
+ *
+ * `translateOr` and not `t`, because a ninth field the wire learns to send
+ * before this build has a word for it must read as its own key and not as a
+ * blank in the middle of a sentence.
+ */
+function namedFields(
+  t: (key: string, params?: Record<string, string | number>) => string,
+  fields: readonly ArchiveQrFieldCheckDto[],
+): string {
+  return fields
+    .map(field => translateOr(t, `field.${field.name}`, field.name))
+    .join(', ');
+}
+
 function ArchiveQrCheck({ check }: { check: ArchiveQrCheckDto }) {
   const { t, locale } = useI18n();
   const table = comparesLines(check);
@@ -1459,6 +1476,10 @@ function ArchiveQrCheck({ check }: { check: ArchiveQrCheckDto }) {
   // count; the second is one sentence under it and never a row.
   const compared = qrComparedFields(check);
   const unstated = qrUnstatedFields(check);
+  // And the lines nobody asked about, which is a decision of ours and not the
+  // archive's silence — told apart so the reader does not blame the fonds for
+  // a rule this system set (COMM-149).
+  const uncompared = qrUncomparedFields(check);
   const differences = qrDisagreements(check);
   const standing = competence(check);
   const competenceTone = COMPETENCE_TONE[standing];
@@ -1540,9 +1561,18 @@ function ArchiveQrCheck({ check }: { check: ArchiveQrCheckDto }) {
         {unstated.length > 0 && (
           <p className='max-w-[70ch] py-2 text-[0.75rem] italic leading-snug text-muted-foreground'>
             {t('detail.qr.archive_states_none', {
-              fields: unstated
-                .map(field => translateOr(t, `field.${field.name}`, field.name))
-                .join(', '),
+              fields: namedFields(t, unstated),
+            })}
+          </p>
+        )}
+        {/* Second and never first: what the archive had nothing to say about
+            is news about this paper's file, and what this system declines to
+            put is news about this system. A reader who meets ours first takes
+            the archive's silence for more of the same. */}
+        {uncompared.length > 0 && (
+          <p className='max-w-[70ch] pb-2 text-[0.75rem] italic leading-snug text-muted-foreground'>
+            {t('detail.qr.archive_not_compared', {
+              fields: namedFields(t, uncompared),
             })}
           </p>
         )}
@@ -1570,7 +1600,7 @@ function ArchiveQrCheck({ check }: { check: ArchiveQrCheckDto }) {
             ) : (
               <MinusIcon className='size-3 shrink-0 translate-y-0.5 text-muted-foreground/50' />
             )}
-            {t(COMPETENCE_KEY[standing])}
+            {t(competenceKey(check))}
           </span>
         </p>
         {/* What the archive said about the sheet rather than about what it
@@ -1623,6 +1653,13 @@ function ArchiveQrCheck({ check }: { check: ArchiveQrCheckDto }) {
                 ))}
               </ul>
             )}
+            {/* What the whole block amounts to, said once and plainly: the
+                names above belong to an archivist who signed a file, not to
+                whoever signed the paper. Drawn whether or not any particular
+                was stated — the mark alone is read the same wrong way. */}
+            <p className='mt-1 max-w-[70ch] text-[0.75rem] italic leading-snug text-muted-foreground'>
+              {t('detail.qr.signature_note')}
+            </p>
           </div>
         )}
       </div>

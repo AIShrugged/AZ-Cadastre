@@ -12,6 +12,7 @@ import {
   StorageKey,
 } from '../../domain/value-objects/index.js';
 
+import { fetchFromTheArchive } from './national-archive.transport.js';
 import { renderPdfPages, textLayerOf } from './pdf-page-renderer.js';
 
 /** How the sheet was read, for the audit line. */
@@ -106,10 +107,13 @@ export class SignedPdfDigitiser {
     contentUrl: string,
     timeoutMs: number,
   ): Promise<Uint8Array | null> {
-    const response = await fetch(contentUrl, {
-      method: 'GET',
+    // The download lives in the archive's own zone, which answers no AAAA
+    // question, so it is fetched the way the service itself is: IPv4 only and
+    // asked twice before it is given up on (COMM-144).
+    const response = await fetchFromTheArchive(contentUrl, {
       headers: { accept: 'application/pdf' },
-      signal: AbortSignal.timeout(timeoutMs),
+      timeoutMs,
+      logger: this.logger,
     });
 
     if (!response.ok) {

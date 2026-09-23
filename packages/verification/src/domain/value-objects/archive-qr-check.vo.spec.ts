@@ -132,4 +132,34 @@ describe('ArchiveQrCheck', () => {
     ]);
     expect([noQrCode.status, noQrCode.qrReference]).toEqual(['NoQrCode', null]);
   });
+
+  /*
+   * An issuer that was asked and did not answer (ADR-0037, COMM-144). It names
+   * who was asked, because that is the whole of what this answer can say, and
+   * it restores from the reference alone — the host is read off the link and
+   * never a second value that could disagree with it.
+   */
+  it('restores an issuer that did not answer, and names it off the reference', () => {
+    const unreachable = ArchiveQrCheck.restore({
+      status: 'IssuerUnreachable',
+      qrReference: QR,
+      checkedAt: AT,
+      issuingAuthorityCompetent: null,
+      fields: [],
+    });
+
+    expect([unreachable.status, unreachable.isUnanswered]).toEqual([
+      'IssuerUnreachable',
+      true,
+    ]);
+    expect(unreachable.issuer).toBe('qr.esd.milliarxiv.gov.az');
+    expect(unreachable.signature).toBeNull();
+  });
+
+  // A payload that is not a link names nobody, and nothing may be guessed.
+  it('names no issuer where the reference is not a link', () => {
+    expect(
+      ArchiveQrCheck.issuerUnreachable('F130-S1-I476-V98', AT).issuer,
+    ).toBeNull();
+  });
 });

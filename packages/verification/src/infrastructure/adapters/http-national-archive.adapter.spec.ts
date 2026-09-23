@@ -335,6 +335,51 @@ describe('HttpNationalArchiveAdapter', () => {
     expect(answer.note).toContain('Yanlış şifrələnmiş Case ID');
   });
 
+  /*
+   * The failure the check actually died of: the archive's zone answers no AAAA
+   * question, the resolver gives up on it, and `fetch` reports an errno
+   * (COMM-144). It reaches the stage as an outcome and not as a throw, so the
+   * paper gets a line saying it was asked about and nobody answered — a check
+   * left unmade is invisible on the page, and an integration that is down
+   * looked exactly like a feature that was never built (ADR-0037).
+   */
+  it('answers that the service could not be reached rather than throwing', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.reject(
+          new TypeError('fetch failed', {
+            cause: Object.assign(new Error('getaddrinfo EAI_AGAIN'), {
+              code: 'EAI_AGAIN',
+            }),
+          }),
+        ),
+      ),
+    );
+
+    const answer = await anArchive().lookupByQr(LINK);
+
+    expect(answer.outcome).toBe('Unreachable');
+    expect(answer.note).toContain('could not be asked');
+  });
+
+  // The wire failing is worth a second attempt — it is one request per package
+  // and the alternative is a paper silently unchecked (ADR-0037).
+  it('asks the service twice before giving it up', async () => {
+    const failing = vi.fn<typeof fetch>().mockRejectedValue(
+      new TypeError('fetch failed', {
+        cause: Object.assign(new Error('getaddrinfo EAI_AGAIN'), {
+          code: 'EAI_AGAIN',
+        }),
+      }),
+    );
+    vi.stubGlobal('fetch', failing);
+
+    await anArchive().lookupByQr(LINK);
+
+    expect(failing).toHaveBeenCalledTimes(2);
+  });
+
   // A 4xx is the caller being wrong about the contract, which is the one thing
   // that must not be quietly turned into a finding about somebody's paper.
   it('throws where the service refuses the request itself', async () => {

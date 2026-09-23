@@ -101,6 +101,12 @@ export function archiveQrCheckOf(question: {
   // Whoever issued the code, where the reference names them and this system
   // cannot ask them. Null means the issuer was asked (ADR-0034).
   readonly unaskedIssuer?: string | null;
+  /*
+   * The issuer was asked and the asking failed — unreachable, or answering
+   * something that is not an answer (ADR-0037). Told apart from `archived`
+   * being null, which is the issuer looking and holding nothing.
+   */
+  readonly issuerDidNotAnswer?: boolean;
   readonly checkedAt: Date;
 }): ArchiveQrCheck {
   const reference = question.qrReference?.trim() ?? '';
@@ -114,6 +120,10 @@ export function archiveQrCheckOf(question: {
       question.unaskedIssuer,
       question.checkedAt,
     );
+  }
+
+  if (question.issuerDidNotAnswer) {
+    return ArchiveQrCheck.issuerUnreachable(reference, question.checkedAt);
   }
 
   if (!question.archived) {

@@ -586,8 +586,8 @@ export class ValidationIssue {
   }
 
   /*
-   * A Decree 439 paper the National Archive Fund could not be asked about, or
-   * answered nothing for.
+   * A Decree 439 paper the National Archive Fund could not be asked about, did
+   * not answer about, or answered nothing for.
    *
    * RegistryUnconfirmed and not a kind of its own: it is the same absence of
    * evidence — an archive whose electronic copies are partial says nothing
@@ -610,13 +610,15 @@ export class ValidationIssue {
     check: ArchiveQrCheck,
   ): ValidationIssue {
     /*
-     * Three absences and three sentences, because they send the inspector to
-     * three different places: nothing on the sheet to ask by, nobody here to
-     * ask, and an archive that looked and holds nothing (ADR-0034).
+     * Four absences and four sentences, because they send the inspector to
+     * four different places: nothing on the sheet to ask by, nobody here to
+     * ask, somebody who was asked and did not answer, and an archive that
+     * looked and holds nothing (ADR-0034, ADR-0037).
      *
-     * The third is the only one the archive is the subject of. Saying "the
-     * National Archive Fund did not confirm this" of a code issued by the
-     * register would be a claim about a search nobody made.
+     * Only the last is the archive stating something. Saying "the National
+     * Archive Fund did not confirm this" of a code issued by the register
+     * would be a claim about a search nobody made — and saying it of a service
+     * that never answered would be a claim about an answer nobody got.
      */
     const message =
       check.status === 'NoQrCode'
@@ -627,9 +629,15 @@ export class ValidationIssue {
             `followed: it is issued by ` +
             `${check.issuer ?? 'a service this system cannot ask'}, which is ` +
             'not connected to this system.'
-          : `The National Archive Fund did not confirm this "${type.value}": ` +
-            `the archive holds nothing under its QR reference ` +
-            `${check.qrReference}.`;
+          : check.status === 'IssuerUnreachable'
+            ? `The QR code on this "${type.value}" was followed and nobody ` +
+              `answered: ${check.issuer ?? 'the service that issued it'} ` +
+              'could not be reached, so the paper is unchecked rather than ' +
+              'unconfirmed. This is a fault of the integration and not of ' +
+              'the package.'
+            : `The National Archive Fund did not confirm this ` +
+              `"${type.value}": the archive holds nothing under its QR ` +
+              `reference ${check.qrReference}.`;
 
     return ValidationIssue.of({
       kind: IssueKind.REGISTRY_UNCONFIRMED,

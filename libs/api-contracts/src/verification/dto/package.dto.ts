@@ -355,8 +355,8 @@ export const ArchiveQrCheckDtoSchema = z.object({
   // `NoQrCode`.
   qrReference: z.string().nullable(),
   // Whoever issued the code, as the reference names them. Set on
-  // `IssuerNotConnected`; null everywhere else, and null there too for a payload
-  // that is not a link.
+  // `IssuerNotConnected` and on `IssuerUnreachable`; null everywhere else, and
+  // null there too for a payload that is not a link.
   issuer: z.string().nullable(),
   // Null on every status but `Confirmed` and `Differs`, and on those two where
   // the service that answered verifies no signatures.

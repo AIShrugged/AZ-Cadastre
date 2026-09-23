@@ -1,11 +1,15 @@
-import {
-  ARCHIVE_QR_FIELDS,
-  type ArchiveQrField,
-} from '../../domain/value-objects/index.js';
-
 /**
- * What the archive's own signed PDF states, read off the digitised sheet
- * (ADR-0035).
+ * What the archive's signed PDF says about its own signature, read off the
+ * digitised sheet (ADR-0035).
+ *
+ * The panel and nothing else. The eight lines of the comparison used to be read
+ * here too, by the same label matching — and the sheet the customer's package
+ * leads to has no panel of lines on it at all, only a letter with an order
+ * copied out in prose, so the labels matched inside ordinary words and the
+ * comparison called a valid paper contradicted (ADR-0038). Those lines are read
+ * by the extraction stage now (`signed-sheet.reader.ts`); what stays here is the
+ * one block that genuinely is a table of labelled rows, because the electronic
+ * document service renders it.
  *
  * Every line is null where the sheet does not print it. `valid` is null and not
  * `false` where the signature panel says nothing either way: a sheet that makes
@@ -13,20 +17,18 @@ import {
  * turn an unread panel into a finding against the package.
  */
 export type SignedSheetReading = {
-  readonly lines: Readonly<Record<ArchiveQrField, string | null>>;
-  readonly signature: {
-    readonly signedBy: string | null;
-    readonly organisation: string | null;
-    readonly unit: string | null;
-    readonly signedOn: string | null;
-    readonly certificateValidity: string | null;
-    readonly valid: boolean | null;
-  };
+  readonly signedBy: string | null;
+  readonly organisation: string | null;
+  readonly unit: string | null;
+  readonly signedOn: string | null;
+  readonly certificateValidity: string | null;
+  readonly valid: boolean | null;
 };
 
 /*
- * The words the archive's sheets label each line with, in the two languages
- * they are printed in and with the spellings a reader of a scan produces.
+ * The words the service labels each row of the signature panel with, in the two
+ * languages it renders them in and with the spellings a reader of a scan
+ * produces.
  *
  * Labels and not positions: the archive's electronic document service renders
  * the same panel at a different place on every paper it attests, and a reader
@@ -37,68 +39,6 @@ export type SignedSheetReading = {
  * təşkilat" has to be tried before "təşkilat", or the unit and the issuer both
  * answer with the organisation.
  */
-const LABELS: Readonly<Record<ArchiveQrField, readonly string[]>> = {
-  document_no: [
-    'sərəncamın nömrəsi',
-    'sənədin nömrəsi',
-    'sərəncam nömrəsi',
-    'номер распоряжения',
-    'номер документа',
-    '№ документа',
-  ],
-  issue_date: [
-    'sərəncamın tarixi',
-    'sənədin tarixi',
-    'verilmə tarixi',
-    'дата распоряжения',
-    'дата документа',
-    'дата выдачи',
-  ],
-  issuing_authority: [
-    'sənədi verən orqan',
-    'sərəncamı verən orqan',
-    'verən orqan',
-    'орган, выдавший документ',
-    'выдавший орган',
-  ],
-  holder_name: [
-    'soyadı, adı, atasının adı',
-    'adı, soyadı',
-    'soyadı, adı',
-    'ərizəçi',
-    'sahibi',
-    'фамилия, имя, отчество',
-    'заявитель',
-    'владелец',
-    'ф.и.о',
-  ],
-  property_address: [
-    'torpaq sahəsinin ünvanı',
-    'obyektin ünvanı',
-    'ünvanı',
-    'ünvan',
-    'адрес объекта',
-    'местоположение',
-    'адрес',
-  ],
-  plot_area: [
-    'torpaq sahəsinin sahəsi',
-    'torpaq sahəsi',
-    'sahəsi',
-    'площадь земельного участка',
-    'площадь участка',
-    'площадь',
-  ],
-  decree_item: ['sərəncamın bəndi', 'bəndi', 'bənd', 'пункт'],
-  archive_reference: [
-    'arxiv arayışı',
-    'arxiv şifri',
-    'fond',
-    'архивный шифр',
-    'фонд',
-  ],
-};
-
 const SIGNATURE_LABELS = {
   signedBy: [
     'sənədi imzalayan şəxs',
@@ -168,11 +108,10 @@ const SIGNATURE_CONFIRMED = [
 const LONGEST_VALUE = 300;
 
 /**
- * Read one digitised sheet of the archive's signed PDF.
+ * Read the signature panel off the archive's signed PDF.
  *
- * Nothing here judges: a value the sheet does not print comes back null, and
- * what agrees with the paper in hand is settled in the domain, where the rules
- * for comparing a reading live (ADR-0028).
+ * Nothing here judges: a value the panel does not print comes back null, and
+ * what a verified signature is worth is settled in the domain (ADR-0028).
  */
 export function readSignedSheet(text: string): SignedSheetReading {
   const lines = text
@@ -184,17 +123,12 @@ export function readSignedSheet(text: string): SignedSheetReading {
     valueUnder(lines, folded, labels);
 
   return {
-    lines: Object.fromEntries(
-      ARCHIVE_QR_FIELDS.map(field => [field, read(LABELS[field])]),
-    ) as Record<ArchiveQrField, string | null>,
-    signature: {
-      signedBy: read(SIGNATURE_LABELS.signedBy),
-      organisation: read(SIGNATURE_LABELS.organisation),
-      unit: read(SIGNATURE_LABELS.unit),
-      signedOn: read(SIGNATURE_LABELS.signedOn),
-      certificateValidity: read(SIGNATURE_LABELS.certificateValidity),
-      valid: verdictOn(folded),
-    },
+    signedBy: read(SIGNATURE_LABELS.signedBy),
+    organisation: read(SIGNATURE_LABELS.organisation),
+    unit: read(SIGNATURE_LABELS.unit),
+    signedOn: read(SIGNATURE_LABELS.signedOn),
+    certificateValidity: read(SIGNATURE_LABELS.certificateValidity),
+    valid: verdictOn(folded),
   };
 }
 
@@ -243,8 +177,8 @@ function valueUnder(
 }
 
 function isALabel(folded: string): boolean {
-  return [...Object.values(LABELS), ...Object.values(SIGNATURE_LABELS)].some(
-    labels => labels.some(label => folded.includes(fold(label))),
+  return Object.values(SIGNATURE_LABELS).some(labels =>
+    labels.some(label => folded.includes(fold(label))),
   );
 }
 

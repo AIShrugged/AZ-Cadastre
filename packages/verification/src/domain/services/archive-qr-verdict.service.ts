@@ -203,7 +203,66 @@ function verdictOn(
 ): ArchiveQrVerdict {
   if (documentValue === null || archiveValue === null) return 'NotStated';
 
+  /*
+   * A reading that cannot be recognised as a value of this line is not evidence
+   * about it, and two of those are not a disagreement (ADR-0038).
+   *
+   * The reader of the archive's copy once answered `nda qeydiyyatda olan` for
+   * the address and `nin ayrılmasını xahiş etmişdir.` for the area — tails of
+   * sentences it had cut a label out of the middle of — and the comparison
+   * dutifully reported that the archive contradicted the paper on two lines. It
+   * was the same paper. The reader is fixed, but the price of any future
+   * misreading must not be a false accusation against a valid document: that is
+   * the worst outcome this check has, worse than missing a real disagreement,
+   * because an inspector who is told the archive denies a paper stops looking.
+   *
+   * So a fragment reaches them as `NotStated` — the archive states nothing this
+   * line can be held against — and both sides are held to it, because a value
+   * misread off the paper in hand accuses the archive just as loudly.
+   */
+  if (!READS_AS[name](documentValue) || !READS_AS[name](archiveValue)) {
+    return 'NotStated';
+  }
+
   return AGREES[name](documentValue, archiveValue) ? 'Match' : 'Mismatch';
+}
+
+/*
+ * What a value of each line at least looks like.
+ *
+ * Deliberately weak, and one test per line rather than a grammar: this says
+ * that a reading is *the kind of thing* the line holds, not that it is the
+ * right one — whether two of them agree is `AGREES`, below, and a rule strict
+ * enough to reject an unusual but genuine value would hide the disagreements
+ * the check exists to find.
+ *
+ * The lines that are a figure are recognised by whether the figure can be
+ * parsed at all, which is the same parse the comparison then makes of it. The
+ * three that are prose — a body, a person, a place — are recognised by their
+ * first letter: each is a proper noun or a house number on every paper the
+ * archive holds, and a value that opens in lower case is the middle of a
+ * sentence rather than the name of anything.
+ */
+const READS_AS: Record<ArchiveQrField, (raw: string) => boolean> = {
+  document_no: raw => /\p{N}/u.test(raw) && wordsIn(raw) <= 4,
+  issue_date: raw =>
+    dayOf(raw) !== null || (wordsIn(raw) <= 3 && /\d{4}/u.test(raw)),
+  issuing_authority: opensLikeAName,
+  // A person is named in a handful of words. A sentence about them is not a
+  // name however it opens.
+  holder_name: raw => opensLikeAName(raw) && wordsIn(raw) <= 8,
+  property_address: opensLikeAName,
+  plot_area: raw => squareMetresIn(raw) !== null,
+  decree_item: raw => decreeItemIn(raw) !== null,
+  archive_reference: raw => numbersIn(raw).length > 0,
+};
+
+function opensLikeAName(raw: string): boolean {
+  return /^[\p{Lu}\p{N}]/u.test(raw.trim());
+}
+
+function wordsIn(raw: string): number {
+  return raw.trim().split(/\s+/u).length;
 }
 
 /*

@@ -15,6 +15,10 @@ export {
   type ArchiveQrStatus,
   type ArchiveQrVerdict,
 } from './archive-qr-check.vo.js';
+export {
+  ARCHIVE_SIGNED_COPY_SPEC,
+  ARCHIVE_SIGNED_COPY_TYPE,
+} from './archive-signed-copy.vo.js';
 export { Classification } from './classification.vo.js';
 export { DeclaredAtIntake } from './declared-at-intake.vo.js';
 export { Confidence } from './confidence.vo.js';

@@ -13,7 +13,14 @@ import type {
 // scan, and the scan alone leaves it nothing to quote back as evidence.
 export type ExtractionSheet = {
   number: PageNumber;
-  image: PageImage;
+  /*
+   * Null where there is no picture to hand: a born-digital PDF read off its own
+   * text layer was never rendered, and rendering it to say nothing new would
+   * cost a page of tokens per sheet (ADR-0038). Every sheet of a package has
+   * one — they arrive as scans — so this is the archive's own copy and little
+   * else.
+   */
+  image: PageImage | null;
   text: RecognisedText;
   // How well the sheet was read. A value cannot be surer than the reading it
   // was taken from, and the extractor is the last place that knows both.

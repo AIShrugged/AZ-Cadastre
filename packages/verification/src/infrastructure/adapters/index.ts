@@ -39,6 +39,7 @@ import {
 import { PdfSplitterAdapter } from './pdf-splitter.adapter.js';
 import { QrCodeReaderAdapter } from './qr-code-reader.adapter.js';
 import { SignedPdfDigitiser } from './signed-pdf.digitiser.js';
+import { SignedSheetReader } from './signed-sheet.reader.js';
 
 export { ArchiveRegistryAdapter } from './archive-registry.adapter.js';
 export { CrossCheckerAdapter } from './cross-checker.adapter.js';
@@ -61,6 +62,7 @@ export { renderPdfPages } from './pdf-page-renderer.js';
 export { PdfSplitterAdapter } from './pdf-splitter.adapter.js';
 export { QrCodeReaderAdapter } from './qr-code-reader.adapter.js';
 export { SignedPdfDigitiser } from './signed-pdf.digitiser.js';
+export { SignedSheetReader } from './signed-sheet.reader.js';
 export { readSignedSheet } from './signed-sheet.reading.js';
 
 /**
@@ -167,6 +169,7 @@ export const VERIFICATION_ADAPTERS: Provider[] = [
       options: VerificationModuleOptions,
       storage: ObjectStorage,
       ocr: OcrProvider,
+      extractor: FieldExtractor,
       logger: Logger,
     ): NationalArchivePort =>
       options.nationalArchive.provider === 'http'
@@ -181,8 +184,18 @@ export const VERIFICATION_ADAPTERS: Provider[] = [
              * reads both offline.
              */
             new SignedPdfDigitiser(storage, ocr, logger, options.pdf),
+            // And the eight lines come off it through the pipeline's own
+            // extraction stage, for the same reason and the same way: the sheet
+            // is prose, and prose is read by a reader (ADR-0038).
+            new SignedSheetReader(extractor, logger),
           )
         : new NationalArchiveAdapter(),
-    inject: [VERIFICATION_OPTIONS, ObjectStorage, OcrProvider, Logger],
+    inject: [
+      VERIFICATION_OPTIONS,
+      ObjectStorage,
+      OcrProvider,
+      FieldExtractor,
+      Logger,
+    ],
   },
 ];

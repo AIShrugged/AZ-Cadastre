@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  HUMBETOV_ARCHIVE_LINES,
+  READ_AS_FRAGMENTS,
+} from '../../../test/humbetov-sheet.fixture.js';
+import {
   ArchiveQrSignature,
   DocumentType,
   FieldKey,
@@ -404,6 +408,61 @@ describe('resolving a QR code that is not the archive holding a copy', () => {
 
     expect(answer.status).toBe('Differs');
     expect(answer.differs).toBe(true);
+  });
+
+  /*
+   * The regression COMM-145 was raised for, on the case it was raised on.
+   *
+   * The reader of the archive's copy answered with the tails of four sentences
+   * it had cut a label out of the middle of, and two of them were reported to
+   * the inspector as the archive contradicting the paper — on a package whose
+   * every line agrees with the archive's. The reader is fixed; this is the
+   * guard that a future misreading cannot cost the same thing, because the
+   * price is the worst this check can pay: an inspector told that the archive
+   * denies a valid paper stops looking at it.
+   */
+  it('never reads a fragment of prose as the archive denying a line', () => {
+    const answer = check(
+      theArchivesCopy({ ...HUMBETOV_ARCHIVE_LINES, ...READ_AS_FRAGMENTS }),
+      { paper: HUMBETOV_ARCHIVE_LINES },
+    );
+
+    const verdicts = Object.fromEntries(
+      answer.fields.map(field => [field.name, field.verdict]),
+    );
+
+    expect(verdicts.property_address).toBe('NotStated');
+    expect(verdicts.plot_area).toBe('NotStated');
+    expect(verdicts.decree_item).toBe('NotStated');
+    expect(verdicts.archive_reference).toBe('NotStated');
+    expect(answer.differs).toBe(false);
+  });
+
+  /*
+   * And the same package read properly: the Hümbətov sheet states six of the
+   * eight lines and prints no item of Decree 439, so the answer is agreement on
+   * the six and silence on the rest — never a disagreement (COMM-145).
+   */
+  it('confirms the paper the archive prints, line for line', () => {
+    const answer = check(theArchivesCopy(HUMBETOV_ARCHIVE_LINES), {
+      paper: HUMBETOV_ARCHIVE_LINES,
+    });
+
+    const verdicts = Object.fromEntries(
+      answer.fields.map(field => [field.name, field.verdict]),
+    );
+
+    expect(verdicts).toEqual({
+      document_no: 'Match',
+      issue_date: 'Match',
+      issuing_authority: 'Match',
+      holder_name: 'Match',
+      property_address: 'Match',
+      plot_area: 'Match',
+      decree_item: 'NotStated',
+      archive_reference: 'Match',
+    });
+    expect(answer.status).toBe('Confirmed');
   });
 
   /*

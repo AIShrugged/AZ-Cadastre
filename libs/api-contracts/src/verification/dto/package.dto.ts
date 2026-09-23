@@ -324,6 +324,8 @@ export const ArchiveQrFieldCheckDtoSchema = z.object({
   // What the archive's copy states. Null where the archive gives no value.
   archiveValue: z.string().nullable(),
   // `NotStated` where either side is null: silence is not a disagreement.
+  // `NotCompared` where the archive was never asked for this line at all
+  // (ADR-0040), which is a different thing and reads differently.
   verdict: ArchiveQrFieldVerdictSchema,
 });
 export type ArchiveQrFieldCheckDto = z.infer<

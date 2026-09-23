@@ -29,13 +29,21 @@ export const ArchiveQrCheckStatusSchema = z.enum([
 ]);
 export type ArchiveQrCheckStatus = z.infer<typeof ArchiveQrCheckStatusSchema>;
 
-// How one line of the paper stood against the archive's copy. `NotStated` is
-// silence on either side — the paper or the archive does not give the value —
-// and is never a disagreement.
+// How one line of the paper stood against the archive's copy. Two of the four
+// are ways of not having stood at all, and they are different facts (ADR-0040).
 export const ArchiveQrFieldVerdictSchema = z.enum([
   'Match',
   'Mismatch',
+  // Silence on either side — the paper or the archive does not give the value.
+  // The line was compared and one side had nothing to compare with. Never a
+  // disagreement.
   'NotStated',
+  // The line was never put to the archive: the service asked does not supply it
+  // at all, so there was no archive value to be silent with. Today this is
+  // `issuing_authority` and only it — the archive's service states no issuing
+  // body, and this system declines to read one off a scan (ADR-0034, ADR-0040).
+  // `documentValue` is still what the paper says; `archiveValue` is always null.
+  'NotCompared',
 ]);
 export type ArchiveQrFieldVerdict = z.infer<typeof ArchiveQrFieldVerdictSchema>;
 

@@ -673,12 +673,22 @@ describe('VerificationPackageMapper', () => {
                   archiveValue: null,
                   verdict: 'NotStated',
                 }
-              : {
-                  name,
-                  documentValue: 'x',
-                  archiveValue: 'x',
-                  verdict: 'Match',
-                },
+              : // The line the archive's service supplies no value of, which is
+                // a different state from the silence above and stored as one
+                // (ADR-0040).
+                name === 'issuing_authority'
+                ? {
+                    name,
+                    documentValue: 'Sabunçu Rayon İcra Hakimiyyəti',
+                    archiveValue: null,
+                    verdict: 'NotCompared',
+                  }
+                : {
+                    name,
+                    documentValue: 'x',
+                    archiveValue: 'x',
+                    verdict: 'Match',
+                  },
         ),
       };
       const original = aPackageRow({

@@ -37,9 +37,26 @@ export const ARCHIVE_QR_STATUSES = [
 
 export type ArchiveQrStatus = (typeof ARCHIVE_QR_STATUSES)[number];
 
-// `NotStated` is silence on one side or the other — a line the paper does not
-// print, or one the archive's entry does not carry — and never a disagreement.
-export const ARCHIVE_QR_VERDICTS = ['Match', 'Mismatch', 'NotStated'] as const;
+/*
+ * How one line stood, and two of the four are ways of not having stood at all.
+ *
+ * `NotStated` is silence on one side or the other — a line the paper does not
+ * print, or one the archive's entry does not carry — and never a disagreement.
+ *
+ * `NotCompared` is a line nobody put the question for: the source this system
+ * asks does not supply it, so there was never an archive value to be silent
+ * with. Today that is `issuing_authority` and only it, because the archive's
+ * service states no issuing body and a name read off a scan is not one
+ * (ADR-0034, ADR-0040). Told apart from `NotStated` because an inspector reads
+ * the two differently: one says the archive kept no such column, the other says
+ * we never asked.
+ */
+export const ARCHIVE_QR_VERDICTS = [
+  'Match',
+  'Mismatch',
+  'NotStated',
+  'NotCompared',
+] as const;
 
 export type ArchiveQrVerdict = (typeof ARCHIVE_QR_VERDICTS)[number];
 
@@ -141,11 +158,19 @@ export class ArchiveQrFieldCheck {
     // A verdict about a value one side never gave would be a verdict about
     // nothing, and a reader could not tell it from a real one.
     if (
-      verdict !== 'NotStated' &&
+      (verdict === 'Match' || verdict === 'Mismatch') &&
       (state.documentValue === null || state.archiveValue === null)
     ) {
       throw new InvalidArchiveQrCheckException(
         `"${name}" is judged ${verdict} with a side that states nothing`,
+      );
+    }
+    // A line nobody asked the archive for cannot carry the archive's answer to
+    // it; an archive value beside `NotCompared` would be a comparison that was
+    // made and then disowned.
+    if (verdict === 'NotCompared' && state.archiveValue !== null) {
+      throw new InvalidArchiveQrCheckException(
+        `"${name}" is NotCompared and yet the archive states a value`,
       );
     }
 

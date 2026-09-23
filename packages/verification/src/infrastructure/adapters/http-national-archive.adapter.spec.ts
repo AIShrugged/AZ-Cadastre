@@ -177,8 +177,10 @@ describe('HttpNationalArchiveAdapter', () => {
     });
     expect(answer.document.documentNo).toBeNull();
     // The office that attested the copy is not the body that issued the paper,
-    // and competence is judged on the second (ADR-0034).
+    // and competence is judged on the second (ADR-0034). The service supplies
+    // no issuing body at all, and says so (ADR-0040).
     expect(answer.document.issuingAuthority).toBeNull();
+    expect(answer.document.notCompared).toEqual(['issuing_authority']);
   });
 
   /*
@@ -262,6 +264,10 @@ describe('HttpNationalArchiveAdapter', () => {
     // Still unnamed: competence is judged on it, and a body read off a sheet is
     // a reading and not the archive's record of whose fund the paper sits in.
     expect(answer.document.issuingAuthority).toBeNull();
+    // And said to be unnamed on purpose, so the check reports a line nobody
+    // asked about rather than the archive being silent on it (ADR-0040,
+    // COMM-148).
+    expect(answer.document.notCompared).toEqual(['issuing_authority']);
   });
 
   /*

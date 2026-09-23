@@ -20,11 +20,13 @@ enum ArchiveQrCheckStatus {
 }
 
 /// How one line of the paper stood against the archive's copy. `NotStated` is
-/// silence on either side, never a disagreement.
+/// silence on either side, never a disagreement; `NotCompared` is a line the
+/// source supplies no value of at all, so it was never put (ADR-0040).
 enum ArchiveQrFieldVerdict {
   Match
   Mismatch
   NotStated
+  NotCompared
 }
 
 model ArchiveQrCheck {

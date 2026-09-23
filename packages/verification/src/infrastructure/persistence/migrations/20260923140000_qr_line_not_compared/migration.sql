@@ -1,0 +1,17 @@
+-- A line the archive was never asked for is not a line it stayed silent on
+-- (ADR-0040).
+--
+-- `issuing_authority` is the only one today: the archive's electronic document
+-- service states no issuing body, and ADR-0034 refuses to read one off the
+-- scan, so the question is never put. It was stored as `NotStated` until now,
+-- which told an inspector the archive keeps no such column.
+--
+-- Nothing is backfilled, deliberately. A stored row is the record of what the
+-- check decided when it ran, and rewriting it would put a word in the mouth of
+-- a run that never said it. Nor can SQL tell the two apart here: a `NotStated`
+-- row for `issuing_authority` with a null `archiveValue` is what the http
+-- adapter wrote and also what the offline stand-in — which does supply an
+-- issuing body — writes for a paper whose own line was not read. A re-run of
+-- the package is what produces the new verdict, and a re-run is already how a
+-- corrected package is checked again (ADR-0033).
+ALTER TYPE "ArchiveQrFieldVerdict" ADD VALUE IF NOT EXISTS 'NotCompared';

@@ -9,6 +9,7 @@ import {
   type ArchivedSignature,
   type ArchiveQrAnswer,
 } from '../../application/ports/outbound/index.js';
+import type { ArchiveQrField } from '../../domain/value-objects/index.js';
 import type { VerificationModuleOptions } from '../../verification.module-defs.js';
 import {
   RegistryRefusedException,
@@ -72,6 +73,19 @@ const VerifyQrAnswerSchema = z.looseObject({
    */
   expiredDate: z.string().nullish(),
 });
+
+/*
+ * The lines this service does not supply, whatever it is asked about
+ * (ADR-0040).
+ *
+ * One line, and it is a decision rather than a shortcoming of the API: the
+ * archive's signed PDF does print a body, and ADR-0034 refuses to read it. A
+ * body read off a scan is what `issuingAuthorityCompetent` would be judged on,
+ * and a misread word would have the check answer that the issuer had no power
+ * to make the act. So the line is never asked, and the check says so in a word
+ * of its own instead of reporting the archive silent on it.
+ */
+const NEVER_SUPPLIED: readonly ArchiveQrField[] = ['issuing_authority'];
 
 /**
  * The National Archive Fund's electronic document service, over HTTP.
@@ -254,6 +268,7 @@ export class HttpNationalArchiveAdapter extends NationalArchivePort {
             documentNo: lines?.document_no ?? null,
             issuedOn: lines?.issue_date ?? null,
             issuingAuthority: null,
+            notCompared: NEVER_SUPPLIED,
             holderName: lines?.holder_name ?? null,
             propertyAddress: lines?.property_address ?? null,
             plotArea: lines?.plot_area ?? null,
@@ -397,6 +412,7 @@ function emptyExcept(signature: ArchivedSignature | null): ArchivedDocument {
      * on the signature block, where it belongs.
      */
     issuingAuthority: null,
+    notCompared: NEVER_SUPPLIED,
     holderName: null,
     propertyAddress: null,
     plotArea: null,

@@ -62,6 +62,13 @@ const HELD: ReadonlyMap<string, ArchivedDocument> = new Map([
       // The stand-in holds records and verifies nothing (ADR-0034), and it
       // serves no signed PDF for the digitiser to read a panel off (ADR-0035).
       signature: null,
+      /*
+       * A holdings stand-in supplies every line, including the issuing body it
+       * files the paper under, so there is nothing it declines to be compared
+       * on (ADR-0040). This is what the empty set is for: `NotCompared` is a
+       * property of who answered, not of the line.
+       */
+      notCompared: [],
     },
   ],
   [
@@ -98,6 +105,8 @@ const HELD: ReadonlyMap<string, ArchivedDocument> = new Map([
       // The stand-in holds records and verifies nothing: a signature block here
       // would be a claim about a sheet nobody looked at (ADR-0034).
       signature: null,
+      // Every line is on the record here, the issuing body included (ADR-0040).
+      notCompared: [],
     },
   ],
 ]);

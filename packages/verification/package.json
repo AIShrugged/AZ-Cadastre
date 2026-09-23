@@ -54,6 +54,7 @@
     "openai": "^6.49.0",
     "pdfjs-dist": "^6.2.108",
     "pg": "^8.22.0",
+    "undici": "^7.28.0",
     "zod": "catalog:"
   },
   "devDependencies": {

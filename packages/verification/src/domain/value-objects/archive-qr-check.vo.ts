@@ -28,6 +28,11 @@ export const ARCHIVE_QR_STATUSES = [
   // A code was decoded and the service that issued it is not connected to this
   // system, so nothing was asked (ADR-0034).
   'IssuerNotConnected',
+  // A code was decoded, its issuer was asked, and the asking failed: the
+  // service could not be reached or would not answer. The paper is unchecked
+  // and the report says so, rather than leaving the check off the page
+  // (ADR-0037).
+  'IssuerUnreachable',
 ] as const;
 
 export type ArchiveQrStatus = (typeof ARCHIVE_QR_STATUSES)[number];
@@ -88,6 +93,16 @@ export class ArchiveQrSignature {
       blank(state.certificateValidity ?? null),
       state.valid,
     );
+  }
+}
+
+// Whoever the reference names, as a person would read it off the paper: the
+// host of the link. Null for a payload that is not a link at all.
+function hostOf(reference: string): string | null {
+  try {
+    return new URL(reference).host;
+  } catch {
+    return null;
   }
 }
 
@@ -223,6 +238,34 @@ export class ArchiveQrCheck {
   }
 
   /*
+   * The issuer was asked and the asking failed (ADR-0037).
+   *
+   * Not `NotFound`, which is the archive looking and holding nothing — a claim
+   * about the paper that nobody made here. Not silence either: a check that is
+   * absent reads on the page as a check that does not apply to this paper, and
+   * an integration that is down would look like a feature that is missing.
+   *
+   * `issuer` is the host the reference names, which is who was asked, because
+   * that is the whole of what this answer can say.
+   */
+  static issuerUnreachable(
+    qrReference: string,
+    checkedAt: Date,
+  ): ArchiveQrCheck {
+    const reference = ArchiveQrCheck.referenceOf(qrReference);
+
+    return new ArchiveQrCheck(
+      'IssuerUnreachable',
+      reference,
+      checkedAt,
+      null,
+      [],
+      null,
+      hostOf(reference),
+    );
+  }
+
+  /*
    * The archive found the paper. `Confirmed` only when every line that both
    * sides state agrees and the body was competent: a matching name on an act
    * its issuer had no power to make is an act that confirms nothing.
@@ -282,6 +325,11 @@ export class ArchiveQrCheck {
           state.issuer ?? null,
           state.checkedAt,
         );
+      case 'IssuerUnreachable':
+        return ArchiveQrCheck.issuerUnreachable(
+          state.qrReference ?? '',
+          state.checkedAt,
+        );
       case 'Confirmed':
       case 'Differs':
         return ArchiveQrCheck.found({
@@ -307,14 +355,28 @@ export class ArchiveQrCheck {
   }
 
   // Not confirmed for want of an answer rather than because the answer
-  // disagreed: nothing under the reference, no code on the sheet, or a code
-  // whose issuer this system cannot ask.
+  // disagreed: nothing under the reference, no code on the sheet, a code whose
+  // issuer this system cannot ask, or an issuer that was asked and did not
+  // answer (ADR-0037).
   get isUnanswered(): boolean {
     return (
       this.status === 'NotFound' ||
       this.status === 'NoQrCode' ||
-      this.status === 'IssuerNotConnected'
+      this.status === 'IssuerNotConnected' ||
+      this.status === 'IssuerUnreachable'
     );
+  }
+
+  /*
+   * The issuer was asked and the asking failed, so this is not an answer about
+   * the paper at all and a later run asks again (ADR-0037).
+   *
+   * Every other status is: even `NotFound` is the archive having looked, and
+   * asking it twice about a reference it does not hold would only get the same
+   * silence.
+   */
+  get nobodyAnswered(): boolean {
+    return this.status === 'IssuerUnreachable';
   }
 
   get mismatched(): readonly ArchiveQrFieldCheck[] {

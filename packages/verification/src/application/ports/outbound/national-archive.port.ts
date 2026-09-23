@@ -84,6 +84,22 @@ export type ArchiveQrAnswer =
       outcome: 'NotRecognised';
       issuer: string | null;
       note: string;
+    }
+  /*
+   * The issuer was asked and the asking failed: unreachable, or refusing to
+   * answer at all (ADR-0037).
+   *
+   * An outcome and not an exception, because an inspector has to be told. A
+   * stage that threw here left the check unmade and the paper with no line of
+   * its own, and a missing line reads on the page as a check that does not
+   * apply to this paper — an integration that is down looked exactly like a
+   * feature that was never built (COMM-144). It is not `NotFound` either:
+   * nobody looked, so nothing was found or not found.
+   */
+  | {
+      outcome: 'Unreachable';
+      issuer: string | null;
+      note: string;
     };
 
 /**
@@ -96,8 +112,9 @@ export type ArchiveQrAnswer =
  * stage that asked — the same division the archive register keeps (ADR-0009,
  * ADR-0028).
  *
- * An archive that cannot be reached throws; the stage is abandoned for that
- * paper and the report says it was not confirmed.
+ * An archive that cannot be reached answers `Unreachable`, and the paper gets a
+ * line saying it was asked about and not confirmed (ADR-0037). Anything else
+ * that goes wrong throws: the stage is abandoned for that paper.
  */
 export abstract class NationalArchivePort {
   abstract lookupByQr(qrReference: string): Promise<ArchiveQrAnswer>;

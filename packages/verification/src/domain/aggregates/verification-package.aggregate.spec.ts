@@ -4727,6 +4727,25 @@ describe('VerificationPackage supplied with a document', () => {
       expect(verification.awaitingArchiveQrCheck).toEqual([]);
     });
 
+    /*
+     * Nothing was learned about the paper, so the question still stands
+     * (ADR-0037). The archive being down is the one answer here that comes
+     * back on its own, and a run that skipped the paper for ever would leave
+     * it unchecked because of a bad minute on somebody else's network.
+     */
+    it('asks again about a paper whose issuer never answered', () => {
+      const { verification, document } = aTitle();
+
+      verification.recordArchiveQrCheck(
+        document.id,
+        ArchiveQrCheck.issuerUnreachable(QR, new Date()),
+      );
+
+      expect(verification.awaitingArchiveQrCheck.map(one => one.id)).toEqual([
+        document.id,
+      ]);
+    });
+
     it('asks by the QR code read off the paper, and gives each line as the paper states it', () => {
       const { verification, document } = aTitle();
 

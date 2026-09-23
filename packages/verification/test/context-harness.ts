@@ -11,6 +11,7 @@ import {
   ArchiveRegistryPort,
   CrossChecker,
   FieldExtractor,
+  NationalArchivePort,
   ObjectStorage,
   OcrProvider,
   PdfSplitter,
@@ -40,6 +41,7 @@ import {
   ArchiveRegistryAdapter,
   CrossCheckerAdapter,
   FieldExtractorAdapter,
+  NationalArchiveAdapter,
   OcrProviderAdapter,
 } from '../src/infrastructure/adapters/index.js';
 import type { VerificationModuleOptions } from '../src/verification.module-defs.js';
@@ -207,6 +209,12 @@ export type Overrides = {
   // Offered for the same reason the extractor is: which checks a run actually
   // made is only visible from the port that was asked to make them.
   readonly crossChecker?: CrossChecker;
+  /*
+   * The National Archive Fund. The stand-in built into the context holds the
+   * demo papers and answers about them, so a spec about what happens when the
+   * archive does *not* answer has to bring an archive that does not (ADR-0037).
+   */
+  readonly archive?: NationalArchivePort;
 };
 
 /**
@@ -356,6 +364,8 @@ export async function startContext(
     .useValue(overrides.extractor ?? new FieldExtractorAdapter())
     .overrideProvider(CrossChecker)
     .useValue(overrides.crossChecker ?? new CrossCheckerAdapter())
+    .overrideProvider(NationalArchivePort)
+    .useValue(overrides.archive ?? new NationalArchiveAdapter())
     .compile();
 
   await module.init();

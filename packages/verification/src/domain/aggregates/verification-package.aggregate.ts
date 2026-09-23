@@ -1308,12 +1308,16 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
    *
    * A paper already answered for is not asked again: what it says has not
    * changed, and a file arriving elsewhere in the package does not change it
-   * either.
+   * either. A paper whose issuer never answered *is* asked again, on the next
+   * run — nothing was learned about it, and an archive that was down an hour
+   * ago is the one thing here that comes back (ADR-0037).
    */
   get awaitingArchiveQrCheck(): readonly Document[] {
     return this.documentsInForce.filter(
       document =>
-        document.archiveQrCheck === null && this.hasAQrCodeToResolve(document),
+        (document.archiveQrCheck === null ||
+          document.archiveQrCheck.nobodyAnswered) &&
+        this.hasAQrCodeToResolve(document),
     );
   }
 

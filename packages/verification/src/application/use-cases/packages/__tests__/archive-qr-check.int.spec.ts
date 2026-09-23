@@ -15,6 +15,10 @@ import {
   startContext,
   waitForTerminalStatus,
 } from '../../../../../test/context-harness.js';
+import {
+  NationalArchivePort,
+  type ArchiveQrAnswer,
+} from '../../../ports/outbound/index.js';
 import { CreatePackageCommand } from '../create-package/index.js';
 import { GetPackageQuery } from '../get-package/index.js';
 import { toDetailDto } from '../package.mapper.js';
@@ -42,6 +46,21 @@ const ORDER_QR =
 const RUSADZE_QR =
   'https://qr.esd.milliarxiv.gov.az/info/' +
   'ZJvhzrotBTaKufxeEAVCshnMir5G0fjuTBO%2FsM8MvnHWubgPkFzZVz2M9%2F5D7xEU';
+
+/*
+ * An archive that cannot be reached, as the HTTP adapter reports one: an
+ * outcome and not a throw, so the stage records the paper as asked about and
+ * unanswered (ADR-0037).
+ */
+class SilentArchive extends NationalArchivePort {
+  async lookupByQr(qrReference: string): Promise<ArchiveQrAnswer> {
+    return {
+      outcome: 'Unreachable',
+      issuer: new URL(qrReference).host,
+      note: 'The archive could not be asked: getaddrinfo EAI_AGAIN.',
+    };
+  }
+}
 
 describe('the disposal order, held against the National Archive by its QR code', () => {
   let module: TestingModule;
@@ -279,5 +298,86 @@ describe('the papers whose codes are no longer resolved', () => {
     expect(skipped?.message).toContain(
       'no paper whose QR code this system resolves',
     );
+  });
+});
+
+/*
+ * The archive was asked and nobody answered (ADR-0037, COMM-144).
+ *
+ * Here rather than in a unit test because the whole point is what survives the
+ * path: the stage has to write a check at all — it used to throw and write
+ * nothing — the status has to be one the database's own enum carries, and the
+ * read side has to publish it, because `archiveQrCheck: null` is what the
+ * detail page reads as "this check does not apply to this paper" and is how an
+ * integration that was down looked like a feature that was never built.
+ */
+describe('the disposal order, with the archive not answering', () => {
+  let module: TestingModule;
+  let detail: PackageDetailDto;
+  let order: DocumentDto | undefined;
+
+  beforeAll(async () => {
+    ({ module } = await startContext(inject('databaseUrl'), {
+      ocr: new DemoOcrFor('serencam-cixaris'),
+      codes: new SheetsPrinting({ 'serencam-cixaris': ORDER_QR }),
+      splitter: new FixedPageSplitter(1),
+      archive: new SilentArchive(),
+    }));
+
+    const commands = module.get(CommandBus);
+    const queries = module.get(QueryBus);
+
+    const id = await commands.execute(
+      new CreatePackageCommand('cadastre', [
+        {
+          originalFilename: 'serencam-cixaris.pdf',
+          contentType: 'application/pdf',
+          // A key of its own: the set shares one database, and a storage key
+          // is unique in it.
+          storageKey: 'uploads/aliyev-silent/serencam-cixaris.pdf',
+        },
+      ]),
+    );
+    await waitForTerminalStatus(queries, id);
+    detail = toDetailDto(
+      await queries.execute(new GetPackageQuery(id.value, null)),
+    );
+    order = detail.files
+      .flatMap(file => file.documents)
+      .find(document => document.type === 'disposal_order');
+  });
+
+  afterAll(async () => {
+    await module?.close();
+  });
+
+  // Not `null`, which would be the paper having no such check, and not
+  // `NotFound`, which would be the archive having looked.
+  it('gives the paper a check saying the issuer did not answer', () => {
+    expect(detail.status).toBe('Completed');
+    expect(order?.archiveQrCheck).toMatchObject({
+      status: 'IssuerUnreachable',
+      qrReference: ORDER_QR,
+      issuer: 'qr.esd.milliarxiv.gov.az',
+      issuingAuthorityCompetent: null,
+      fields: [],
+      signature: null,
+    });
+    expect(DocumentDtoSchema.safeParse(order).success).toBe(true);
+  });
+
+  /*
+   * And a line in the report, which is the sentence the inspector actually
+   * reads. Informational, like every other absence of evidence: nobody
+   * answered about the paper, and that is not the applicant's doing.
+   */
+  it('tells the inspector the paper is unchecked and why', () => {
+    const [unconfirmed] = (detail.report?.issues ?? []).filter(
+      issue =>
+        issue.kind === 'RegistryUnconfirmed' && issue.documentId === order?.id,
+    );
+
+    expect(unconfirmed?.message).toContain('nobody answered');
+    expect(unconfirmed?.message).toContain('qr.esd.milliarxiv.gov.az');
   });
 });

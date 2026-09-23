@@ -67,6 +67,7 @@ function check(
     type?: DocumentType;
     paper?: Partial<Record<ArchiveQrField, string | null>>;
     unaskedIssuer?: string | null;
+    issuerDidNotAnswer?: boolean;
   } = {},
 ) {
   const paper = { ...ON_THE_PAPER, ...options.paper };
@@ -78,6 +79,9 @@ function check(
     archived,
     ...('unaskedIssuer' in options
       ? { unaskedIssuer: options.unaskedIssuer }
+      : {}),
+    ...('issuerDidNotAnswer' in options
+      ? { issuerDidNotAnswer: options.issuerDidNotAnswer }
       : {}),
     checkedAt: CHECKED_AT,
   });
@@ -337,6 +341,35 @@ describe('resolving a QR code that is not the archive holding a copy', () => {
   // A payload that is not a link names nobody, and nothing may be guessed.
   it('names no issuer where the reference names none', () => {
     expect(check(null, { unaskedIssuer: null }).issuer).toBeNull();
+  });
+
+  /*
+   * Asked, and nobody answered (ADR-0037, COMM-144).
+   *
+   * A different absence from every other one here, and the one that used to be
+   * no answer at all: the stage threw, no check was written, and a document
+   * with no check on it reads on the page as a paper the check does not apply
+   * to. Never `NotFound` — the archive did not look, so it holds nothing
+   * against this paper and says nothing about it either.
+   */
+  it('says the issuer was asked and did not answer, and names it', () => {
+    const answer = check(null, { issuerDidNotAnswer: true });
+
+    expect(answer.status).toBe('IssuerUnreachable');
+    expect(answer.issuer).toBe('qr.esd.milliarxiv.gov.az');
+    expect(answer.qrReference).toBe(QR);
+    expect(answer.isUnanswered).toBe(true);
+    expect(answer.differs).toBe(false);
+    expect(answer.isConfirmed).toBe(false);
+    expect(answer.fields).toEqual([]);
+  });
+
+  // No code read off the paper is still nothing to ask with, whatever the
+  // archive would have done with it.
+  it('stays "no code" where there was nothing to ask by', () => {
+    expect(
+      check(null, { qrReference: null, issuerDidNotAnswer: true }).status,
+    ).toBe('NoQrCode');
   });
 
   /*

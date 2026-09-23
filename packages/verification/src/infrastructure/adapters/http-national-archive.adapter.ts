@@ -16,6 +16,7 @@ import {
 } from '../exceptions/index.js';
 
 import { issuerOf, NATIONAL_ARCHIVE_HOST } from './national-archive.adapter.js';
+import { fetchFromTheArchive } from './national-archive.transport.js';
 import type { SignedPdfDigitiser } from './signed-pdf.digitiser.js';
 import { readSignedSheet } from './signed-sheet.reading.js';
 
@@ -125,6 +126,44 @@ export class HttpNationalArchiveAdapter extends NationalArchivePort {
     }
 
     const base = this.options.nationalArchive.url.replace(/\/$/u, '');
+
+    try {
+      return await this.askAbout(base, caseId);
+    } catch (error) {
+      /*
+       * The service was asked and did not answer (ADR-0037).
+       *
+       * Told to the caller and not thrown, because a stage that throws here
+       * leaves the paper with no line of its own — and a check that is absent
+       * reads as a check that does not apply, so an archive that is down looks
+       * like a feature nobody built (COMM-144).
+       *
+       * The wire and nothing else. A refusal still throws: a 4xx is this
+       * system being wrong about the contract, and a deployment bug that shows
+       * up on the report as "the archive did not answer" is a deployment bug
+       * nobody goes looking for.
+       */
+      if (!(error instanceof RegistryUnreachableException)) throw error;
+
+      this.logger.warn('The archive service could not be reached', {
+        url: `${base}${VERIFY_QR}`,
+        error,
+      });
+
+      return {
+        outcome: 'Unreachable',
+        issuer,
+        note:
+          `The National Archive Fund's electronic document service at ` +
+          `${base} could not be asked: ${error.message}`,
+      };
+    }
+  }
+
+  private async askAbout(
+    base: string,
+    caseId: string,
+  ): Promise<ArchiveQrAnswer> {
     const url = `${base}${VERIFY_QR}`;
     const startedAt = Date.now();
     const response = await this.answer(url, caseId);
@@ -219,10 +258,13 @@ export class HttpNationalArchiveAdapter extends NationalArchivePort {
     asked.searchParams.set('id', caseId);
 
     try {
-      return await fetch(asked, {
-        method: 'GET',
+      // Over IPv4 and with one retry: the archive's zone does not answer an
+      // AAAA question at all, and a resolution that asks for both families
+      // dies on the resolver's timeout (COMM-144).
+      return await fetchFromTheArchive(asked, {
         headers: { accept: 'application/json' },
-        signal: AbortSignal.timeout(this.options.nationalArchive.timeoutMs),
+        timeoutMs: this.options.nationalArchive.timeoutMs,
+        logger: this.logger,
       });
     } catch (error) {
       throw new RegistryUnreachableException(url, error);

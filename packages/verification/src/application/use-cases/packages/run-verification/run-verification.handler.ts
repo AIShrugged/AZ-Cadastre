@@ -865,8 +865,9 @@ export class RunVerificationHandler implements ICommandHandler<
    * system cannot follow is recorded as that and not as an archive that looked
    * and found nothing — the archive never looked. A paper with no code decoded
    * off it is not a question anyone can put, and is recorded as exactly that
-   * rather than left looking unasked. An archive that throws leaves the paper
-   * unchecked, and the report says it was not confirmed.
+   * rather than left looking unasked. An archive that was asked and did not
+   * answer is recorded too — `IssuerUnreachable` — because a paper with no
+   * check on it reads as a paper the check does not apply to (ADR-0037).
    */
   private async askTheArchive(
     packageId: PackageId,
@@ -874,7 +875,12 @@ export class RunVerificationHandler implements ICommandHandler<
   ): Promise<void> {
     const verification = await this.load(packageId);
 
-    if (verification.documentWith(documentId).archiveQrCheck) return;
+    const made = verification.documentWith(documentId).archiveQrCheck;
+
+    // Asked and answered, whatever the answer was. An issuer that never
+    // answered is asked again, which is what `awaitingArchiveQrCheck` selected
+    // this paper for (ADR-0037).
+    if (made && !made.nobodyAnswered) return;
 
     const question = verification.archiveQrQuestionOf(documentId);
     const startedAt = Date.now();
@@ -890,6 +896,12 @@ export class RunVerificationHandler implements ICommandHandler<
         answer?.outcome === 'Found' ? archivedPaperOf(answer.document) : null,
       ...(answer?.outcome === 'NotRecognised'
         ? { unaskedIssuer: answer.issuer }
+        : {}),
+      // Asked and unanswered, which the report states as such: a check left
+      // unmade is invisible on the page, and an archive that is down must not
+      // read as a check this paper has nothing to do with (ADR-0037).
+      ...(answer?.outcome === 'Unreachable'
+        ? { issuerDidNotAnswer: true }
         : {}),
       checkedAt: new Date(),
     });

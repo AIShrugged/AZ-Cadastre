@@ -22,6 +22,10 @@ export const ArchiveQrCheckStatusSchema = z.enum([
   // it was never asked. The absence `IntegrationNotConnected` states for a whole
   // type, narrowed to one sheet and naming the service that would settle it.
   'IssuerNotConnected',
+  // A code was decoded, its issuer was asked, and the asking failed — the
+  // service could not be reached or would not answer. The paper is unchecked,
+  // and this says so rather than leaving the check off the page (ADR-0037).
+  'IssuerUnreachable',
 ]);
 export type ArchiveQrCheckStatus = z.infer<typeof ArchiveQrCheckStatusSchema>;
 

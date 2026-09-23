@@ -6,7 +6,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   fetchFromTheArchive,
+  ipv4Lookup,
   ipv4OnlyAgent,
+  type Resolver,
 } from './national-archive.transport.js';
 
 /*
@@ -23,6 +25,20 @@ function resolverGaveUp(): TypeError {
   });
 }
 
+// The lookup answers a socket, so a spec that wants one address asks it the
+// way a socket does.
+async function resolved(
+  lookup: ReturnType<typeof ipv4Lookup>,
+  hostname: string,
+): Promise<[unknown, unknown]> {
+  return new Promise((resolve, reject) => {
+    lookup(hostname, {}, (error, address, family) => {
+      if (error) reject(error);
+      else resolve([address, family]);
+    });
+  });
+}
+
 async function listening(): Promise<Server> {
   const server = createServer((_request, response) => {
     response.writeHead(200, { 'content-type': 'application/json' });
@@ -35,6 +51,124 @@ async function listening(): Promise<Server> {
 
   return server;
 }
+
+/*
+ * The archive's name resolution (COMM-144, second round).
+ *
+ * Asking for one family was not enough: production still reported `EAI_AGAIN`,
+ * which is the resolver itself failing rather than the AAAA question hanging.
+ * So the A record is asked for over DNS directly and the address that answered
+ * is remembered — a paper checked against the address the archive gave this
+ * morning beats a paper nobody looked at.
+ */
+describe('resolving the archive', () => {
+  // One address, asked for once: a second question inside the freshness window
+  // is a question nobody needed the answer to.
+  it('answers from the A record, and does not ask again straight away', async () => {
+    const resolver = {
+      a: vi.fn<Resolver['a']>().mockResolvedValue(['185.129.61.10']),
+      system: vi.fn<Resolver['system']>(),
+    };
+    const lookup = ipv4Lookup(resolver);
+
+    expect(await resolved(lookup, 'api.esd.milliarxiv.gov.az')).toEqual([
+      '185.129.61.10',
+      4,
+    ]);
+    expect(await resolved(lookup, 'api.esd.milliarxiv.gov.az')).toEqual([
+      '185.129.61.10',
+      4,
+    ]);
+    expect(resolver.a).toHaveBeenCalledTimes(1);
+    expect(resolver.system).not.toHaveBeenCalled();
+  });
+
+  // The socket asks in two shapes depending on how it was configured, and an
+  // answer in the wrong one is a connection that never happens.
+  it('answers in the shape the socket asked in', async () => {
+    const lookup = ipv4Lookup({
+      a: async () => ['185.129.61.10'],
+      system: async () => '',
+    });
+
+    const all = await new Promise(resolve => {
+      lookup('api.esd.milliarxiv.gov.az', { all: true }, (_error, answer) =>
+        resolve(answer),
+      );
+    });
+
+    expect(all).toEqual([{ address: '185.129.61.10', family: 4 }]);
+  });
+
+  /*
+   * The failure production actually reported. The resolver stops answering,
+   * and the address it gave earlier is used rather than the run losing the
+   * check — the archive's own records are what would say that address is
+   * stale, and they are exactly what cannot be asked at that moment.
+   */
+  it('uses the address that answered last when nobody answers now', async () => {
+    const resolver = {
+      a: vi
+        .fn<Resolver['a']>()
+        .mockResolvedValueOnce(['185.129.61.10'])
+        .mockRejectedValue(
+          Object.assign(new Error('queryA EAI_AGAIN'), { code: 'EAI_AGAIN' }),
+        ),
+      system: vi.fn<Resolver['system']>(),
+    };
+    let clock = 0;
+    const lookup = ipv4Lookup(resolver, () => clock);
+
+    await resolved(lookup, 'api.esd.milliarxiv.gov.az');
+    clock = 10 * 60_000;
+
+    expect(await resolved(lookup, 'api.esd.milliarxiv.gov.az')).toEqual([
+      '185.129.61.10',
+      4,
+    ]);
+    expect(resolver.a).toHaveBeenCalledTimes(2);
+  });
+
+  // A day later it is not an address any more, and answering with it would be
+  // asking the archive's question of whoever holds that address now.
+  it('gives up on an address nobody has confirmed for a day', async () => {
+    const resolver = {
+      a: vi
+        .fn<Resolver['a']>()
+        .mockResolvedValueOnce(['185.129.61.10'])
+        .mockRejectedValue(
+          Object.assign(new Error('queryA EAI_AGAIN'), { code: 'EAI_AGAIN' }),
+        ),
+      system: vi.fn<Resolver['system']>(),
+    };
+    let clock = 0;
+    const lookup = ipv4Lookup(resolver, () => clock);
+
+    await resolved(lookup, 'api.esd.milliarxiv.gov.az');
+    clock = 25 * 60 * 60_000;
+
+    await expect(resolved(lookup, 'api.esd.milliarxiv.gov.az')).rejects.toThrow(
+      'EAI_AGAIN',
+    );
+  });
+
+  /*
+   * A deployment whose addresses do not come out of DNS at all — a hosts file,
+   * an operator's override, a sidecar — resolves through the system and
+   * nothing here may stand in its way.
+   */
+  it('falls back to the system where DNS holds no record', async () => {
+    const lookup = ipv4Lookup({
+      a: async () => [],
+      system: async () => '10.0.0.8',
+    });
+
+    expect(await resolved(lookup, 'api.esd.milliarxiv.gov.az')).toEqual([
+      '10.0.0.8',
+      4,
+    ]);
+  });
+});
 
 describe('fetchFromTheArchive', () => {
   afterEach(() => {
@@ -83,6 +217,32 @@ describe('fetchFromTheArchive', () => {
         expect(asked).toEqual([{ host: 'localhost', family: 4 }]);
       } finally {
         await dispatcher.close();
+        server.close();
+      }
+    },
+  );
+
+  /*
+   * The default pool, end to end, with nothing swapped out: its own lookup, its
+   * own connect options, a real socket. `localhost` has no A record in DNS, so
+   * this is also the fallback to the system's own resolution being exercised
+   * the way a deployment with a hosts file would exercise it.
+   */
+  it(
+    'reaches a service through the pool it builds for itself',
+    { timeout: 30_000 },
+    async () => {
+      const server = await listening();
+      const { port } = server.address() as AddressInfo;
+
+      try {
+        const response = await fetchFromTheArchive(
+          `http://localhost:${String(port)}/v1/signature-info/verifyQr`,
+          { headers: { accept: 'application/json' }, timeoutMs: 20_000 },
+        );
+
+        expect(response.status).toBe(200);
+      } finally {
         server.close();
       }
     },

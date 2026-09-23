@@ -40,7 +40,6 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   ArchiveQrStatusMark,
   attestationLines,
-  comparesLines,
   competence,
   COMPETENCE_TONE,
   competenceKey,
@@ -66,13 +65,14 @@ import {
   profileName,
   provisionShort,
   provisionSummary,
-  QR_STATUS_NOTE,
-  QR_VERDICT_KEY,
-  QR_VERDICT_TONE,
+  QR_OUTCOME_KEY,
+  QR_OUTCOME_TONE,
   qrComparedFields,
   qrDisagreements,
-  qrUncomparedFields,
-  qrUnstatedFields,
+  qrDrawsTable,
+  qrFieldOutcome,
+  qrFields,
+  qrStatusNote,
   ReadingFigure,
   readReport,
   readWellEnough,
@@ -80,8 +80,9 @@ import {
   requiredShortfall,
   requiredTypes,
   SIGNATURE_KEY,
-  SIGNATURE_LINE_KEY,
-  signatureLines,
+  SIGNATURE_ROW_KEY,
+  SIGNATURE_TONE,
+  signatureRows,
   signatureStanding,
   speaksAgainst,
   stageStatuses,
@@ -1300,137 +1301,120 @@ function Attestation({
  * Status-Never-Alone Rule).
  */
 /**
- * One line of the paper, as the archive's copy answered it (COMM-146).
+ * The placeholder a cell neither side filled carries.
  *
- * An entry and no longer a row of four columns. Two or three lines are what a
- * real answer comes back with once the ones the archive prints nothing for are
- * gone, and four headed columns over three rows is a frame with nothing in it —
- * worse, a frame whose verdict column carries one bit per row and takes a
- * quarter of the width to do it. So the verdict marks the entry itself, where
- * a reader scanning for what did not hold finds it: the name of the line, its
- * sign and its word on one line, and what the two sides say underneath.
- *
- * A line that agrees prints its value once. Two identical strings side by side
- * is the same fact twice and reads, at a glance, like something to compare —
- * where there is nothing left to compare, the one value is the finding. A line
- * the archive states differently, or which only one side carries, prints both
- * sides labelled, because there the difference is the whole point.
- *
- * Nothing here is a column, so nothing degrades on a narrow screen: the entry
- * is a stack that was always a stack.
+ * One character and the same one everywhere. A blank cell reads as a table that
+ * failed to load; an omitted row reads as a line this build has never heard of.
+ * The `Результат` column is what says *why* the cell is empty — that the
+ * archive's copy prints no such line, or that we never put the question — so
+ * the cell itself only has to be visibly, deliberately empty.
  */
-function ArchiveQrLine({ field }: { field: ArchiveQrFieldCheckDto }) {
-  const { t } = useI18n();
-  const tone = QR_VERDICT_TONE[field.verdict];
-  const settled =
-    field.verdict === 'Match' && field.documentValue === field.archiveValue;
+const QR_BLANK = '—';
+
+/** The three tones, as the one glyph each that carries them into grayscale and
+ *  a printout. Silence is a dash and never a cross: a value one side does not
+ *  state is not a disagreement, and a fault's sign on it would invent one. */
+function ToneGlyph({ tone }: { tone: 'ok' | 'issues' | 'silent' }) {
+  if (tone === 'ok')
+    return (
+      <CheckIcon className='size-3 shrink-0 translate-y-0.5 text-ok-ink' />
+    );
+  if (tone === 'issues')
+    return (
+      <TriangleAlertIcon className='size-3 shrink-0 translate-y-0.5 text-issues-ink' />
+    );
 
   return (
-    <li className='border-b border-rule py-1.5'>
-      {/* Three verdicts, three marks and three words — never the colour alone.
-          Silence is a dash and not a cross: a value one side does not state is
-          not a disagreement, and a fault's sign on it would invent one. */}
-      <div className='flex flex-wrap items-baseline gap-x-2 gap-y-0.5'>
-        {tone === 'ok' ? (
-          <CheckIcon className='size-3 shrink-0 translate-y-0.5 text-ok-ink' />
-        ) : tone === 'issues' ? (
-          <TriangleAlertIcon className='size-3 shrink-0 translate-y-0.5 text-issues-ink' />
-        ) : (
-          <MinusIcon className='size-3 shrink-0 translate-y-0.5 text-muted-foreground/50' />
-        )}
-        <span
-          className={cn(
-            'min-w-0 text-[0.8125rem] leading-snug',
-            tone === 'issues' ? 'text-issues-ink' : 'text-foreground',
-          )}
-        >
-          {translateOr(t, `field.${field.name}`, field.name)}
-        </span>
-        <span
-          className={cn(
-            'ml-auto shrink-0 text-[0.6875rem] leading-snug',
-            tone === 'issues'
-              ? 'text-issues-ink'
-              : tone === 'ok'
-                ? 'text-muted-foreground'
-                : 'italic text-muted-foreground',
-          )}
-        >
-          {t(QR_VERDICT_KEY[field.verdict])}
-        </span>
-      </div>
-      <div className='mt-0.5 pl-5'>
-        {settled ? (
-          <span
-            data-mono
-            className='block min-w-0 break-words text-[0.8125rem] leading-snug text-muted-foreground'
-          >
-            {field.archiveValue}
-          </span>
-        ) : (
-          <dl className='flex flex-col gap-y-0.5'>
-            <QrSide
-              label={t('detail.qr.in_document')}
-              value={field.documentValue}
-              tone='document'
-            />
-            <QrSide
-              label={t('detail.qr.in_archive')}
-              value={field.archiveValue}
-              tone={tone === 'issues' ? 'differs' : 'archive'}
-            />
-          </dl>
-        )}
-      </div>
-    </li>
+    <MinusIcon className='size-3 shrink-0 translate-y-0.5 text-muted-foreground/50' />
   );
 }
 
 /**
- * One side of a comparison, named and then quoted.
+ * One line of the paper against the archive's copy — one row, always drawn
+ * (COMM-150).
  *
- * The label is carried at every width and not only below `sm`: with the columns
- * gone there is no heading above to inherit, and "1471" over "1471" says
- * nothing about which of the two is the archive's. A value the side does not
- * state is said to be absent rather than left blank, which would read as a line
- * that failed to load.
+ * All eight, in the contract's order, whatever came back. The entry this
+ * replaces drew only the lines the archive had answered on and described the
+ * rest in two italic sentences beneath, which is how a check that compared
+ * nothing at all came to be five paragraphs naming fields in running text. The
+ * customer asked for the opposite: which fields, and what each of them came to,
+ * in a table.
+ *
+ * The verdict marks the `Результат` cell and not the row, so a reader scanning
+ * that one column sees the whole shape of the check without reading a value —
+ * and a row where the two sides agree still prints both, because the column a
+ * value sits in is now what says whose it is.
  */
-function QrSide({
-  label,
+function ArchiveQrRow({ field }: { field: ArchiveQrFieldCheckDto }) {
+  const { t } = useI18n();
+  const outcome = qrFieldOutcome(field);
+  const tone = QR_OUTCOME_TONE[outcome];
+
+  return (
+    <tr className='border-b border-rule align-baseline last:border-b-0'>
+      <th
+        scope='row'
+        className={cn(
+          'px-3 py-1.5 text-left font-normal',
+          tone === 'issues' ? 'text-issues-ink' : 'text-muted-foreground',
+        )}
+      >
+        {translateOr(t, `field.${field.name}`, field.name)}
+      </th>
+      <QrValueCell
+        value={field.documentValue}
+        tone={tone === 'issues' ? 'differs' : 'document'}
+      />
+      <QrValueCell
+        value={field.archiveValue}
+        tone={tone === 'issues' ? 'differs' : 'archive'}
+      />
+      {/* The one column that never wraps: it is what a reader scans down to
+          take the shape of the check in, and a two-line cell breaks the scan
+          and doubles the height of every silent row. */}
+      <td className='px-3 py-1.5 whitespace-nowrap'>
+        <span
+          className={cn(
+            'inline-flex items-baseline gap-1.5 text-[0.75rem] leading-snug',
+            tone === 'issues'
+              ? 'text-issues-ink'
+              : tone === 'ok'
+                ? 'text-foreground'
+                : 'italic text-muted-foreground',
+          )}
+        >
+          <ToneGlyph tone={tone} />
+          {t(QR_OUTCOME_KEY[outcome])}
+        </span>
+      </td>
+    </tr>
+  );
+}
+
+/** One side's value, or the placeholder where that side states none. */
+function QrValueCell({
   value,
   tone,
 }: {
-  label: string;
   value: string | null;
   tone: 'document' | 'archive' | 'differs';
 }) {
-  const { t } = useI18n();
-
   return (
-    <div className='flex flex-wrap items-baseline gap-x-2'>
-      <dt className='w-[8rem] shrink-0 text-[0.6875rem] leading-snug text-muted-foreground/70'>
-        {label}
-      </dt>
-      {value === null ? (
-        <dd className='min-w-0 flex-1 text-[0.8125rem] italic leading-snug text-muted-foreground'>
-          {t('detail.qr.silent')}
-        </dd>
-      ) : (
-        <dd
-          data-mono
-          className={cn(
-            'min-w-0 flex-1 break-words text-[0.8125rem] leading-snug',
-            tone === 'differs'
-              ? 'text-issues-ink'
-              : tone === 'document'
-                ? 'text-foreground'
-                : 'text-muted-foreground',
-          )}
-        >
-          {value}
-        </dd>
+    <td
+      data-mono={value === null ? undefined : true}
+      className={cn(
+        'px-3 py-1.5 align-baseline break-words',
+        value === null
+          ? 'text-muted-foreground/50'
+          : tone === 'differs'
+            ? 'text-issues-ink'
+            : tone === 'document'
+              ? 'text-foreground'
+              : 'text-muted-foreground',
       )}
-    </div>
+    >
+      {value ?? QR_BLANK}
+    </td>
   );
 }
 
@@ -1453,38 +1437,45 @@ function signedOnReadably(signedOn: string, locale: Locale): string {
 }
 
 /**
- * The lines of a sentence that names lines, in the reader's words.
+ * A label and its answer, in the two-column grammar the signature table keeps.
  *
- * `translateOr` and not `t`, because a ninth field the wire learns to send
- * before this build has a word for it must read as its own key and not as a
- * blank in the middle of a sentence.
+ * Shared with the issuing body's powers, which is a fact of its own and never a
+ * row of the comparison table — the name on the paper can match the archive's
+ * copy exactly and the body still have had no such power — but which is one
+ * line all the same, and reads best in the same shape as the rest of the block
+ * rather than as the paragraph it used to be (COMM-150).
  */
-function namedFields(
-  t: (key: string, params?: Record<string, string | number>) => string,
-  fields: readonly ArchiveQrFieldCheckDto[],
-): string {
-  return fields
-    .map(field => translateOr(t, `field.${field.name}`, field.name))
-    .join(', ');
+function QrFactRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <tr className='border-b border-rule align-baseline last:border-b-0'>
+      <th
+        scope='row'
+        className='w-[16rem] px-3 py-1.5 text-left font-normal text-muted-foreground'
+      >
+        {label}
+      </th>
+      <td className='px-3 py-1.5 break-words'>{children}</td>
+    </tr>
+  );
 }
 
 function ArchiveQrCheck({ check }: { check: ArchiveQrCheckDto }) {
   const { t, locale } = useI18n();
-  const table = comparesLines(check);
-  // What was actually held against the archive's copy, and what the copy says
-  // nothing about (COMM-146). The first is the table and the denominator of the
-  // count; the second is one sentence under it and never a row.
+  const rows = qrFields(check);
+  // The denominator of the heading's count: how many lines the archive actually
+  // answered on, which is not how many were asked (COMM-146). The table draws
+  // all eight either way; the count would overstate the check.
   const compared = qrComparedFields(check);
-  const unstated = qrUnstatedFields(check);
-  // And the lines nobody asked about, which is a decision of ours and not the
-  // archive's silence — told apart so the reader does not blame the fonds for
-  // a rule this system set (COMM-149).
-  const uncompared = qrUncomparedFields(check);
   const differences = qrDisagreements(check);
-  const standing = competence(check);
-  const competenceTone = COMPETENCE_TONE[standing];
+  const competenceTone = COMPETENCE_TONE[competence(check)];
   const signature = signatureStanding(check);
-  const signatureParticulars = signatureLines(check);
+  const signatureParticulars = signatureRows(check);
   const when = `${formatDate(check.checkedAt, locale)} · ${formatTime(check.checkedAt)}`;
 
   return (
@@ -1513,23 +1504,28 @@ function ArchiveQrCheck({ check }: { check: ArchiveQrCheckDto }) {
               })}
             </span>
           )}
-          <ArchiveQrStatusMark status={check.status} />
+          <ArchiveQrStatusMark check={check} />
         </span>
       </summary>
       <div className='mt-1 border-t border-rule pl-5'>
         <p className='max-w-[70ch] py-2 text-[0.8125rem] leading-relaxed text-muted-foreground'>
-          {/* The only note with anything to fill in: the service the code
-              resolves to, which is the whole of what this status can say.
-              A payload that is not a link names nobody, and the sentence says
-              so rather than leaving a hole in itself (ADR-0034). */}
-          {t(QR_STATUS_NOTE[check.status], {
+          {/* The one sentence left in the block besides the footnote, and the
+              only note with anything to fill in: the service the code resolves
+              to, which is the whole of what that status can say. A payload that
+              is not a link names nobody, and the sentence says so rather than
+              leaving a hole in itself (ADR-0034).
+
+              Read off the answer and not off the status alone: a `Confirmed`
+              whose every line the archive left blank has its own sentence, and
+              it does not say the copy bore the paper out (COMM-150). */}
+          {t(qrStatusNote(check), {
             issuer: check.issuer ?? t('detail.qr.issuer_unnamed'),
           })}
         </p>
-        {/* What was actually read off the paper and sent to the archive. An
-            answer about a reference the reader cannot see is an answer they
-            cannot check — and on `NoQrCode` there is no reference, which is
-            what the status says. */}
+        {/* The caption over the tables: what was actually read off the paper
+            and sent to the archive, and when. An answer about a reference the
+            reader cannot see is an answer they cannot check — and on `NoQrCode`
+            there is no reference, which is what the status says. */}
         <p className='flex flex-wrap items-baseline gap-x-2 gap-y-1 pb-2 text-[0.75rem] text-muted-foreground'>
           <span>{t('detail.qr.reference')}</span>
           {check.qrReference ? (
@@ -1542,122 +1538,135 @@ function ArchiveQrCheck({ check }: { check: ArchiveQrCheckDto }) {
           <span className='text-muted-foreground/60'>·</span>
           <span>{t('detail.qr.checked_at', { when })}</span>
         </p>
-        {/* Only the lines the archive answered on. A line its copy prints
-            nothing for was never compared, and a row for it — the paper's value
-            against a dash, with a verdict beside it — states a result where
-            there was none, and reads as a system that tried and could not
-            (COMM-146). */}
-        {table && (
-          <ul className='flex flex-col border-t border-rule'>
-            {compared.map(field => (
-              <ArchiveQrLine key={field.name} field={field} />
-            ))}
-          </ul>
-        )}
-        {/* And the silence is named rather than hidden: the inspector has to
-            see where the comparison stopped, or two agreeing lines read as a
-            paper borne out in full. One muted sentence, drawn only where there
-            is a silence to name. */}
-        {unstated.length > 0 && (
-          <p className='max-w-[70ch] py-2 text-[0.75rem] italic leading-snug text-muted-foreground'>
-            {t('detail.qr.archive_states_none', {
-              fields: namedFields(t, unstated),
-            })}
-          </p>
-        )}
-        {/* Second and never first: what the archive had nothing to say about
-            is news about this paper's file, and what this system declines to
-            put is news about this system. A reader who meets ours first takes
-            the archive's silence for more of the same. */}
-        {uncompared.length > 0 && (
-          <p className='max-w-[70ch] pb-2 text-[0.75rem] italic leading-snug text-muted-foreground'>
-            {t('detail.qr.archive_not_compared', {
-              fields: namedFields(t, uncompared),
-            })}
-          </p>
-        )}
-        {/* A fact of its own and never a ninth row: the name on the paper can
-            match the archive's copy exactly and the body still have had no
-            power to issue a paper of that kind. */}
-        <p className='flex flex-wrap items-baseline gap-2 py-2 text-[0.8125rem]'>
-          <span className='text-muted-foreground'>
-            {t('detail.qr.competence')}
-          </span>
-          <span
-            className={cn(
-              'inline-flex items-baseline gap-1.5',
-              competenceTone === 'issues'
-                ? 'text-issues-ink'
-                : competenceTone === 'ok'
-                  ? 'text-foreground'
-                  : 'italic text-muted-foreground',
-            )}
-          >
-            {competenceTone === 'ok' ? (
-              <CheckIcon className='size-3 shrink-0 translate-y-0.5 text-ok-ink' />
-            ) : competenceTone === 'issues' ? (
-              <TriangleAlertIcon className='size-3 shrink-0 translate-y-0.5 text-issues-ink' />
-            ) : (
-              <MinusIcon className='size-3 shrink-0 translate-y-0.5 text-muted-foreground/50' />
-            )}
-            {t(competenceKey(check))}
-          </span>
-        </p>
-        {/* What the archive said about the sheet rather than about what it
-            says (ADR-0034). Beside the table and never a row in it, for the
-            reason competence is: a signature that verifies says nobody altered
-            this sheet, which is a different claim from any line agreeing. On an
-            answer that was about the sheet rather than about what it says it is
-            the whole of the block, so it carries the credential's particulars
-            as well.
-
-            The mark first and the particulars under it: whether the signature
-            verified is the finding, and the five lines below are what it was
-            made with. Each is nullable on the contract and a line with nothing
-            in it is not drawn — a source that states none of them leaves the
-            mark standing alone, which is still the whole of the truth it
-            told. */}
-        {signature && (
-          <div className='border-t border-rule py-2 text-[0.8125rem]'>
-            <p className='flex flex-wrap items-baseline gap-2'>
-              <span className='text-muted-foreground'>
-                {t('detail.qr.signature')}
-              </span>
-              <span
-                className={cn(
-                  'inline-flex items-baseline gap-1.5',
-                  signature === 'failed'
-                    ? 'text-issues-ink'
-                    : 'text-foreground',
-                )}
-              >
-                {signature === 'verified' ? (
-                  <CheckIcon className='size-3 shrink-0 translate-y-0.5 text-ok-ink' />
-                ) : (
-                  <TriangleAlertIcon className='size-3 shrink-0 translate-y-0.5 text-issues-ink' />
-                )}
-                {t(SIGNATURE_KEY[signature])}
-              </span>
-            </p>
-            {signatureParticulars.length > 0 && (
-              <ul className='mt-1 flex flex-col gap-0.5 text-[0.75rem] text-muted-foreground'>
-                {signatureParticulars.map(line => (
-                  <li key={line.name} className='max-w-[70ch] leading-snug'>
-                    {t(SIGNATURE_LINE_KEY[line.name], {
-                      value:
-                        line.name === 'signedOn'
-                          ? signedOnReadably(line.value, locale)
-                          : line.value,
-                    })}
-                  </li>
+        {/* Every line the check carries, answered or not. What the archive's
+            copy does not print, and what this system never put to it, are rows
+            with a word in the result column — not sentences under the table and
+            not lines left out of it (COMM-150). The statuses that carry no
+            lines at all draw no table: an empty frame under "no record" reads
+            as a table that failed to load, and the sentence above is the whole
+            of what is known. */}
+        {qrDrawsTable(check) && (
+          <div className='overflow-x-auto rounded-lg border border-rule'>
+            <table className='w-full min-w-[42rem] border-collapse text-[0.8125rem]'>
+              <thead>
+                <tr className='border-b border-rule bg-muted text-[0.75rem] font-normal text-muted-foreground'>
+                  <th scope='col' className='px-3 py-2 text-left font-normal'>
+                    {t('detail.qr.col_field')}
+                  </th>
+                  <th scope='col' className='px-3 py-2 text-left font-normal'>
+                    {t('detail.qr.in_document')}
+                  </th>
+                  <th scope='col' className='px-3 py-2 text-left font-normal'>
+                    {t('detail.qr.in_archive')}
+                  </th>
+                  <th scope='col' className='px-3 py-2 text-left font-normal'>
+                    {t('detail.qr.col_result')}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(field => (
+                  <ArchiveQrRow key={field.name} field={field} />
                 ))}
-              </ul>
-            )}
-            {/* What the whole block amounts to, said once and plainly: the
-                names above belong to an archivist who signed a file, not to
-                whoever signed the paper. Drawn whether or not any particular
-                was stated — the mark alone is read the same wrong way. */}
-            <p className='mt-1 max-w-[70ch] text-[0.75rem] italic leading-snug text-muted-foreground'>
+              </tbody>
+            </table>
+          </div>
+        )}
+        {/* A fact of its own and never a ninth row of the comparison: the name
+            on the paper can match the archive's copy exactly and the body still
+            have had no power to issue a paper of that kind. One row, in the
+            block's own grammar, where it used to be a paragraph. */}
+        <div className='mt-2 overflow-x-auto rounded-lg border border-rule'>
+          <table className='w-full min-w-[24rem] border-collapse text-[0.8125rem]'>
+            <tbody>
+              <QrFactRow label={t('detail.qr.competence')}>
+                <span
+                  className={cn(
+                    'inline-flex items-baseline gap-1.5',
+                    competenceTone === 'issues'
+                      ? 'text-issues-ink'
+                      : competenceTone === 'ok'
+                        ? 'text-foreground'
+                        : 'italic text-muted-foreground',
+                  )}
+                >
+                  <ToneGlyph tone={competenceTone} />
+                  {t(competenceKey(check))}
+                </span>
+              </QrFactRow>
+            </tbody>
+          </table>
+        </div>
+        {/* What the archive said about the sheet rather than about what it says
+            (ADR-0034). Its own table, because it is a claim of a different kind
+            from any line agreeing: a signature that verifies says nobody
+            altered this file, not that the archive bears the paper out.
+
+            Six rows, fixed, every one of them drawn — including the ones the
+            service stated nothing for. The customer's ask was to see which
+            fields we have and which we do not, and the block this replaces
+            dropped a null particular silently, so two lines out of five read as
+            the whole of what the archive keeps. */}
+        {signature && (
+          <div className='mt-2'>
+            <p className='pb-1.5 text-[0.75rem] text-muted-foreground'>
+              {t('detail.qr.signature')}
+            </p>
+            <div className='overflow-x-auto rounded-lg border border-rule'>
+              <table className='w-full min-w-[24rem] border-collapse text-[0.8125rem]'>
+                <thead>
+                  <tr className='border-b border-rule bg-muted text-[0.75rem] font-normal text-muted-foreground'>
+                    <th
+                      scope='col'
+                      className='w-[16rem] px-3 py-2 text-left font-normal'
+                    >
+                      {t('detail.qr.col_field')}
+                    </th>
+                    <th scope='col' className='px-3 py-2 text-left font-normal'>
+                      {t('detail.qr.col_value')}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {signatureParticulars.map(row => (
+                    <QrFactRow
+                      key={row.name}
+                      label={t(SIGNATURE_ROW_KEY[row.name])}
+                    >
+                      {/* The standing is the row with no value of its own: a
+                          mark and a word, not a string the service sent. */}
+                      {row.name === 'valid' ? (
+                        <span
+                          className={cn(
+                            'inline-flex items-baseline gap-1.5',
+                            signature === 'failed'
+                              ? 'text-issues-ink'
+                              : 'text-foreground',
+                          )}
+                        >
+                          <ToneGlyph tone={SIGNATURE_TONE[signature]} />
+                          {t(SIGNATURE_KEY[signature])}
+                        </span>
+                      ) : row.value === null ? (
+                        <span className='text-muted-foreground/50'>
+                          {QR_BLANK}
+                        </span>
+                      ) : (
+                        <span data-mono className='break-words'>
+                          {row.name === 'signedOn'
+                            ? signedOnReadably(row.value, locale)
+                            : row.value}
+                        </span>
+                      )}
+                    </QrFactRow>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* The one sentence a table cannot carry, kept as the footnote it
+                is: the names above belong to an archivist who signed a file,
+                not to whoever signed the paper. */}
+            <p className='mt-1.5 max-w-[70ch] text-[0.75rem] italic leading-snug text-muted-foreground'>
               {t('detail.qr.signature_note')}
             </p>
           </div>

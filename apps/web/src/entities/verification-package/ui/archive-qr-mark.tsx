@@ -10,6 +10,7 @@ import {
   CheckIcon,
   CircleDashedIcon,
   CloudOffIcon,
+  PenLineIcon,
   PlugZapIcon,
   ScanLineIcon,
   TriangleAlertIcon,
@@ -18,9 +19,16 @@ import type { ComponentType } from 'react';
 
 import { useI18n } from '@/shared/i18n';
 import { OutcomeMark } from '@/shared/ui/outcome-mark';
-import type { ArchiveQrCheckStatus } from '@cadastre/api-contracts/verification';
+import type {
+  ArchiveQrCheckDto,
+  ArchiveQrCheckStatus,
+} from '@cadastre/api-contracts/verification';
 
-import { QR_STATUS_KEY, QR_STATUS_TONE } from '../model/archive-qr';
+import {
+  qrConfirmsNoLine,
+  qrStatusKey,
+  qrStatusTone,
+} from '../model/archive-qr';
 
 /**
  * One icon per status, so the six are told apart without reading the colour —
@@ -47,18 +55,26 @@ export const QR_STATUS_ICON: Record<
   IssuerUnreachable: CloudOffIcon,
 };
 
-export function ArchiveQrStatusMark({
-  status,
-}: {
-  status: ArchiveQrCheckStatus;
-}) {
+/**
+ * The whole check in a pill, read off the answer and not off its status alone.
+ *
+ * A `Confirmed` whose every line the archive left blank confirmed nothing, and
+ * the pill is the one part of the block a folded case shows — so it is the last
+ * place that may keep saying «подтверждает» over an empty comparison
+ * (COMM-150). Its own mark and its own word: a pen, because the signature is
+ * genuinely all that was checked, in the silent tone, because an answer with
+ * nothing in it is not a pass.
+ */
+export function ArchiveQrStatusMark({ check }: { check: ArchiveQrCheckDto }) {
   const { t } = useI18n();
-  const Icon = QR_STATUS_ICON[status];
+  const Icon = qrConfirmsNoLine(check)
+    ? PenLineIcon
+    : QR_STATUS_ICON[check.status];
 
   return (
     <OutcomeMark
-      tone={QR_STATUS_TONE[status]}
-      label={t(QR_STATUS_KEY[status])}
+      tone={qrStatusTone(check)}
+      label={t(qrStatusKey(check))}
       icon={<Icon className='size-3 shrink-0' />}
     />
   );

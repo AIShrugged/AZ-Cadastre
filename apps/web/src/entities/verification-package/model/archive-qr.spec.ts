@@ -13,33 +13,45 @@ import {
 } from '@cadastre/api-contracts/verification';
 
 import {
-  comparesLines,
   competence,
   COMPETENCE_KEY,
   COMPETENCE_TONE,
   competenceKey,
   QR_FIELD_ORDER,
+  QR_OUTCOME_KEY,
+  QR_OUTCOME_TONE,
   QR_STATUS_KEY,
   QR_STATUS_NOTE,
   QR_STATUS_TONE,
-  QR_VERDICT_KEY,
-  QR_VERDICT_TONE,
   qrComparedFields,
+  qrConfirmsNoLine,
   qrDisagreements,
+  qrDrawsTable,
+  qrFieldOutcome,
   qrFields,
   qrSpeaksAgainst,
+  qrStatusKey,
+  qrStatusNote,
+  qrStatusTone,
   qrUncomparedFields,
   qrUnstatedFields,
   SIGNATURE_KEY,
-  SIGNATURE_LINE_KEY,
-  SIGNATURE_LINE_ORDER,
-  signatureLines,
+  SIGNATURE_ROW_KEY,
+  SIGNATURE_ROW_ORDER,
+  signatureRows,
   signatureStanding,
 } from './archive-qr';
 
 const STATUSES = ArchiveQrCheckStatusSchema.options;
 const VERDICTS = ArchiveQrFieldVerdictSchema.options;
 const NAMES = ArchiveQrFieldNameSchema.options;
+const OUTCOMES = [
+  'match',
+  'mismatch',
+  'archive_silent',
+  'document_silent',
+  'not_compared',
+] as const;
 
 const line = (
   name: ArchiveQrFieldCheckDto['name'],
@@ -103,9 +115,17 @@ describe('what the archive said about one paper, as the reader is shown it', () 
     expect(QR_STATUS_NOTE[status]).toBeDefined();
   });
 
-  it.each(VERDICTS)('gives %s a tone and a word', verdict => {
-    expect(QR_VERDICT_TONE[verdict]).toBeDefined();
-    expect(QR_VERDICT_KEY[verdict]).toBeDefined();
+  it.each(OUTCOMES)('gives %s a tone and a word', outcome => {
+    expect(QR_OUTCOME_TONE[outcome]).toBeDefined();
+    expect(QR_OUTCOME_KEY[outcome]).toBeDefined();
+  });
+
+  // The contract may gain a verdict, and the result column is the whole of what
+  // a row says: an outcome this build cannot name would leave the cell blank.
+  it.each(VERDICTS)('reads %s into an outcome the table can print', verdict => {
+    const outcome = qrFieldOutcome(line('document_no', verdict));
+
+    expect(OUTCOMES).toContain(outcome);
   });
 
   // The point of the block. "The archive's copy says otherwise" is a finding;
@@ -127,8 +147,10 @@ describe('what the archive said about one paper, as the reader is shown it', () 
   });
 
   it('never draws silence on a line as a disagreement', () => {
-    expect(QR_VERDICT_TONE.NotStated).toBe('silent');
-    expect(QR_VERDICT_TONE.NotStated).not.toBe(QR_VERDICT_TONE.Mismatch);
+    expect(QR_OUTCOME_TONE.archive_silent).toBe('silent');
+    expect(QR_OUTCOME_TONE.document_silent).toBe('silent');
+    expect(QR_OUTCOME_TONE.not_compared).toBe('silent');
+    expect(QR_OUTCOME_TONE.archive_silent).not.toBe(QR_OUTCOME_TONE.mismatch);
   });
 
   it('holds only a disagreement against the package', () => {
@@ -189,8 +211,9 @@ describe('the eight lines held against the archive', () => {
  *
  * The engine answers all eight whatever the archive's copy holds, and six of
  * them coming back blank is the ordinary case rather than the exceptional one.
- * A row per question turns "the copy does not carry this line" into "the system
- * could not get this line", which is the reading the block exists to prevent.
+ * Every one of them is a row of the table since COMM-150 — what changes is the
+ * word in its result column, and these three selections are what the count, the
+ * summary and the issuing body's standing are read off.
  */
 describe('which lines were actually compared', () => {
   const partial = () =>
@@ -268,9 +291,9 @@ describe('which lines were actually compared', () => {
     ]);
   });
 
-  // A line never put to the archive is no more a row of the table than a line
-  // the archive kept silent on, and it is no part of the count either.
-  it('draws no row and counts no difference for a line nobody asked about', () => {
+  // A line never put to the archive is no part of the comparison and no part of
+  // the count — it has a row like every other line, saying so.
+  it('counts no difference for a line nobody asked about', () => {
     const decided = check('Confirmed', {
       fields: [
         line('document_no', 'Match', '1471', '1471'),
@@ -326,30 +349,211 @@ describe('which lines were actually compared', () => {
   });
 });
 
+/**
+ * What the `Результат` column says, row by row (COMM-150).
+ *
+ * The customer opened a package whose eight lines all came back empty and read
+ * five paragraphs of prose with the field names inside the sentences. The four
+ * facts those paragraphs carried — agreed, differed, the archive prints no such
+ * line, we never put the question — are one word per row now, and the fifth is
+ * the one the four leave out.
+ */
+describe('what each row says it came to', () => {
+  it('reads the two real comparisons off the verdict', () => {
+    expect(qrFieldOutcome(line('document_no', 'Match', '1471', '1471'))).toBe(
+      'match',
+    );
+    expect(
+      qrFieldOutcome(line('issue_date', 'Mismatch', '12.04', '21.04')),
+    ).toBe('mismatch');
+  });
+
+  /*
+   * The whole of the customer's screenshot: eight questions, eight blanks from
+   * the archive. Told as "не указано" it reads as a shortfall of the paper's;
+   * told as "архив не приводит" it says whose silence it actually is.
+   */
+  it('names the archive as the silent side where its copy prints nothing', () => {
+    expect(
+      qrFieldOutcome(line('holder_name', 'NotStated', 'Mammadov Anar', null)),
+    ).toBe('archive_silent');
+  });
+
+  // The other side of the same verdict, and the opposite news: the archive does
+  // carry the line and the paper does not. Folded into the archive's silence it
+  // would say the reverse of what happened.
+  it('names the paper as the silent side where the archive states the line', () => {
+    expect(qrFieldOutcome(line('decree_item', 'NotStated', null, 'ii'))).toBe(
+      'document_silent',
+    );
+  });
+
+  // A decision of ours and never the fonds', which is why it is read off the
+  // verdict: both come back with a null archive value (ADR-0040).
+  it('keeps our own decision apart from the archive keeping quiet', () => {
+    const ours = qrFieldOutcome(
+      line('issuing_authority', 'NotCompared', 'Icra Hakimiyyati', null),
+    );
+
+    expect(ours).toBe('not_compared');
+    expect(ours).not.toBe('archive_silent');
+  });
+
+  it('gives only a disagreement a fault\u2019s colour', () => {
+    expect(QR_OUTCOME_TONE.mismatch).toBe('issues');
+    expect(QR_OUTCOME_TONE.match).toBe('ok');
+  });
+
+  // Five words and five distinct ones: two outcomes sharing a word would put
+  // the reader back where the prose left them.
+  it('gives each outcome a word of its own', () => {
+    const words = Object.values(QR_OUTCOME_KEY);
+
+    expect(new Set(words).size).toBe(words.length);
+  });
+});
+
 describe('whether there is a table to draw', () => {
-  it('draws one where the archive held the paper against its copy', () => {
-    expect(comparesLines(check('Confirmed'))).toBe(true);
-    expect(comparesLines(check('Differs'))).toBe(true);
+  it('draws one wherever the check carries lines at all', () => {
+    expect(qrDrawsTable(check('Confirmed'))).toBe(true);
+    expect(qrDrawsTable(check('Differs'))).toBe(true);
   });
 
-  // An empty table under "no record" reads as a table that failed to load. The
-  // status and its sentence are the whole of what is known.
-  it('draws none where nothing was compared', () => {
-    expect(comparesLines(check('NotFound'))).toBe(false);
-    expect(comparesLines(check('NoQrCode'))).toBe(false);
-    expect(comparesLines(check('Confirmed', { fields: [] }))).toBe(false);
-  });
-
-  // Eight questions and eight silences is the same nothing as no questions at
-  // all, and an empty frame under the status reads as a table that failed to
-  // load. The sentence naming the eight is what the block shows instead.
-  it('draws none where the archive answered on no line at all', () => {
+  /*
+   * The change COMM-150 is: the table no longer waits for the archive to have
+   * answered something. Eight questions and eight silences used to hide it and
+   * report themselves in prose, which is how a check that compared nothing came
+   * to summarise as "все сверенные строки совпали". Nothing was compared is now
+   * what the table says, row by row.
+   */
+  it('draws one where the archive answered on no line at all', () => {
     const silent = check('Confirmed', {
       fields: NAMES.map(name => line(name, 'NotStated', 'stated', null)),
     });
 
-    expect(comparesLines(silent)).toBe(false);
-    expect(qrUnstatedFields(silent)).toHaveLength(8);
+    expect(qrDrawsTable(silent)).toBe(true);
+    expect(qrFields(silent)).toHaveLength(8);
+    expect(qrComparedFields(silent)).toEqual([]);
+  });
+
+  // An empty table under "no record" still reads as a table that failed to
+  // load. Those statuses carry no lines at all, and the status and its sentence
+  // remain the whole of what is known.
+  it('draws none where the check carries no line', () => {
+    expect(qrDrawsTable(check('NotFound'))).toBe(false);
+    expect(qrDrawsTable(check('NoQrCode'))).toBe(false);
+    expect(qrDrawsTable(check('IssuerNotConnected'))).toBe(false);
+    expect(qrDrawsTable(check('Confirmed', { fields: [] }))).toBe(false);
+  });
+
+  // Every line the check carries gets a row — the eight, and a ninth the wire
+  // may learn to send. Nothing is dropped for having no answer.
+  it('gives every line the check carries a row', () => {
+    const mixed = check('Confirmed', {
+      fields: NAMES.map((name, at) =>
+        at === 0
+          ? line(name, 'NotCompared', 'stated', null)
+          : at < 4
+            ? line(name, 'NotStated', 'stated', null)
+            : line(name, 'Match'),
+      ),
+    });
+
+    expect(qrFields(mixed)).toHaveLength(8);
+    expect(qrFields(mixed).map(qrFieldOutcome)).toEqual([
+      'not_compared',
+      'archive_silent',
+      'archive_silent',
+      'archive_silent',
+      'match',
+      'match',
+      'match',
+      'match',
+    ]);
+  });
+});
+
+/**
+ * The summary must not claim a confirmation nobody made (COMM-150).
+ *
+ * The customer's package: the archive answered, its copy stated none of the
+ * eight lines, and the block headed itself «Копия Национального архива
+ * подтверждает» over a sentence saying every compared line agreed. Both true
+ * over an empty set, and both read by an inspector as a confirmed paper.
+ */
+describe('a confirmation with nothing in it', () => {
+  const vacuous = () =>
+    check('Confirmed', {
+      signature: signed(),
+      fields: NAMES.map(name =>
+        name === 'issuing_authority'
+          ? line(name, 'NotCompared', 'Icra Hakimiyyati', null)
+          : line(name, 'NotStated', 'stated', null),
+      ),
+    });
+
+  it('sees that not one line was borne out', () => {
+    expect(qrConfirmsNoLine(vacuous())).toBe(true);
+    expect(qrComparedFields(vacuous())).toEqual([]);
+  });
+
+  it('says so in its own word and its own sentence', () => {
+    expect(qrStatusKey(vacuous())).toBe('detail.qr.confirmed_no_line');
+    expect(qrStatusNote(vacuous())).toBe('detail.qr.confirmed_no_line_note');
+    expect(qrStatusKey(vacuous())).not.toBe(QR_STATUS_KEY.Confirmed);
+    expect(qrStatusNote(vacuous())).not.toBe(QR_STATUS_NOTE.Confirmed);
+  });
+
+  // A green pill over an answer with nothing in it is the whole of the
+  // misreading, and the pill is the one part of the block a folded case shows.
+  it('does not colour it as a pass', () => {
+    expect(qrStatusTone(vacuous())).toBe('silent');
+    expect(qrStatusTone(vacuous())).not.toBe(QR_STATUS_TONE.Confirmed);
+  });
+
+  // The word an inspector reads must not be one of the confirming ones, in any
+  // of the three languages.
+  it.each(LOCALES.map(l => l.id))('%s never says it was confirmed', locale => {
+    const dict = DICTS[locale];
+
+    expect(dict[qrStatusKey(vacuous())]).toBeTruthy();
+    expect(dict[qrStatusKey(vacuous())]).not.toBe(
+      dict[QR_STATUS_KEY.Confirmed],
+    );
+    expect(dict[qrStatusNote(vacuous())]).not.toBe(
+      dict[QR_STATUS_NOTE.Confirmed],
+    );
+  });
+
+  // A real confirmation is untouched: one line held against the copy and agreed
+  // is a confirmation, and the block keeps saying so.
+  it('leaves a confirmation that bore a line out alone', () => {
+    const real = check('Confirmed', {
+      fields: [line('document_no', 'Match', '1471', '1471')],
+    });
+
+    expect(qrConfirmsNoLine(real)).toBe(false);
+    expect(qrStatusKey(real)).toBe(QR_STATUS_KEY.Confirmed);
+    expect(qrStatusTone(real)).toBe('ok');
+  });
+
+  /*
+   * Only `Confirmed`. `Differs` with no compared line is a finding of another
+   * kind — the signature did not verify, or the issuing body had no such power
+   * — and its word and its fault's colour are already the right ones. The four
+   * silences never claimed anything to begin with.
+   */
+  it('leaves every other status to its own word', () => {
+    const differs = check('Differs', {
+      fields: NAMES.map(name => line(name, 'NotStated', 'stated', null)),
+      issuingAuthorityCompetent: false,
+    });
+
+    expect(qrConfirmsNoLine(differs)).toBe(false);
+    expect(qrStatusKey(differs)).toBe(QR_STATUS_KEY.Differs);
+    expect(qrStatusTone(differs)).toBe('issues');
+    expect(qrStatusKey(check('NotFound'))).toBe(QR_STATUS_KEY.NotFound);
+    expect(qrStatusTone(check('NoQrCode'))).toBe('silent');
   });
 });
 
@@ -443,134 +647,125 @@ describe('whether the issuing body could issue the paper', () => {
 });
 
 /**
- * The signature panel the archive returns with the disposal order.
+ * The signature table the archive returns with the disposal order.
  *
- * Six values and not four: who signed, when, the organisation that issued the
- * signing certificate, the structural subdivision, how long that certificate
- * is valid, and whether the signature verified (COMM-141/COMM-142). The first
- * five are nullable on the contract and a block that drew five empty labels for
- * a source that stated none of them would be inventing an absence.
+ * Six rows and always six (COMM-150): who signed, when, the organisation that
+ * issued the signing certificate, the structural subdivision, how long that
+ * certificate is valid, and whether the signature verified. The first five are
+ * nullable on the contract and the block used to drop a null one silently — so
+ * a service stating two of the five drew two lines, and the reader could not
+ * tell a value the archive withheld from a field this build does not read. The
+ * customer's ask was exactly that distinction: which fields, and which of them
+ * we have.
  */
 describe('what the signature on the sheet states', () => {
-  it('reads out every particular the archive stated, in one order', () => {
-    const lines = signatureLines(check('Confirmed', { signature: signed() }));
+  const rows = (over: Partial<ArchiveQrSignatureDto> = {}) =>
+    signatureRows(check('Confirmed', { signature: signed(over) }));
 
-    expect(lines.map(line => line.name)).toEqual([...SIGNATURE_LINE_ORDER]);
-    expect(lines.map(line => line.value)).toEqual([
+  it('reads out every particular the archive stated, in one order', () => {
+    expect(rows().map(row => row.name)).toEqual([...SIGNATURE_ROW_ORDER]);
+    expect(rows().map(row => row.value)).toEqual([
       'Məmmədov Anar',
       '2026-01-14T17:07:07.000+04:00',
       'Azərbaycan Respublikası Milli Arxiv Fondu',
       'Sənədlərin rəqəmsallaşdırılması şöbəsi',
       '14.01.2025 — 14.01.2028',
+      // The standing is a mark and a word, never a string the service sent.
+      null,
     ]);
   });
 
   it('carries the certificate validity period through as the source worded it', () => {
-    const lines = signatureLines(
-      check('Confirmed', {
-        signature: signed({ certificateValidity: 'etibarlıdır 3 il' }),
-      }),
-    );
-
-    expect(lines.find(line => line.name === 'certificateValidity')?.value).toBe(
-      'etibarlıdır 3 il',
-    );
+    expect(
+      rows({ certificateValidity: 'etibarlıdır 3 il' }).find(
+        row => row.name === 'certificateValidity',
+      )?.value,
+    ).toBe('etibarlıdır 3 il');
   });
 
-  // Each of the five is nullable, and a label with nothing under it states an
-  // absence nobody claimed.
-  it.each([...SIGNATURE_LINE_ORDER])('draws no line where %s is null', name => {
-    const lines = signatureLines(
-      check('Confirmed', { signature: signed({ [name]: null }) }),
-    );
+  /*
+   * The behaviour COMM-150 reverses. Each of the five is nullable, and the row
+   * used to disappear with its value — which hid the shape of the block from
+   * the one reader who needs it: an inspector asking which fields the archive
+   * answers at all. The row stays, and the table draws its placeholder.
+   */
+  it.each([
+    'signedBy',
+    'signedOn',
+    'organisation',
+    'unit',
+    'certificateValidity',
+  ] as const)('keeps the row and empties the value where %s is null', name => {
+    const drawn = rows({ [name]: null });
 
-    expect(lines.map(line => line.name)).not.toContain(name);
-    expect(lines).toHaveLength(SIGNATURE_LINE_ORDER.length - 1);
+    expect(drawn.map(row => row.name)).toEqual([...SIGNATURE_ROW_ORDER]);
+    expect(drawn.find(row => row.name === name)?.value).toBeNull();
   });
 
   /*
    * The live service answers the subdivision as the full path through the
-   * organisation, and the organisation is on the line above (COMM-149). Drawn
-   * in full, the second line buries the branch and the post it exists to say
+   * organisation, and the organisation is on the row above (COMM-149). Drawn
+   * in full, the second row buries the branch and the post it exists to say
    * behind a name just read.
    */
   it('drops the organisation the subdivision repeats', () => {
     const org = 'Az\u0259rbaycan Respublikas\u0131 Milli Arxiv Fondu';
-    const lines = signatureLines(
-      check('Confirmed', {
-        signature: signed({
-          organisation: org,
-          unit: `${org} / D\u00d6VL\u018fT ARX\u0130V\u0130N\u0130N BAKI F\u0130LIALI D\u0130REKTOR`,
-        }),
-      }),
-    );
+    const drawn = rows({
+      organisation: org,
+      unit: `${org} / D\u00d6VL\u018fT ARX\u0130V\u0130N\u0130N BAKI F\u0130LIALI D\u0130REKTOR`,
+    });
 
-    expect(lines.find(l => l.name === 'organisation')?.value).toBe(org);
-    expect(lines.find(l => l.name === 'unit')?.value).toBe(
+    expect(drawn.find(r => r.name === 'organisation')?.value).toBe(org);
+    expect(drawn.find(r => r.name === 'unit')?.value).toBe(
       'D\u00d6VL\u018fT ARX\u0130V\u0130N\u0130N BAKI F\u0130LIALI D\u0130REKTOR',
     );
   });
 
   // Only a prefix. A subdivision that names the organisation further in is not
   // a path through it, and cutting there would take words out of the middle.
-  it('keeps both lines whole where the subdivision is not a path', () => {
-    const lines = signatureLines(
-      check('Confirmed', {
-        signature: signed({
-          organisation: 'Milli Arxiv Fondu',
-          unit: 'R\u0259q\u0259msalla\u015fd\u0131rma \u015f\u00f6b\u0259si, Milli Arxiv Fondu',
-        }),
-      }),
-    );
-
-    expect(lines.find(l => l.name === 'unit')?.value).toBe(
+  it('keeps both rows whole where the subdivision is not a path', () => {
+    expect(
+      rows({
+        organisation: 'Milli Arxiv Fondu',
+        unit: 'R\u0259q\u0259msalla\u015fd\u0131rma \u015f\u00f6b\u0259si, Milli Arxiv Fondu',
+      }).find(r => r.name === 'unit')?.value,
+    ).toBe(
       'R\u0259q\u0259msalla\u015fd\u0131rma \u015f\u00f6b\u0259si, Milli Arxiv Fondu',
     );
   });
 
-  // With the prefix gone there is nothing left in the line: it says only what
-  // the line above already said, and a label pointing at nothing is worse than
-  // no label.
-  it('draws no subdivision where it is the organisation and nothing more', () => {
+  // With the prefix gone there is nothing left in the value: it would say only
+  // what the row above already said. The row stays and the value empties.
+  it('empties the subdivision where it is the organisation and nothing more', () => {
     const org = 'Milli Arxiv Fondu';
-    const lines = signatureLines(
-      check('Confirmed', {
-        signature: signed({ organisation: org, unit: org }),
-      }),
-    );
+    const drawn = rows({ organisation: org, unit: org });
 
-    expect(lines.map(l => l.name)).not.toContain('unit');
+    expect(drawn.map(r => r.name)).toContain('unit');
+    expect(drawn.find(r => r.name === 'unit')?.value).toBeNull();
   });
 
   // Nothing above to repeat: the subdivision is then the only name the block
   // has and it is drawn as the service sent it.
   it('keeps the subdivision whole where no organisation was stated', () => {
-    const lines = signatureLines(
-      check('Confirmed', {
-        signature: signed({
-          organisation: null,
-          unit: 'Milli Arxiv Fondu / BAKI F\u0130LIALI',
-        }),
-      }),
-    );
-
-    expect(lines.find(l => l.name === 'unit')?.value).toBe(
-      'Milli Arxiv Fondu / BAKI F\u0130LIALI',
-    );
+    expect(
+      rows({
+        organisation: null,
+        unit: 'Milli Arxiv Fondu / BAKI F\u0130LIALI',
+      }).find(r => r.name === 'unit')?.value,
+    ).toBe('Milli Arxiv Fondu / BAKI F\u0130LIALI');
   });
 
   // Whitespace a service sent is not a particular the archive stated.
   it('treats a blank value as the silence it is', () => {
     expect(
-      signatureLines(
-        check('Confirmed', { signature: signed({ unit: '   ' }) }),
-      ).map(line => line.name),
-    ).not.toContain('unit');
+      rows({ unit: '   ' }).find(r => r.name === 'unit')?.value,
+    ).toBeNull();
   });
 
-  // A signature can verify with nothing said about how it was made, and the
-  // mark is then the whole of the answer — it must still be drawn.
-  it('leaves the verified mark standing alone where nothing else is stated', () => {
+  // A signature can verify with nothing said about how it was made. The table
+  // is still six rows — five placeholders and the standing — because "we asked
+  // and the archive states none of this" is itself the answer.
+  it('draws all six where the archive stated nothing but the standing', () => {
     const bare = check('Confirmed', {
       signature: {
         signedBy: null,
@@ -582,12 +777,17 @@ describe('what the signature on the sheet states', () => {
       },
     });
 
-    expect(signatureLines(bare)).toEqual([]);
+    expect(signatureRows(bare).map(r => r.name)).toEqual([
+      ...SIGNATURE_ROW_ORDER,
+    ]);
+    expect(signatureRows(bare).every(r => r.value === null)).toBe(true);
     expect(signatureStanding(bare)).toBe('verified');
   });
 
-  it('has nothing to read out where the archive verified no signature', () => {
-    expect(signatureLines(check('Confirmed'))).toEqual([]);
+  // And no table at all where the archive verified no signature: six labels
+  // over six placeholders would state the absence of a thing never claimed.
+  it('has nothing to draw where the archive verified no signature', () => {
+    expect(signatureRows(check('Confirmed'))).toEqual([]);
     expect(signatureStanding(check('Confirmed'))).toBeNull();
   });
 
@@ -597,28 +797,56 @@ describe('what the signature on the sheet states', () => {
    * A missing word would render as `detail.qr.cert_validity` beside a
    * signature, in all three languages, exactly as COMM-81 shipped.
    */
-  it.each(LOCALES.map(l => l.id))('%s has a word for every line', locale => {
+  it.each(LOCALES.map(l => l.id))('%s has a word for every row', locale => {
     const keys = [
-      ...Object.values(SIGNATURE_LINE_KEY),
+      ...Object.values(SIGNATURE_ROW_KEY),
       ...Object.values(SIGNATURE_KEY),
       ...Object.values(QR_STATUS_KEY),
       ...Object.values(QR_STATUS_NOTE),
-      ...Object.values(QR_VERDICT_KEY),
+      ...Object.values(QR_OUTCOME_KEY),
       ...Object.values(COMPETENCE_KEY),
+      'detail.qr.confirmed_no_line',
+      'detail.qr.confirmed_no_line_note',
     ];
 
     expect(keys.filter(key => !(key in DICTS[locale]))).toEqual([]);
   });
 
-  // The five lines are filled in by the value and nothing else; a label that
-  // lost its slot would print its wording with the value dropped.
-  it.each(LOCALES.map(l => l.id))('%s leaves a slot for the value', locale => {
-    const wordless = Object.values(SIGNATURE_LINE_KEY).filter(
-      key => !DICTS[locale][key]?.includes('{value}'),
-    );
+  /*
+   * The labels are labels now and the value sits in its own column, so a
+   * `{value}` slot left in one would print the placeholder at the reader —
+   * `Копию подписал {value}` beside the name it was meant to carry (COMM-150).
+   */
+  it.each(LOCALES.map(l => l.id))(
+    '%s leaves no value slot in a label',
+    locale => {
+      const withSlot = [
+        ...Object.values(SIGNATURE_ROW_KEY),
+        'detail.qr.competence',
+      ].filter(key => DICTS[locale][key]?.includes('{'));
 
-    expect(wordless).toEqual([]);
-  });
+      expect(withSlot).toEqual([]);
+    },
+  );
+
+  // The prose the table replaces is gone from every dictionary, not merely
+  // unreferenced by the component.
+  it.each(LOCALES.map(l => l.id))(
+    '%s has no orphaned sentence left',
+    locale => {
+      const gone = [
+        'detail.qr.archive_states_none',
+        'detail.qr.archive_not_compared',
+        'detail.qr.silent',
+        'detail.qr.v_match',
+        'detail.qr.v_mismatch',
+        'detail.qr.v_not_stated',
+        'detail.qr.v_not_compared',
+      ].filter(key => key in DICTS[locale]);
+
+      expect(gone).toEqual([]);
+    },
+  );
 });
 
 /**
@@ -638,13 +866,11 @@ describe('which archive the block speaks for', () => {
     'detail.qr.differs_note',
     'detail.qr.not_found_note',
     'detail.qr.no_code_note',
-    // The sentence naming the lines nobody compared says whose silence it is:
-    // the register panel's archive is a different archive (COMM-146).
-    'detail.qr.archive_states_none',
-    // And so does the sentence naming the lines this system declines to put,
-    // and the signature block, which is about a file the National Archive
+    // The sentence a confirmation with nothing in it is told by, which says
+    // what the archive did and did not do (COMM-150).
+    'detail.qr.confirmed_no_line_note',
+    // And the signature table, which is about a file the National Archive
     // released and not about the paper it copies (COMM-149).
-    'detail.qr.archive_not_compared',
     'detail.qr.signature',
     'detail.qr.signature_note',
   ];

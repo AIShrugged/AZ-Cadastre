@@ -14,9 +14,12 @@
  *
  * Two vocabularies, neither invented here: how the check as a whole came out
  * (`ArchiveQrCheckStatus`) and how one line of the paper stood against the
- * archive's copy (`ArchiveQrFieldVerdict`). What this module decides is the
- * only thing a client may decide about them — the tone each is set in, the line
- * of the dictionary that names it, and whether there is a table to draw at all.
+ * archive's copy (`ArchiveQrFieldVerdict`) — and one that is, `QrFieldOutcome`,
+ * which is the contract's four verdicts read with the two values beside them so
+ * that the `Результат` column can say which side was silent (COMM-150). What
+ * this module decides is the only thing a client may decide about any of them:
+ * the tone each is set in, the line of the dictionary that names it, and
+ * whether there is a table to draw at all.
  *
  * The distinction it exists to hold: **the archive contradicting the paper and
  * the archive having nothing to say are not the same news.** `NotFound` is an
@@ -33,7 +36,6 @@ import type {
   ArchiveQrCheckStatus,
   ArchiveQrFieldCheckDto,
   ArchiveQrFieldName,
-  ArchiveQrFieldVerdict,
 } from '@cadastre/api-contracts/verification';
 import { ArchiveQrFieldNameSchema } from '@cadastre/api-contracts/verification';
 
@@ -87,27 +89,76 @@ export const QR_STATUS_NOTE: Record<ArchiveQrCheckStatus, string> = {
 };
 
 /**
- * One tone per verdict. `NotStated` is silence on one side or the other and is
- * never a disagreement, so it is drawn as the register draws a column nobody
- * kept rather than as a shortfall. `NotCompared` is quieter still — the line
- * was never put to the archive (ADR-0040) — and shares the tone until the block
- * is designed around it.
+ * What the `Результат` column says about one line — the whole of the block's
+ * per-row news, in one word (COMM-150).
+ *
+ * A vocabulary of the surface's own and not the contract's, because the
+ * contract's four verdicts do not carve the news the way a reader needs it
+ * carved: `NotStated` is silence on *either* side, and which side was silent
+ * is the entire difference between "the archive's copy carries no such line"
+ * and "the paper does not print one". Told as one word they read as one fact,
+ * and the reader guesses which.
+ *
+ * Five and not four. Four are the ones the customer named — agreed, differed,
+ * the archive states nothing, we never put the question — and the fifth is the
+ * residue those four leave: a line the archive does state and the paper does
+ * not. That one is a real comparison with a real finding (the paper is short
+ * where the fonds are not), and folding it into the archive's silence would
+ * say the opposite of what happened.
  */
-export const QR_VERDICT_TONE: Record<
-  ArchiveQrFieldVerdict,
+export type QrFieldOutcome =
+  | 'match'
+  | 'mismatch'
+  // The archive was asked and its copy prints no such line. Not a shortfall of
+  // the paper's and never drawn as one.
+  | 'archive_silent'
+  // The archive states the line and the paper does not — where the paper is
+  // short and the fonds are not.
+  | 'document_silent'
+  // Never put to the archive at all, by a decision of ours (ADR-0040).
+  | 'not_compared';
+
+/**
+ * How one line came out, read off the verdict and the two values together.
+ *
+ * `NotCompared` first, because it is the one answer that is about this system
+ * rather than about either document, and it arrives looking exactly like the
+ * archive's silence — a null archive value — which is the confusion the split
+ * exists to prevent.
+ */
+export function qrFieldOutcome(field: ArchiveQrFieldCheckDto): QrFieldOutcome {
+  if (field.verdict === 'NotCompared') return 'not_compared';
+  if (field.verdict === 'Match') return 'match';
+  if (field.verdict === 'Mismatch') return 'mismatch';
+
+  return field.archiveValue === null ? 'archive_silent' : 'document_silent';
+}
+
+/**
+ * One tone per outcome, and only a disagreement is a fault's colour.
+ *
+ * The three silences share `silent` for the reason the statuses do: a value
+ * one side does not state is not a disagreement, and a decision of ours is not
+ * a shortfall of the paper's. They are told apart by their word, which is also
+ * what carries the difference into grayscale and a screen reader.
+ */
+export const QR_OUTCOME_TONE: Record<
+  QrFieldOutcome,
   'ok' | 'issues' | 'silent'
 > = {
-  Match: 'ok',
-  Mismatch: 'issues',
-  NotStated: 'silent',
-  NotCompared: 'silent',
+  match: 'ok',
+  mismatch: 'issues',
+  archive_silent: 'silent',
+  document_silent: 'silent',
+  not_compared: 'silent',
 };
 
-export const QR_VERDICT_KEY: Record<ArchiveQrFieldVerdict, string> = {
-  Match: 'detail.qr.v_match',
-  Mismatch: 'detail.qr.v_mismatch',
-  NotStated: 'detail.qr.v_not_stated',
-  NotCompared: 'detail.qr.v_not_compared',
+export const QR_OUTCOME_KEY: Record<QrFieldOutcome, string> = {
+  match: 'detail.qr.o_match',
+  mismatch: 'detail.qr.o_mismatch',
+  archive_silent: 'detail.qr.o_archive_silent',
+  document_silent: 'detail.qr.o_document_silent',
+  not_compared: 'detail.qr.o_not_compared',
 };
 
 /**
@@ -216,11 +267,12 @@ export function qrComparedFields(
  * The lines the archive was asked about and said nothing for, in the same
  * order.
  *
- * Dropped from the table and not from the block: an inspector has to see the
- * edge of the comparison — what was held against the archive's copy and what
- * the copy simply does not print — or a table of two agreeing lines reads as a
- * paper confirmed in full. They are named in one muted sentence under the
- * table, which is the whole of what is true about them.
+ * Rows of the table like any other since COMM-150, marked `архив не приводит`
+ * in the `Результат` column. They used to be dropped from the table and named
+ * in a sentence beneath it, which kept the edge of the comparison visible but
+ * made the block prose and made a table of two agreeing lines look like a paper
+ * confirmed in full. The list itself stays, because the count and the summary
+ * are read off it.
  *
  * `NotCompared` is off this list and on its own. Both end with no archive
  * value, and the reason is the whole difference: here the archive was asked
@@ -244,6 +296,9 @@ export function qrUnstatedFields(
  * tells this apart from an archive that simply kept no such column. Today it
  * is `issuing_authority` and only it — the body is not read off a scan, so it
  * is not held against anything (ADR-0034, ADR-0040).
+ *
+ * A row of the table like the rest, marked `не сверяем`; the list is what
+ * `competenceKey` reads to say why there is nothing to judge the body by.
  */
 export function qrUncomparedFields(
   check: ArchiveQrCheckDto,
@@ -252,24 +307,69 @@ export function qrUncomparedFields(
 }
 
 /**
- * Whether there is a line-by-line comparison to draw.
+ * Whether there is a table to draw.
  *
- * Every status but `Confirmed` and `Differs` carries no lines — nothing was
- * held against anything — and an empty table under them would read as a table
- * that failed to load. They get the status and the sentence, which is the whole
- * of what is known. So does an answer that was about the sheet rather than
- * about what it says: a signature service states no lines at all (ADR-0034),
- * and the signature block below is what it has to show.
+ * Whether the check came back with lines at all, and nothing more (COMM-150).
+ * It used to also ask whether any of them had been *answered*, and hid the
+ * table where none had — which is how eight silences came to be reported as
+ * five paragraphs of prose, and how «все сверенные строки совпали» came to
+ * stand over an empty set. That nothing was compared is now something the
+ * table says, row by row, in its own `Результат` column.
  *
- * And so does an answer whose every line the archive left blank: the eight
- * questions came back eight silences, there is nothing to compare, and the
- * sentence naming them is what the block shows instead of an empty frame.
+ * The statuses that genuinely carry no lines keep their sentence: `NoQrCode`,
+ * `NotFound`, `IssuerNotConnected` and `IssuerUnreachable` all answer with an
+ * empty `fields`, and an empty frame under them reads as a table that failed
+ * to load. So does an answer that was about the sheet rather than about what
+ * it says — a signature service states no lines at all (ADR-0034), and the
+ * signature table below is what it has to show.
  */
-export function comparesLines(check: ArchiveQrCheckDto): boolean {
-  return (
-    (check.status === 'Confirmed' || check.status === 'Differs') &&
-    qrComparedFields(check).length > 0
-  );
+export function qrDrawsTable(check: ArchiveQrCheckDto): boolean {
+  return qrFields(check).length > 0;
+}
+
+/**
+ * Whether the check bore out no line of the paper at all (COMM-150).
+ *
+ * The bug this exists to close: the archive answered, its copy stated not one
+ * of the eight lines, every comparison was therefore vacuous — and the block
+ * still headed itself «Копия Национального архива подтверждает» and said in
+ * its own sentence that every compared line agreed. True over an empty set and
+ * read by an inspector as a confirmed paper.
+ *
+ * Only `Confirmed`, because only `Confirmed` claims anything. `Differs` with
+ * no compared line is a finding of some other kind — the signature did not
+ * verify, or the issuing body had no such power — and its word and its tone
+ * are already the right ones. The four silences never claimed to begin with.
+ *
+ * Purely presentational, and derived: the contract states no such status and
+ * is not asked for one.
+ */
+export function qrConfirmsNoLine(check: ArchiveQrCheckDto): boolean {
+  return check.status === 'Confirmed' && qrComparedFields(check).length === 0;
+}
+
+/** The status word, with the empty confirmation told apart from a real one. */
+export function qrStatusKey(check: ArchiveQrCheckDto): string {
+  return qrConfirmsNoLine(check)
+    ? 'detail.qr.confirmed_no_line'
+    : QR_STATUS_KEY[check.status];
+}
+
+/** And its sentence, which is where the difference is actually explained. */
+export function qrStatusNote(check: ArchiveQrCheckDto): string {
+  return qrConfirmsNoLine(check)
+    ? 'detail.qr.confirmed_no_line_note'
+    : QR_STATUS_NOTE[check.status];
+}
+
+/**
+ * And its colour. A pass is a pass only where something passed: an empty
+ * confirmation takes the tone the four silences take, because that is what it
+ * is — an answer with nothing in it — and a green mark over it is the whole of
+ * the misreading.
+ */
+export function qrStatusTone(check: ArchiveQrCheckDto): OutcomeTone {
+  return qrConfirmsNoLine(check) ? 'silent' : QR_STATUS_TONE[check.status];
 }
 
 /** How many lines disagree — the count the block's heading carries, so a table
@@ -323,68 +423,90 @@ export const SIGNATURE_KEY: Record<SignatureStanding, string> = {
 };
 
 /**
- * What the signature block names, besides the verified/failed mark, in the
- * order it reads them out.
+ * The rows of the signature table, in the order they are drawn (COMM-150).
  *
- * Five particulars and one order, fixed here rather than at the point of
- * drawing: who signed and when are about the act, the issuing organisation,
- * the structural subdivision and the certificate's validity period are about
- * the credential the act was made with — and a block whose lines moved between
- * two papers of the same kind is a block an inspector cannot scan.
+ * Six and fixed, the sixth being the signature's own standing. It used to be
+ * the heading over the other five, phrased as a sentence with the value baked
+ * into the string — «копию подписал: X» — which put the label inside the
+ * reading and made the block prose. In a table the label belongs in the label
+ * column, so the standing is simply the row that has no name of its own.
  *
- * None of them is a row of the comparison table. The table holds the paper
- * against the National Archive's copy line by line; these say how the sheet was
- * signed, which is a claim of a different kind and is why it is drawn beside
- * the table and never in it.
+ * Who signed and when are about the act; the issuing organisation, the
+ * structural subdivision and the certificate's validity period are about the
+ * credential the act was made with. Fixed here rather than at the point of
+ * drawing: a block whose rows moved between two papers of the same kind is a
+ * block an inspector cannot scan.
+ *
+ * None of them is a row of the comparison table. That table holds the paper
+ * against the National Archive's copy line by line; these say how the archive's
+ * own electronic copy was signed, which is a claim of a different kind.
  */
-export const SIGNATURE_LINE_ORDER = [
+export const SIGNATURE_ROW_ORDER = [
   'signedBy',
   'signedOn',
   'organisation',
   'unit',
   'certificateValidity',
+  'valid',
 ] as const;
 
-export type SignatureLineName = (typeof SIGNATURE_LINE_ORDER)[number];
+export type SignatureRowName = (typeof SIGNATURE_ROW_ORDER)[number];
 
-export const SIGNATURE_LINE_KEY: Record<SignatureLineName, string> = {
+export const SIGNATURE_ROW_KEY: Record<SignatureRowName, string> = {
   signedBy: 'detail.qr.signed_by',
   signedOn: 'detail.qr.signed_on',
   organisation: 'detail.qr.cert_organisation',
   unit: 'detail.qr.cert_unit',
   certificateValidity: 'detail.qr.cert_validity',
+  valid: 'detail.qr.sig_valid',
 };
 
-export type SignatureLine = {
-  readonly name: SignatureLineName;
-  readonly value: string;
+export type SignatureRow = {
+  readonly name: SignatureRowName;
+  /**
+   * What the archive stated, or `null` where it stated nothing — which the
+   * table draws as its placeholder and never as a blank cell.
+   *
+   * Always `null` for `valid`: the signature's standing is a mark and a word
+   * (`SIGNATURE_KEY`), not a string the service sent, and giving it a value
+   * here would invite the table to print it as one.
+   */
+  readonly value: string | null;
 };
 
 /**
- * The particulars this signature actually states, in order.
+ * Every row of the signature table, always all six, in one order.
  *
- * Every one of the five is nullable on the contract, and a source that states
- * none of them still verifies a signature — so the block degrades to the
- * verified/failed mark alone rather than to five labels pointing at nothing.
- * A value present but blank is the same silence as a null and is dropped with
- * it: whitespace a service sent is not a particular the archive stated.
+ * The customer's ask, in one function: **which fields we have and which we do
+ * not.** The block used to drop a null particular, so a source stating two of
+ * the five drew two lines and said nothing about the other three — the reader
+ * could not tell an absent value from a field this build does not read. Now
+ * the row is always there and the silence is in its value column.
+ *
+ * Empty and only empty where the archive verified no signature at all: there
+ * is then no table, because six labels over six placeholders state an absence
+ * of a thing that was never claimed.
+ *
+ * A value present but blank is the same silence as a null: whitespace a service
+ * sent is not a particular the archive stated.
  */
-export function signatureLines(check: ArchiveQrCheckDto): SignatureLine[] {
+export function signatureRows(
+  check: ArchiveQrCheckDto,
+): readonly SignatureRow[] {
   const signature = check.signature;
 
   if (!signature) return [];
 
   const organisation = signature.organisation?.trim() || null;
 
-  return SIGNATURE_LINE_ORDER.flatMap<SignatureLine>(name => {
-    const value = signature[name]?.trim();
+  return SIGNATURE_ROW_ORDER.map<SignatureRow>(name => {
+    if (name === 'valid') return { name, value: null };
 
-    if (!value) return [];
-    if (name !== 'unit') return [{ name, value }];
+    const value = signature[name]?.trim() || null;
 
-    const tail = subdivisionTail(value, organisation);
+    if (name !== 'unit' || value === null) return { name, value };
 
-    return tail ? [{ name, value: tail }] : [];
+    return { name, value: subdivisionTail(value, organisation) || null };
   });
 }
 
@@ -402,8 +524,9 @@ export function signatureLines(check: ArchiveQrCheckDto): SignatureLine[] {
  * organisation further in is not a path and keeps every word; and matching
  * case-insensitively would turn on Azerbaijani's dotted and dotless i, where a
  * locale's idea of the same letter is not the service's. Where the whole of
- * the subdivision is the organisation there is no news left in the line at all
- * and it is not drawn.
+ * the subdivision is the organisation there is no news left in the line at all,
+ * and the row is drawn with its placeholder rather than dropped — the table's
+ * whole point is that every field it knows about has a row.
  */
 function subdivisionTail(unit: string, organisation: string | null): string {
   if (!organisation || !unit.startsWith(organisation)) return unit;

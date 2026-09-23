@@ -204,6 +204,22 @@ export const EnvironmentSchema = z
       .int()
       .positive()
       .default(5000),
+    /*
+     * The same archive, but the download of its signed copy rather than the
+     * question about it (COMM-153).
+     *
+     * Separate because the two are not the same call. The metadata question
+     * answers in well under a second; the copy is a presigned S3 download of
+     * whatever the archive scanned, and it shares nothing with the API but the
+     * domain name. Under one budget a five-second ceiling that is generous for
+     * the question is tight for a multi-megabyte scan, and the scan losing the
+     * race reaches the inspector as an archive that states nothing.
+     */
+    NATIONAL_ARCHIVE_COPY_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(30_000),
   })
   .transform(env => ({
     service: {
@@ -314,6 +330,7 @@ export const EnvironmentSchema = z
         provider: env.NATIONAL_ARCHIVE_PROVIDER,
         url: env.NATIONAL_ARCHIVE_URL,
         timeoutMs: env.NATIONAL_ARCHIVE_TIMEOUT_MS,
+        copyTimeoutMs: env.NATIONAL_ARCHIVE_COPY_TIMEOUT_MS,
       },
     } satisfies VerificationModuleOptions,
   }));

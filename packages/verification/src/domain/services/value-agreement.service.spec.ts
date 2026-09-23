@@ -61,6 +61,34 @@ describe('looksLikeTheSameValue', () => {
     expect(looksLikeTheSameValue('Elçin', 'Elçibəy')).toBe(false);
   });
 
+  /*
+   * The one letter an ASCII keyboard has two answers for (COMM-153).
+   *
+   * The archive's copy of the Hümbətov order prints "Hümbətov Yavər Kərim
+   * oğlu" and the package's own sheet was read as "Hümbətov Yaver Karim oğlu"
+   * — one `ə` heard as `e`, the next transliterated as `a`, in one name. Folded
+   * to `e` alone, the comparison called the archive's own copy a contradiction
+   * of the paper it is a copy of, which is the worst answer this check has.
+   */
+  it('reads the one letter an ascii keyboard spells two ways', () => {
+    expect(
+      looksLikeTheSameValue(
+        'Hümbətov Yaver Karim oğlu',
+        'Hümbətov Yavər Kərim oğlu',
+      ),
+    ).toBe(true);
+    expect(looksLikeTheSameValue('Həsənov', 'Hasanov')).toBe(true);
+  });
+
+  /*
+   * And only where that letter is. Reading every `e` as an `a` would make two
+   * surnames one; the second reading belongs to the word that carries `ə` and
+   * to no other.
+   */
+  it('does not read one surname as another that merely swaps a vowel', () => {
+    expect(looksLikeTheSameValue('Balayev Elçin', 'Belayev Elçin')).toBe(false);
+  });
+
   it('agrees about nothing when one side says nothing', () => {
     expect(looksLikeTheSameValue('', 'Əliyev')).toBe(false);
   });

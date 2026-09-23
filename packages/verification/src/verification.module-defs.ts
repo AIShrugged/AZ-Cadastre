@@ -71,7 +71,22 @@ export type VerificationModuleOptions = {
   nationalArchive: {
     provider: 'mock' | 'http';
     url: string;
+    // What the service itself is given to answer the metadata question in.
     timeoutMs: number;
+    /*
+     * What following the answer's link to the signed copy is given (COMM-153).
+     *
+     * Its own budget and not the one above. The metadata call is a few hundred
+     * bytes off the service's own API and answers in under a second; the link
+     * is a presigned download off S3, and the file behind it is whatever the
+     * archive scanned — two born-digital pages on the Hümbətov order, tens of
+     * scanned ones on an older holding. Measured against the live service on
+     * 23 September 2026 the metadata took 0.7s and a 202 KB copy 1.4–1.8s, of
+     * which 0.85s was the connection; at that throughput a copy of a few
+     * megabytes does not finish inside five seconds, and a copy that times out
+     * reaches the inspector as eight lines the archive "states nothing" on.
+     */
+    copyTimeoutMs: number;
   };
 };
 

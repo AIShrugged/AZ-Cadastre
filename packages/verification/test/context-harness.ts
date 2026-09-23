@@ -314,7 +314,12 @@ export function testOptions(databaseUrl: string): VerificationModuleOptions {
     registry: { provider: 'mock', url: '', timeoutMs: 1000 },
     // Likewise: nothing in this set leaves the machine, so the archive is the
     // stand-in and the URL is never dialled.
-    nationalArchive: { provider: 'mock', url: '', timeoutMs: 1000 },
+    nationalArchive: {
+      provider: 'mock',
+      url: '',
+      timeoutMs: 1000,
+      copyTimeoutMs: 1000,
+    },
   };
 }
 

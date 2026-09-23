@@ -140,6 +140,33 @@ export const COMPETENCE_KEY: Record<Competence, string> = {
 };
 
 /**
+ * The word for this standing, and for `unknown` the reason there is nothing to
+ * judge by where this system knows it.
+ *
+ * "Nothing to judge its power by" left alone is the one line about the issuing
+ * body an inspector sees, and it invites the guess that the archive was asked
+ * about the body and shrugged. Where the issuing line is one this system never
+ * put to the archive, that is exactly why the standing is empty — the body is
+ * never read off a scan, so it is never held against anything (ADR-0040) — and
+ * the block says so rather than leaving the reader to join the two lines up.
+ *
+ * Only on `unknown`, and only where the line is in fact uncompared: a standing
+ * the archive did answer needs no excuse, and a type the Decree's table simply
+ * does not settle keeps the plain wording.
+ */
+export function competenceKey(check: ArchiveQrCheckDto): string {
+  const standing = competence(check);
+
+  if (standing !== 'unknown') return COMPETENCE_KEY[standing];
+
+  return qrUncomparedFields(check).some(
+    field => field.name === 'issuing_authority',
+  )
+    ? 'detail.qr.competence_not_compared'
+    : COMPETENCE_KEY.unknown;
+}
+
+/**
  * The lines of the paper the archive was asked about, in the order the contract
  * publishes them.
  *
@@ -186,18 +213,42 @@ export function qrComparedFields(
 }
 
 /**
- * The lines the archive said nothing about, in the same order.
+ * The lines the archive was asked about and said nothing for, in the same
+ * order.
  *
  * Dropped from the table and not from the block: an inspector has to see the
  * edge of the comparison — what was held against the archive's copy and what
  * the copy simply does not print — or a table of two agreeing lines reads as a
  * paper confirmed in full. They are named in one muted sentence under the
  * table, which is the whole of what is true about them.
+ *
+ * `NotCompared` is off this list and on its own. Both end with no archive
+ * value, and the reason is the whole difference: here the archive was asked
+ * and its copy carries no such line, there the line was never put to it by a
+ * decision of ours (ADR-0040). Told in one sentence they would read as one
+ * fact, and the reader would blame the fonds for a rule this system set.
  */
 export function qrUnstatedFields(
   check: ArchiveQrCheckDto,
 ): readonly ArchiveQrFieldCheckDto[] {
-  return qrFields(check).filter(field => field.archiveValue === null);
+  return qrFields(check).filter(
+    field => field.archiveValue === null && field.verdict !== 'NotCompared',
+  );
+}
+
+/**
+ * The lines this system never put to the archive, in the same order.
+ *
+ * Read off the verdict and not off the missing archive value: `NotCompared` is
+ * the contract's word for a decision of ours, and it is the only thing that
+ * tells this apart from an archive that simply kept no such column. Today it
+ * is `issuing_authority` and only it — the body is not read off a scan, so it
+ * is not held against anything (ADR-0034, ADR-0040).
+ */
+export function qrUncomparedFields(
+  check: ArchiveQrCheckDto,
+): readonly ArchiveQrFieldCheckDto[] {
+  return qrFields(check).filter(field => field.verdict === 'NotCompared');
 }
 
 /**
@@ -323,9 +374,42 @@ export function signatureLines(check: ArchiveQrCheckDto): SignatureLine[] {
 
   if (!signature) return [];
 
-  return SIGNATURE_LINE_ORDER.flatMap(name => {
+  const organisation = signature.organisation?.trim() || null;
+
+  return SIGNATURE_LINE_ORDER.flatMap<SignatureLine>(name => {
     const value = signature[name]?.trim();
 
-    return value ? [{ name, value }] : [];
+    if (!value) return [];
+    if (name !== 'unit') return [{ name, value }];
+
+    const tail = subdivisionTail(value, organisation);
+
+    return tail ? [{ name, value: tail }] : [];
   });
+}
+
+/**
+ * The subdivision, with the organisation it is already under not said twice.
+ *
+ * The archive's service answers the subdivision as the full path through the
+ * organisation — `<organisation> / DÖVLƏT ARXİVİNİN BAKI FİLİALI DİREKTOR` —
+ * and the block prints the organisation on the line above. Printed in full the
+ * second line buries its own news, the branch and the post, behind a name the
+ * reader has just read; and two long lines opening identically read as the
+ * same fact drawn twice (COMM-149).
+ *
+ * Only a prefix, and only an exact one. A subdivision that merely mentions the
+ * organisation further in is not a path and keeps every word; and matching
+ * case-insensitively would turn on Azerbaijani's dotted and dotless i, where a
+ * locale's idea of the same letter is not the service's. Where the whole of
+ * the subdivision is the organisation there is no news left in the line at all
+ * and it is not drawn.
+ */
+function subdivisionTail(unit: string, organisation: string | null): string {
+  if (!organisation || !unit.startsWith(organisation)) return unit;
+
+  return unit
+    .slice(organisation.length)
+    .replace(/^[\s/,;|·–—-]+/u, '')
+    .trim();
 }

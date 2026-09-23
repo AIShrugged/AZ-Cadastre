@@ -95,10 +95,17 @@ the one behavioural change visible without reading a report: a stage that used
 to skip every paper it had an answer for now re-asks the ones whose answer
 established nothing.
 
-`apps/web` has two exhaustive maps over the verdicts and a dictionary keyed by
-them; a verdict they do not carry has no tone and no wording. Completing them is
-COMM-150's, which owns this block's layout, and this ADR is the contract it
-works to.
+On the page the line reads `копию не прочитали` and not `архив не приводит`.
+COMM-150 turned the block into two tables and gave each row a one-word
+`Результат` off `QrFieldOutcome` — a vocabulary of the surface's own, precisely
+because the contract's verdicts do not carve the news the way a reader needs it
+carved. `NotRead` is the sixth word of it, and it is read off the verdict for
+the same reason `NotCompared` is: both arrive as a null archive value, and the
+contract's word is all that tells them from a copy that prints no such line.
+
+The summary is COMM-150's `qrConfirmsNoLine` and needs nothing here: a check
+whose eight lines are all `NotRead` has compared none of them, so the block
+already stops heading itself «Копия Национального архива подтверждает».
 
 The archive's signature panel is unaffected and its mapping stands (COMM-151).
 The service's own web client renders `org` under `organization.issuedCertificate`

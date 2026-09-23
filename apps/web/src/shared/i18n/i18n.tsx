@@ -559,6 +559,9 @@ const en: Dict = {
   'detail.qr.issuer_not_connected': 'Its issuer is not connected',
   'detail.qr.issuer_not_connected_note':
     'The QR code was decoded, and it is issued by {issuer}, which this system cannot ask. The sheet did its part; nothing was checked and nothing is held against the package.',
+  'detail.qr.issuer_unreachable': 'Its issuer did not answer',
+  'detail.qr.issuer_unreachable_note':
+    'The QR code was decoded and {issuer} was asked, and it did not answer. The paper is unchecked for now: nothing was learned about it, and nothing is held against the package.',
   'detail.qr.issuer_unnamed': 'a service this system cannot ask',
   'detail.qr.signature': 'Signature on the sheet:',
   'detail.qr.signature_verified': 'verified with the issuer',
@@ -1842,6 +1845,9 @@ const ru: Dict = {
   'detail.qr.issuer_not_connected': 'Выдавший код сервис не подключён',
   'detail.qr.issuer_not_connected_note':
     'QR-код раскодирован, он ведёт в {issuer} — к этому сервису система обратиться не может. Со стороны документа всё в порядке; ничего не проверено и ничего пакету не вменяется.',
+  'detail.qr.issuer_unreachable': 'Выдавший код сервис не ответил',
+  'detail.qr.issuer_unreachable_note':
+    'QR-код раскодирован, к {issuer} обратились — ответа не было. Документ пока не проверен: о нём ничего не выяснено и ничего пакету не вменяется.',
   'detail.qr.issuer_unnamed': 'сервис, к которому система обратиться не может',
   'detail.qr.signature': 'Подпись на листе:',
   'detail.qr.signature_verified': 'подтверждена выдавшим сервисом',
@@ -3082,6 +3088,9 @@ const az: Dict = {
   'detail.qr.issuer_not_connected': 'Kodu verən xidmət qoşulmayıb',
   'detail.qr.issuer_not_connected_note':
     'QR kod açıldı, o, {issuer} ünvanına aparır — sistem bu xidmətə sorğu verə bilmir. Sənəd öz işini görüb; heç nə yoxlanmayıb və paketə heç nə aid edilmir.',
+  'detail.qr.issuer_unreachable': 'Kodu verən xidmət cavab vermədi',
+  'detail.qr.issuer_unreachable_note':
+    'QR kod açıldı və {issuer} xidmətinə sorğu verildi, cavab gəlmədi. Sənəd hələlik yoxlanmamış qalır: onun haqqında heç nə öyrənilmədi və paketə heç nə aid edilmir.',
   'detail.qr.issuer_unnamed': 'sistemin sorğu verə bilmədiyi xidmət',
   'detail.qr.signature': 'Vərəqdəki imza:',
   'detail.qr.signature_verified': 'verən xidmət tərəfindən təsdiqləndi',

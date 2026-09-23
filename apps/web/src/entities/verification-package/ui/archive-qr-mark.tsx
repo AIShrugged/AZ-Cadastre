@@ -9,6 +9,7 @@
 import {
   CheckIcon,
   CircleDashedIcon,
+  CloudOffIcon,
   PlugZapIcon,
   ScanLineIcon,
   TriangleAlertIcon,
@@ -22,7 +23,7 @@ import type { ArchiveQrCheckStatus } from '@cadastre/api-contracts/verification'
 import { QR_STATUS_KEY, QR_STATUS_TONE } from '../model/archive-qr';
 
 /**
- * One icon per status, so the five are told apart without reading the colour —
+ * One icon per status, so the six are told apart without reading the colour —
  * and the three that share the `silent` tone are told apart by nothing else
  * (The Status-Never-Alone Rule).
  *
@@ -31,7 +32,8 @@ import { QR_STATUS_KEY, QR_STATUS_TONE } from '../model/archive-qr';
  * scan line, because what is missing there is one step earlier — nothing was
  * decoded off the paper to ask with. `IssuerNotConnected` is a plug, because
  * what is missing is at the far end: the code was read and there is nobody here
- * to ask (ADR-0034).
+ * to ask (ADR-0034). `IssuerUnreachable` is a cloud struck through, because
+ * there the far end exists and did not answer (ADR-0037).
  */
 export const QR_STATUS_ICON: Record<
   ArchiveQrCheckStatus,
@@ -42,6 +44,7 @@ export const QR_STATUS_ICON: Record<
   NotFound: CircleDashedIcon,
   NoQrCode: ScanLineIcon,
   IssuerNotConnected: PlugZapIcon,
+  IssuerUnreachable: CloudOffIcon,
 };
 
 export function ArchiveQrStatusMark({

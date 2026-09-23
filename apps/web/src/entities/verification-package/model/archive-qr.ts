@@ -22,9 +22,10 @@
  * the archive having nothing to say are not the same news.** `NotFound` is an
  * absence of evidence — the reference was asked and the fonds hold no file
  * under it — `NoQrCode` is not even a question that was put, and
- * `IssuerNotConnected` is a question this system cannot put to anybody. None of
- * the three is held against the submission (ADR-0031, ADR-0034), so none may
- * borrow a fault's colour; `Differs` is the only status that reports one.
+ * `IssuerNotConnected` is a question this system cannot put to anybody, and
+ * `IssuerUnreachable` is a question that was put and never answered (ADR-0037).
+ * None of the four is held against the submission (ADR-0031, ADR-0034), so none
+ * may borrow a fault's colour; `Differs` is the only status that reports one.
  */
 import type { OutcomeTone } from '@/shared/ui/outcome-mark';
 import type {
@@ -54,6 +55,14 @@ export const QR_STATUS_TONE: Record<ArchiveQrCheckStatus, OutcomeTone> = {
   // is the most hopeful of the three — the sheet did its part — and still not
   // a pass, so it keeps the same tone and is told apart by its sentence.
   IssuerNotConnected: 'silent',
+  /*
+   * The fourth: the issuer was asked and did not answer (ADR-0037). Silent for
+   * the same reason as the rest — nobody said anything against the paper — and
+   * the only one of them that is a fault of ours rather than of the paper, its
+   * issuer or the fonds. What it must never be is invisible: this block not
+   * drawing at all is the bug it was added for (COMM-144).
+   */
+  IssuerUnreachable: 'silent',
 };
 
 /** The status itself, in the reader's language. */
@@ -63,6 +72,7 @@ export const QR_STATUS_KEY: Record<ArchiveQrCheckStatus, string> = {
   NotFound: 'detail.qr.not_found',
   NoQrCode: 'detail.qr.no_code',
   IssuerNotConnected: 'detail.qr.issuer_not_connected',
+  IssuerUnreachable: 'detail.qr.issuer_unreachable',
 };
 
 /** What the status means for this paper, said in a sentence — the whole of the
@@ -73,6 +83,7 @@ export const QR_STATUS_NOTE: Record<ArchiveQrCheckStatus, string> = {
   NotFound: 'detail.qr.not_found_note',
   NoQrCode: 'detail.qr.no_code_note',
   IssuerNotConnected: 'detail.qr.issuer_not_connected_note',
+  IssuerUnreachable: 'detail.qr.issuer_unreachable_note',
 };
 
 /**

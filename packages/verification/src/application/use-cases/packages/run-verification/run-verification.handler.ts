@@ -1011,6 +1011,7 @@ function archivedPaperOf(document: ArchivedDocument): ArchivedPaper {
       decree_item: document.decreeItem,
       archive_reference: document.archiveReference,
     },
+    notCompared: new Set(document.notCompared),
     issuingAuthorityKind: document.issuingAuthority?.kind ?? null,
     signature: document.signature
       ? ArchiveQrSignature.of(document.signature)

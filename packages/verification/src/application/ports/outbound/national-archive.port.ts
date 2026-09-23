@@ -1,4 +1,7 @@
-import type { IssuingAuthorityKind } from '../../../domain/value-objects/index.js';
+import type {
+  ArchiveQrField,
+  IssuingAuthorityKind,
+} from '../../../domain/value-objects/index.js';
 
 /**
  * What the issuer of a QR code says about the sheet that prints it, as opposed
@@ -52,6 +55,18 @@ export type ArchivedDocument = {
   decreeItem: string | null;
   // Fond, inventory, file and sheet, in the archive's own words.
   archiveReference: string | null;
+  /*
+   * The lines this service does not supply at all, whatever the paper it was
+   * asked about (ADR-0040).
+   *
+   * Every other null above is this service having been asked and holding
+   * nothing; a line named here was never a question, and the check says
+   * `NotCompared` rather than `NotStated` for it. The answer carries it because
+   * it is a fact about who answered: the archive's electronic document service
+   * states no issuing body at all, and a holdings API that did would supply one
+   * and be compared on it.
+   */
+  notCompared: readonly ArchiveQrField[];
   // What the issuer says about the sheet itself. Null from a service that holds
   // records and does not verify signatures — which is what an archive with a
   // holdings API would be (ADR-0034).

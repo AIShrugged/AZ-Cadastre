@@ -4,7 +4,11 @@ import {
   HUMBETOV_ARCHIVE_LINES,
   READ_AS_FRAGMENTS,
 } from '../../../test/humbetov-sheet.fixture.js';
+import { InvalidArchiveQrCheckException } from '../exceptions/index.js';
 import {
+  ARCHIVE_QR_FIELDS,
+  ArchiveQrCheck,
+  ArchiveQrFieldCheck,
   ArchiveQrSignature,
   DocumentType,
   FieldKey,
@@ -42,6 +46,7 @@ const ON_THE_PAPER: Record<ArchiveQrField, string> = {
 function theArchivesCopy(
   lines: Partial<Record<ArchiveQrField, string | null>> = {},
   issuingAuthorityKind: ArchivedPaper['issuingAuthorityKind'] = 'LocalExecutiveAuthority',
+  notCompared: readonly ArchiveQrField[] = [],
 ): ArchivedPaper {
   return {
     lines: {
@@ -57,6 +62,10 @@ function theArchivesCopy(
       archive_reference: 'Fond 130, siyahı 1, iş 476, vərəq 98',
       ...lines,
     },
+    // A holdings answer supplies every line by default: it is the
+    // signature-verifying service that supplies none of the issuing body
+    // (ADR-0040), and a caller that wants that shape says so.
+    notCompared: new Set(notCompared),
     issuingAuthorityKind,
     // A holdings answer says nothing about the sheet's own signature: it is the
     // signature-verifying service that does, and this is not it (ADR-0034).
@@ -105,6 +114,10 @@ function aSignedSheet(valid: boolean): ArchivedPaper {
       decree_item: null,
       archive_reference: null,
     },
+    // The signature service supplies no issuing body at all, so that line is
+    // one nobody put a question about rather than one it answered null to
+    // (ADR-0040).
+    notCompared: new Set<ArchiveQrField>(['issuing_authority']),
     // A signature service names the office that attested the copy and not the
     // body that issued the paper, so there is nobody here to judge.
     issuingAuthorityKind: null,
@@ -169,6 +182,140 @@ describe('holding a Decree 439 paper against the National Archive by its QR code
           .filter(field => field.verdict === 'NotStated')
           .map(field => field.name),
       ).toEqual(['plot_area', 'decree_item']);
+    });
+  });
+
+  /*
+   * A line the source supplies no value of was never a question, and an
+   * inspector reads that differently from the archive keeping no such column
+   * (ADR-0040). Guards COMM-148.
+   */
+  describe('where the source supplies no such line at all', () => {
+    it('says the line was not compared, not that the archive stated nothing', () => {
+      const answer = check(
+        theArchivesCopy({ issuing_authority: null }, null, [
+          'issuing_authority',
+        ]),
+      );
+      const body = answer.fields.find(
+        field => field.name === 'issuing_authority',
+      );
+
+      expect(body?.verdict).toBe('NotCompared');
+      expect(body?.archiveValue).toBeNull();
+      // Still what the paper says: the reading was made, it was simply never
+      // held against anything.
+      expect(body?.documentValue).toBe('Sabunçu Rayon İcra Hakimiyyəti');
+    });
+
+    // The two states side by side, which is the whole point of the fourth
+    // verdict: one line nobody asked about, one the archive really is silent
+    // on.
+    it('tells a line nobody asked about from a line the archive is silent on', () => {
+      const answer = check(
+        theArchivesCopy({ issuing_authority: null, decree_item: null }, null, [
+          'issuing_authority',
+        ]),
+      );
+
+      expect(
+        answer.fields
+          .filter(field => field.verdict === 'NotCompared')
+          .map(field => field.name),
+      ).toEqual(['issuing_authority']);
+      expect(
+        answer.fields
+          .filter(field => field.verdict === 'NotStated')
+          .map(field => field.name),
+      ).toEqual(['decree_item']);
+    });
+
+    it('still publishes all eight lines', () => {
+      const answer = check(
+        theArchivesCopy({ issuing_authority: null }, null, [
+          'issuing_authority',
+        ]),
+      );
+
+      expect(answer.fields).toHaveLength(8);
+    });
+
+    // It weighs nothing, exactly as `NotStated` weighs nothing.
+    it('neither makes the check differ nor counts as a disagreement', () => {
+      const answer = check(
+        theArchivesCopy({ issuing_authority: null }, null, [
+          'issuing_authority',
+        ]),
+      );
+
+      expect(answer.status).toBe('Confirmed');
+      expect(answer.mismatched).toEqual([]);
+      expect(answer.differs).toBe(false);
+    });
+
+    // And it is not evidence either: eight lines nobody compared must not read
+    // as eight lines that agree.
+    it('is not evidence, so an answer of nothing but uncompared lines is not found', () => {
+      const answer = check({
+        lines: {
+          document_no: null,
+          issue_date: null,
+          issuing_authority: null,
+          holder_name: null,
+          property_address: null,
+          plot_area: null,
+          decree_item: null,
+          archive_reference: null,
+        },
+        notCompared: new Set<ArchiveQrField>(ARCHIVE_QR_FIELDS),
+        issuingAuthorityKind: null,
+        signature: null,
+      });
+
+      expect(answer.status).toBe('NotFound');
+      expect(answer.fields).toEqual([]);
+    });
+
+    // A verdict about nothing is unreadable, and one that claims the archive
+    // answered a question nobody put is a lie the mapper could tell.
+    it('refuses a line that is uncompared and yet carries an archive value', () => {
+      expect(() =>
+        ArchiveQrFieldCheck.of({
+          name: 'issuing_authority',
+          documentValue: 'Sabunçu Rayon İcra Hakimiyyəti',
+          archiveValue: 'Sabunçu Rayon İcra Hakimiyyəti',
+          verdict: 'NotCompared',
+        }),
+      ).toThrow(InvalidArchiveQrCheckException);
+    });
+
+    /*
+     * A row stored before ADR-0040 holds `NotStated` for this line, and it
+     * reads back as it was written: nothing is backfilled, because the row is
+     * the record of what that run decided.
+     */
+    it('reads a check stored before the fourth verdict existed as it was stored', () => {
+      const restored = ArchiveQrCheck.restore({
+        status: 'Confirmed',
+        qrReference: QR,
+        checkedAt: CHECKED_AT,
+        issuingAuthorityCompetent: null,
+        fields: ARCHIVE_QR_FIELDS.map(name =>
+          ArchiveQrFieldCheck.of({
+            name,
+            documentValue: ON_THE_PAPER[name],
+            archiveValue:
+              name === 'issuing_authority' ? null : ON_THE_PAPER[name],
+            verdict: name === 'issuing_authority' ? 'NotStated' : 'Match',
+          }),
+        ),
+      });
+      const body = restored.fields.find(
+        field => field.name === 'issuing_authority',
+      );
+
+      expect(restored.status).toBe('Confirmed');
+      expect(body?.verdict).toBe('NotStated');
     });
   });
 
@@ -396,8 +543,13 @@ describe('resolving a QR code that is not the archive holding a copy', () => {
 
     expect(answer.status).toBe('Confirmed');
     expect(answer.signature?.signedBy).toBe('Məmmədov Anar');
-    expect(answer.fields.every(field => field.verdict === 'NotStated')).toBe(
-      true,
+    // Nothing was held against anything, and the issuing body is the one line
+    // the service supplies no value of at all (ADR-0040).
+    expect(answer.fields.map(field => [field.name, field.verdict])).toEqual(
+      ARCHIVE_QR_FIELDS.map(name => [
+        name,
+        name === 'issuing_authority' ? 'NotCompared' : 'NotStated',
+      ]),
     );
   });
 

@@ -77,6 +77,17 @@ export function isHeldAgainstTheArchiveByQr(spec: DocumentTypeSpec): boolean {
  */
 export type ArchivedPaper = {
   readonly lines: Readonly<Record<ArchiveQrField, string | null>>;
+  /*
+   * The lines this source does not supply at all, so no question about them was
+   * ever put (ADR-0040).
+   *
+   * Not the same as a null in `lines`, which is the source having been asked
+   * and holding nothing. Carried by the answer rather than named here, because
+   * which lines those are is a fact about the service that answered: the
+   * archive's electronic document service states no issuing body at all, while
+   * a holdings API that did would supply it and be compared on it.
+   */
+  readonly notCompared: ReadonlySet<ArchiveQrField>;
   // Null where the answer says nothing about who issued the paper, which is
   // every answer that is about the sheet rather than about what it says.
   readonly issuingAuthorityKind: IssuingAuthorityKind | null;
@@ -139,7 +150,12 @@ export function archiveQrCheckOf(question: {
       name,
       documentValue,
       archiveValue,
-      verdict: verdictOn(name, documentValue, archiveValue),
+      verdict: verdictOn(
+        name,
+        documentValue,
+        archiveValue,
+        archived.notCompared.has(name),
+      ),
     });
   });
 
@@ -147,15 +163,16 @@ export function archiveQrCheckOf(question: {
    * An answer that holds nothing this paper can be held against is not a
    * confirmation of it (ADR-0034).
    *
-   * `found` would otherwise read eight `NotStated` lines as "nothing
+   * `found` would otherwise read eight lines nobody compared as "nothing
    * disagrees" and answer `Confirmed` — the paper confirmed by an entry that
    * says nothing about it, which is the one verdict this check must never
    * produce. From the caller's side that is the same thing as an empty
    * shelf, so it is told the same way.
    */
   const evidence =
-    fields.some(field => field.verdict !== 'NotStated') ||
-    archived.signature !== null;
+    fields.some(
+      field => field.verdict === 'Match' || field.verdict === 'Mismatch',
+    ) || archived.signature !== null;
 
   if (!evidence) return ArchiveQrCheck.notFound(reference, question.checkedAt);
 
@@ -200,7 +217,21 @@ function verdictOn(
   name: ArchiveQrField,
   documentValue: string | null,
   archiveValue: string | null,
+  notCompared: boolean,
 ): ArchiveQrVerdict {
+  /*
+   * Asked first, because it is a different fact and the stronger one: the
+   * source supplies no such line, so there was never a value of it to be
+   * silent with (ADR-0040).
+   *
+   * `NotStated` here would tell an inspector the archive kept no column for
+   * the issuing body, and they would read that as the archive being unable to
+   * vouch for whoever signed the paper. What happened is that this system
+   * declines to read the body off a scan, which is a decision of ours and has
+   * to be said as one.
+   */
+  if (notCompared) return 'NotCompared';
+
   if (documentValue === null || archiveValue === null) return 'NotStated';
 
   /*

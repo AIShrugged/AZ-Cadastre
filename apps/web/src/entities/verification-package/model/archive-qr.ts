@@ -89,7 +89,9 @@ export const QR_STATUS_NOTE: Record<ArchiveQrCheckStatus, string> = {
 /**
  * One tone per verdict. `NotStated` is silence on one side or the other and is
  * never a disagreement, so it is drawn as the register draws a column nobody
- * kept rather than as a shortfall.
+ * kept rather than as a shortfall. `NotCompared` is quieter still — the line
+ * was never put to the archive (ADR-0040) — and shares the tone until the block
+ * is designed around it.
  */
 export const QR_VERDICT_TONE: Record<
   ArchiveQrFieldVerdict,
@@ -98,12 +100,14 @@ export const QR_VERDICT_TONE: Record<
   Match: 'ok',
   Mismatch: 'issues',
   NotStated: 'silent',
+  NotCompared: 'silent',
 };
 
 export const QR_VERDICT_KEY: Record<ArchiveQrFieldVerdict, string> = {
   Match: 'detail.qr.v_match',
   Mismatch: 'detail.qr.v_mismatch',
   NotStated: 'detail.qr.v_not_stated',
+  NotCompared: 'detail.qr.v_not_compared',
 };
 
 /**

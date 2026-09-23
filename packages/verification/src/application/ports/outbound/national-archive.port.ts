@@ -67,6 +67,20 @@ export type ArchivedDocument = {
    * and be compared on it.
    */
   notCompared: readonly ArchiveQrField[];
+  /*
+   * Why the archive's own copy could not be read, where it could not be — one
+   * word, from the step that failed (COMM-151).
+   *
+   * Null is the ordinary case: the copy was read, and a null among the lines
+   * above then means the copy does not print that line. Set, it means none of
+   * those lines was ever established, and the check marks them `NotRead` rather
+   * than `NotStated`: "the archive's copy is silent" and "we could not read the
+   * archive's copy" are different facts, and the second is ours.
+   *
+   * A word and not a sentence. The note carries the sentence; this is what the
+   * domain and the report key on, and what a later run asks again on.
+   */
+  copyUnread: string | null;
   // What the issuer says about the sheet itself. Null from a service that holds
   // records and does not verify signatures — which is what an archive with a
   // holdings API would be (ADR-0034).

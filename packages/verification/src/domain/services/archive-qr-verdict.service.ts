@@ -88,6 +88,17 @@ export type ArchivedPaper = {
    * a holdings API that did would supply it and be compared on it.
    */
   readonly notCompared: ReadonlySet<ArchiveQrField>;
+  /*
+   * Whether the archive's own copy of the paper could be read at all
+   * (ADR-0041).
+   *
+   * True and every line the source does supply is `NotRead` rather than
+   * `NotStated`: the copy was served and this system failed to read it, which
+   * is our failure and not the archive's silence. The lines are still all eight
+   * — the check publishes the same eight whatever happened — and none of them
+   * is evidence.
+   */
+  readonly copyUnread: boolean;
   // Null where the answer says nothing about who issued the paper, which is
   // every answer that is about the sheet rather than about what it says.
   readonly issuingAuthorityKind: IssuingAuthorityKind | null;
@@ -155,6 +166,7 @@ export function archiveQrCheckOf(question: {
         documentValue,
         archiveValue,
         archived.notCompared.has(name),
+        archived.copyUnread,
       ),
     });
   });
@@ -218,6 +230,7 @@ function verdictOn(
   documentValue: string | null,
   archiveValue: string | null,
   notCompared: boolean,
+  copyUnread: boolean,
 ): ArchiveQrVerdict {
   /*
    * Asked first, because it is a different fact and the stronger one: the
@@ -231,6 +244,19 @@ function verdictOn(
    * to be said as one.
    */
   if (notCompared) return 'NotCompared';
+
+  /*
+   * Asked next, and before the silences, because it is about neither side's
+   * words (ADR-0041).
+   *
+   * The archive answered and served its copy; we could not read it. Every line
+   * the source supplies is in that state at once, and reporting them
+   * `NotStated` told the inspector the archive's copy prints nothing — the
+   * archive's silence, when what happened was our failure. The customer read
+   * the report exactly the way it was written and asked why the archive holds
+   * so little (COMM-151).
+   */
+  if (copyUnread) return 'NotRead';
 
   if (documentValue === null || archiveValue === null) return 'NotStated';
 

@@ -877,10 +877,17 @@ export class RunVerificationHandler implements ICommandHandler<
 
     const made = verification.documentWith(documentId).archiveQrCheck;
 
-    // Asked and answered, whatever the answer was. An issuer that never
-    // answered is asked again, which is what `awaitingArchiveQrCheck` selected
-    // this paper for (ADR-0037).
-    if (made && !made.nobodyAnswered) return;
+    /*
+     * Asked and answered, whatever the answer was — but "answered" has to mean
+     * something was learned about the paper (ADR-0037, ADR-0041).
+     *
+     * An issuer that never answered is asked again, and so is a check that
+     * reached a verdict with nothing compared: that is a run whose reading of
+     * the archive's copy came to nothing, and the next run is where it gets
+     * another chance. Both are what `awaitingArchiveQrCheck` selected this
+     * paper for.
+     */
+    if (made && !made.worthAskingAgain) return;
 
     const question = verification.archiveQrQuestionOf(documentId);
     const startedAt = Date.now();
@@ -926,6 +933,11 @@ export class RunVerificationHandler implements ICommandHandler<
       signatureValid: check.signature?.valid ?? null,
       issuer: check.issuer,
       note: answer?.note ?? null,
+      // Why the archive's own copy was not read, where it was not (COMM-151).
+      // Null on every run that read it, so a `because` on this line is the one
+      // thing to go looking for when a comparison comes back empty.
+      copyUnread:
+        answer?.outcome === 'Found' ? answer.document.copyUnread : null,
       durationMs: Date.now() - startedAt,
     });
   }
@@ -1012,6 +1024,10 @@ function archivedPaperOf(document: ArchivedDocument): ArchivedPaper {
       archive_reference: document.archiveReference,
     },
     notCompared: new Set(document.notCompared),
+    // A word from the step that could not read the archive's copy, or null
+    // (COMM-151). The domain wants only whether there was a reading at all;
+    // which step failed is the log's and the note's (ADR-0041).
+    copyUnread: document.copyUnread !== null,
     issuingAuthorityKind: document.issuingAuthority?.kind ?? null,
     signature: document.signature
       ? ArchiveQrSignature.of(document.signature)

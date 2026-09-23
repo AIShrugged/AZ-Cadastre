@@ -325,7 +325,10 @@ export const ArchiveQrFieldCheckDtoSchema = z.object({
   archiveValue: z.string().nullable(),
   // `NotStated` where either side is null: silence is not a disagreement.
   // `NotCompared` where the archive was never asked for this line at all
-  // (ADR-0040), which is a different thing and reads differently.
+  // (ADR-0040), which is a different thing and reads differently. `NotRead`
+  // where the archive's own copy was served and could not be read (ADR-0041) —
+  // the third of the three, and the only one that is ours rather than the
+  // archive's.
   verdict: ArchiveQrFieldVerdictSchema,
 });
 export type ArchiveQrFieldCheckDto = z.infer<

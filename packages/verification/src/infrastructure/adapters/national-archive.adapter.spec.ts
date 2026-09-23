@@ -100,6 +100,7 @@ describe('NationalArchiveAdapter', () => {
           archive_reference: document.archiveReference,
         },
         notCompared: new Set(document.notCompared),
+        copyUnread: document.copyUnread !== null,
         issuingAuthorityKind: document.issuingAuthority?.kind ?? null,
         signature: null,
       },

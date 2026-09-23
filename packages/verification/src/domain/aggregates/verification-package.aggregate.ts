@@ -1310,13 +1310,15 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
    * changed, and a file arriving elsewhere in the package does not change it
    * either. A paper whose issuer never answered *is* asked again, on the next
    * run — nothing was learned about it, and an archive that was down an hour
-   * ago is the one thing here that comes back (ADR-0037).
+   * ago is the one thing here that comes back (ADR-0037) — and so is one whose
+   * check came back with nothing compared, which is a run that reached a
+   * verdict without ever reading the archive's copy (ADR-0041).
    */
   get awaitingArchiveQrCheck(): readonly Document[] {
     return this.documentsInForce.filter(
       document =>
         (document.archiveQrCheck === null ||
-          document.archiveQrCheck.nobodyAnswered) &&
+          document.archiveQrCheck.worthAskingAgain) &&
         this.hasAQrCodeToResolve(document),
     );
   }

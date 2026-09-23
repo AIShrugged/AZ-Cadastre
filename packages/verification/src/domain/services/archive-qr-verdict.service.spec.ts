@@ -66,6 +66,7 @@ function theArchivesCopy(
     // signature-verifying service that supplies none of the issuing body
     // (ADR-0040), and a caller that wants that shape says so.
     notCompared: new Set(notCompared),
+    copyUnread: false,
     issuingAuthorityKind,
     // A holdings answer says nothing about the sheet's own signature: it is the
     // signature-verifying service that does, and this is not it (ADR-0034).
@@ -100,6 +101,11 @@ function check(
   });
 }
 
+// The same answer, with the archive's own copy served and unread (ADR-0041).
+function unreadCopy(): ArchivedPaper {
+  return { ...aSignedSheet(true), copyUnread: true };
+}
+
 // The archive's copy states nothing about the sheet's own signature; a
 // signature service states nothing but that (ADR-0034).
 function aSignedSheet(valid: boolean): ArchivedPaper {
@@ -118,6 +124,7 @@ function aSignedSheet(valid: boolean): ArchivedPaper {
     // one nobody put a question about rather than one it answered null to
     // (ADR-0040).
     notCompared: new Set<ArchiveQrField>(['issuing_authority']),
+    copyUnread: false,
     // A signature service names the office that attested the copy and not the
     // body that issued the paper, so there is nobody here to judge.
     issuingAuthorityKind: null,
@@ -268,6 +275,7 @@ describe('holding a Decree 439 paper against the National Archive by its QR code
           archive_reference: null,
         },
         notCompared: new Set<ArchiveQrField>(ARCHIVE_QR_FIELDS),
+        copyUnread: false,
         issuingAuthorityKind: null,
         signature: null,
       });
@@ -316,6 +324,132 @@ describe('holding a Decree 439 paper against the National Archive by its QR code
 
       expect(restored.status).toBe('Confirmed');
       expect(body?.verdict).toBe('NotStated');
+    });
+  });
+
+  /*
+   * The archive answered, served its own copy of the paper, and this system
+   * could not read it (ADR-0041).
+   *
+   * Reported as `NotStated` until COMM-151 — the archive's silence — when what
+   * happened is that we never saw the copy. The customer's package showed seven
+   * such lines and read them as an archive that holds almost nothing about the
+   * paper, which is the wrong thing to have told them.
+   */
+  describe('where the copy could not be read', () => {
+    const unread = unreadCopy;
+
+    it('says the copy went unread and not that the archive was silent', () => {
+      const answer = check(unread());
+      const lines = answer.fields.filter(
+        field => field.name !== 'issuing_authority',
+      );
+
+      expect(lines.map(field => field.verdict)).toEqual(
+        lines.map(() => 'NotRead'),
+      );
+      expect(answer.fields.some(field => field.verdict === 'NotStated')).toBe(
+        false,
+      );
+    });
+
+    // A line nobody puts a question about is still nobody's question: our
+    // failure to read a copy does not turn it into one we tried to compare.
+    it('leaves a line the source never supplies uncompared', () => {
+      const body = check(unread()).fields.find(
+        field => field.name === 'issuing_authority',
+      );
+
+      expect(body?.verdict).toBe('NotCompared');
+    });
+
+    // It weighs nothing on either side: not a disagreement, and not evidence.
+    it('is neither a disagreement nor evidence', () => {
+      const answer = check(unread());
+
+      expect(answer.mismatched).toEqual([]);
+      expect(answer.theCopyWasNotRead).toBe(true);
+      expect(answer.nothingWasCompared).toBe(true);
+    });
+
+    // What the paper itself says is still what it says: only the archive's side
+    // of the line is missing.
+    it('keeps what the paper states on every line', () => {
+      const number = check(unread()).fields.find(
+        field => field.name === 'document_no',
+      );
+
+      expect(number?.documentValue).toBe(ON_THE_PAPER.document_no);
+      expect(number?.archiveValue).toBeNull();
+    });
+
+    it('refuses a line that went unread and yet carries an archive value', () => {
+      expect(() =>
+        ArchiveQrFieldCheck.of({
+          name: 'document_no',
+          documentValue: '1471',
+          archiveValue: '1471',
+          verdict: 'NotRead',
+        }),
+      ).toThrow(InvalidArchiveQrCheckException);
+    });
+  });
+
+  /*
+   * A check that reached a verdict without holding a single line against the
+   * archive's copy is asked again on the next run (ADR-0041).
+   *
+   * The customer's package is exactly this: a build that could not read the
+   * archive's copy wrote a `Confirmed` resting on the signature alone, and the
+   * stage's "asked and answered" rule then meant no later run would ever ask
+   * again — the fix could land and the package would stay empty (COMM-151).
+   */
+  describe('whether a later run asks again', () => {
+    it('asks again where the verdict rested on the signature alone', () => {
+      expect(check(unreadCopy()).worthAskingAgain).toBe(true);
+    });
+
+    /*
+     * Including rows written before this contract existed, which carry
+     * `NotStated` and are indistinguishable in SQL from a copy that genuinely
+     * prints nothing. "Nothing was compared" is what both have in common, and
+     * it is what the rule is written on.
+     */
+    it('asks again where a stored check compared nothing, whatever it called it', () => {
+      const stored = ArchiveQrCheck.restore({
+        status: 'Confirmed',
+        qrReference: QR,
+        checkedAt: CHECKED_AT,
+        issuingAuthorityCompetent: null,
+        fields: ARCHIVE_QR_FIELDS.map(name =>
+          ArchiveQrFieldCheck.of({
+            name,
+            documentValue: ON_THE_PAPER[name],
+            archiveValue: null,
+            verdict: 'NotStated',
+          }),
+        ),
+        signature: ArchiveQrSignature.of({
+          signedBy: 'Məmmədov Anar',
+          organisation: 'Milli Arxiv Fondu',
+          unit: 'Bakı filialı',
+          signedOn: '2026-01-14T09:12:00Z',
+          valid: true,
+        }),
+      });
+
+      expect(stored.nothingWasCompared).toBe(true);
+      expect(stored.worthAskingAgain).toBe(true);
+    });
+
+    // A check that did compare lines is an answer about the paper, and asking
+    // the archive again would get the same one.
+    it('does not ask again where lines were actually compared', () => {
+      expect(check(theArchivesCopy()).worthAskingAgain).toBe(false);
+    });
+
+    it('does not ask again where the archive holds nothing under the reference', () => {
+      expect(check(null).worthAskingAgain).toBe(false);
     });
   });
 

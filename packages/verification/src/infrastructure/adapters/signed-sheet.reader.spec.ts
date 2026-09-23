@@ -22,7 +22,11 @@ import {
 } from '../../domain/value-objects/index.js';
 
 import type { DigitisedPdf } from './signed-pdf.digitiser.js';
-import { SignedSheetReader } from './signed-sheet.reader.js';
+import {
+  SignedSheetReader,
+  type ArchiveSheetLines,
+  type ReadSheet,
+} from './signed-sheet.reader.js';
 
 /*
  * A reader that answers off a table of its own and records what it was asked.
@@ -113,12 +117,12 @@ describe('SignedSheetReader', () => {
     const extractor = new ReaderStandingIn(stated(HUMBETOV_ARCHIVE_LINES));
     const { sheet } = theSheet();
 
-    const lines = await new SignedSheetReader(
+    const read = await new SignedSheetReader(
       extractor,
       new SilentLogger(),
     ).read(sheet);
 
-    expect(lines).toEqual(HUMBETOV_ARCHIVE_LINES);
+    expect(linesOf(read)).toEqual(HUMBETOV_ARCHIVE_LINES);
   });
 
   /*
@@ -130,40 +134,69 @@ describe('SignedSheetReader', () => {
     const extractor = new ReaderStandingIn({ document_no: '100' });
     const { sheet } = theSheet();
 
-    const lines = await new SignedSheetReader(
+    const read = await new SignedSheetReader(
       extractor,
       new SilentLogger(),
     ).read(sheet);
 
-    expect(lines.document_no).toBe('100');
-    expect(lines.decree_item).toBeNull();
+    expect(linesOf(read).document_no).toBe('100');
+    expect(linesOf(read).decree_item).toBeNull();
   });
 
   /*
-   * A reading that failed is eight nulls and never a finding: the check then
-   * answers what it answered before there was a copy to read, and an inspector
-   * is never told the archive contradicts a paper because a provider timed out
-   * (COMM-145).
+   * A reading that failed is never a finding: the check answers what it
+   * answered before there was a copy to read, and an inspector is never told
+   * the archive contradicts a paper because a provider timed out (COMM-145).
+   *
+   * It is no longer eight nulls, though. Eight nulls is what a copy that prints
+   * none of the eight looks like, and the two are different facts — one is the
+   * archive's copy, the other is us (COMM-151).
    */
-  it('answers with nothing where the reader refuses', async () => {
+  it('says the copy went unread where the reader refuses', async () => {
     const extractor = new ReaderStandingIn({}, true);
     const { sheet } = theSheet();
 
-    const lines = await new SignedSheetReader(
+    const read = await new SignedSheetReader(
       extractor,
       new SilentLogger(),
     ).read(sheet);
 
-    expect(Object.values(lines).every(line => line === null)).toBe(true);
+    expect(read).toEqual({ unread: 'ReaderRefused' });
   });
 
-  it('does not ask about a file that digitised to no sheets at all', async () => {
+  // Told apart from a reader that refused for the same reason the two absences
+  // are told apart at all: whoever is looking for the failure has to be sent to
+  // the right step (COMM-151).
+  it('says a file that digitised to no sheets at all by its own name', async () => {
     const extractor = new ReaderStandingIn();
     const { sheet } = theSheet([]);
 
-    await new SignedSheetReader(extractor, new SilentLogger()).read(sheet);
+    const read = await new SignedSheetReader(
+      extractor,
+      new SilentLogger(),
+    ).read(sheet);
 
+    expect(read).toEqual({ unread: 'NoSheets' });
     expect(extractor.asked).toBeNull();
+  });
+
+  /*
+   * A copy the reader looked at and found none of the eight on is an answer and
+   * not a failure: the copy may genuinely print none of them, and calling that
+   * unread would blame ourselves for the archive's silence (COMM-151).
+   */
+  it('answers with eight nulls where the reader read the copy and found none', async () => {
+    const extractor = new ReaderStandingIn({});
+    const { sheet } = theSheet();
+
+    const read = await new SignedSheetReader(
+      extractor,
+      new SilentLogger(),
+    ).read(sheet);
+
+    expect(Object.values(linesOf(read)).every(line => line === null)).toBe(
+      true,
+    );
   });
 });
 
@@ -173,4 +206,11 @@ function stated(
   return Object.fromEntries(
     Object.entries(lines).filter(([, value]) => value !== null),
   ) as Record<string, string>;
+}
+
+function linesOf(read: ReadSheet): ArchiveSheetLines {
+  if (!('lines' in read))
+    throw new Error(`the copy was not read: ${read.unread}`);
+
+  return read.lines;
 }

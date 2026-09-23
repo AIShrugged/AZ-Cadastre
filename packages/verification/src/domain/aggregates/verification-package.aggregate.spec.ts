@@ -59,6 +59,7 @@ import {
   ARCHIVE_QR_FIELDS,
   ArchiveQrCheck,
   ArchiveQrFieldCheck,
+  ArchiveQrSignature,
   Classification,
   Confidence,
   ContentType,
@@ -4739,6 +4740,48 @@ describe('VerificationPackage supplied with a document', () => {
       verification.recordArchiveQrCheck(
         document.id,
         ArchiveQrCheck.issuerUnreachable(QR, new Date()),
+      );
+
+      expect(verification.awaitingArchiveQrCheck.map(one => one.id)).toEqual([
+        document.id,
+      ]);
+    });
+
+    /*
+     * A check that reached a verdict without comparing a single line is a run
+     * whose reading of the archive's copy came to nothing, so the question
+     * stands (ADR-0041).
+     *
+     * The customer's package is this case: a build that could not read the
+     * archive's copy stored a `Confirmed` resting on the signature alone, and
+     * "asked and answered" would have kept it empty for ever — the fix could
+     * land and no run would ever ask again (COMM-151).
+     */
+    it('asks again about a paper whose check compared nothing at all', () => {
+      const { verification, document } = aTitle();
+
+      verification.recordArchiveQrCheck(
+        document.id,
+        ArchiveQrCheck.found({
+          qrReference: QR,
+          checkedAt: CHECKED_AT,
+          issuingAuthorityCompetent: null,
+          fields: ARCHIVE_QR_FIELDS.map(name =>
+            ArchiveQrFieldCheck.of({
+              name,
+              documentValue: 'x',
+              archiveValue: null,
+              verdict: 'NotRead',
+            }),
+          ),
+          signature: ArchiveQrSignature.of({
+            signedBy: 'Məmmədov Anar',
+            organisation: 'Milli Arxiv Fondu',
+            unit: 'Bakı filialı',
+            signedOn: '2026-01-14T09:12:00Z',
+            valid: true,
+          }),
+        }),
       );
 
       expect(verification.awaitingArchiveQrCheck.map(one => one.id)).toEqual([

@@ -1,0 +1,18 @@
+-- A line off a copy nobody could read is not a line the archive was silent on
+-- (ADR-0041).
+--
+-- The archive answers, serves its own signed PDF, and this system reads the
+-- eight lines off it. Every way that reading can fail — a link that will not
+-- open, a file that is not a PDF, a reader that refuses — produced eight
+-- `NotStated` lines, which says on the report that the archive's copy prints
+-- none of them. It is our failure wearing the archive's silence, and the
+-- customer read it the way it was written.
+--
+-- Nothing is backfilled, for the reason `NotCompared` was not: a stored row is
+-- the record of what the check decided when it ran, and SQL cannot tell the two
+-- apart here anyway — a `NotStated` row with a null `archiveValue` is what a
+-- failed reading wrote and also what a copy that genuinely prints no such line
+-- writes. Those packages are re-asked instead: a check that reached a verdict
+-- with nothing compared is no longer treated as answered, so the next run of
+-- the package asks the archive again and writes the verdict this run could not.
+ALTER TYPE "ArchiveQrFieldVerdict" ADD VALUE IF NOT EXISTS 'NotRead';

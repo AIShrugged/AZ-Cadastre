@@ -42,27 +42,30 @@ function anArchive(
       : ({
           digitise: async () =>
             reading === null
-              ? null
+              ? { unread: 'LinkRefused' }
               : {
-                  text: reading,
-                  sheets: [
-                    {
-                      number: PageNumber.first(),
-                      image: null,
-                      text: RecognisedText.of(reading),
-                      read: Confidence.of(1),
-                    },
-                  ],
-                  how: 'TextLayer' as const,
-                  pages: 1,
+                  read: {
+                    text: reading,
+                    sheets: [
+                      {
+                        number: PageNumber.first(),
+                        image: null,
+                        text: RecognisedText.of(reading),
+                        read: Confidence.of(1),
+                      },
+                    ],
+                    how: 'TextLayer' as const,
+                    pages: 1,
+                  },
                 },
         } as unknown as SignedPdfDigitiser);
 
   const sheetReader = {
-    read: async () =>
-      Object.fromEntries(
+    read: async () => ({
+      lines: Object.fromEntries(
         ARCHIVE_QR_FIELDS.map(field => [field, lines[field] ?? null]),
       ),
+    }),
   } as unknown as SignedSheetReader;
 
   return new HttpNationalArchiveAdapter(
@@ -345,6 +348,86 @@ describe('HttpNationalArchiveAdapter', () => {
     expect(answer.document.documentNo).toBeNull();
     expect(answer.document.signature?.signedBy).toBe('Məmmədov Anar');
     expect(answer.document.signature?.certificateValidity).toBeNull();
+  });
+
+  /*
+   * And it says which of the four steps produced the nothing (COMM-151).
+   *
+   * Eight nulls are ambiguous: they are what a copy that prints none of the
+   * eight looks like and also what a copy nobody could open looks like. The
+   * customer's package showed the first reading of a report that meant the
+   * second, and there was nothing on the stand to tell them apart.
+   */
+  it('names the step that could not read the copy', async () => {
+    vi.stubGlobal(
+      'fetch',
+      answering(200, {
+        signatureValidity: true,
+        contentUrl: 'https://content-veams.milliarxiv.gov.az/f1d14ab4.PDF',
+      }),
+    );
+
+    const answer = await anArchive(null).lookupByQr(LINK);
+
+    expect(answer.outcome).toBe('Found');
+    if (answer.outcome !== 'Found') return;
+    expect(answer.document.copyUnread).toBe('LinkRefused');
+    expect(answer.note).toContain('LinkRefused');
+  });
+
+  // An answer with no link on it is the first of the four and the cheapest to
+  // rule out, so it has to be the first thing the log says.
+  it('names an answer that carried no link to a copy', async () => {
+    vi.stubGlobal('fetch', answering(200, { signatureValidity: true }));
+
+    const answer = await anArchive(SIGNED_COPY).lookupByQr(LINK);
+
+    expect(answer.outcome).toBe('Found');
+    if (answer.outcome !== 'Found') return;
+    expect(answer.document.copyUnread).toBe('NoLink');
+  });
+
+  /*
+   * A deployment with no reader wired in reads no copy, and from the report's
+   * side that is indistinguishable from an archive printing nothing — so it is
+   * named too, and named as ours (COMM-151).
+   */
+  it('names a deployment that wired in no reader at all', async () => {
+    vi.stubGlobal(
+      'fetch',
+      answering(200, {
+        signatureValidity: true,
+        contentUrl: 'https://content-veams.milliarxiv.gov.az/f1d14ab4.PDF',
+      }),
+    );
+
+    const answer = await anArchive().lookupByQr(LINK);
+
+    expect(answer.outcome).toBe('Found');
+    if (answer.outcome !== 'Found') return;
+    expect(answer.document.copyUnread).toBe('NoDigitiser');
+  });
+
+  // A copy that was read says so, and the nulls among its lines then mean what
+  // they say: the copy does not print them.
+  it('leaves the copy unnamed where it was read', async () => {
+    vi.stubGlobal(
+      'fetch',
+      answering(200, {
+        signatureValidity: true,
+        contentUrl: 'https://content-veams.milliarxiv.gov.az/f1d14ab4.PDF',
+      }),
+    );
+
+    const answer = await anArchive(SIGNED_COPY, {
+      document_no: '1471',
+    }).lookupByQr(LINK);
+
+    expect(answer.outcome).toBe('Found');
+    if (answer.outcome !== 'Found') return;
+    expect(answer.document.copyUnread).toBeNull();
+    expect(answer.document.documentNo).toBe('1471');
+    expect(answer.document.decreeItem).toBeNull();
   });
 
   // The answer that carries `expiredDate` — its own web client renders one —

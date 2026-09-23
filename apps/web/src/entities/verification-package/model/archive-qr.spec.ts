@@ -23,9 +23,11 @@ import {
   QR_STATUS_TONE,
   QR_VERDICT_KEY,
   QR_VERDICT_TONE,
+  qrComparedFields,
   qrDisagreements,
   qrFields,
   qrSpeaksAgainst,
+  qrUnstatedFields,
   SIGNATURE_KEY,
   SIGNATURE_LINE_KEY,
   SIGNATURE_LINE_ORDER,
@@ -180,6 +182,77 @@ describe('the eight lines held against the archive', () => {
   });
 });
 
+/**
+ * Which of the eight the reader is shown (COMM-146).
+ *
+ * The engine answers all eight whatever the archive's copy holds, and six of
+ * them coming back blank is the ordinary case rather than the exceptional one.
+ * A row per question turns "the copy does not carry this line" into "the system
+ * could not get this line", which is the reading the block exists to prevent.
+ */
+describe('which lines were actually compared', () => {
+  const partial = () =>
+    check('Differs', {
+      fields: [
+        line('document_no', 'Match', '1471', '1471'),
+        line('issue_date', 'Mismatch', '12.04.1997', '21.04.1997'),
+        line('issuing_authority', 'NotStated', 'Icra Hakimiyyati', null),
+        line('holder_name', 'NotStated', 'Mammadov Anar', null),
+      ],
+    });
+
+  it('keeps only the lines the archive answered on', () => {
+    expect(qrComparedFields(partial()).map(f => f.name)).toEqual([
+      'document_no',
+      'issue_date',
+    ]);
+  });
+
+  // Silence on the paper's side is not silence on the archive's: a line the
+  // archive states and the document omits was answered, and it is where the
+  // paper is short — the one comparison it would be worst to drop.
+  it('keeps a line the paper omits and the archive states', () => {
+    const shortPaper = check('Confirmed', {
+      fields: [line('decree_item', 'NotStated', null, 'ii')],
+    });
+
+    expect(qrComparedFields(shortPaper).map(f => f.name)).toEqual([
+      'decree_item',
+    ]);
+    expect(qrUnstatedFields(shortPaper)).toEqual([]);
+  });
+
+  it('names the rest, in the contract order, so the silence is not hidden', () => {
+    expect(qrUnstatedFields(partial()).map(f => f.name)).toEqual([
+      'issuing_authority',
+      'holder_name',
+    ]);
+  });
+
+  it('splits the eight between the two and loses none', () => {
+    const all = check('Confirmed');
+
+    expect(qrComparedFields(all)).toHaveLength(8);
+    expect(qrUnstatedFields(all)).toEqual([]);
+  });
+
+  // The heading's count is what the reader sizes the check by. Out of all
+  // eight, two disagreements among two compared lines would read as a paper
+  // that mostly held.
+  it('counts disagreements out of the lines that were compared', () => {
+    const silent = check('Differs', {
+      fields: [
+        line('document_no', 'Mismatch', '1471', '1741'),
+        line('issue_date', 'NotStated', '12.04.1997', null),
+        line('plot_area', 'NotStated', '0.12', null),
+      ],
+    });
+
+    expect(qrDisagreements(silent)).toBe(1);
+    expect(qrComparedFields(silent)).toHaveLength(1);
+  });
+});
+
 describe('whether there is a table to draw', () => {
   it('draws one where the archive held the paper against its copy', () => {
     expect(comparesLines(check('Confirmed'))).toBe(true);
@@ -192,6 +265,18 @@ describe('whether there is a table to draw', () => {
     expect(comparesLines(check('NotFound'))).toBe(false);
     expect(comparesLines(check('NoQrCode'))).toBe(false);
     expect(comparesLines(check('Confirmed', { fields: [] }))).toBe(false);
+  });
+
+  // Eight questions and eight silences is the same nothing as no questions at
+  // all, and an empty frame under the status reads as a table that failed to
+  // load. The sentence naming the eight is what the block shows instead.
+  it('draws none where the archive answered on no line at all', () => {
+    const silent = check('Confirmed', {
+      fields: NAMES.map(name => line(name, 'NotStated', 'stated', null)),
+    });
+
+    expect(comparesLines(silent)).toBe(false);
+    expect(qrUnstatedFields(silent)).toHaveLength(8);
   });
 });
 
@@ -358,6 +443,9 @@ describe('which archive the block speaks for', () => {
     'detail.qr.differs_note',
     'detail.qr.not_found_note',
     'detail.qr.no_code_note',
+    // The sentence naming the lines nobody compared says whose silence it is:
+    // the register panel's archive is a different archive (COMM-146).
+    'detail.qr.archive_states_none',
   ];
 
   it.each(LOCALES.map(l => l.id))(

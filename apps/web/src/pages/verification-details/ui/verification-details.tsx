@@ -69,8 +69,9 @@ import {
   QR_STATUS_NOTE,
   QR_VERDICT_KEY,
   QR_VERDICT_TONE,
+  qrComparedFields,
   qrDisagreements,
-  qrFields,
+  qrUnstatedFields,
   ReadingFigure,
   readReport,
   readWellEnough,
@@ -1297,49 +1298,38 @@ function Attestation({
  * share a tone precisely so that neither reads as the worse of the two (The
  * Status-Never-Alone Rule).
  */
-/** The four columns the comparison is read down. Written once and spent on the
- *  heading and on every row, because a heading that drifted from its rows is
- *  worse than no heading at all. */
-const QR_COLUMNS =
-  'sm:grid-cols-[minmax(6rem,9rem)_minmax(0,1fr)_minmax(0,1fr)_minmax(5.5rem,7.5rem)]';
-
+/**
+ * One line of the paper, as the archive's copy answered it (COMM-146).
+ *
+ * An entry and no longer a row of four columns. Two or three lines are what a
+ * real answer comes back with once the ones the archive prints nothing for are
+ * gone, and four headed columns over three rows is a frame with nothing in it —
+ * worse, a frame whose verdict column carries one bit per row and takes a
+ * quarter of the width to do it. So the verdict marks the entry itself, where
+ * a reader scanning for what did not hold finds it: the name of the line, its
+ * sign and its word on one line, and what the two sides say underneath.
+ *
+ * A line that agrees prints its value once. Two identical strings side by side
+ * is the same fact twice and reads, at a glance, like something to compare —
+ * where there is nothing left to compare, the one value is the finding. A line
+ * the archive states differently, or which only one side carries, prints both
+ * sides labelled, because there the difference is the whole point.
+ *
+ * Nothing here is a column, so nothing degrades on a narrow screen: the entry
+ * is a stack that was always a stack.
+ */
 function ArchiveQrLine({ field }: { field: ArchiveQrFieldCheckDto }) {
   const { t } = useI18n();
   const tone = QR_VERDICT_TONE[field.verdict];
+  const settled =
+    field.verdict === 'Match' && field.documentValue === field.archiveValue;
 
   return (
-    <li
-      className={cn(
-        'grid gap-x-4 gap-y-1 border-b border-rule py-2',
-        QR_COLUMNS,
-      )}
-    >
-      <span className='min-w-0 text-[0.8125rem] leading-snug text-muted-foreground'>
-        {translateOr(t, `field.${field.name}`, field.name)}
-      </span>
-      <QrValue
-        label={t('detail.qr.in_document')}
-        value={field.documentValue}
-        tone='document'
-      />
-      <QrValue
-        label={t('detail.qr.in_archive')}
-        value={field.archiveValue}
-        tone={tone === 'issues' ? 'differs' : 'archive'}
-      />
+    <li className='border-b border-rule py-1.5'>
       {/* Three verdicts, three marks and three words — never the colour alone.
-          Silence is a dash and not a cross: a value neither side states is not
-          a disagreement, and a fault's sign on it would invent one. */}
-      <span
-        className={cn(
-          'flex min-w-0 items-baseline gap-1.5 text-[0.75rem] leading-snug',
-          tone === 'issues'
-            ? 'text-issues-ink'
-            : tone === 'ok'
-              ? 'text-muted-foreground'
-              : 'italic text-muted-foreground',
-        )}
-      >
+          Silence is a dash and not a cross: a value one side does not state is
+          not a disagreement, and a fault's sign on it would invent one. */}
+      <div className='flex flex-wrap items-baseline gap-x-2 gap-y-0.5'>
         {tone === 'ok' ? (
           <CheckIcon className='size-3 shrink-0 translate-y-0.5 text-ok-ink' />
         ) : tone === 'issues' ? (
@@ -1347,22 +1337,64 @@ function ArchiveQrLine({ field }: { field: ArchiveQrFieldCheckDto }) {
         ) : (
           <MinusIcon className='size-3 shrink-0 translate-y-0.5 text-muted-foreground/50' />
         )}
-        <span className='min-w-0'>{t(QR_VERDICT_KEY[field.verdict])}</span>
-      </span>
+        <span
+          className={cn(
+            'min-w-0 text-[0.8125rem] leading-snug',
+            tone === 'issues' ? 'text-issues-ink' : 'text-foreground',
+          )}
+        >
+          {translateOr(t, `field.${field.name}`, field.name)}
+        </span>
+        <span
+          className={cn(
+            'ml-auto shrink-0 text-[0.6875rem] leading-snug',
+            tone === 'issues'
+              ? 'text-issues-ink'
+              : tone === 'ok'
+                ? 'text-muted-foreground'
+                : 'italic text-muted-foreground',
+          )}
+        >
+          {t(QR_VERDICT_KEY[field.verdict])}
+        </span>
+      </div>
+      <div className='mt-0.5 pl-5'>
+        {settled ? (
+          <span
+            data-mono
+            className='block min-w-0 break-words text-[0.8125rem] leading-snug text-muted-foreground'
+          >
+            {field.archiveValue}
+          </span>
+        ) : (
+          <dl className='flex flex-col gap-y-0.5'>
+            <QrSide
+              label={t('detail.qr.in_document')}
+              value={field.documentValue}
+              tone='document'
+            />
+            <QrSide
+              label={t('detail.qr.in_archive')}
+              value={field.archiveValue}
+              tone={tone === 'issues' ? 'differs' : 'archive'}
+            />
+          </dl>
+        )}
+      </div>
     </li>
   );
 }
 
 /**
- * One side of a comparison. A value neither the paper nor the archive states is
- * said to be absent rather than drawn as an empty cell, which would read as a
- * row that failed to load.
+ * One side of a comparison, named and then quoted.
  *
- * It carries its own column heading below `sm`, where the four columns become
- * four lines and the heading above them is gone: "1471" over "1471" says
- * nothing about which of the two is the archive's.
+ * The label is carried at every width and not only below `sm`: with the columns
+ * gone there is no heading above to inherit, and "1471" over "1471" says
+ * nothing about which of the two is the archive's. A value the side does not
+ * state is said to be absent rather than left blank, which would read as a line
+ * that failed to load.
  */
-function QrValue({
+function QrSide({
   label,
   value,
   tone,
@@ -1374,19 +1406,19 @@ function QrValue({
   const { t } = useI18n();
 
   return (
-    <span className='flex min-w-0 items-baseline gap-2'>
-      <span className='w-[6.5rem] shrink-0 text-[0.6875rem] leading-snug text-muted-foreground/70 sm:hidden'>
+    <div className='flex flex-wrap items-baseline gap-x-2'>
+      <dt className='w-[8rem] shrink-0 text-[0.6875rem] leading-snug text-muted-foreground/70'>
         {label}
-      </span>
+      </dt>
       {value === null ? (
-        <span className='min-w-0 text-[0.8125rem] italic leading-snug text-muted-foreground'>
+        <dd className='min-w-0 flex-1 text-[0.8125rem] italic leading-snug text-muted-foreground'>
           {t('detail.qr.silent')}
-        </span>
+        </dd>
       ) : (
-        <span
+        <dd
           data-mono
           className={cn(
-            'min-w-0 break-words text-[0.8125rem] leading-snug',
+            'min-w-0 flex-1 break-words text-[0.8125rem] leading-snug',
             tone === 'differs'
               ? 'text-issues-ink'
               : tone === 'document'
@@ -1395,9 +1427,9 @@ function QrValue({
           )}
         >
           {value}
-        </span>
+        </dd>
       )}
-    </span>
+    </div>
   );
 }
 
@@ -1422,6 +1454,11 @@ function signedOnReadably(signedOn: string, locale: Locale): string {
 function ArchiveQrCheck({ check }: { check: ArchiveQrCheckDto }) {
   const { t, locale } = useI18n();
   const table = comparesLines(check);
+  // What was actually held against the archive's copy, and what the copy says
+  // nothing about (COMM-146). The first is the table and the denominator of the
+  // count; the second is one sentence under it and never a row.
+  const compared = qrComparedFields(check);
+  const unstated = qrUnstatedFields(check);
   const differences = qrDisagreements(check);
   const standing = competence(check);
   const competenceTone = COMPETENCE_TONE[standing];
@@ -1441,7 +1478,9 @@ function ArchiveQrCheck({ check }: { check: ArchiveQrCheckDto }) {
         </span>
         <span className='ml-auto flex shrink-0 items-baseline gap-2'>
           {/* How much work is in the table, said on the line that folds it —
-              a count only where there is something to count. */}
+              a count only where there is something to count, and counted out of
+              the lines that were compared. Out of all eight it would size the
+              check by the questions put rather than by the answers given. */}
           {differences > 0 && (
             <span
               data-mono
@@ -1449,7 +1488,7 @@ function ArchiveQrCheck({ check }: { check: ArchiveQrCheckDto }) {
             >
               {t('detail.qr.differing', {
                 n: differences,
-                total: check.fields.length,
+                total: compared.length,
               })}
             </span>
           )}
@@ -1482,29 +1521,30 @@ function ArchiveQrCheck({ check }: { check: ArchiveQrCheckDto }) {
           <span className='text-muted-foreground/60'>·</span>
           <span>{t('detail.qr.checked_at', { when })}</span>
         </p>
+        {/* Only the lines the archive answered on. A line its copy prints
+            nothing for was never compared, and a row for it — the paper's value
+            against a dash, with a verdict beside it — states a result where
+            there was none, and reads as a system that tried and could not
+            (COMM-146). */}
         {table && (
-          <>
-            {/* Four columns, and they are headed. Below `sm` the heading goes
-                and each value carries its own label instead — a column title
-                on a row that is no longer in a column is a title pointing at
-                nothing. */}
-            <div
-              className={cn(
-                'hidden gap-x-4 border-b border-rule pb-1 text-[0.6875rem] font-medium uppercase tracking-wide text-muted-foreground/70 sm:grid',
-                QR_COLUMNS,
-              )}
-            >
-              <span>{t('detail.qr.col_field')}</span>
-              <span>{t('detail.qr.in_document')}</span>
-              <span>{t('detail.qr.in_archive')}</span>
-              <span>{t('detail.qr.col_verdict')}</span>
-            </div>
-            <ul className='flex flex-col'>
-              {qrFields(check).map(field => (
-                <ArchiveQrLine key={field.name} field={field} />
-              ))}
-            </ul>
-          </>
+          <ul className='flex flex-col border-t border-rule'>
+            {compared.map(field => (
+              <ArchiveQrLine key={field.name} field={field} />
+            ))}
+          </ul>
+        )}
+        {/* And the silence is named rather than hidden: the inspector has to
+            see where the comparison stopped, or two agreeing lines read as a
+            paper borne out in full. One muted sentence, drawn only where there
+            is a silence to name. */}
+        {unstated.length > 0 && (
+          <p className='max-w-[70ch] py-2 text-[0.75rem] italic leading-snug text-muted-foreground'>
+            {t('detail.qr.archive_states_none', {
+              fields: unstated
+                .map(field => translateOr(t, `field.${field.name}`, field.name))
+                .join(', '),
+            })}
+          </p>
         )}
         {/* A fact of its own and never a ninth row: the name on the paper can
             match the archive's copy exactly and the body still have had no

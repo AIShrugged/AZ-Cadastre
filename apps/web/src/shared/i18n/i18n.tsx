@@ -577,8 +577,8 @@ const en: Dict = {
   'detail.qr.in_document': 'On the paper',
   'detail.qr.in_archive': 'In the National Archive',
   'detail.qr.silent': 'no value stated',
-  'detail.qr.col_field': 'Line',
-  'detail.qr.col_verdict': 'Result',
+  'detail.qr.archive_states_none':
+    'The National Archive prints no value for: {fields}. Those lines were not compared.',
   'detail.qr.v_match': 'Agrees',
   'detail.qr.v_mismatch': 'Differs',
   'detail.qr.v_not_stated': 'not stated',
@@ -1863,8 +1863,8 @@ const ru: Dict = {
   'detail.qr.in_document': 'В документе',
   'detail.qr.in_archive': 'В Национальном архиве',
   'detail.qr.silent': 'значение не указано',
-  'detail.qr.col_field': 'Строка',
-  'detail.qr.col_verdict': 'Результат',
+  'detail.qr.archive_states_none':
+    'Национальный архив не приводит: {fields}. Эти строки не сверялись.',
   'detail.qr.v_match': 'Совпадает',
   'detail.qr.v_mismatch': 'Расходится',
   'detail.qr.v_not_stated': 'не указано',
@@ -3106,8 +3106,8 @@ const az: Dict = {
   'detail.qr.in_document': 'Sənəddə',
   'detail.qr.in_archive': 'Milli Arxivdə',
   'detail.qr.silent': 'dəyər göstərilməyib',
-  'detail.qr.col_field': 'Sətir',
-  'detail.qr.col_verdict': 'Nəticə',
+  'detail.qr.archive_states_none':
+    'Milli Arxiv bunları göstərmir: {fields}. Bu sətirlər tutuşdurulmayıb.',
   'detail.qr.v_match': 'Uyğundur',
   'detail.qr.v_mismatch': 'Fərqlənir',
   'detail.qr.v_not_stated': 'göstərilməyib',

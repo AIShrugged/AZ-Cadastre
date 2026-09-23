@@ -160,6 +160,43 @@ export function qrFields(
 }
 
 /**
+ * The lines the archive actually answered on — the comparison, as opposed to
+ * the eight questions that were put (COMM-146).
+ *
+ * The engine returns all eight whatever the archive's copy holds, and a line
+ * the archive prints nothing for was never compared with anything: drawing it
+ * as a row, with the paper's value against a dash and a verdict beside it,
+ * states a result where there was none. The reader takes those rows for a
+ * system that tried and failed, which is not what happened — the archive's copy
+ * simply does not carry that line.
+ *
+ * Read off `archiveValue` and not off the verdict: `NotStated` is silence on
+ * *either* side, and a line the paper omits and the archive states is a line
+ * the archive did answer — worth showing, because it is where the paper is
+ * short and the fonds are not.
+ */
+export function qrComparedFields(
+  check: ArchiveQrCheckDto,
+): readonly ArchiveQrFieldCheckDto[] {
+  return qrFields(check).filter(field => field.archiveValue !== null);
+}
+
+/**
+ * The lines the archive said nothing about, in the same order.
+ *
+ * Dropped from the table and not from the block: an inspector has to see the
+ * edge of the comparison — what was held against the archive's copy and what
+ * the copy simply does not print — or a table of two agreeing lines reads as a
+ * paper confirmed in full. They are named in one muted sentence under the
+ * table, which is the whole of what is true about them.
+ */
+export function qrUnstatedFields(
+  check: ArchiveQrCheckDto,
+): readonly ArchiveQrFieldCheckDto[] {
+  return qrFields(check).filter(field => field.archiveValue === null);
+}
+
+/**
  * Whether there is a line-by-line comparison to draw.
  *
  * Every status but `Confirmed` and `Differs` carries no lines — nothing was
@@ -168,18 +205,25 @@ export function qrFields(
  * of what is known. So does an answer that was about the sheet rather than
  * about what it says: a signature service states no lines at all (ADR-0034),
  * and the signature block below is what it has to show.
+ *
+ * And so does an answer whose every line the archive left blank: the eight
+ * questions came back eight silences, there is nothing to compare, and the
+ * sentence naming them is what the block shows instead of an empty frame.
  */
 export function comparesLines(check: ArchiveQrCheckDto): boolean {
   return (
     (check.status === 'Confirmed' || check.status === 'Differs') &&
-    check.fields.length > 0
+    qrComparedFields(check).length > 0
   );
 }
 
 /** How many lines disagree — the count the block's heading carries, so a table
- *  folded shut still says how much work is in it. */
+ *  folded shut still says how much work is in it. Counted over the lines that
+ *  were compared, which is also what the heading's total is: "2 of 8" where six
+ *  of the eight were never answered overstates the check. */
 export function qrDisagreements(check: ArchiveQrCheckDto): number {
-  return check.fields.filter(field => field.verdict === 'Mismatch').length;
+  return qrComparedFields(check).filter(field => field.verdict === 'Mismatch')
+    .length;
 }
 
 /**

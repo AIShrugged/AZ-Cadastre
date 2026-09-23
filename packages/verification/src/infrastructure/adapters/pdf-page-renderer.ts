@@ -68,12 +68,19 @@ const TEXT_LAYER_CHARACTERS = 200;
  * pages and read them with the OCR provider instead. The point of asking first
  * is that a born-digital sheet is read exactly rather than approximately: a
  * certificate's validity period misread by one digit is worse than unread.
+ *
+ * One string per page and not one for the file: whoever reads the text is given
+ * it sheet by sheet the way the OCR path hands it over, and a reader that has
+ * to say which sheet it read a value off cannot say it about a file it was
+ * handed whole (COMM-145). Whether the layer is worth the name is still decided
+ * over all the pages together — a scan's stamped footer is a few words on every
+ * sheet, and asking each sheet on its own would let a long enough scan through.
  */
 export async function textLayerOf(
   key: StorageKey,
   pdf: Uint8Array,
   maxPages: number,
-): Promise<string | null> {
+): Promise<readonly string[] | null> {
   const loading = load(pdf);
   const document = await opened(loading, key);
 
@@ -102,15 +109,15 @@ export async function textLayerOf(
       }
     }
 
-    const text = sheets
-      .join('\n')
-      .replaceAll(/[^\S\n]+/gu, ' ')
-      .replaceAll(/ *\n */gu, '\n')
-      .trim();
+    const pages = sheets.map(sheet =>
+      sheet
+        .replaceAll(/[^\S\n]+/gu, ' ')
+        .replaceAll(/ *\n */gu, '\n')
+        .trim(),
+    );
+    const printed = pages.join('').replaceAll(/\s/gu, '').length;
 
-    return text.replaceAll(/\s/gu, '').length >= TEXT_LAYER_CHARACTERS
-      ? text
-      : null;
+    return printed >= TEXT_LAYER_CHARACTERS ? pages : null;
   } finally {
     await loading.destroy();
   }

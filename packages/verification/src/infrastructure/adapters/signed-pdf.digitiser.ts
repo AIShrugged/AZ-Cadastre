@@ -7,8 +7,11 @@ import type {
   OcrProvider,
 } from '../../application/ports/outbound/index.js';
 import {
+  Confidence,
   ContentType,
   PageImage,
+  PageNumber,
+  RecognisedText,
   StorageKey,
 } from '../../domain/value-objects/index.js';
 
@@ -18,11 +21,36 @@ import { renderPdfPages, textLayerOf } from './pdf-page-renderer.js';
 /** How the sheet was read, for the audit line. */
 export type Digitisation = 'TextLayer' | 'Ocr';
 
+/**
+ * One sheet of the archive's copy, in the shape the extraction port asks a
+ * sheet to arrive in (COMM-145).
+ *
+ * `image` is null on a born-digital file: its text layer is exact, and
+ * rendering a page to show a reader a picture of what it has already read
+ * verbatim buys nothing and costs a page of tokens.
+ */
+export type DigitisedSheet = {
+  readonly number: PageNumber;
+  readonly image: PageImage | null;
+  readonly text: RecognisedText;
+  readonly read: Confidence;
+};
+
 export type DigitisedPdf = {
   readonly text: string;
+  readonly sheets: readonly DigitisedSheet[];
   readonly how: Digitisation;
   readonly pages: number;
 };
+
+/*
+ * How well a text layer was read: exactly.
+ *
+ * Not modesty's sake. The extractor caps a value at the confidence of the sheet
+ * it was read off, so a figure here is a ceiling on everything read off a
+ * born-digital file — and the file was not read at all, it was parsed.
+ */
+const PARSED_EXACTLY = 1;
 
 /*
  * Where the archive's own copies are kept while they are being read.
@@ -77,7 +105,7 @@ export class SignedPdfDigitiser {
       const key = SignedPdfDigitiser.keyOf(contentUrl);
       const layer = await textLayerOf(key, pdf, this.limits.maxPages);
       const digitised = layer
-        ? { text: layer, how: 'TextLayer' as const, pages: 0 }
+        ? SignedPdfDigitiser.parsed(layer)
         : await this.recognise(key, pdf);
 
       this.logger.debug("The archive's signed copy was digitised", {
@@ -127,11 +155,27 @@ export class SignedPdfDigitiser {
     return new Uint8Array(await response.arrayBuffer());
   }
 
+  private static parsed(pages: readonly string[]): DigitisedPdf {
+    const sheets = pages.map((text, index) => ({
+      number: PageNumber.of(index + 1),
+      image: null,
+      text: RecognisedText.of(text),
+      read: Confidence.of(PARSED_EXACTLY),
+    }));
+
+    return {
+      text: pages.join('\n'),
+      sheets,
+      how: 'TextLayer',
+      pages: sheets.length,
+    };
+  }
+
   private async recognise(
     key: StorageKey,
     pdf: Uint8Array,
   ): Promise<DigitisedPdf> {
-    const sheets: string[] = [];
+    const sheets: DigitisedSheet[] = [];
 
     for await (const rendering of renderPdfPages(key, pdf, this.limits)) {
       const page = StorageKey.create(
@@ -144,14 +188,23 @@ export class SignedPdfDigitiser {
         contentType: ContentType.PNG,
       });
 
-      const read = await this.ocr.recognise(
-        PageImage.of(page, ContentType.PNG),
-      );
+      const image = PageImage.of(page, ContentType.PNG);
+      const read = await this.ocr.recognise(image);
 
-      sheets.push(read.text.value);
+      sheets.push({
+        number: PageNumber.of(rendering.number),
+        image,
+        text: read.text,
+        read: read.confidence,
+      });
     }
 
-    return { text: sheets.join('\n'), how: 'Ocr', pages: sheets.length };
+    return {
+      text: sheets.map(sheet => sheet.text.value).join('\n'),
+      sheets,
+      how: 'Ocr',
+      pages: sheets.length,
+    };
   }
 
   private static keyOf(contentUrl: string): StorageKey {

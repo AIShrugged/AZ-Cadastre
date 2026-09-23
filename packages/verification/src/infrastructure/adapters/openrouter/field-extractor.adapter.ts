@@ -9,7 +9,6 @@ import {
   FieldExtractor,
   ObjectStorage,
   type ExtractionRequest,
-  type ExtractionSheet,
 } from '../../../application/ports/outbound/index.js';
 import { ExtractedField } from '../../../domain/entities/index.js';
 import { quotedIn } from '../../../domain/services/index.js';
@@ -17,6 +16,7 @@ import {
   Confidence,
   FieldValue,
   PageNumber,
+  type PageImage,
 } from '../../../domain/value-objects/index.js';
 import {
   VERIFICATION_OPTIONS,
@@ -221,9 +221,9 @@ export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
           sheet.text.value.slice(0, MAX_TEXT),
       });
 
-      if (images >= MAX_SHEET_IMAGES) continue;
+      if (images >= MAX_SHEET_IMAGES || !sheet.image) continue;
 
-      const url = await this.imageUrl(sheet);
+      const url = await this.imageUrl(sheet.image);
       if (!url) continue;
 
       parts.push({ type: 'image_url', image_url: { url } });
@@ -233,18 +233,17 @@ export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
     return parts;
   }
 
-  private async imageUrl(sheet: ExtractionSheet): Promise<string | null> {
+  private async imageUrl(image: PageImage): Promise<string | null> {
     try {
-      const object = await this.storage.getObject(sheet.image.storageKey);
+      const object = await this.storage.getObject(image.storageKey);
       const base64 = Buffer.from(object.body).toString('base64');
 
-      return `data:${sheet.image.contentType.value};base64,${base64}`;
+      return `data:${image.contentType.value};base64,${base64}`;
     } catch (error) {
       // The reading of the sheet is already in the prompt; losing its picture
       // costs accuracy on that sheet, not the extraction.
       this.logger.warn('A sheet could not be attached to the request', {
-        sheet: sheet.number.value,
-        storageKey: sheet.image.storageKey.value,
+        storageKey: image.storageKey.value,
         error,
       });
 

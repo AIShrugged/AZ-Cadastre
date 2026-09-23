@@ -1,17 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
+import { HUMBETOV_ARCHIVE_SHEET } from '../../../test/humbetov-sheet.fixture.js';
+
 import { readSignedSheet } from './signed-sheet.reading.js';
 
 // The panel as a text layer renders it: label and value on one line.
 const IN_ONE_LINE = [
-  'Sənədin nömrəsi: 1471',
-  'Sənədin tarixi: 29.10.1998',
-  'Sənədi verən orqan: Bakı şəhəri Sabunçu Rayon İcra Hakimiyyəti',
-  'Ərizəçi: Qusadze Vera Vladimirovna',
-  'Ünvanı: 1-ci Zabrat qəsəbəsi',
-  'Sahəsi: 0,04 ha',
-  'Bəndi: 2.7',
-  'Arxiv arayışı: Fond 130, siyahı 1, iş 476',
   'İmzalayan: Məmmədov Anar',
   'İmza tarixi: 14.01.2026',
   'Sertifikatı verən təşkilat: B.EST Certificate Services CA',
@@ -21,25 +15,8 @@ const IN_ONE_LINE = [
 ].join('\n');
 
 describe('readSignedSheet', () => {
-  it('reads the eight lines the archive is held against', () => {
-    const { lines } = readSignedSheet(IN_ONE_LINE);
-
-    expect(lines).toEqual({
-      document_no: '1471',
-      issue_date: '29.10.1998',
-      issuing_authority: 'Bakı şəhəri Sabunçu Rayon İcra Hakimiyyəti',
-      holder_name: 'Qusadze Vera Vladimirovna',
-      property_address: '1-ci Zabrat qəsəbəsi',
-      plot_area: '0,04 ha',
-      decree_item: '2.7',
-      archive_reference: 'Fond 130, siyahı 1, iş 476',
-    });
-  });
-
   it('reads the six lines of the signature panel', () => {
-    const { signature } = readSignedSheet(IN_ONE_LINE);
-
-    expect(signature).toEqual({
+    expect(readSignedSheet(IN_ONE_LINE)).toEqual({
       signedBy: 'Məmmədov Anar',
       signedOn: '14.01.2026',
       organisation: 'B.EST Certificate Services CA',
@@ -55,12 +32,12 @@ describe('readSignedSheet', () => {
    * both shapes occur on the same sheet.
    */
   it('reads a value the reader put on the line below its label', () => {
-    const { signature } = readSignedSheet(
+    const panel = readSignedSheet(
       ['İmzalayan', 'Məmmədov Anar', 'İmza tarixi', '14.01.2026'].join('\n'),
     );
 
-    expect(signature.signedBy).toBe('Məmmədov Anar');
-    expect(signature.signedOn).toBe('14.01.2026');
+    expect(panel.signedBy).toBe('Məmmədov Anar');
+    expect(panel.signedOn).toBe('14.01.2026');
   });
 
   /*
@@ -68,11 +45,11 @@ describe('readSignedSheet', () => {
    * the next label would be a reading nobody printed.
    */
   it('reads nothing where one label is followed by the next', () => {
-    const { signature } = readSignedSheet(
+    const panel = readSignedSheet(
       ['İmzalayan', 'İmza tarixi', '14.01.2026'].join('\n'),
     );
 
-    expect(signature.signedBy).toBeNull();
+    expect(panel.signedBy).toBeNull();
   });
 
   /*
@@ -80,7 +57,7 @@ describe('readSignedSheet', () => {
    * and a label table written in the printed spelling would match nothing.
    */
   it('reads a panel whose diacritics the reader dropped', () => {
-    const { signature } = readSignedSheet(
+    const panel = readSignedSheet(
       [
         'Imzalayan: Memmedov Anar',
         'Sertifikatin etibarliliq muddeti: 14.01.2025 - 14.01.2027',
@@ -88,9 +65,9 @@ describe('readSignedSheet', () => {
       ].join('\n'),
     );
 
-    expect(signature.signedBy).toBe('Memmedov Anar');
-    expect(signature.certificateValidity).toBe('14.01.2025 - 14.01.2027');
-    expect(signature.valid).toBe(true);
+    expect(panel.signedBy).toBe('Memmedov Anar');
+    expect(panel.certificateValidity).toBe('14.01.2025 - 14.01.2027');
+    expect(panel.valid).toBe(true);
   });
 
   /*
@@ -99,24 +76,41 @@ describe('readSignedSheet', () => {
    * one mistake this line must not make.
    */
   it('reads a refusal as a refusal and not as its own prefix', () => {
-    expect(readSignedSheet('İmza təsdiqlənmədi').signature.valid).toBe(false);
-    expect(readSignedSheet('Подпись не подтверждена').signature.valid).toBe(
-      false,
-    );
+    expect(readSignedSheet('İmza təsdiqlənmədi').valid).toBe(false);
+    expect(readSignedSheet('Подпись не подтверждена').valid).toBe(false);
   });
 
   // A sheet that makes no claim about its signature has not denied it, and
   // reporting a denial would turn an unread panel into a finding.
   it('says nothing about a signature the sheet says nothing about', () => {
-    const { signature, lines } = readSignedSheet('Sənədin nömrəsi: 1471');
+    const panel = readSignedSheet('Sənədin nömrəsi: 1471');
 
-    expect(signature.valid).toBeNull();
-    expect(signature.signedBy).toBeNull();
-    expect(lines.holder_name).toBeNull();
+    expect(panel.valid).toBeNull();
+    expect(panel.signedBy).toBeNull();
+  });
+
+  /*
+   * The regression COMM-145 is about, from the other side.
+   *
+   * The archive's copy in the Hümbətov package has no signature panel on it at
+   * all — it is a letter with an order copied out under it — and this reader
+   * must come back with nothing rather than with words it found by matching a
+   * label inside one. The eight lines are not its business any more; they are
+   * read by the extraction stage (`signed-sheet.reader.ts`).
+   */
+  it('reads nothing off a sheet that is prose and carries no panel', () => {
+    expect(readSignedSheet(HUMBETOV_ARCHIVE_SHEET.join('\n'))).toEqual({
+      signedBy: null,
+      organisation: null,
+      unit: null,
+      signedOn: null,
+      certificateValidity: null,
+      valid: null,
+    });
   });
 
   it('reads a panel printed in Russian', () => {
-    const { signature } = readSignedSheet(
+    const panel = readSignedSheet(
       [
         'Кем подписан: Мамедов Анар',
         'Дата подписания: 14.01.2026',
@@ -127,7 +121,7 @@ describe('readSignedSheet', () => {
       ].join('\n'),
     );
 
-    expect(signature).toEqual({
+    expect(panel).toEqual({
       signedBy: 'Мамедов Анар',
       signedOn: '14.01.2026',
       organisation: 'B.EST Certificate Services CA',

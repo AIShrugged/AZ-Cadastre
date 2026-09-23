@@ -18,6 +18,7 @@ import {
 import { issuerOf, NATIONAL_ARCHIVE_HOST } from './national-archive.adapter.js';
 import { fetchFromTheArchive } from './national-archive.transport.js';
 import type { SignedPdfDigitiser } from './signed-pdf.digitiser.js';
+import type { SignedSheetReader } from './signed-sheet.reader.js';
 import { readSignedSheet } from './signed-sheet.reading.js';
 
 const VERIFY_QR = '/v1/signature-info/verifyQr';
@@ -95,6 +96,13 @@ export class HttpNationalArchiveAdapter extends NationalArchivePort {
     // so a deployment — or a spec — can ask the service and nothing else, in
     // which case the answer is the metadata alone, as it was before ADR-0035.
     private readonly signedPdf?: SignedPdfDigitiser,
+    /*
+     * Who reads the eight lines off that PDF (COMM-145). Optional for the same
+     * reason and with the same consequence: without it the signature panel is
+     * still read off the sheet and the lines come back empty, which is
+     * `NotStated` on every one of them and never a finding against the paper.
+     */
+    private readonly sheetReader?: SignedSheetReader,
   ) {
     super();
   }
@@ -213,33 +221,39 @@ export class HttpNationalArchiveAdapter extends NationalArchivePort {
           this.options.nationalArchive.timeoutMs,
         )
       : null;
-    const read = sheet ? readSignedSheet(sheet.text) : null;
+    const panel = sheet ? readSignedSheet(sheet.text) : null;
+    const lines = sheet ? await this.sheetReader?.read(sheet) : null;
 
     return {
       outcome: 'Found',
-      document: read
+      document: panel
         ? {
             /*
              * The archive's own copy of the paper, as its signed PDF states it
              * (ADR-0035).
              *
              * The lines come off the file the code leads to and not off the
-             * `verifyQr` answer, which states nothing about what the paper says.
+             * `verifyQr` answer, which states nothing about what the paper says
+             * — and off it through the extraction stage, because the sheet is
+             * prose and there is nothing on it to key a parser to (COMM-145).
+             * Null throughout where no reader was wired in or the reading came
+             * to nothing, which reaches the inspector as `NotStated`.
+             *
              * The issuing body stays unnamed even when the sheet prints one: it
              * is what competence is judged on, and a name read off a scan is a
              * reading, not the archive's record of whose fund the paper sits in
              * — offering it would have the check answer "no power" on a
              * misread word (ADR-0034).
              */
-            documentNo: read.lines.document_no,
-            issuedOn: read.lines.issue_date,
+            documentNo: lines?.document_no ?? null,
+            issuedOn: lines?.issue_date ?? null,
             issuingAuthority: null,
-            holderName: read.lines.holder_name,
-            propertyAddress: read.lines.property_address,
-            plotArea: read.lines.plot_area,
-            decreeItem: read.lines.decree_item,
-            archiveReference: read.lines.archive_reference,
-            signature: merged(metadata, read.signature),
+            holderName: lines?.holder_name ?? null,
+            propertyAddress: lines?.property_address ?? null,
+            plotArea: lines?.plot_area ?? null,
+            decreeItem: lines?.decree_item ?? null,
+            archiveReference: lines?.archive_reference ?? null,
+            signature: merged(metadata, panel),
           }
         : emptyExcept(metadata),
       note:
@@ -339,7 +353,7 @@ function signatureOf(answer: {
  */
 function merged(
   metadata: ArchivedSignature | null,
-  sheet: ReturnType<typeof readSignedSheet>['signature'],
+  sheet: ReturnType<typeof readSignedSheet>,
 ): ArchivedSignature | null {
   const valid = metadata?.valid ?? sheet.valid;
 

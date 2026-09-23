@@ -2,11 +2,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SilentLogger } from '@cadastre/logger';
 
+import {
+  ARCHIVE_QR_FIELDS,
+  Confidence,
+  PageNumber,
+  RecognisedText,
+  type ArchiveQrField,
+} from '../../domain/value-objects/index.js';
 import type { VerificationModuleOptions } from '../../verification.module-defs.js';
 import { RegistryRefusedException } from '../exceptions/index.js';
 
 import { HttpNationalArchiveAdapter } from './http-national-archive.adapter.js';
 import type { SignedPdfDigitiser } from './signed-pdf.digitiser.js';
+import type { SignedSheetReader } from './signed-sheet.reader.js';
 
 const BASE = 'https://api.esd.milliarxiv.gov.az/signature-info/api';
 
@@ -19,9 +27,15 @@ const LINK =
 const CASE_ID =
   'alOOwj1hz3AX0/B0KP3RmZS7GDmQTJZHJ/6traU/J9Qxk2McOR3AWm2UQvsRSK5s';
 
-function anArchive(reading?: string | null): HttpNationalArchiveAdapter {
-  // A stand-in for the reader of the signed PDF: what matters here is what the
-  // adapter does with the text, not how the file was turned into it.
+/*
+ * Stand-ins for the two readers of the signed PDF: what matters here is what
+ * the adapter does with what they answer, not how a file became text or how a
+ * model read the eight lines off it.
+ */
+function anArchive(
+  reading?: string | null,
+  lines: Partial<Record<ArchiveQrField, string | null>> = {},
+): HttpNationalArchiveAdapter {
   const digitiser =
     reading === undefined
       ? undefined
@@ -29,8 +43,27 @@ function anArchive(reading?: string | null): HttpNationalArchiveAdapter {
           digitise: async () =>
             reading === null
               ? null
-              : { text: reading, how: 'TextLayer' as const, pages: 0 },
+              : {
+                  text: reading,
+                  sheets: [
+                    {
+                      number: PageNumber.first(),
+                      image: null,
+                      text: RecognisedText.of(reading),
+                      read: Confidence.of(1),
+                    },
+                  ],
+                  how: 'TextLayer' as const,
+                  pages: 1,
+                },
         } as unknown as SignedPdfDigitiser);
+
+  const sheetReader = {
+    read: async () =>
+      Object.fromEntries(
+        ARCHIVE_QR_FIELDS.map(field => [field, lines[field] ?? null]),
+      ),
+  } as unknown as SignedSheetReader;
 
   return new HttpNationalArchiveAdapter(
     {
@@ -38,22 +71,21 @@ function anArchive(reading?: string | null): HttpNationalArchiveAdapter {
     } as VerificationModuleOptions,
     new SilentLogger(),
     digitiser,
+    sheetReader,
   );
 }
 
 /*
  * The archive's signed copy of an allotment order, as its text layer reads —
  * the paper above and the signature panel the service renders beneath it.
+ *
+ * The paper's own lines are not in it: they are read by the extraction stage
+ * now and reach this adapter through `SignedSheetReader`, not off the text
+ * (COMM-145). What the text is still good for is the panel.
  */
 const SIGNED_COPY = [
   'AZƏRBAYCAN RESPUBLİKASI MİLLİ ARXİV İDARƏSİ',
-  'Sənədin nömrəsi: 1471',
-  'Sənədin tarixi: 29.10.1998',
-  'Ərizəçi: Qusadze Vera Vladimirovna',
-  'Ünvanı: Bakı şəhəri, Sabunçu rayonu, 1-ci Zabrat qəsəbəsi',
-  'Sahəsi: 0,04 ha',
-  'Bəndi: 2.7',
-  'Fond 130, siyahı 1, iş 476, vərəq 98',
+  'Arxiv çıxarışı',
   'İmzalayan: Məmmədov Anar',
   'İmza tarixi: 14.01.2026',
   'Sertifikatı verən təşkilat: B.EST Certificate Services CA',
@@ -208,7 +240,15 @@ describe('HttpNationalArchiveAdapter', () => {
       }),
     );
 
-    const answer = await anArchive(SIGNED_COPY).lookupByQr(LINK);
+    const answer = await anArchive(SIGNED_COPY, {
+      document_no: '1471',
+      issue_date: '29.10.1998',
+      holder_name: 'Qusadze Vera Vladimirovna',
+      property_address: 'Bakı şəhəri, Sabunçu rayonu, 1-ci Zabrat qəsəbəsi',
+      plot_area: '0,04 ha',
+      decree_item: '2.7',
+      archive_reference: 'Fond 130, siyahı 1, iş 476, vərəq 98',
+    }).lookupByQr(LINK);
 
     expect(answer.outcome).toBe('Found');
     if (answer.outcome !== 'Found') return;

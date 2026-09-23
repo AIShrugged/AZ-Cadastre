@@ -7,6 +7,7 @@ import {
 import { ExtractedField } from '../../domain/entities/index.js';
 import { isHeldAgainstTheArchiveByQr } from '../../domain/services/index.js';
 import {
+  ARCHIVE_SIGNED_COPY_TYPE,
   Confidence,
   FieldValue,
   PageNumber,
@@ -151,6 +152,21 @@ export class FieldExtractorAdapter extends FieldExtractor {
   async extract(
     request: ExtractionRequest,
   ): Promise<readonly ExtractedField[]> {
+    /*
+     * The one paper this stand-in refuses to answer about: the archive's own
+     * signed copy, fetched live from the archive's service (ADR-0038).
+     *
+     * Everything else here is answered from a table, and a table is a fair
+     * stand-in for a reader as long as the sheet it stands in for is the
+     * repository's own. This sheet is not: it is whatever file the code on the
+     * paper in hand leads to, and answering `ELÇİN ƏLİYEV` about somebody
+     * else's order would have the comparison report the archive as
+     * contradicting a valid paper — the one verdict this check must never
+     * reach on a reading of its own. Nothing read is `NotStated` on all eight
+     * lines, which is what the stage said before it could read the copy at all.
+     */
+    if (request.spec.type.value === ARCHIVE_SIGNED_COPY_TYPE) return [];
+
     const values = isHeldAgainstTheArchiveByQr(request.spec)
       ? { ...MOCK_VALUES, ...DECREE_439_VALUES }
       : MOCK_VALUES;

@@ -29,8 +29,9 @@ export const ArchiveQrCheckStatusSchema = z.enum([
 ]);
 export type ArchiveQrCheckStatus = z.infer<typeof ArchiveQrCheckStatusSchema>;
 
-// How one line of the paper stood against the archive's copy. Two of the four
-// are ways of not having stood at all, and they are different facts (ADR-0040).
+// How one line of the paper stood against the archive's copy. Three of the five
+// are ways of not having stood at all, and they are different facts (ADR-0040,
+// ADR-0041).
 export const ArchiveQrFieldVerdictSchema = z.enum([
   'Match',
   'Mismatch',
@@ -44,6 +45,13 @@ export const ArchiveQrFieldVerdictSchema = z.enum([
   // body, and this system declines to read one off a scan (ADR-0034, ADR-0040).
   // `documentValue` is still what the paper says; `archiveValue` is always null.
   'NotCompared',
+  // The archive answered and served its own copy of the paper, and this system
+  // could not read it: the link would not open, the file was not a PDF, or the
+  // reader refused (ADR-0041). Not the archive's silence but our failure, and
+  // the only one of the three the report should put on our side of the page.
+  // `documentValue` is still what the paper says; `archiveValue` is always
+  // null, and a later run of the package asks the archive again.
+  'NotRead',
 ]);
 export type ArchiveQrFieldVerdict = z.infer<typeof ArchiveQrFieldVerdictSchema>;
 

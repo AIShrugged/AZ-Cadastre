@@ -105,6 +105,13 @@ export const QR_STATUS_NOTE: Record<ArchiveQrCheckStatus, string> = {
  * not. That one is a real comparison with a real finding (the paper is short
  * where the fonds are not), and folding it into the archive's silence would
  * say the opposite of what happened.
+ *
+ * Six since ADR-0041, and the sixth is the only one that is ours. The archive
+ * answered and served its own signed copy, and this system could not read it:
+ * the link would not open, the file was not a PDF, the reader refused. It also
+ * arrives looking exactly like the archive's silence — a null archive value —
+ * and reported as that it told the customer the fonds hold almost nothing
+ * about their paper, which was not true (COMM-151).
  */
 export type QrFieldOutcome =
   | 'match'
@@ -116,18 +123,23 @@ export type QrFieldOutcome =
   // short and the fonds are not.
   | 'document_silent'
   // Never put to the archive at all, by a decision of ours (ADR-0040).
-  | 'not_compared';
+  | 'not_compared'
+  // The archive served its copy of the paper and we could not read it
+  // (ADR-0041). Ours, and never the archive's silence.
+  | 'copy_unread';
 
 /**
  * How one line came out, read off the verdict and the two values together.
  *
- * `NotCompared` first, because it is the one answer that is about this system
- * rather than about either document, and it arrives looking exactly like the
- * archive's silence — a null archive value — which is the confusion the split
- * exists to prevent.
+ * The two that are about this system rather than about either document come
+ * first — `NotCompared` and `NotRead` — because both arrive looking exactly
+ * like the archive's silence, a null archive value, which is the confusion the
+ * split exists to prevent. Read off the verdict for that reason: the contract's
+ * word is the only thing that tells them from a copy that prints no such line.
  */
 export function qrFieldOutcome(field: ArchiveQrFieldCheckDto): QrFieldOutcome {
   if (field.verdict === 'NotCompared') return 'not_compared';
+  if (field.verdict === 'NotRead') return 'copy_unread';
   if (field.verdict === 'Match') return 'match';
   if (field.verdict === 'Mismatch') return 'mismatch';
 
@@ -137,10 +149,11 @@ export function qrFieldOutcome(field: ArchiveQrFieldCheckDto): QrFieldOutcome {
 /**
  * One tone per outcome, and only a disagreement is a fault's colour.
  *
- * The three silences share `silent` for the reason the statuses do: a value
- * one side does not state is not a disagreement, and a decision of ours is not
- * a shortfall of the paper's. They are told apart by their word, which is also
- * what carries the difference into grayscale and a screen reader.
+ * The four silences share `silent` for the reason the statuses do: a value one
+ * side does not state is not a disagreement, a decision of ours is not a
+ * shortfall of the paper's, and neither is a copy we could not read. They are
+ * told apart by their word, which is also what carries the difference into
+ * grayscale and a screen reader.
  */
 export const QR_OUTCOME_TONE: Record<
   QrFieldOutcome,
@@ -151,6 +164,7 @@ export const QR_OUTCOME_TONE: Record<
   archive_silent: 'silent',
   document_silent: 'silent',
   not_compared: 'silent',
+  copy_unread: 'silent',
 };
 
 export const QR_OUTCOME_KEY: Record<QrFieldOutcome, string> = {
@@ -159,6 +173,7 @@ export const QR_OUTCOME_KEY: Record<QrFieldOutcome, string> = {
   archive_silent: 'detail.qr.o_archive_silent',
   document_silent: 'detail.qr.o_document_silent',
   not_compared: 'detail.qr.o_not_compared',
+  copy_unread: 'detail.qr.o_copy_unread',
 };
 
 /**
@@ -274,17 +289,21 @@ export function qrComparedFields(
  * confirmed in full. The list itself stays, because the count and the summary
  * are read off it.
  *
- * `NotCompared` is off this list and on its own. Both end with no archive
- * value, and the reason is the whole difference: here the archive was asked
- * and its copy carries no such line, there the line was never put to it by a
- * decision of ours (ADR-0040). Told in one sentence they would read as one
- * fact, and the reader would blame the fonds for a rule this system set.
+ * `NotCompared` and `NotRead` are off this list and on their own. All three end
+ * with no archive value, and the reason is the whole difference: here the
+ * archive was asked and its copy carries no such line; there the line was never
+ * put to it by a decision of ours (ADR-0040); and there again the copy was
+ * served and we could not read it (ADR-0041). Told as one fact the reader
+ * blames the fonds for what this system did.
  */
 export function qrUnstatedFields(
   check: ArchiveQrCheckDto,
 ): readonly ArchiveQrFieldCheckDto[] {
   return qrFields(check).filter(
-    field => field.archiveValue === null && field.verdict !== 'NotCompared',
+    field =>
+      field.archiveValue === null &&
+      field.verdict !== 'NotCompared' &&
+      field.verdict !== 'NotRead',
   );
 }
 
@@ -304,6 +323,21 @@ export function qrUncomparedFields(
   check: ArchiveQrCheckDto,
 ): readonly ArchiveQrFieldCheckDto[] {
   return qrFields(check).filter(field => field.verdict === 'NotCompared');
+}
+
+/**
+ * The lines whose value was to come off the archive's own copy of the paper and
+ * did not, because that copy could not be read (ADR-0041).
+ *
+ * A row of the table like the rest, marked `копию не прочитали`. Read off the
+ * verdict for the same reason `NotCompared` is: the contract's word is all that
+ * tells a copy nobody could open from a copy that prints no such line, and the
+ * first is our failure while the second is the archive's record.
+ */
+export function qrUnreadFields(
+  check: ArchiveQrCheckDto,
+): readonly ArchiveQrFieldCheckDto[] {
+  return qrFields(check).filter(field => field.verdict === 'NotRead');
 }
 
 /**

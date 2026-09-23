@@ -140,6 +140,7 @@ export {
   qrStatusNote,
   qrStatusTone,
   qrUncomparedFields,
+  qrUnreadFields,
   qrUnstatedFields,
   SIGNATURE_KEY,
   SIGNATURE_ROW_KEY,

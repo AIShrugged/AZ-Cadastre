@@ -69,6 +69,9 @@ const HELD: ReadonlyMap<string, ArchivedDocument> = new Map([
        * property of who answered, not of the line.
        */
       notCompared: [],
+      // A stand-in holds its records in memory: there is no copy to fetch and
+      // so no copy that could go unread (COMM-151).
+      copyUnread: null,
     },
   ],
   [
@@ -107,6 +110,9 @@ const HELD: ReadonlyMap<string, ArchivedDocument> = new Map([
       signature: null,
       // Every line is on the record here, the issuing body included (ADR-0040).
       notCompared: [],
+      // A stand-in holds its records in memory: there is no copy to fetch and
+      // so no copy that could go unread (COMM-151).
+      copyUnread: null,
     },
   ],
 ]);

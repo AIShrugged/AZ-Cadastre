@@ -5,7 +5,6 @@ import type { Logger } from '@cadastre/logger';
 
 import {
   NationalArchivePort,
-  type ArchivedDocument,
   type ArchivedSignature,
   type ArchiveQrAnswer,
 } from '../../application/ports/outbound/index.js';
@@ -18,8 +17,14 @@ import {
 
 import { issuerOf, NATIONAL_ARCHIVE_HOST } from './national-archive.adapter.js';
 import { fetchFromTheArchive } from './national-archive.transport.js';
-import type { SignedPdfDigitiser } from './signed-pdf.digitiser.js';
-import type { SignedSheetReader } from './signed-sheet.reader.js';
+import type {
+  DigitisedPdf,
+  SignedPdfDigitiser,
+} from './signed-pdf.digitiser.js';
+import type {
+  ArchiveSheetLines,
+  SignedSheetReader,
+} from './signed-sheet.reader.js';
 import { readSignedSheet } from './signed-sheet.reading.js';
 
 const VERIFY_QR = '/v1/signature-info/verifyQr';
@@ -112,9 +117,9 @@ export class HttpNationalArchiveAdapter extends NationalArchivePort {
     private readonly signedPdf?: SignedPdfDigitiser,
     /*
      * Who reads the eight lines off that PDF (COMM-145). Optional for the same
-     * reason and with the same consequence: without it the signature panel is
-     * still read off the sheet and the lines come back empty, which is
-     * `NotStated` on every one of them and never a finding against the paper.
+     * reason, and with the same consequence: without either of them the copy is
+     * never opened, and the answer says so — `copyUnread`, which the check
+     * reports as `NotRead` and never as a finding against the paper.
      */
     private readonly sheetReader?: SignedSheetReader,
   ) {
@@ -235,57 +240,106 @@ export class HttpNationalArchiveAdapter extends NationalArchivePort {
     });
 
     const metadata = signatureOf(answer);
-    const sheet = answer.contentUrl
-      ? await this.signedPdf?.digitise(
-          answer.contentUrl,
-          this.options.nationalArchive.timeoutMs,
-        )
-      : null;
-    const panel = sheet ? readSignedSheet(sheet.text) : null;
-    const lines = sheet ? await this.sheetReader?.read(sheet) : null;
+    const copy = await this.copyBehind(answer.contentUrl ?? null);
+    const panel = copy.sheet ? readSignedSheet(copy.sheet.text) : null;
 
     return {
       outcome: 'Found',
-      document: panel
-        ? {
-            /*
-             * The archive's own copy of the paper, as its signed PDF states it
-             * (ADR-0035).
-             *
-             * The lines come off the file the code leads to and not off the
-             * `verifyQr` answer, which states nothing about what the paper says
-             * — and off it through the extraction stage, because the sheet is
-             * prose and there is nothing on it to key a parser to (COMM-145).
-             * Null throughout where no reader was wired in or the reading came
-             * to nothing, which reaches the inspector as `NotStated`.
-             *
-             * The issuing body stays unnamed even when the sheet prints one: it
-             * is what competence is judged on, and a name read off a scan is a
-             * reading, not the archive's record of whose fund the paper sits in
-             * — offering it would have the check answer "no power" on a
-             * misread word (ADR-0034).
-             */
-            documentNo: lines?.document_no ?? null,
-            issuedOn: lines?.issue_date ?? null,
-            issuingAuthority: null,
-            notCompared: NEVER_SUPPLIED,
-            holderName: lines?.holder_name ?? null,
-            propertyAddress: lines?.property_address ?? null,
-            plotArea: lines?.plot_area ?? null,
-            decreeItem: lines?.decree_item ?? null,
-            archiveReference: lines?.archive_reference ?? null,
-            signature: merged(metadata, panel),
-          }
-        : emptyExcept(metadata),
+      /*
+       * The archive's own copy of the paper, as its signed PDF states it
+       * (ADR-0035).
+       *
+       * The lines come off the file the code leads to and not off the
+       * `verifyQr` answer, which states nothing about what the paper says — and
+       * off it through the extraction stage, because the sheet is prose and
+       * there is nothing on it to key a parser to (COMM-145).
+       *
+       * A null here is the copy not printing that line. Where the copy could
+       * not be read at all, `copyUnread` says so in a word and the nulls mean
+       * something else entirely — not the archive's silence but our failure,
+       * which the check reports as `NotRead` (COMM-151).
+       *
+       * The issuing body stays unnamed even when the sheet prints one: it is
+       * what competence is judged on, and a name read off a scan is a reading,
+       * not the archive's record of whose fund the paper sits in — offering it
+       * would have the check answer "no power" on a misread word (ADR-0034).
+       */
+      document: {
+        documentNo: copy.lines?.document_no ?? null,
+        issuedOn: copy.lines?.issue_date ?? null,
+        issuingAuthority: null,
+        notCompared: NEVER_SUPPLIED,
+        holderName: copy.lines?.holder_name ?? null,
+        propertyAddress: copy.lines?.property_address ?? null,
+        plotArea: copy.lines?.plot_area ?? null,
+        decreeItem: copy.lines?.decree_item ?? null,
+        archiveReference: copy.lines?.archive_reference ?? null,
+        copyUnread: copy.unread,
+        signature: panel ? merged(metadata, panel) : metadata,
+      },
       note:
         `Answered by the National Archive Fund's electronic document service ` +
         `at ${base}` +
-        (sheet
+        (copy.sheet
           ? `, and its signed copy read ${
-              sheet.how === 'TextLayer' ? 'from its text' : 'by OCR'
+              copy.sheet.how === 'TextLayer' ? 'from its text' : 'by OCR'
             }.`
-          : '.'),
+          : `. Its signed copy could not be read (${copy.unread ?? 'Failed'}), ` +
+            'so nothing it states was compared.'),
     };
+  }
+
+  /*
+   * The archive's own signed copy, followed from the answer and read — or the
+   * one word for why it was not (ADR-0035, COMM-151).
+   *
+   * Four ways to come back with nothing and each of them named, because until
+   * COMM-151 all four landed on the same eight nulls and the report called
+   * every one of them "the archive states nothing". They are: an answer with no
+   * link on it, a deployment with no digitiser or no reader wired in, a file
+   * that could not be fetched or opened, and a reader that refused.
+   */
+  private async copyBehind(contentUrl: string | null): Promise<{
+    readonly sheet: DigitisedPdf | null;
+    readonly lines: ArchiveSheetLines | null;
+    readonly unread: string | null;
+  }> {
+    const nothing = { sheet: null, lines: null } as const;
+
+    if (contentUrl === null) {
+      this.logger.warn("The archive's answer carried no link to its copy", {
+        because: 'NoLink',
+      });
+
+      return { ...nothing, unread: 'NoLink' };
+    }
+
+    if (!this.signedPdf || !this.sheetReader) {
+      // A deployment — or a spec — asking the service and nothing else. Said
+      // out loud all the same: from the report's side it is indistinguishable
+      // from an archive that prints nothing, and it is a wiring fault.
+      this.logger.warn("No reader is wired in for the archive's copy", {
+        because: this.signedPdf ? 'NoReader' : 'NoDigitiser',
+      });
+
+      return {
+        ...nothing,
+        unread: this.signedPdf ? 'NoReader' : 'NoDigitiser',
+      };
+    }
+
+    const digitised = await this.signedPdf.digitise(
+      contentUrl,
+      this.options.nationalArchive.timeoutMs,
+    );
+
+    if ('unread' in digitised) return { ...nothing, unread: digitised.unread };
+
+    const read = await this.sheetReader.read(digitised.read);
+
+    return 'unread' in read
+      ? { sheet: digitised.read, lines: null, unread: read.unread }
+      : { sheet: digitised.read, lines: read.lines, unread: null };
   }
 
   private async answer(url: string, caseId: string): Promise<Response> {
@@ -390,35 +444,6 @@ function merged(
     certificateValidity:
       sheet.certificateValidity ?? metadata?.certificateValidity ?? null,
     valid,
-  };
-}
-
-/*
- * Eight nulls, and they are the truth: asked and answered, with nothing read
- * off the signed copy — no link, no digitiser wired in, or a file that could
- * not be fetched or read (ADR-0035). The domain reads a record that states
- * nothing and holds no signature as an empty shelf, so the signature block is
- * the whole of what this answer is worth.
- */
-function emptyExcept(signature: ArchivedSignature | null): ArchivedDocument {
-  return {
-    documentNo: null,
-    issuedOn: null,
-    /*
-     * The service names the office that attested the copy, which is not the
-     * body that issued the paper. Offering it here would have the archive's own
-     * Baku branch judged on whether it could allot land in 1998, and it would
-     * fail — so the body is left unnamed and competence unjudged. The office is
-     * on the signature block, where it belongs.
-     */
-    issuingAuthority: null,
-    notCompared: NEVER_SUPPLIED,
-    holderName: null,
-    propertyAddress: null,
-    plotArea: null,
-    decreeItem: null,
-    archiveReference: null,
-    signature,
   };
 }
 

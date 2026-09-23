@@ -38,10 +38,10 @@ export const ARCHIVE_QR_STATUSES = [
 export type ArchiveQrStatus = (typeof ARCHIVE_QR_STATUSES)[number];
 
 /*
- * How one line stood, and two of the four are ways of not having stood at all.
+ * How one line stood, and three of the five are ways of not having stood at all.
  *
  * `NotStated` is silence on one side or the other — a line the paper does not
- * print, or one the archive's entry does not carry — and never a disagreement.
+ * print, or one the archive's copy does not carry — and never a disagreement.
  *
  * `NotCompared` is a line nobody put the question for: the source this system
  * asks does not supply it, so there was never an archive value to be silent
@@ -50,12 +50,21 @@ export type ArchiveQrStatus = (typeof ARCHIVE_QR_STATUSES)[number];
  * (ADR-0034, ADR-0040). Told apart from `NotStated` because an inspector reads
  * the two differently: one says the archive kept no such column, the other says
  * we never asked.
+ *
+ * `NotRead` is the third, and it is the only one of the three that is a fault
+ * of ours (ADR-0041). The archive answered and served its copy; this system
+ * could not read it — the link would not open, the file was not a PDF, the
+ * reader refused. Reported as `NotStated` until COMM-151, which told an
+ * inspector the archive's copy prints nothing when what happened is that we
+ * never saw it. It is also the only one worth asking again about, and a later
+ * run does.
  */
 export const ARCHIVE_QR_VERDICTS = [
   'Match',
   'Mismatch',
   'NotStated',
   'NotCompared',
+  'NotRead',
 ] as const;
 
 export type ArchiveQrVerdict = (typeof ARCHIVE_QR_VERDICTS)[number];
@@ -171,6 +180,13 @@ export class ArchiveQrFieldCheck {
     if (verdict === 'NotCompared' && state.archiveValue !== null) {
       throw new InvalidArchiveQrCheckException(
         `"${name}" is NotCompared and yet the archive states a value`,
+      );
+    }
+    // The same for a copy nobody could read: a value beside `NotRead` would be
+    // a value read off it (ADR-0041).
+    if (verdict === 'NotRead' && state.archiveValue !== null) {
+      throw new InvalidArchiveQrCheckException(
+        `"${name}" is NotRead and yet the archive states a value`,
       );
     }
 
@@ -402,6 +418,60 @@ export class ArchiveQrCheck {
    */
   get nobodyAnswered(): boolean {
     return this.status === 'IssuerUnreachable';
+  }
+
+  /*
+   * The issuer answered and its own copy of the paper was never read
+   * (ADR-0041).
+   *
+   * Not the archive's answer about the paper but a failure of ours in the
+   * middle of getting one, so the lines it produced state nothing about the
+   * paper and the check rests on the signature alone.
+   */
+  get theCopyWasNotRead(): boolean {
+    return this.fields.some(field => field.verdict === 'NotRead');
+  }
+
+  /*
+   * Whether a later run asks the issuer again (ADR-0037, ADR-0041).
+   *
+   * Two cases, and both of them are this system having failed rather than the
+   * archive having spoken. The issuer that never answered is ADR-0037's. The
+   * other is a check that came back with nothing compared: a `Found` whose
+   * eight lines are all ways of not having stood, so nothing about what the
+   * paper says was ever established and the verdict rests on the signature
+   * alone.
+   *
+   * The second covers rows older than this contract as well as new ones, which
+   * is the point of writing it as "nothing was compared" and not as "the copy
+   * was not read". The customer's package was checked by a build that could not
+   * read the archive's copy at all; those rows carry eight `NotStated` and are
+   * indistinguishable in SQL from a copy that genuinely prints nothing, and a
+   * package whose comparison is empty must not stay empty for ever because the
+   * one run that could not read it happened first (COMM-151).
+   *
+   * Asking again costs one HTTP call and one reading, and is idempotent: a
+   * copy that really does state none of the eight is asked again each run and
+   * answers the same way.
+   */
+  get worthAskingAgain(): boolean {
+    return this.nobodyAnswered || this.nothingWasCompared;
+  }
+
+  /*
+   * A check that reached a verdict without holding a single line against the
+   * archive's copy.
+   *
+   * Only ever true of `Confirmed` and `Differs` — every other status carries no
+   * lines at all and is an answer in its own right.
+   */
+  get nothingWasCompared(): boolean {
+    return (
+      (this.status === 'Confirmed' || this.status === 'Differs') &&
+      !this.fields.some(
+        field => field.verdict === 'Match' || field.verdict === 'Mismatch',
+      )
+    );
   }
 
   get mismatched(): readonly ArchiveQrFieldCheck[] {

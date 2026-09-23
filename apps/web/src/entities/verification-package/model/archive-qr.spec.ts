@@ -34,6 +34,7 @@ import {
   qrStatusNote,
   qrStatusTone,
   qrUncomparedFields,
+  qrUnreadFields,
   qrUnstatedFields,
   SIGNATURE_KEY,
   SIGNATURE_ROW_KEY,
@@ -51,6 +52,7 @@ const OUTCOMES = [
   'archive_silent',
   'document_silent',
   'not_compared',
+  'copy_unread',
 ] as const;
 
 const line = (
@@ -397,6 +399,45 @@ describe('what each row says it came to', () => {
 
     expect(ours).toBe('not_compared');
     expect(ours).not.toBe('archive_silent');
+  });
+
+  /*
+   * And a failure of ours apart from both (ADR-0041).
+   *
+   * This is the customer's screenshot read correctly. The archive answered and
+   * served its own signed copy of the paper; we could not read it, and the row
+   * said «архив не приводит» — the fonds blamed for what this system did
+   * (COMM-151).
+   */
+  it('keeps a copy we could not read apart from the archive keeping quiet', () => {
+    const ours = qrFieldOutcome(line('document_no', 'NotRead', '100', null));
+
+    expect(ours).toBe('copy_unread');
+    expect(ours).not.toBe('archive_silent');
+    expect(
+      qrUnreadFields(
+        check('Confirmed', {
+          fields: [line('document_no', 'NotRead', '100', null)],
+        }),
+      ).map(field => field.name),
+    ).toEqual(['document_no']);
+  });
+
+  // The three absences are three lists, and a line belongs to exactly one.
+  it('sorts the three absences into three lists', () => {
+    const mixed = check('Confirmed', {
+      fields: [
+        line('document_no', 'NotRead', '100', null),
+        line('issuing_authority', 'NotCompared', 'Icra Hakimiyyati', null),
+        line('holder_name', 'NotStated', 'Mammadov Anar', null),
+      ],
+    });
+
+    expect(qrUnreadFields(mixed).map(f => f.name)).toEqual(['document_no']);
+    expect(qrUncomparedFields(mixed).map(f => f.name)).toEqual([
+      'issuing_authority',
+    ]);
+    expect(qrUnstatedFields(mixed).map(f => f.name)).toEqual(['holder_name']);
   });
 
   it('gives only a disagreement a fault\u2019s colour', () => {

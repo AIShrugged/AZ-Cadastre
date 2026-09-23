@@ -610,6 +610,7 @@ const en: Dict = {
   'detail.qr.o_archive_silent': 'archive states none',
   'detail.qr.o_document_silent': 'not on the paper',
   'detail.qr.o_not_compared': 'we do not compare',
+  'detail.qr.o_copy_unread': 'copy not read',
   'detail.qr.differing': '{n} of {total} differ',
   // About the body that issued the paper, and about its powers — not a second
   // drawing of the "Issuing authority" line of the table, and nothing to do
@@ -1909,6 +1910,7 @@ const ru: Dict = {
   'detail.qr.o_archive_silent': 'архив не приводит',
   'detail.qr.o_document_silent': 'в документе не указано',
   'detail.qr.o_not_compared': 'не сверяем',
+  'detail.qr.o_copy_unread': 'копию не прочитали',
   'detail.qr.differing': 'расходятся {n} из {total}',
   'detail.qr.competence': 'Полномочия выдавшего органа',
   'detail.qr.competent': 'имел право выдавать такой документ',
@@ -3162,6 +3164,7 @@ const az: Dict = {
   'detail.qr.o_archive_silent': 'arxiv göstərmir',
   'detail.qr.o_document_silent': 'sənəddə göstərilməyib',
   'detail.qr.o_not_compared': 'tutuşdurmuruq',
+  'detail.qr.o_copy_unread': 'surət oxunmadı',
   'detail.qr.differing': '{total} sətirdən {n} fərqlənir',
   'detail.qr.competence': 'Verən orqanın səlahiyyəti',
   'detail.qr.competent': 'belə sənəd vermək səlahiyyəti var idi',

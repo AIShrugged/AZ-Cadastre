@@ -139,6 +139,13 @@ services:
       # An archive that does not answer never fails a verification: the paper is
       # left unchecked and the report says it was not confirmed.
       - NATIONAL_ARCHIVE_TIMEOUT_MS=5000
+      # The download of the archive's own signed copy, which is a presigned S3
+      # link and not the service's API. Measured against the live service on
+      # 2026-09-23: the question answered in 0.7s, a 202 KB copy took 1.4–1.8s
+      # of which 0.85s was the connection. Five seconds is right for the first
+      # and tight for a scan of any size, and a copy that loses that race
+      # reaches the inspector as an archive that states nothing (COMM-153).
+      - NATIONAL_ARCHIVE_COPY_TIMEOUT_MS=30000
 
       # OpenRouter (optional, only needed if switching from mock to openrouter)
       - OPENROUTER_API_KEY=

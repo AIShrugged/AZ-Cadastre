@@ -32,15 +32,21 @@ const CASE_ID =
  * the adapter does with what they answer, not how a file became text or how a
  * model read the eight lines off it.
  */
+// What the copy was given to arrive in, from the last run of `anArchive`.
+const budgets: { copy: number | null } = { copy: null };
+
 function anArchive(
   reading?: string | null,
   lines: Partial<Record<ArchiveQrField, string | null>> = {},
 ): HttpNationalArchiveAdapter {
+  budgets.copy = null;
+
   const digitiser =
     reading === undefined
       ? undefined
       : ({
-          digitise: async () =>
+          digitise: async (_link: string, timeoutMs: number) => (
+            (budgets.copy = timeoutMs),
             reading === null
               ? { unread: 'LinkRefused' }
               : {
@@ -57,7 +63,8 @@ function anArchive(
                     how: 'TextLayer' as const,
                     pages: 1,
                   },
-                },
+                }
+          ),
         } as unknown as SignedPdfDigitiser);
 
   const sheetReader = {
@@ -70,7 +77,12 @@ function anArchive(
 
   return new HttpNationalArchiveAdapter(
     {
-      nationalArchive: { provider: 'http', url: BASE, timeoutMs: 1000 },
+      nationalArchive: {
+        provider: 'http',
+        url: BASE,
+        timeoutMs: 1000,
+        copyTimeoutMs: 2000,
+      },
     } as VerificationModuleOptions,
     new SilentLogger(),
     digitiser,
@@ -271,6 +283,29 @@ describe('HttpNationalArchiveAdapter', () => {
     // asked about rather than the archive being silent on it (ADR-0040,
     // COMM-148).
     expect(answer.document.notCompared).toEqual(['issuing_authority']);
+  });
+
+  /*
+   * The copy gets the copy's budget and not the question's (COMM-153).
+   *
+   * They were one setting, and the one number had to serve both a few hundred
+   * bytes off the service's own API — 0.7s against the live service — and a
+   * presigned S3 download of whatever the archive scanned. A copy that loses
+   * that race is not reported as a copy we could not fetch: it is eight lines
+   * the archive "states nothing" on.
+   */
+  it('gives the download of the copy its own budget', async () => {
+    vi.stubGlobal(
+      'fetch',
+      answering(200, {
+        signatureValidity: true,
+        contentUrl: 'https://content-veams.milliarxiv.gov.az/f1d14ab4.PDF',
+      }),
+    );
+
+    await anArchive(SIGNED_COPY).lookupByQr(LINK);
+
+    expect(budgets.copy).toBe(2000);
   });
 
   /*

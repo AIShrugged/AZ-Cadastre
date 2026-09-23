@@ -752,6 +752,31 @@ describe('resolving a QR code that is not the archive holding a copy', () => {
   });
 
   /*
+   * The same package as the live service serves it, with the one letter an
+   * ASCII keyboard spells two ways (COMM-153).
+   *
+   * A live run against the archive on 23 September 2026 read the holder off its
+   * signed copy as "Hümbətov Yavər Kərim oğlu"; the package's own sheet carries
+   * the name as "Hümbətov Yaver Karim oğlu" — the first `ə` heard as `e`, the
+   * second transliterated as `a`, in one name. Folded to `e` alone, the check
+   * answered `Mismatch` on the holder and `Differs` overall: the archive's own
+   * copy of the order reported as denying the order.
+   */
+  it('reads a name the paper ascii-ised as the name the archive prints', () => {
+    const answer = check(theArchivesCopy(HUMBETOV_ARCHIVE_LINES), {
+      paper: {
+        ...HUMBETOV_ARCHIVE_LINES,
+        holder_name: 'Hümbətov Yaver Karim oğlu',
+      },
+    });
+
+    const holder = answer.fields.find(field => field.name === 'holder_name');
+
+    expect(holder?.verdict).toBe('Match');
+    expect(answer.differs).toBe(false);
+  });
+
+  /*
    * Competence is a question the Decree answers about eleven types and about no
    * other. Answering `false` for want of a row would turn "no rule" into "no
    * power", and every register extract would read as issued by a body with no

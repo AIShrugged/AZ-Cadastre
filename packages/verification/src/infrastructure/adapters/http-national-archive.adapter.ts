@@ -330,7 +330,9 @@ export class HttpNationalArchiveAdapter extends NationalArchivePort {
 
     const digitised = await this.signedPdf.digitise(
       contentUrl,
-      this.options.nationalArchive.timeoutMs,
+      // The copy's own budget: it is a file off S3 and not the service's own
+      // answer, and five seconds of metadata time is not a download (COMM-153).
+      this.options.nationalArchive.copyTimeoutMs,
     );
 
     if ('unread' in digitised) return { ...nothing, unread: digitised.unread };

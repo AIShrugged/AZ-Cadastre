@@ -1,3 +1,5 @@
+import { lookup as getaddrinfo, resolve4 } from 'node:dns/promises';
+
 import { Agent, type Dispatcher } from 'undici';
 
 import type { Logger } from '@cadastre/logger';
@@ -17,12 +19,106 @@ import type { Logger } from '@cadastre/logger';
  * Local to the archive on purpose. A process-wide `dns.setDefaultResultOrder`
  * or a global dispatcher would change how every other integration reaches
  * everything, to fix one zone that the rest of them do not live in.
+ *
+ * Asking for one family was not the whole of it. Production still reported
+ * `EAI_AGAIN` afterwards, so the resolver itself goes down or times out on this
+ * zone — which is why the A record is asked for over DNS directly and the last
+ * address that answered is kept and used when a later question goes
+ * unanswered. An address the archive gave us this morning is worth more than no
+ * check at all, and the check is remade on every run anyway.
  */
 
 // Ask DNS for A records and nothing else. `autoSelectFamily` is said out loud
 // because Node turns it on by default, and what it does is try both families —
 // which is the thing that does not come back here.
 const IPV4_ONLY = { family: 4, autoSelectFamily: false } as const;
+
+/*
+ * How long an address that answered is used without asking again, and how long
+ * it is still worth having when nobody answers.
+ *
+ * The first is short because the archive's records are not ours to pin: a
+ * presigned download host that moves must be followed within the hour. The
+ * second is a day, and it is only ever reached for when the resolver has
+ * already failed — at that point the choice is a paper checked against an
+ * address that worked this morning, or a paper not checked at all.
+ */
+const FRESH_MS = 5 * 60_000;
+const LAST_RESORT_MS = 24 * 60 * 60_000;
+
+/** What answers "what is this host's A record", so a test can answer for it. */
+export type Resolver = {
+  // Straight to the nameservers over DNS (c-ares), around `getaddrinfo` and
+  // the C library's resolver — which is the part that returns `EAI_AGAIN`.
+  readonly a: (hostname: string) => Promise<string[]>;
+  // The system's own resolution, IPv4 only. The fallback, for a deployment
+  // whose addresses do not come out of DNS at all: a hosts file, an operator's
+  // override, a sidecar.
+  readonly system: (hostname: string) => Promise<string>;
+};
+
+const SYSTEM: Resolver = {
+  a: hostname => resolve4(hostname),
+  system: async hostname =>
+    (await getaddrinfo(hostname, { family: 4 })).address,
+};
+
+type LookupDone = (
+  error: NodeJS.ErrnoException | null,
+  address: string | { address: string; family: number }[],
+  family?: number,
+) => void;
+
+/**
+ * The archive's own name resolution: the A record, remembered.
+ *
+ * `net.connect` calls this instead of `dns.lookup`, and it answers in both
+ * shapes the socket asks in — one address, or the list `all` wants.
+ */
+export function ipv4Lookup(
+  resolver: Resolver = SYSTEM,
+  now: () => number = Date.now,
+): (hostname: string, options: { all?: boolean }, done: LookupDone) => void {
+  const known = new Map<string, { address: string; at: number }>();
+
+  async function addressOf(hostname: string): Promise<string> {
+    const remembered = known.get(hostname);
+
+    if (remembered && now() - remembered.at < FRESH_MS)
+      return remembered.address;
+
+    try {
+      const [first] = await resolver.a(hostname);
+      const address = first ?? (await resolver.system(hostname));
+
+      known.set(hostname, { address, at: now() });
+
+      return address;
+    } catch (error) {
+      /*
+       * Nobody answered. The address that answered last is used rather than
+       * failing the check — the alternative is a paper nobody looked at, and
+       * the archive's own records are what would tell us this address is
+       * wrong, which is exactly what cannot be asked right now.
+       */
+      if (remembered && now() - remembered.at < LAST_RESORT_MS) {
+        return remembered.address;
+      }
+
+      throw error;
+    }
+  }
+
+  return (hostname, options, done) => {
+    addressOf(hostname).then(
+      address =>
+        options.all
+          ? done(null, [{ address, family: 4 }])
+          : done(null, address, 4),
+      (error: NodeJS.ErrnoException) => done(error, ''),
+    );
+  };
+}
 
 /*
  * One connection pool for the archive, made on first use.
@@ -39,7 +135,9 @@ let shared: Agent | undefined;
  * asked of DNS.
  */
 export function ipv4OnlyAgent(connect: Record<string, unknown> = {}): Agent {
-  return new Agent({ connect: { ...IPV4_ONLY, ...connect } });
+  return new Agent({
+    connect: { ...IPV4_ONLY, lookup: ipv4Lookup(), ...connect },
+  });
 }
 
 export type ArchiveRequest = {

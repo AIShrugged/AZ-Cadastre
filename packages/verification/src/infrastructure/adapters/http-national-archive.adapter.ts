@@ -134,6 +134,7 @@ export class HttpNationalArchiveAdapter extends NationalArchivePort {
     }
 
     const base = this.options.nationalArchive.url.replace(/\/$/u, '');
+    const askedAt = Date.now();
 
     try {
       return await this.askAbout(base, caseId);
@@ -155,6 +156,11 @@ export class HttpNationalArchiveAdapter extends NationalArchivePort {
 
       this.logger.warn('The archive service could not be reached', {
         url: `${base}${VERIFY_QR}`,
+        // Both attempts, and how long they took together: a failure that took
+        // five seconds is a resolver timing out, one that took ten is two of
+        // them, and one that is instant never left the machine. The line said
+        // none of this the first time it fired in production (COMM-144).
+        durationMs: Date.now() - askedAt,
         error,
       });
 

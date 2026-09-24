@@ -237,6 +237,15 @@ export {
   provisionSummary,
   unansweredAlternatives,
 } from './model/provision';
+export {
+  axesOf,
+  chainLine,
+  metres,
+  spanParameter,
+  spanPhrase,
+  spanWithinLimit,
+  unitLine,
+} from './model/span';
 
 export type { RegisterQuery } from './model/register-query';
 export {

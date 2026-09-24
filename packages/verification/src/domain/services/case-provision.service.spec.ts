@@ -109,6 +109,7 @@ describe('provisionOf', () => {
         source: null,
         stated: null,
         from: null,
+        calculation: null,
       });
     });
 
@@ -171,6 +172,73 @@ describe('provisionOf', () => {
       const unplaced = aDocument('unknown', { building_height: '15 m' });
 
       expect(provisionOf(TABLE, [unplaced]).parameters.height).toBeNull();
+    });
+  });
+
+  /*
+   * The span is calculated, not read (ADR-0043): the sample design the contract
+   * works its rule on, with its axis chains in bare millimetres, its built-up
+   * area, and the studio that runs from axis A over axis B to axis C.
+   */
+  describe('the span', () => {
+    function theSampleDesign(extra = ''): ReadDocument {
+      return aDocument('sketch_project', {
+        storeys: '2',
+        building_height: '6,20 m',
+        built_up_area: '130.2 m²',
+        span_dimensions:
+          '1—2 4000; 2—3 4400; A—B 2400; B—C 5200; C—D 2800; D—E 4000' + extra,
+      });
+    }
+
+    it('is the longest span between adjacent axes, in the unit the built-up area confirms', () => {
+      const answer = provisionOf(TABLE, [theSampleDesign(), aPlan()]);
+      const span = answer.readings.find(one => one.parameter === 'span');
+
+      expect(answer.parameters.span).toBeCloseTo(5.2, 9);
+      expect(span?.from).toMatchObject({ fieldKey: 'span_dimensions' });
+      expect(span?.calculation).toMatchObject({
+        unit: 'mm',
+        unitBasis: 'BuiltUpArea',
+      });
+      expect(span?.calculation?.chains.map(chain => chain.longest)).toEqual([
+        { from: '2', to: '3', length: 4.4 },
+        { from: 'B', to: 'C', length: 5.2 },
+      ]);
+    });
+
+    // A room read as a span put a house of 5.2 m spans under the permit
+    // procedure: 7.6 m is over six.
+    it('does not take a room that crosses an axis for a span', () => {
+      const answer = provisionOf(TABLE, [
+        theSampleDesign('; A—C 7600; 1—3 8400'),
+        aPlan(),
+        anActOf(2014),
+      ]);
+
+      expect(answer.parameters.span).toBeCloseTo(5.2, 9);
+      expect(answer.decision).toMatchObject({
+        outcome: 'Determined',
+        provision: { provision: '8.0.10.2' },
+      });
+    });
+
+    it('carries no calculation for any other figure', () => {
+      const answer = provisionOf(TABLE, [theSampleDesign(), aPlan()]);
+
+      expect(
+        answer.readings
+          .filter(one => one.parameter !== 'span')
+          .map(one => one.calculation),
+      ).toEqual([null, null, null, null, null]);
+    });
+
+    it('stays unstated, with nothing calculated, where no paper states it', () => {
+      const span = provisionOf(TABLE, [aPlan()]).readings.find(
+        one => one.parameter === 'span',
+      );
+
+      expect(span).toMatchObject({ source: null, calculation: null });
     });
   });
 

@@ -617,6 +617,45 @@ export type ArchiveSearchApprovalDto = z.infer<
 // what that provision asks the package for (ADR-0025). Worked out by the server
 // on every read and never stored; a client draws it and decides none of it.
 
+const AxisSpanDtoSchema = z.object({
+  // The two axes, as the plan marks them, in the order the chain runs.
+  from: z.string(),
+  to: z.string(),
+  // Metres.
+  length: z.number(),
+});
+
+/*
+ * The span, calculated (ADR-0043): a span is the distance between two adjacent
+ * axes (UPCC 3.0.48), the longest of each chain is taken, and the longer of the
+ * two is what the table holds against six metres.
+ */
+export const SpanCalculationDtoSchema = z.object({
+  // Metres: the figure the table was decided on.
+  longest: z.number(),
+  // One per chain the plan dimensions — the numbered axes and the lettered —
+  // each with every span in axis order. Never empty: a value that names no two
+  // axes states no span, and the parameter carries no calculation.
+  chains: z
+    .array(
+      z.object({
+        chain: z.enum(['Numbered', 'Lettered']),
+        spans: z.array(AxisSpanDtoSchema),
+        longest: AxisSpanDtoSchema,
+      }),
+    )
+    .min(1),
+  // What a bare figure was read as, and who decided it: a unit printed with
+  // the figures, the built-up area the footprint of the chains matched, or the
+  // rule that a large bare figure on a drawing is millimetres.
+  unit: z.enum(['mm', 'cm', 'm']),
+  unitBasis: z.enum(['Printed', 'BuiltUpArea', 'Assumed']),
+  // Entries that were not spans — a room or an overall dimension, which cross
+  // an axis — as printed.
+  setAside: z.array(z.string()),
+});
+export type SpanCalculationDto = z.infer<typeof SpanCalculationDtoSchema>;
+
 export const CaseParameterDtoSchema = z.object({
   parameter: CaseParameterSchema,
   // What the table was decided on: a number for builtYear, storeys, height (m)
@@ -641,6 +680,10 @@ export const CaseParameterDtoSchema = z.object({
       confidence: z.number().nullable(),
     })
     .nullable(),
+  // How the span was worked out of the axis chains the design dimensions, for
+  // `span` only and null for the other five (ADR-0043). Null too where nothing
+  // stated a span, or where what was stated carried no length.
+  calculation: SpanCalculationDtoSchema.nullable(),
 });
 export type CaseParameterDto = z.infer<typeof CaseParameterDtoSchema>;
 

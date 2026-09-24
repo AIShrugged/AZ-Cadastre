@@ -24,9 +24,13 @@ import {
 } from 'lucide-react';
 
 import {
+  chainLine,
   fieldAnchor,
   provisionName,
   provisionSummary,
+  spanPhrase,
+  spanWithinLimit,
+  unitLine,
   type ProfileDto,
 } from '@/entities/verification-package';
 import { formatDate, translateOr, useI18n } from '@/shared/i18n';
@@ -37,6 +41,7 @@ import type {
   CaseParameterDto,
   CaseProvisionDto,
   ProvisionRequirementDto,
+  SpanCalculationDto,
   TitleDocumentStandingDto,
 } from '@cadastre/api-contracts/verification';
 
@@ -148,7 +153,7 @@ export function CaseProvisionPanel({
           {t('provision.lead')}
         </InfoHint>
       </div>
-      <Parameters parameters={provision.parameters} onJump={onJump} />
+      <Parameters provision={provision} onJump={onJump} />
 
       <Options provision={provision} profile={profile} />
 
@@ -162,13 +167,14 @@ export function CaseProvisionPanel({
 // ─── The six figures ──────────────────────────────────────────────────────────
 
 function Parameters({
-  parameters,
+  provision,
   onJump,
 }: {
-  parameters: readonly CaseParameterDto[];
+  provision: CaseProvisionDto;
   onJump: Jump;
 }) {
   const { t } = useI18n();
+  const parameters = provision.parameters;
 
   return (
     <div className='mt-6'>
@@ -192,6 +198,14 @@ function Parameters({
             <dd className='text-[0.875rem] leading-snug text-foreground'>
               <ParameterValue parameter={parameter} />
             </dd>
+            {parameter.calculation && (
+              <dd className='text-[0.75rem] leading-snug text-muted-foreground'>
+                <SpanWorking
+                  calculation={parameter.calculation}
+                  withinLimit={spanWithinLimit(provision)}
+                />
+              </dd>
+            )}
             {parameter.source !== null && (
               <dd className='text-[0.75rem] leading-snug text-muted-foreground'>
                 <ParameterSource parameter={parameter} onJump={onJump} />
@@ -205,7 +219,7 @@ function Parameters({
 }
 
 function ParameterValue({ parameter }: { parameter: CaseParameterDto }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   if (parameter.value === null) {
     // A reading refused is not a reading missing: the words that could not be
@@ -219,10 +233,71 @@ function ParameterValue({ parameter }: { parameter: CaseParameterDto }) {
     );
   }
 
+  // The span says which two axes it lies between: a bare "5.2" is a figure the
+  // inspector cannot find on the plan (ADR-0043).
+  if (parameter.calculation) {
+    return (
+      <span className='tabular-nums'>
+        {spanPhrase(t, parameter.calculation, locale)}
+      </span>
+    );
+  }
+
   return typeof parameter.value === 'number' ? (
     <span className='tabular-nums'>{parameter.value}</span>
   ) : (
     <>{translateOr(t, `provision.value.${parameter.value}`, parameter.value)}</>
+  );
+}
+
+/**
+ * How the span was calculated, folded: every span of each chain, the unit the
+ * figures were read in and why, and what was set aside as a room or an overall
+ * dimension. The fold's own line says whether the longest is within the limit,
+ * because that is the one thing the figure is read for (ADR-0043).
+ *
+ * Exported for the document card and the sheet, which state the same
+ * calculation beside the line it was read off and in the report.
+ */
+export function SpanWorking({
+  calculation,
+  withinLimit,
+}: {
+  calculation: SpanCalculationDto;
+  withinLimit: boolean | null;
+}) {
+  const { t, locale } = useI18n();
+
+  return (
+    <details className='group/span'>
+      <summary className='flex cursor-pointer list-none items-center gap-1 select-none hover:text-foreground'>
+        <ChevronRightIcon
+          aria-hidden
+          className='size-3 shrink-0 transition-transform group-open/span:rotate-90'
+        />
+        {withinLimit === null ? (
+          t('span.title')
+        ) : (
+          <span className={withinLimit ? 'text-ok-ink' : 'text-incomplete-ink'}>
+            {t(withinLimit ? 'span.limit.holds' : 'span.limit.fails')}
+          </span>
+        )}
+      </summary>
+      <div className='mt-1 flex flex-col gap-0.5 pl-4'>
+        {calculation.chains.map(chain => (
+          <p key={chain.chain} className='tabular-nums'>
+            {t(`span.chain.${chain.chain}`)}: {chainLine(chain, locale)}
+          </p>
+        ))}
+        <p>{unitLine(t, calculation)}</p>
+        {calculation.setAside.length > 0 && (
+          <p>
+            {t('span.set_aside', { list: calculation.setAside.join('; ') })}
+          </p>
+        )}
+        <p className='opacity-80'>{t('span.rule')}</p>
+      </div>
+    </details>
   );
 }
 

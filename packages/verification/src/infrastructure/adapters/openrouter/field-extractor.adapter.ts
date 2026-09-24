@@ -11,7 +11,7 @@ import {
   type ExtractionRequest,
 } from '../../../application/ports/outbound/index.js';
 import { ExtractedField } from '../../../domain/entities/index.js';
-import { quotedIn } from '../../../domain/services/index.js';
+import { quotedIn, sheetsToPicture } from '../../../domain/services/index.js';
 import {
   Confidence,
   FieldValue,
@@ -31,10 +31,11 @@ import { telemetryOf } from './telemetry.js';
 
 const MAX_TEXT = 12000;
 
-// A drawing set runs to nine sheets and the values a schema asks for sit on the
-// first of them; sending every sheet as an image would multiply the cost of the
-// stage for pages that answer nothing. The transcript of every sheet always
-// travels, so nothing is hidden from the model — only the pictures are rationed.
+// A drawing set runs to a dozen sheets; sending every sheet as an image would
+// multiply the cost of the stage for pages that answer nothing. The transcript
+// of every sheet always travels, so nothing is hidden from the model — only the
+// pictures are rationed, and which sheets get them is the type's key sheets
+// first (`sheetsToPicture`, TECH_DEBT §18).
 const MAX_SHEET_IMAGES = 6;
 
 // A value the model could not quote back out of the transcript is not therefore
@@ -211,7 +212,23 @@ export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
     request: ExtractionRequest,
   ): Promise<OpenAI.Chat.Completions.ChatCompletionContentPart[]> {
     const parts: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [];
-    let images = 0;
+    const pictured = new Set(
+      sheetsToPicture(
+        request.sheets
+          .filter(sheet => sheet.image !== null)
+          .map(sheet => ({
+            number: sheet.number.value,
+            text: sheet.text.value,
+          })),
+        request.spec.keySheets,
+        MAX_SHEET_IMAGES,
+      ),
+    );
+
+    this.logger.debug('Sheets shown as pictures', {
+      type: request.spec.type.value,
+      pictured: [...pictured],
+    });
 
     for (const sheet of request.sheets) {
       parts.push({
@@ -221,13 +238,12 @@ export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
           sheet.text.value.slice(0, MAX_TEXT),
       });
 
-      if (images >= MAX_SHEET_IMAGES || !sheet.image) continue;
+      if (!sheet.image || !pictured.has(sheet.number.value)) continue;
 
       const url = await this.imageUrl(sheet.image);
       if (!url) continue;
 
       parts.push({ type: 'image_url', image_url: { url } });
-      images += 1;
     }
 
     return parts;

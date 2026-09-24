@@ -549,3 +549,44 @@ _after_ the first start does nothing — the seed leaves an existing account alo
 or a new database. The real fix is that route, plus refusing to start with a
 default password when `NODE_ENV=production`, which is a decision nobody has
 taken yet.
+
+## 18. The span is calculated right and read unreliably
+
+**Not done.** The span is calculated in the domain off the axis chains a design
+dimensions (ADR-0043), and the calculation is exact. The chain it works on is
+read off the drawings by the extractor, and that reading is measured by
+`pnpm --filter @cadastre/verification eval:span` (ADR-0044) and is not yet good
+enough on the one kind of set that has a span to read.
+
+What was fixed on 2026-09-24: the extractor is shown the design's floor and
+foundation plans instead of its first six sheets, it is told to answer null
+where no plan marks axes, and a value naming no two axes is no span. On the
+configured model that took the four sets from 1/12 to 10/12 and the invented
+axis pairs from 49 to 0.
+
+What is left:
+
+- `qwen/qwen2.5-vl-72b-instruct`, the configured `EXTRACTOR_MODEL`, does not
+  read a dimension chain off a drawing: on the sample, with the plans in front
+  of it, right 2 times in 9 answered asks. It now says "no span" on the
+  customer's sets, which mark no axes, but it misses the span of a set that
+  does.
+- `google/gemini-2.5-pro` reads the sample's chains exactly, 3/3, and on one
+  set without axes built a chain out of room sizes every time (`docs/MODELS.md`).
+- The extraction model is one variable for every type, so taking a better
+  drawing reader for designs means a per-type model or a stage of its own.
+
+**How it fires.** A post-2013 case with a design that marks axes gets no span, or
+a wrong one, and is left undecided or placed under the wrong one of 8.0.10.1 and
+8.0.10.2. The chain the calculation worked on is shown axis by axis under the
+`span_dimensions` row and among the figures of the case, which is where an
+inspector sees it.
+
+**What to do.** Correct the `span_dimensions` row by hand (ADR-0033); the span is
+worked out again from the corrected chain. The fix is to check the chain against
+the design's own figures before believing it — the pairs of a chain add up to
+its overall dimension, and the two overall dimensions multiply to about the
+built-up area, which is what gemini's invented chain fails — and send a reading
+that does not add up to the inspector as doubtful. With that in place gemini's
+failure mode is caught and its strength kept. Measure any change with the eval
+before it lands, and add a second set that marks axes to `eval/span/cases.json`.

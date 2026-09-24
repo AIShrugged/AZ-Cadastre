@@ -9,6 +9,7 @@ import {
   enclosesHeading,
   headingMatch,
   looksLike,
+  sheetsToPicture,
 } from './document-hints.service.js';
 
 const CADASTRE = VerificationProfile.CADASTRE.specs;
@@ -168,5 +169,76 @@ describe('enclosesHeading', () => {
         aTypeHinted('receipt_copy', 'ödəniş qəbzi'),
       ]),
     ).toBe(false);
+  });
+});
+
+/*
+ * The PROJE44 sample set as its sheets are titled: cover, a decorative sheet,
+ * general notes with the indicators, location plan, site plan, then the plans
+ * the axes are dimensioned on. Shown its first six sheets, the extractor never
+ * saw a floor plan and read the site plan's turning points 1—5 as axes
+ * (TECH_DEBT §18) — this is the guard against going back to that.
+ */
+describe('sheetsToPicture', () => {
+  const design = VerificationProfile.CADASTRE.specs.find(
+    spec => spec.type.value === 'sketch_project',
+  )!;
+  const SAMPLE = [
+    'İCRAÇI "PROJE44" MMC SİFARİŞÇİ ABBASOVA ƏFSANƏ ŞAMİL MEMARLIQ-PLANLAŞDIRMA BÖLMƏSİ',
+    'PROJE44 DİREKTOR NİGAR B.ƏSƏD',
+    'Layihələndirilən yaşayış evi Texniki-iqtisadi göstəricilər Tikinti sahəsi 130.2 m²',
+    'MÖVQE PLANI X-393455.9395 Y- 4488046.5013',
+    'BAŞ PLANI Qonşu ərazi 10.0 25.1',
+    'BÜNÖVRƏNİN PLANI 9000 8400 4000 4400',
+    '1-Cİ MƏRTƏBƏNİN PLANI 8800 8400 4000 4400',
+    '2-Cİ MƏRTƏBƏNİN PLANI 8800 8400',
+    'KƏSİM 1-1',
+    'KƏSİM 2-2',
+    'ÖN FASAD',
+    'ARXA FASAD',
+    'SOL FASAD',
+  ].map((text, index) => ({ number: index + 1, text }));
+
+  it('shows the plans and the indicators before the cover sheets', () => {
+    expect(sheetsToPicture(SAMPLE, design.keySheets, 6)).toEqual([
+      1, 2, 3, 6, 7, 8,
+    ]);
+  });
+
+  it('reads a heading however the scan cased and accented it', () => {
+    expect(
+      sheetsToPicture(
+        [
+          { number: 1, text: 'cover' },
+          { number: 2, text: 'cover' },
+          { number: 3, text: '1-ci mertebenin plani' },
+        ],
+        design.keySheets,
+        1,
+      ),
+    ).toEqual([3]);
+  });
+
+  it('reads the Russian titles of a set too', () => {
+    expect(
+      sheetsToPicture(
+        [
+          { number: 1, text: 'Общие данные' },
+          { number: 2, text: 'ПЛАН ФУНДАМЕНТА' },
+        ],
+        design.keySheets,
+        1,
+      ),
+    ).toEqual([2]);
+  });
+
+  it('keeps the first sheets for a type that names no key sheets', () => {
+    expect(sheetsToPicture(SAMPLE, [], 3)).toEqual([1, 2, 3]);
+  });
+
+  it('shows every sheet where there are no more than the limit', () => {
+    expect(sheetsToPicture(SAMPLE.slice(0, 4), design.keySheets, 6)).toEqual([
+      1, 2, 3, 4,
+    ]);
   });
 });

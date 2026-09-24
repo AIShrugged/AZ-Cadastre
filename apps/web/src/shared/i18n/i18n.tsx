@@ -385,6 +385,27 @@ const en: Dict = {
   'provision.param.span': 'Span, m',
   'provision.param.landRight': 'Right to the land',
   'provision.param.purpose': 'Designated purpose of the plot',
+  // ── The span, calculated off the axis chains (ADR-0043) ─────────────────────
+  'span.title': 'Span length (calculated)',
+  'span.value': '{m} m, axes {axes}',
+  'span.chain.Numbered': 'Numbered axes',
+  'span.chain.Lettered': 'Lettered axes',
+  'span.unit.BuiltUpArea':
+    'Figures read in {unit}: the axis chains multiplied give the built-up area the design states',
+  'span.unit.Printed': 'Figures in {unit}, as printed beside them',
+  'span.unit.Assumed':
+    'Figures read in {unit}: the design states no built-up area to check the unit against',
+  'span.unit_name.mm': 'millimetres',
+  'span.unit_name.cm': 'centimetres',
+  'span.unit_name.m': 'metres',
+  'span.set_aside':
+    'Not spans — they cross an axis, so they are a room or an overall dimension: {list}',
+  'span.limit.holds': 'not over 6 m (8.0.10.2)',
+  'span.limit.fails': 'over 6 m (8.0.10.2)',
+  'span.rule':
+    'A span is the distance between the centre axes of adjacent load-bearing structures (UPCC 3.0.48): not the size of a room and not the width of the building. The longest span of each direction is taken, and the longer of the two is held against 6 m.',
+  'span.not_calculated':
+    'Not calculated: no sketch design states the axis spacings',
   'provision.value.Ownership': 'Ownership',
   'provision.value.LeaseOrUse': 'Lease or use',
   'provision.value.Residential': 'Housing',
@@ -1714,6 +1735,27 @@ const ru: Dict = {
   'provision.param.span': 'Длина пролёта, м',
   'provision.param.landRight': 'Право на земельный участок',
   'provision.param.purpose': 'Целевое назначение участка',
+  // ── Пролёт, рассчитанный по осевым цепочкам (ADR-0043) ─────────────────────
+  'span.title': 'Длина пролёта (расчёт)',
+  'span.value': '{m} м, оси {axes}',
+  'span.chain.Numbered': 'Цифровые оси',
+  'span.chain.Lettered': 'Буквенные оси',
+  'span.unit.BuiltUpArea':
+    'Размеры прочитаны в {unit}: произведение осевых цепочек сходится с площадью застройки проекта',
+  'span.unit.Printed': 'Размеры в {unit}, как указано на чертеже',
+  'span.unit.Assumed':
+    'Размеры прочитаны в {unit}: площади застройки для проверки единицы в проекте нет',
+  'span.unit_name.mm': 'миллиметрах',
+  'span.unit_name.cm': 'сантиметрах',
+  'span.unit_name.m': 'метрах',
+  'span.set_aside':
+    'Не пролёты — пересекают ось, это размер комнаты или общий размер: {list}',
+  'span.limit.holds': 'не более 6 м (8.0.10.2)',
+  'span.limit.fails': 'более 6 м (8.0.10.2)',
+  'span.rule':
+    'Пролёт — расстояние между центральными осями соседних несущих конструкций (ГСК 3.0.48): не размер комнаты и не общая ширина здания. Берётся наибольший пролёт по каждому направлению, и больший из двух сравнивается с 6 м.',
+  'span.not_calculated':
+    'Не рассчитана: нет эскизного проекта с размерами между осями',
   'provision.value.Ownership': 'Собственность',
   'provision.value.LeaseOrUse': 'Аренда или пользование',
   'provision.value.Residential': 'Жилищное строительство',
@@ -2968,6 +3010,27 @@ const az: Dict = {
   'provision.param.span': 'Aşırım uzunluğu, m',
   'provision.param.landRight': 'Torpaq sahəsi üzərində hüquq',
   'provision.param.purpose': 'Torpaq sahəsinin təyinatı',
+  // ── Oxlar zəncirindən hesablanan aşırım (ADR-0043) ─────────────────────────
+  'span.title': 'Aşırım uzunluğu (hesablama)',
+  'span.value': '{m} m, {axes} oxları',
+  'span.chain.Numbered': 'Rəqəmli oxlar',
+  'span.chain.Lettered': 'Hərfli oxlar',
+  'span.unit.BuiltUpArea':
+    'Ölçülər {unit} ilə oxunub: ox zəncirlərinin hasili layihədəki tikinti sahəsinə uyğundur',
+  'span.unit.Printed': 'Ölçülər {unit} ilə, çertyojda göstərildiyi kimi',
+  'span.unit.Assumed':
+    'Ölçülər {unit} ilə oxunub: vahidi yoxlamaq üçün layihədə tikinti sahəsi yoxdur',
+  'span.unit_name.mm': 'millimetr',
+  'span.unit_name.cm': 'santimetr',
+  'span.unit_name.m': 'metr',
+  'span.set_aside':
+    'Aşırım deyil — oxu keçir, otağın ölçüsü və ya ümumi ölçüdür: {list}',
+  'span.limit.holds': '6 m-dən çox deyil (8.0.10.2)',
+  'span.limit.fails': '6 m-dən çoxdur (8.0.10.2)',
+  'span.rule':
+    'Aşırım — yanaşı yükdaşıyan konstruksiyaların mərkəzi oxları arasındakı məsafədir (ŞTM 3.0.48): nə otağın ölçüsü, nə də binanın ümumi eni. Hər istiqamətdə ən böyük aşırım götürülür və ikisindən böyüyü 6 metrlə müqayisə edilir.',
+  'span.not_calculated':
+    'Hesablanmayıb: ox aralıqlarını göstərən eskiz layihə yoxdur',
   'provision.value.Ownership': 'Mülkiyyət',
   'provision.value.LeaseOrUse': 'İcarə və ya istifadə',
   'provision.value.Residential': 'Yaşayış tikintisi',

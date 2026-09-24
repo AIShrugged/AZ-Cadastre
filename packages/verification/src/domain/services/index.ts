@@ -59,6 +59,7 @@ export {
   enclosesHeading,
   headingMatch,
   looksLike,
+  sheetsToPicture,
   type HeadingMatch,
 } from './document-hints.service.js';
 export { landPurposeIn, landRightIn } from './land-title.service.js';
@@ -71,6 +72,18 @@ export {
   type SuggestionReason,
 } from './profile-suggestion.service.js';
 export { quotedIn } from './quotation-evidence.service.js';
+export {
+  AXIS_CHAINS,
+  SPAN_UNIT_BASES,
+  SPAN_UNITS,
+  spanCalculationOf,
+  type AxisChain,
+  type AxisSpan,
+  type ChainSpans,
+  type SpanCalculation,
+  type SpanUnit,
+  type SpanUnitBasis,
+} from './span.service.js';
 export {
   attestationIn,
   BLANK_PAGE,

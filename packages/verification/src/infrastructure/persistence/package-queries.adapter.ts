@@ -667,6 +667,19 @@ export class PackageQueriesAdapter extends PackageQueries {
               confidence: reading.from.confidence,
             }
           : null,
+        calculation: reading.calculation
+          ? {
+              longest: reading.calculation.longest,
+              chains: reading.calculation.chains.map(chain => ({
+                chain: chain.chain,
+                spans: chain.spans.map(span => ({ ...span })),
+                longest: { ...chain.longest },
+              })),
+              unit: reading.calculation.unit,
+              unitBasis: reading.calculation.unitBasis,
+              setAside: [...reading.calculation.setAside],
+            }
+          : null,
       })),
       rules: decision.evaluations.map(evaluation => ({
         provision: evaluation.rule.provision,

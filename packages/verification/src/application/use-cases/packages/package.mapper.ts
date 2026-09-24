@@ -196,6 +196,10 @@ export function toDetailDto(view: PackageDetailView): PackageDetailDto {
  */
 function toProvisionDto(view: ProvisionView): CaseProvisionDto {
   type Parameter = CaseProvisionDto['parameters'][number]['parameter'];
+  type SpanCalculation = NonNullable<
+    CaseProvisionDto['parameters'][number]['calculation']
+  >;
+  type AxisChain = SpanCalculation['chains'][number]['chain'];
   type Right = NonNullable<
     CaseProvisionDto['provisions'][number]['titleRight']
   >;
@@ -213,6 +217,20 @@ function toProvisionDto(view: ProvisionView): CaseProvisionDto {
         parameter.source as CaseProvisionDto['parameters'][number]['source'],
       stated: parameter.stated,
       from: parameter.from ? { ...parameter.from } : null,
+      calculation: parameter.calculation
+        ? {
+            longest: parameter.calculation.longest,
+            chains: parameter.calculation.chains.map(chain => ({
+              chain: chain.chain as AxisChain,
+              spans: chain.spans.map(span => ({ ...span })),
+              longest: { ...chain.longest },
+            })),
+            unit: parameter.calculation.unit as SpanCalculation['unit'],
+            unitBasis: parameter.calculation
+              .unitBasis as SpanCalculation['unitBasis'],
+            setAside: [...parameter.calculation.setAside],
+          }
+        : null,
     })),
     rules: view.rules.map(rule => ({
       provision: rule.provision,

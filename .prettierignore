@@ -3,3 +3,6 @@
 **/__generated__/
 pnpm-lock.yaml
 **/.impeccable/
+# Span eval: cached transcriptions and run results, both git-ignored
+packages/verification/eval/span/.cache/
+packages/verification/eval/span/results/

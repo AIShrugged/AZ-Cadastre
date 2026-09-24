@@ -344,6 +344,24 @@ export type ParameterView = {
     pageNumber: number | null;
     confidence: number | null;
   } | null;
+  // How the span was worked out of the axis chains (ADR-0043); null for every
+  // other figure, and for a span nothing stated.
+  calculation: SpanCalculationView | null;
+};
+
+export type SpanCalculationView = {
+  // Metres.
+  longest: number;
+  chains: readonly {
+    // One of the domain's `AXIS_CHAINS`.
+    chain: string;
+    spans: readonly { from: string; to: string; length: number }[];
+    longest: { from: string; to: string; length: number };
+  }[];
+  // One of the domain's `SPAN_UNITS` and `SPAN_UNIT_BASES`.
+  unit: string;
+  unitBasis: string;
+  setAside: readonly string[];
 };
 
 export type RuleEvaluationView = {

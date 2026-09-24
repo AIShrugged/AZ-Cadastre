@@ -116,6 +116,38 @@ every model got most wrong — `gpt-4o` returned **0.755**, below the floor. It
 flagged the page it had in fact hallucinated its way through (inventing a card
 number, an issue date and a place of birth). That is the mechanism working.
 
+### Measured, on reading a span off a design set
+
+`pnpm --filter @cadastre/verification eval:span` (ADR-0044) scores the span the
+domain calculates (ADR-0043) off what the extractor reads from four design sets:
+the reference implementation's sample, which marks axes (span 5.2 m), and three
+customer sets that mark none (no span — the right answer is null). Production
+adapters, `qwen/qwen2.5-vl-72b-instruct` transcribing, 300 dpi, key sheets
+pictured, three asks per set, 2026-09-24:
+
+| extractor                        | sample (axes) | three sets without axes | invented axis pairs |
+| -------------------------------- | ------------- | ----------------------- | ------------------- |
+| **qwen/qwen2.5-vl-72b-instruct** | 1/3 †         | 9/9                     | 0                   |
+| google/gemini-2.5-pro            | **3/3**       | 6/9                     | 12                  |
+
+† Over every ask of the sample with the key sheets pictured, qwen read the
+chains right 2 times in 9 answered asks; otherwise it read the overall
+dimensions or looped (axes 1 to 100 at 4000). Two asks were lost to 429s from
+its shared upstream pool.
+
+The two fail differently. qwen cannot read a dimension chain off a drawing;
+gemini reads it exactly, but on one set with no axes (Vera Vladimirovna's)
+built a chain every time out of room sizes — the site plan labels the building
+with a circled "A", which is not an axis. Its invented chain does not survive
+the design's own figures: 5.5 × 8.25 m is 45 m² against a stated built-up area of
+112 m², and the calculation already falls back to `unitBasis: Assumed` on it.
+gemini returned no logprobs, so its confidence is self-reported only.
+
+Neither is the default for the span on this evidence alone: the choice is
+between a model that misses the one span there is and one that sometimes
+invents a span where there is none, and the second is catchable by checking the
+chain against the design's own totals.
+
 ## Checking a model before you use it
 
 Advertised support is not delivered support, and delivery varies by provider on

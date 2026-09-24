@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reference Implementation — Document Compliance Verification</title>
+<style>
+:root{--navy:#1B2A41;--gold:#C9A227;--grey:#F5F6F8;--line:#DCE0E6;--muted:#5B6B79;
+--ok-bg:#EAF3DE;--ok-fg:#173404;--eh-bg:#E6F1FB;--eh-fg:#042C53;
+--wn-bg:#FAEEDA;--wn-fg:#633806;--dg-bg:#FCEBEB;--dg-fg:#501313}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--navy);background:#fff}
+header{background:var(--navy);color:#fff;padding:16px 26px;display:flex;justify-content:space-between;align-items:center;gap:20px}
+header h1{margin:0;font-size:17px;font-weight:600}
+header p{margin:4px 0 0;font-size:12.5px;color:#C8D0DA}
+.lang{display:flex;border:1px solid #3A4A61;border-radius:6px;overflow:hidden;flex:none}
+.lang button{background:transparent;color:#C8D0DA;border:0;padding:7px 15px;font:600 12.5px inherit;cursor:pointer;border-radius:0}
+.lang button.on{background:var(--gold);color:var(--navy)}
+.bar{background:var(--gold);height:4px}
+.wrap{display:grid;grid-template-columns:410px 1fr;min-height:calc(100vh - 88px)}
+.panel{border-right:1px solid var(--line);padding:20px;overflow-y:auto;max-height:calc(100vh - 88px)}
+.out{padding:20px 26px;overflow-y:auto;max-height:calc(100vh - 88px)}
+h2{font-size:11.5px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin:22px 0 10px;font-weight:600}
+h2:first-child{margin-top:0}
+label{display:block;font-size:12px;color:var(--muted);margin:0 0 3px}
+.row{margin-bottom:11px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+select,input[type=number],input[type=date]{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:5px;font:13px inherit;background:#fff;color:var(--navy)}
+.chk{display:flex;align-items:flex-start;gap:8px;padding:5px 0;font-size:12.5px}
+.chk input{margin-top:3px;flex:none}
+.sub{padding-left:22px;border-left:2px solid var(--line);margin:2px 0 8px 6px}
+button{background:var(--navy);color:#fff;border:0;border-radius:5px;padding:9px 14px;font:600 13px inherit;cursor:pointer}
+button.alt{background:#fff;color:var(--navy);border:1px solid var(--line)}
+button:hover{opacity:.9}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px}
+.tab{padding:8px 15px;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab.on{color:var(--navy);border-bottom-color:var(--gold)}
+.card{border:1px solid var(--line);border-radius:7px;margin-bottom:11px;overflow:hidden}
+.card>.hd{background:var(--grey);padding:8px 12px;font-weight:600;font-size:13px}
+.card>.bd{padding:10px 12px;font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{background:var(--navy);color:#fff;text-align:left;padding:7px 9px;font-weight:600;font-size:11.5px}
+td{padding:6px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+.pill{display:inline-block;padding:2px 9px;border-radius:4px;font-size:11.5px;font-weight:600}
+.p-ok{background:var(--ok-bg);color:var(--ok-fg)}
+.p-eh{background:var(--eh-bg);color:var(--eh-fg)}
+.p-wn{background:var(--wn-bg);color:var(--wn-fg)}
+.p-dg{background:var(--dg-bg);color:var(--dg-fg)}
+.banner{border-radius:7px;padding:13px 15px;margin-bottom:18px;font-size:13.5px}
+.b-ok{background:var(--ok-bg);color:var(--ok-fg)}
+.b-wn{background:var(--wn-bg);color:var(--wn-fg)}
+.b-dg{background:var(--dg-bg);color:var(--dg-fg)}
+.banner b{display:block;margin-bottom:3px;font-size:15px}
+.path{background:var(--grey);border-radius:6px;padding:10px 12px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;line-height:1.8;margin-bottom:10px}
+.def{padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
+.def:last-child{border-bottom:0}
+.def span{color:var(--muted);font-size:11.5px;display:block;margin-top:2px}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px}
+.hit{background:#FFF8E1}
+.note{font-size:12px;color:var(--muted);margin-top:9px;line-height:1.6}
+.dash{color:#B4BCC6}
+.pass{color:var(--ok-fg);font-weight:600}
+.fail{color:var(--dg-fg);font-weight:600}
+pre{background:var(--grey);padding:12px;border-radius:6px;overflow-x:auto;font-size:11.5px;margin:0}
+</style>
+</head>
+<body>
+<header>
+  <div><h1 id="hT"></h1><p id="hS"></p></div>
+  <div style="display:flex;gap:10px;align-items:center;flex:none">
+  <select id="cat" onchange="if(this.value==='apt')window.location.href='reference_implementation_apartment.html'"
+    style="background:#121D2E;color:#fff;border:1px solid #3A4A61;border-radius:6px;padding:7px 10px;font:600 12.5px inherit">
+    <option value="house" selected>Fərdi yaşayış evi / Individual residential house</option>
+    <option value="apt" disabled>Mənzil / Apartment — hazırlanır</option>
+  </select>
+  <div class="lang">
+    <button data-l="az" onclick="setLang('az')">AZ</button>
+    <button data-l="en" class="on" onclick="setLang('en')">EN</button>
+    <button data-l="ru" onclick="setLang('ru')">RU</button>
+  </div>
+  </div>
+</header>
+<div class="bar"></div>
+
+<div class="wrap">
+<div class="panel">
+  <h2 id="h_preset"></h2>
+  <div class="row"><select id="preset"></select></div>
+  <div class="row"><button class="alt" style="width:100%" id="btnPreset" onclick="loadPreset()"></button></div>
+
+  <h2 id="h_params"></h2>
+  <div class="row"><label id="l_coord"></label><input type="text" id="coord" value="393455.94, 4488046.50"></div>
+  <div class="row"><label id="l_epochs"></label><input type="text" id="epochs" value="2011, 2015"></div>
+  <div class="row"><label id="l_dateSrc"></label><select id="dateSrc"></select></div>
+  <div class="row"><label id="l_date"></label>
+    <div class="g2"><select id="dateKnown"></select><input type="date" id="cdate" value="2014-06-01"></div></div>
+  <div class="g2">
+    <div class="row"><label id="l_storeys"></label><input type="number" id="storeys" value="2" min="0"></div>
+    <div class="row"><label id="l_height"></label><input type="number" id="height" value="7.4" step="0.1"></div>
+  </div>
+  <div class="g2">
+    <div class="row"><label id="l_span"></label><input type="number" id="span" value="4.2" step="0.1"></div>
+    <div class="row"><label id="l_landRight"></label><select id="landRight"></select></div>
+  </div>
+  <div class="row"><label id="l_purpose"></label><select id="purpose"></select><div class="note" id="n_empty"></div></div>
+
+  <h2 id="h_art10"></h2>
+  <div class="row"><label id="l_1022"></label><select id="d1022"></select></div>
+  <div class="row"><label id="l_1023"></label><select id="d1023"></select></div>
+  <div class="row"><label id="l_1024"></label><select id="d1024"></select></div>
+
+  <h2 id="h_ground"></h2>
+  <div id="ownerNote" class="card"><div class="bd" id="t_ownerNote"></div></div>
+  <div id="groundPick" style="display:none">
+    <div class="row"><label id="l_gitem"></label><select id="gitem"></select></div>
+    <div class="row"><label id="l_gdate"></label><input type="date" id="gdate" value="1995-05-12"></div>
+    <div class="chk"><input type="checkbox" id="gpresent" checked><span id="t_gpresent"></span></div>
+    <div class="sub">
+      <div class="chk"><input type="checkbox" id="gAuthority" checked><span id="t_gAuth"></span></div>
+      <div class="chk"><input type="checkbox" id="gRequisites" checked><span id="t_gReq"></span></div>
+      <div class="chk"><input type="checkbox" id="gArchive" checked><span id="t_gArch"></span></div>
+      <div class="row" id="qrRow"><label id="l_gQR"></label><select id="gQR"></select></div>
+    </div>
+  </div>
+
+  <h2 id="h_docs"></h2>
+  <div id="docs"></div>
+
+  <h2 id="h_ind"></h2>
+  <div class="chk"><input type="checkbox" id="licenceValid" checked><span id="t_lic"></span></div>
+  <div class="chk"><input type="checkbox" id="notifRegistered"><span id="t_notifReg"></span></div>
+
+  <h2 id="h_cross"></h2>
+  <div class="chk"><input type="checkbox" id="cName" checked><span id="t_cName"></span></div>
+  <div class="chk"><input type="checkbox" id="cAddr" checked><span id="t_cAddr"></span></div>
+  <div class="g2">
+    <div class="row"><label id="l_aPass"></label><input type="number" id="aPass" value="148.6" step="0.1"></div>
+    <div class="row"><label id="l_aDes"></label><input type="number" id="aDes" value="152.0" step="0.1"></div>
+  </div>
+  <div style="margin-top:18px"><button style="width:100%" id="btnRun" onclick="run()"></button></div>
+</div>
+
+<div class="out">
+  <div class="tabs">
+    <div class="tab on" data-t="report" onclick="tab('report')"></div>
+    <div class="tab" data-t="rules" onclick="tab('rules')"></div>
+    <div class="tab" data-t="tests" onclick="tab('tests')"></div>
+    <div class="tab" data-t="docs" onclick="tab('docs')"></div>
+    <div class="tab" data-t="src" onclick="tab('src')"></div>
+    <div class="tab" data-t="json" onclick="tab('json')"></div>
+  </div>
+  <div id="report"></div><div id="rules" style="display:none"></div>
+  <div id="tests" style="display:none"></div><div id="docs_tab" style="display:none"></div>
+  <div id="src" style="display:none"></div>
+  <div id="json" style="display:none"></div>
+</div>
+</div>
+
+<script>
+let L="en";
+const T={
+az:{title:"İstinad tətbiqi — sənədlərin qanunvericiliyə uyğunluğunun yoxlanılması",
+ sub:"Fərdi yaşayış evi · Reyestr haqqında Qanunun 8-ci maddəsi və 439 nömrəli Fərman",
+ h_preset:"Hazır keyslər",btnPreset:"Seçilmiş keysi yüklə",btnRun:"Yoxlamanı işə sal",
+ h_params:"Obyektin göstəriciləri",h_art10:"Əlavələr — Maddə 10.2",h_ground:"Torpaq üzərində hüquq sənədi (10.2.1)",
+ h_docs:"Hala aid sənədlər",h_cross:"Sənədlərarası məlumatlar",
+ l_date:"Tikinti tarixi",l_storeys:"Yerüstü mərtəbə sayı",l_height:"Hündürlük, m",l_span:"Aşırım uzunluğu, m",
+ l_landRight:"Torpaq üzərində hüquq",l_purpose:"Torpağın məqsədli təyinatı",
+ known:"Məlumdur",unknown_opt:"Müəyyən edilməyib",
+ n_empty:"Rəqəm sahəsini boş buraxsanız, göstərici müəyyən edilməmiş sayılır.",
+ l_1022:"10.2.2 Torpaq sahəsinin planı və ölçüsü",l_1023:"10.2.3 Eskiz layihə (texniki sənəd)",
+ l_1024:"10.2.4 Dövlət rüsumunun ödənilməsi",
+ o_package:"Paketdədir",o_ehis:"EHİS-dən alınır",o_absent:"Yoxdur",o_mqs:"MQS-dən alınır",o_later:"Sonrakı mərhələdə",
+ ownership:"Mülkiyyət",lease:"İcarə",use:"İstifadə",residential:"Yaşayış evi tikintisi",other:"Digər təyinat",
+ t_ownerNote:"Mülkiyyət — dövlət reyestrindən çıxarış Qanunun 12.1-ci maddəsinə əsasən MQS vasitəsilə alınır. Ərizəçi tərəfindən yüklənmir.",
+ l_gitem:"Maddə 8 / Fərman 439 üzrə sənəd",l_gdate:"Sənədin tarixi",t_gpresent:"Sənəd paketdə mövcuddur",
+ t_cName:"Ərizəçinin adı bütün sənədlərdə eynidir",t_cAddr:"Ünvan bütün sənədlərdə eynidir",
+ l_aPass:"Tikili sahəsi — pasport, m²",l_aDes:"Tikili sahəsi — layihə, m²",
+ tab_report:"Hesabat",tab_rules:"Qərar qaydaları",tab_tests:"Test dəsti",
+ s1:"1 · Obyektin əsas göstəriciləri",s2:"2 · Sənədlərin tamlığı — Maddə 10.2",s3:"3 · Hüquqi əsasın müəyyən edilməsi",
+ s4:"4 · Sənədlərin tələblərə uyğunluğu",s5:"5 · Sənədlərdəki məlumatların uzlaşması",s6:"Çatışmazlıqlar və operator yoxlamaları",
+ c_param:"Göstərici",c_value:"Dəyər",c_source:"Hansı sənəddən",c_prov:"Bənd",c_doc:"Sənəd",c_status:"Status",
+ c_data:"Məlumat",c_cmp:"Müqayisə",c_res:"Nəticə",c_case:"Keys",c_constraint:"Məhdudiyyət",
+ c_expg:"Gözlənilən əsas",c_actg:"Alınan",c_expd:"Gözlənilən qərar",c_actd:"Alınan",c_result:"Nəticə",
+ p_present:"Mövcuddur",p_mqs:"MQS-dən alındı",p_later:"Sonrakı mərhələdə",p_ehis:"EHİS-dən alındı",p_absent:"Yoxdur",p_ok:"Uyğundur",p_invalid:"Tələblərə cavab vermir",
+ p_notest:"Müəyyən edilmədi",p_consistent:"Uyğundur",p_req_present:"Tələb olunur — var",
+ p_req_absent:"Tələb olunur — yoxdur",p_notreq:"Tələb olunmur",
+ d_recommend:"Qeydiyyata tövsiyə olunur",d_recommend_sub:"Bütün tələb olunan sənədlər mövcuddur və uyğundur.",
+ d_checks:"Qeydiyyata tövsiyə olunur — operator yoxlaması şərti ilə",
+ d_checks_sub:"Çatışmazlıq yoxdur. Bəzi yoxlamalar avtomatik aparıla bilmədi.",
+ d_return:"Təkmilləşdirməyə qaytarılır",d_none:"Hüquqi əsas müəyyən edilə bilmədi",
+ res_one:"Nəticə",res_one2:"bütün göstəricilər müəyyən edilib, tək bənd tətbiq olunur.",
+ res_multi:"mümkün bənd",res_multi2:"Ayrılığa səbəb olan göstərici:",res_none:"Nəticə: heç bir bənd uyğun gəlmir.",
+ none_generic:"Maddə 8-in heç bir bəndi göstəricilərin bu birləşməsini əhatə etmir.",
+ none_specific:"Torpaq xüsusi mülkiyyətdədir, lakin təyinatı yaşayış evi tikintisi üçün deyil — 8.0.9.1.2 tətbiq olunmur. Torpaq icarədə və ya istifadədə deyil — 8.0.9.1.1 də tətbiq olunmur. Hündürlük 12 m-dən azdır — 8.0.9.2 tətbiq olunmur.",
+ def_none:"Yoxdur.",op_check:"Operator yoxlaması",cross_check:"Sənədlərarası yoxlama",
+ or_:"və ya",under_:"üzrə",deficiency:"çatışmazlıq",opcheck:"operator yoxlaması",
+ ground_is:"Hüquqi əsas:",ground_open:"Hüquqi əsas hələ müəyyən edilməyib.",
+ dt_title:"DMN qərar cədvəli — hit policy FIRST",
+ dt_note:"Qaydalar yuxarıdan aşağı yoxlanılır, ilk uyğun gələn işləyir. 5-ci qayda 01.01.2013-dən sonra tikilmiş, lakin məlumatlandırma icraatının dörd şərtini ödəməyən obyektlər üçün qalıq variantdır (ŞTM 80.1). Tire həmin şərtin bu qaydada əhəmiyyəti olmadığını bildirir. İşıqlanmış sətirlər cari keys üçün seçilib.",
+ dr_title:"Bənd üzrə sənəd tələbləri",
+ dr_note:"Hər sətir tələb olunur (VƏ). Sətirdə iki sənəd varsa, onlardan biri kifayətdir (VƏ YA) — bax Maddə 8.0.9.1.1.",
+ dc_title:"Torpaq hüququ sənədlərinin tarix məhdudiyyətləri",before_:"əvvəl",after_:"sonra",
+ ts_title:"Qəbul testləri",ts_cases:"keys",ts_pass:"keys uğurludur",ts_self:"İstinad tətbiqinin öz yoxlanışı.",
+ ts_note:"Bu keyslər qəbul müqaviləsidir. Tətbiq o zaman düzgün sayılır ki, hər keys üçün eyni hüquqi əsası və eyni qərarı versin. Eyni keyslər ayrıca JSON faylında da verilib.",
+ pth_pre:"tikinti ≤ 31.12.2012 → 8.0.9",pth_post:"tikinti ≥ 01.01.2013 → 8.0.10",
+ pth_nodate:"tikinti tarixi müəyyən edilməyib",pth_st:"mərtəbə",pth_h:"hündürlük",
+ pth_noh:"hündürlük müəyyən edilməyib",pth_sp:"aşırım",pth_lr:"torpaq hüququ:",pth_pu:"təyinat:",
+ src_date:"Texniki pasport / peyk təsvirləri",src_floor:"Layihə, mərtəbə planları",
+ src_sect:"Layihə, kəsik — ŞTM 80.1 üzrə",src_land:"Hüquqmüəyyənedici sənəd",src_mqs:"Hüquqmüəyyənedici sənəd — kateqoriya xanası",
+ f_land:"Torpaq sahəsinin ölçüsü",l_aPass:"Torpaq sahəsi — çıxarış, m²",l_aDes:"Torpaq sahəsi — sənəd, m²",tab_src:"Məlumat mənbələri",l_coord:"Koordinat",l_coordSrc:"Koordinatın mənbəyi",cs_doc:"Sənəddən götürülüb",cs_op:"Operator daxil edib",h_ind:"Sənəd göstəriciləri",t_gAuth:"Verən orqan səlahiyyətlidir",t_gReq:"Rekvizitlər tam: imza, möhür, nömrə, tarix, obyekt",t_lic:"Layihə lisenziyası qüvvədədir (Lisenziyalar Portalı)",t_notifReg:"Şəhərsalma Komitəsində məlumatlandırma qeydə alınıb",src_title:"Hansı məlumat haradan alınır",src_c1:"Element",src_c2:"Mənbə",src_c3:"Mənbə olmadıqda",src_c4:"İnteqrasiya",ind_title:"Hər sənəd üzrə yoxlama nöqtələri",ind_c1:"№",ind_c2:"Yoxlama nöqtəsi",ind_c3:"Tətbiq sahəsi",src_note:"Cədvəl hər göstəricinin və sənədin mənbəyini, mənbə olmadıqda davranışı və tələb olunan inteqrasiyanı göstərir. «Tələb olunur» yazılan inteqrasiyalar hazırda mövcud deyil.",exists:"Mövcuddur",needed:"Tələb olunur",na:"—",dfx_title:"Sənəd üzrə oxunmalı sahələr",dfx_refs:"Hansı bəndlərdə",dfx_fields:"Oxunmalı sahələr",dfx_upload:"Paketdə yüklənir",dfx_note:"Cədvəl hər sənəd üçün OCR ilə çıxarılmalı sahələri göstərir. «MQS» və digər mənbələr sənədin inteqrasiya vasitəsilə alındığını bildirir.",exp_title:"İcraçı tərəfin şablonuna ixrac",exp_note:"Aşağıdakı düymə Axar Solutions tərəfindən göndərilmiş «Шаблон требований» faylının sütun quruluşunda cədvəl yaradır. Qaydaların sırası ayrıca sütunda saxlanılır — hit policy FIRST olduğu üçün ardıcıllıq mənalıdır.",exp_btn:"Excel faylını yüklə (.xlsx)",tab_docs:"Sənəd sahələri",src_landplan:"Torpaq sahəsinin planı və ölçüsü (10.2.2)",src_design:"Eskiz layihə",src_title:"Hüquqmüəyyənedici sənəd",src_ge:"Google Earth API — peyk təsvirləri",l_epochs:"Müqayisə edilən epoxalar",s_date:"Tikinti tarixinin müəyyən edilməsi",n_ge:"Koordinat Google Earth API-yə giriş məlumatıdır, obyektin göstəricisi deyil. Sistem koordinat üzrə 01.01.2013-dən əvvəlki və sonrakı epoxaları tutuşdurur.",s_need:"Operatordan tələb olunan məlumatlar",n_need:"Sistem təqdim edilmiş sənədlərdən çıxara bildiyi məlumatları avtomatik alır. Qərar üçün kifayət etmədikdə qalan məlumatlar operatordan tələb olunur və hesabatda «Operator daxil edib» kimi işarələnir.",need_coord:"Koordinat — torpaq sahəsinin planı və ölçüsü təqdim edilmədiyi üçün operator daxil etməlidir",need_dims:"Mərtəbə sayı, hündürlük və aşırım — eskiz layihə təqdim edilmədiyi üçün operator daxil etməlidir",need_right:"Torpaq üzərində hüququn növü və torpağın təyinatı — hüquqmüəyyənedici sənəd təqdim edilmədiyi üçün operator daxil etməlidir",jc_cur:"Cari keysin nəticəsi",jc_title:"Qəbul müqaviləsi (bütün keyslər)",jc_btn:"JSON faylını yüklə",jc_note:"Bu blok qərar cədvəlini, sənəd tələblərini, oxunmalı sahələri, göstəricilərin mənbələrini və bütün sınaq keyslərini gözlənilən nəticələri ilə birlikdə saxlayır. İcraçı tərəf üçün qəbul müqaviləsi budur.",tab_json:"Qəbul müqaviləsi",t_gArch:"Milli Arxiv İdarəsinin arayışı təqdim edilib (Fərman 439, 7-ci hissə)",l_gQR:"Arayışdakı QR kodun yoxlanışı",qr_ok:"Oxundu, həqiqiliyi təsdiqləndi",qr_absent:"Arayışda QR kod yoxdur",qr_failed:"Oxundu, həqiqiliyi təsdiqlənmədi",l_dateSrc:"Tikinti tarixinin mənbəyi",ds_ge:"Google Earth API — peyk təsvirləri",ds_doc:"Təqdim edilmiş sənəddən",ds_operator:"Operator daxil edib",n_dsalt:"Google inteqrasiyası hazırda mövcud deyil. Tarix sənəddən oxunduqda və ya operator tərəfindən daxil edildikdə mənbə hesabatda göstərilir. Nəzərə alınmalıdır ki, tikinti tarixi bütün qərar ağacının kökündədir və sənədlərdəki məlumat həmişə həqiqəti əks etdirmir. 8.0.10.2 marşrutunda tarixi göstərən sənəd ümumiyyətlə tələb olunmur.",calc_title:"Eskiz layihədən göstəricilərin hesablanması",calc_note:"Bu qaydalar eskiz layihədən oxunan üç göstərici üçündür. Səhv oxunma birbaşa hüquqi əsasın səhv seçilməsinə gətirir.",f_name:"Ərizəçinin adı",f_addr:"Ünvan",f_area:"Tikili sahəsi",
+ v_same:"Bütün sənədlərdə eynidir",v_diff:"Sənədlər arasında fərqlənir",v_diffby:"Fərq"},
+
+en:{title:"Reference Implementation — Document Compliance Verification",
+ sub:"Individual residential house · Article 8 of the Law on the State Registry and Decree No. 439",
+ h_preset:"Preset cases",btnPreset:"Load selected case",btnRun:"Run verification",
+ h_params:"Object parameters",h_art10:"Attachments — Article 10.2",h_ground:"Land-right document (10.2.1)",
+ h_docs:"Case-specific documents",h_cross:"Cross-document data",
+ l_date:"Date of construction",l_storeys:"Storeys above ground",l_height:"Height, m",l_span:"Span length, m",
+ l_landRight:"Right over the land",l_purpose:"Designated purpose of the land",
+ known:"Known",unknown_opt:"Not established",
+ n_empty:"Leave a numeric field empty to mark the parameter as not established.",
+ l_1022:"10.2.2 Plan and dimensions of the land plot",l_1023:"10.2.3 Sketch design (technical document)",
+ l_1024:"10.2.4 Payment of the state duty",
+ o_package:"In the package",o_ehis:"Obtained from EHİS",o_absent:"Absent",o_mqs:"Retrieved from MQS",o_later:"At a later stage",
+ ownership:"Ownership",lease:"Lease",use:"Use",residential:"Residential construction",other:"Other purpose",
+ t_ownerNote:"Ownership — the extract from the state registry is retrieved through MQS under Article 12.1. It is not uploaded by the applicant.",
+ l_gitem:"Document under Article 8 / Decree 439",l_gdate:"Date of the document",t_gpresent:"Document is present in the package",
+ t_cName:"Applicant name identical across documents",t_cAddr:"Address identical across documents",
+ l_aPass:"Building area — passport, m²",l_aDes:"Building area — design, m²",
+ tab_report:"Report",tab_rules:"Decision rules",tab_tests:"Test suite",
+ s1:"1 · Key object parameters",s2:"2 · Completeness of documents — Article 10.2",s3:"3 · Determination of the legal ground",
+ s4:"4 · Compliance of documents",s5:"5 · Consistency across documents",s6:"Deficiencies and operator checks",
+ c_param:"Parameter",c_value:"Value",c_source:"Source document",c_prov:"Provision",c_doc:"Document",c_status:"Status",
+ c_data:"Data",c_cmp:"Comparison",c_res:"Result",c_case:"Case",c_constraint:"Constraint",
+ c_expg:"Expected ground",c_actg:"Actual",c_expd:"Expected decision",c_actd:"Actual",c_result:"Result",
+ p_present:"Present",p_mqs:"Retrieved from MQS",p_later:"At a later stage",p_ehis:"Obtained from EHİS",p_absent:"Absent",p_ok:"Compliant",p_invalid:"Does not meet the requirements",
+ p_notest:"Not established",p_consistent:"Consistent",p_req_present:"Required — present",
+ p_req_absent:"Required — absent",p_notreq:"Not required",
+ d_recommend:"Recommend registration",d_recommend_sub:"All required documents are present and compliant.",
+ d_checks:"Recommend registration — subject to operator checks",
+ d_checks_sub:"No deficiencies. Some checks could not be performed automatically.",
+ d_return:"Return for correction",d_none:"Legal ground could not be determined",
+ res_one:"Result",res_one2:"all parameters established, a single provision applies.",
+ res_multi:"possible provisions",res_multi2:"Parameter causing the divergence:",res_none:"Result: no provision applies.",
+ none_generic:"No provision of Article 8 covers this combination of parameters.",
+ none_specific:"The land is in private ownership but is not designated for residential construction, so 8.0.9.1.2 does not apply. It is not held under lease or use, so 8.0.9.1.1 does not apply either. The height is within 12 m, so 8.0.9.2 does not apply.",
+ def_none:"None.",op_check:"Operator check",cross_check:"Cross-document check",
+ or_:"or",under_:"under",deficiency:"deficiency",opcheck:"operator check",
+ ground_is:"Legal ground:",ground_open:"Legal ground not yet fixed.",
+ dt_title:"DMN decision table — hit policy FIRST",
+ dt_note:"Rules are evaluated top to bottom; the first matching rule applies. Rule 5 is the fallback for buildings constructed after 01.01.2013 that do not meet all four conditions of the notification procedure (UPCC 80.1). A dash means the condition is irrelevant for that rule. Highlighted rows are the ones selected for the current case.",
+ dr_title:"Document requirements per provision",
+ dr_note:"Each line is required (AND). Where a line lists two documents, either one satisfies it (OR) — see Article 8.0.9.1.1.",
+ dc_title:"Date constraints on land-right documents",before_:"before",after_:"after",
+ ts_title:"Acceptance test suite",ts_cases:"cases",ts_pass:"cases pass",ts_self:"Reference implementation self-check.",
+ ts_note:"These cases are the acceptance contract. An implementation is considered correct when it produces the same legal ground and the same decision for every case. The same cases are shipped separately as JSON.",
+ pth_pre:"built ≤ 31.12.2012 → 8.0.9",pth_post:"built ≥ 01.01.2013 → 8.0.10",
+ pth_nodate:"date of construction not established",pth_st:"storeys",pth_h:"height",
+ pth_noh:"height not established",pth_sp:"span",pth_lr:"land:",pth_pu:"purpose:",
+ src_date:"Technical passport / satellite imagery",src_floor:"Design, floor plans",
+ src_sect:"Design, section — per UPCC 80.1",src_land:"Title document",src_mqs:"Title document — category field",
+ f_land:"Land plot area",l_aPass:"Land area — extract, m²",l_aDes:"Land area — document, m²",tab_src:"Data sources",l_coord:"Coordinates",l_coordSrc:"Source of coordinates",cs_doc:"Taken from a document",cs_op:"Entered by the operator",h_ind:"Document indicators",t_gAuth:"Issuing authority is competent",t_gReq:"Requisites complete: signature, seal, number, date, object",t_lic:"Design licence is valid (Licences Portal)",t_notifReg:"Notification registered with the Urban Planning Committee",src_title:"Where each item of data comes from",src_c1:"Item",src_c2:"Source",src_c3:"If the source is unavailable",src_c4:"Integration",ind_title:"Verification points applied to each document",ind_c1:"No.",ind_c2:"Verification point",ind_c3:"Applies to",src_note:"The table sets out the source of every parameter and document, the behaviour where the source is unavailable, and the integration required. Integrations marked as required do not yet exist.",exists:"In place",needed:"Required",na:"—",dfx_title:"Fields to be extracted per document",dfx_refs:"Applies to",dfx_fields:"Fields to extract",dfx_upload:"Uploaded in the package",dfx_note:"The table sets out the fields OCR must extract from each document. «MQS» and other sources indicate the document is obtained through an integration.",exp_title:"Export to the implementer\u2019s template",exp_note:"The button below produces a table in the column structure of the «Requirements template» sent by Axar Solutions. Rule order is preserved in a separate column — the hit policy is FIRST, so the sequence is meaningful.",exp_btn:"Download the Excel file (.xlsx)",tab_docs:"Document fields",src_landplan:"Plan and dimensions of the land plot (10.2.2)",src_design:"Sketch design",src_title:"Title document",src_ge:"Google Earth API — satellite imagery",l_epochs:"Epochs compared",s_date:"Establishing the date of construction",n_ge:"The coordinates are an input to the Google Earth API, not a parameter of the object. The system compares epochs before and after 01.01.2013 at those coordinates.",s_need:"Data required from the operator",n_need:"The system takes automatically whatever it can extract from the submitted documents. Where that is not sufficient for a decision, the remaining data is requested from the operator and marked in the report as «entered by the operator».",need_coord:"Coordinates — the operator must enter them, as the plan and dimensions of the land plot were not submitted",need_dims:"Storeys, height and span — the operator must enter them, as the sketch design was not submitted",need_right:"Type of right over the land and designated purpose — the operator must enter them, as the title document was not submitted",jc_cur:"Result for the current case",jc_title:"Acceptance contract (all cases)",jc_btn:"Download the JSON file",jc_note:"This block holds the decision table, the document requirements, the fields to extract, the sources of each parameter, and every test case with its expected result. This is the acceptance contract for the implementer.",tab_json:"Acceptance contract",t_gArch:"Certificate of the National Archive Administration submitted (Decree 439, point 7)",l_gQR:"Verification of the QR code on the certificate",qr_ok:"Read, authenticity confirmed",qr_absent:"No QR code on the certificate",qr_failed:"Read, authenticity not confirmed",l_dateSrc:"Source of the date of construction",ds_ge:"Google Earth API — satellite imagery",ds_doc:"From a submitted document",ds_operator:"Entered by the operator",n_dsalt:"The Google integration is not yet in place. Where the date is read from a document or entered by the operator, the source is shown in the report. Note that the date of construction sits at the root of the whole decision tree and the data in documents does not always reflect reality. Under 8.0.10.2 no document stating the date is required at all.",calc_title:"Deriving the parameters from the sketch design",calc_note:"These rules govern the three parameters read from the sketch design. Misreading any of them leads directly to the wrong legal ground being selected.",f_name:"Applicant name",f_addr:"Address",f_area:"Building area",
+ v_same:"Identical across documents",v_diff:"Differs between documents",v_diffby:"Differs by"},
+
+ru:{title:"Эталонная реализация — проверка соответствия документов",
+ sub:"Индивидуальный жилой дом · Статья 8 Закона о государственном реестре и Указ № 439",
+ h_preset:"Готовые случаи",btnPreset:"Загрузить выбранный случай",btnRun:"Выполнить проверку",
+ h_params:"Параметры объекта",h_art10:"Приложения — статья 10.2",h_ground:"Документ на земельный участок (10.2.1)",
+ h_docs:"Документы по случаю",h_cross:"Данные по документам",
+ l_date:"Дата постройки",l_storeys:"Надземных этажей",l_height:"Высота, м",l_span:"Длина пролёта, м",
+ l_landRight:"Право на земельный участок",l_purpose:"Целевое назначение участка",
+ known:"Известна",unknown_opt:"Не установлена",
+ n_empty:"Оставьте числовое поле пустым, чтобы отметить параметр как неустановленный.",
+ l_1022:"10.2.2 План и размеры земельного участка",l_1023:"10.2.3 Эскизный проект (технический документ)",
+ l_1024:"10.2.4 Уплата государственной пошлины",
+ o_package:"В пакете",o_ehis:"Получено из EHİS",o_absent:"Отсутствует",o_mqs:"Получено из MQS",o_later:"На последующем этапе",
+ ownership:"Собственность",lease:"Аренда",use:"Пользование",residential:"Жилищное строительство",other:"Иное назначение",
+ t_ownerNote:"Собственность — выписка из государственного реестра получается через MQS согласно статье 12.1. Заявителем не загружается.",
+ l_gitem:"Документ по статье 8 / Указу 439",l_gdate:"Дата документа",t_gpresent:"Документ имеется в пакете",
+ t_cName:"Имя заявителя одинаково во всех документах",t_cAddr:"Адрес одинаков во всех документах",
+ l_aPass:"Площадь здания — паспорт, м²",l_aDes:"Площадь здания — проект, м²",
+ tab_report:"Отчёт",tab_rules:"Правила решения",tab_tests:"Набор тестов",
+ s1:"1 · Основные параметры объекта",s2:"2 · Полнота документов — статья 10.2",s3:"3 · Установление правового основания",
+ s4:"4 · Соответствие документов требованиям",s5:"5 · Согласованность данных между документами",
+ s6:"Недостатки и проверки оператора",
+ c_param:"Параметр",c_value:"Значение",c_source:"Из какого документа",c_prov:"Пункт",c_doc:"Документ",c_status:"Статус",
+ c_data:"Данные",c_cmp:"Сравнение",c_res:"Результат",c_case:"Случай",c_constraint:"Ограничение",
+ c_expg:"Ожидаемое основание",c_actg:"Получено",c_expd:"Ожидаемое решение",c_actd:"Получено",c_result:"Итог",
+ p_present:"Представлен",p_mqs:"Получено из MQS",p_later:"На последующем этапе",p_ehis:"Получено из EHİS",p_absent:"Отсутствует",p_ok:"Соответствует",
+ p_invalid:"Не соответствует требованиям",p_notest:"Не установлено",p_consistent:"Согласовано",
+ p_req_present:"Требуется — имеется",p_req_absent:"Требуется — отсутствует",p_notreq:"Не требуется",
+ d_recommend:"Рекомендуется к регистрации",d_recommend_sub:"Все требуемые документы представлены и соответствуют требованиям.",
+ d_checks:"Рекомендуется к регистрации — при условии проверки оператором",
+ d_checks_sub:"Недостатков нет. Часть проверок не может быть выполнена автоматически.",
+ d_return:"Возвращается на доработку",d_none:"Правовое основание не установлено",
+ res_one:"Результат",res_one2:"все параметры установлены, применяется один пункт.",
+ res_multi:"возможных пункта",res_multi2:"Параметр, вызвавший расхождение:",res_none:"Результат: ни один пункт не применим.",
+ none_generic:"Ни один пункт статьи 8 не охватывает такое сочетание параметров.",
+ none_specific:"Участок находится в частной собственности, но не предназначен для жилищного строительства — пункт 8.0.9.1.2 неприменим. Участок не находится в аренде или пользовании — пункт 8.0.9.1.1 также неприменим. Высота менее 12 м — пункт 8.0.9.2 неприменим.",
+ def_none:"Отсутствуют.",op_check:"Проверка оператором",cross_check:"Междокументная проверка",
+ or_:"или",under_:"по",deficiency:"недостаток",opcheck:"проверка оператором",
+ ground_is:"Правовое основание:",ground_open:"Правовое основание пока не определено.",
+ dt_title:"Таблица решений DMN — политика FIRST",
+ dt_note:"Правила проверяются сверху вниз; применяется первое совпавшее. Правило 5 — резервный вариант для объектов, построенных после 01.01.2013, которые не отвечают всем четырём условиям уведомительного производства (ГСК 80.1). Прочерк означает, что условие для данного правила несущественно. Подсвеченные строки выбраны для текущего случая.",
+ dr_title:"Требования к документам по пунктам",
+ dr_note:"Каждая строка обязательна (И). Если в строке указаны два документа, достаточно одного из них (ИЛИ) — см. пункт 8.0.9.1.1.",
+ dc_title:"Ограничения по датам для документов на земельный участок",before_:"до",after_:"после",
+ ts_title:"Приёмочные тесты",ts_cases:"случаев",ts_pass:"случаев пройдено",ts_self:"Самопроверка эталонной реализации.",
+ ts_note:"Эти случаи являются приёмочным контрактом. Реализация считается корректной, если для каждого случая она возвращает то же правовое основание и то же решение. Те же случаи поставляются отдельным файлом JSON.",
+ pth_pre:"построено ≤ 31.12.2012 → 8.0.9",pth_post:"построено ≥ 01.01.2013 → 8.0.10",
+ pth_nodate:"дата постройки не установлена",pth_st:"этажей",pth_h:"высота",
+ pth_noh:"высота не установлена",pth_sp:"пролёт",pth_lr:"право:",pth_pu:"назначение:",
+ src_date:"Технический паспорт / спутниковые снимки",src_floor:"Проект, поэтажные планы",
+ src_sect:"Проект, разрез — согласно ГСК 80.1",src_land:"Правоустанавливающий документ",src_mqs:"Правоустанавливающий документ — поле категории",
+ f_land:"Площадь земельного участка",l_aPass:"Площадь участка — выписка, м²",l_aDes:"Площадь участка — документ, м²",tab_src:"Источники данных",l_coord:"Координаты",l_coordSrc:"Источник координат",cs_doc:"Взяты из документа",cs_op:"Введены оператором",h_ind:"Показатели документа",t_gAuth:"Выдавший орган компетентен",t_gReq:"Реквизиты полны: подпись, печать, номер, дата, объект",t_lic:"Лицензия на проектирование действительна (Портал лицензий)",t_notifReg:"Уведомление зарегистрировано в Комитете по градостроительству",src_title:"Откуда берутся данные",src_c1:"Элемент",src_c2:"Источник",src_c3:"Если источник недоступен",src_c4:"Интеграция",ind_title:"Точки проверки по каждому документу",ind_c1:"№",ind_c2:"Точка проверки",ind_c3:"Область применения",src_note:"Таблица показывает источник каждого параметра и документа, поведение при отсутствии источника и требуемую интеграцию. Отмеченные как требуемые интеграции пока отсутствуют.",exists:"Имеется",needed:"Требуется",na:"—",dfx_title:"Поля, извлекаемые по каждому документу",dfx_refs:"Применяется к",dfx_fields:"Извлекаемые поля",dfx_upload:"Загружается в пакете",dfx_note:"Таблица показывает поля, которые OCR должен извлечь из каждого документа. «MQS» и другие источники означают, что документ получается через интеграцию.",exp_title:"Экспорт в шаблон исполнителя",exp_note:"Кнопка ниже формирует таблицу в структуре колонок «Шаблона требований», присланного Axar Solutions. Порядок правил сохраняется в отдельной колонке — политика FIRST, поэтому последовательность имеет значение.",exp_btn:"Скачать файл Excel (.xlsx)",tab_docs:"Поля документов",src_landplan:"План и размеры земельного участка (10.2.2)",src_design:"Эскизный проект",src_title:"Правоустанавливающий документ",src_ge:"Google Earth API — спутниковые снимки",l_epochs:"Сравниваемые эпохи",s_date:"Установление даты постройки",n_ge:"Координаты — входные данные для Google Earth API, а не параметр объекта. Система сравнивает эпохи до и после 01.01.2013 по этим координатам.",s_need:"Данные, запрашиваемые у оператора",n_need:"Система автоматически берёт всё, что может извлечь из представленных документов. Если этого недостаточно для решения, остальные данные запрашиваются у оператора и помечаются в отчёте как «введено оператором».",need_coord:"Координаты — оператор должен ввести их, поскольку план и размеры участка не представлены",need_dims:"Этажность, высота и пролёт — оператор должен ввести их, поскольку эскизный проект не представлен",need_right:"Вид права на участок и целевое назначение — оператор должен ввести их, поскольку правоустанавливающий документ не представлен",jc_cur:"Результат по текущему случаю",jc_title:"Приёмочный контракт (все случаи)",jc_btn:"Скачать файл JSON",jc_note:"В этом блоке содержатся таблица решений, требования к документам, извлекаемые поля, источники каждого параметра и все тестовые случаи с ожидаемыми результатами. Это приёмочный контракт для исполнителя.",tab_json:"Приёмочный контракт",t_gArch:"Справка Национального архивного управления представлена (Указ 439, часть 7)",l_gQR:"Проверка QR-кода на справке",qr_ok:"Считан, подлинность подтверждена",qr_absent:"На справке нет QR-кода",qr_failed:"Считан, подлинность не подтверждена",l_dateSrc:"Источник даты постройки",ds_ge:"Google Earth API — спутниковые снимки",ds_doc:"Из представленного документа",ds_operator:"Введено оператором",n_dsalt:"Интеграция с Google пока отсутствует. Если дата считана из документа или введена оператором, источник указывается в отчёте. Следует учитывать, что дата постройки лежит в корне всего дерева решений, а данные в документах не всегда отражают действительность. По пункту 8.0.10.2 документ с указанием даты вообще не требуется.",calc_title:"Расчёт показателей по эскизному проекту",calc_note:"Эти правила относятся к трём показателям, считываемым из эскизного проекта. Ошибка в их чтении напрямую ведёт к выбору неверного правового основания.",f_name:"Имя заявителя",f_addr:"Адрес",f_area:"Площадь здания",
+ v_same:"Одинаково во всех документах",v_diff:"Различается между документами",v_diffby:"Расхождение"}};
+const t=k=>T[L][k];
+
+const MSG={
+ artMissing:{az:(r,n)=>`Qanunun ${r}-ci maddəsinə əsasən ${n} təqdim edilməyib.`,
+  en:(r,n)=>`Under Article ${r} of the Law, ${n} has not been submitted.`,
+  ru:(r,n)=>`Согласно статье ${r} Закона ${n} не представлен.`},
+ groundMissing:{az:()=>"Torpaq üzərində hüququ təsdiq edən sənəd təqdim edilməyib.",
+  en:()=>"The document confirming the right over the land has not been submitted.",
+  ru:()=>"Документ, подтверждающий право на земельный участок, не представлен."},
+ dateMax:{az:(r,l,d)=>`${r}-ci bənd yalnız ${l} tarixindən əvvəl qəbul edilmiş sənədlərə şamil olunur. Sənəd ${d} tarixlidir.`,
+  en:(r,l,d)=>`Item ${r} is valid only where adopted before ${l}. The document is dated ${d}.`,
+  ru:(r,l,d)=>`Пункт ${r} применяется только к документам, принятым до ${l}. Документ датирован ${d}.`},
+ dateMin:{az:(r,l,d)=>`${r}-ci bənd yalnız ${l} tarixindən sonrakı sənədlərə şamil olunur. Sənəd ${d} tarixlidir.`,
+  en:(r,l,d)=>`Item ${r} applies only to documents dated after ${l}. The document is dated ${d}.`,
+  ru:(r,l,d)=>`Пункт ${r} применяется только к документам, датированным после ${l}. Документ датирован ${d}.`},
+ provMissing:{az:(r,n)=>`Qanunun ${r} maddəsinə əsasən ${n} təqdim edilməyib.`,
+  en:(r,n)=>`Under Article ${r} of the Law, ${n} has not been submitted.`,
+  ru:(r,n)=>`Согласно пункту ${r} Закона ${n} не представлен.`},
+ archIncomplete:{az:()=>"Memarlıq-planlaşdırma bölməsi natamamdır — ŞTM 80.1-ə əsasən tələb olunan tərkib hissələri təqdim edilməyib.",
+  en:()=>"The architectural and planning section is incomplete — the components required under UPCC 80.1 have not been submitted.",
+  ru:()=>"Архитектурно-планировочный раздел неполон — не представлены части, требуемые согласно ГСК 80.1."},
+ archSign:{az:()=>"Bir və ya bir neçə səhifədə memarın və direktorun imzası və möhürü yoxdur.",
+  en:()=>"Signatures and seals of the architect and the director are missing on one or more pages.",
+  ru:()=>"На одной или нескольких страницах отсутствуют подписи и печати архитектора и директора."},
+ areaDiff:{az:d=>`Tikili sahəsi texniki pasport ilə layihə arasında ${d} m² fərqlənir. Dəqiqləşdirilməlidir.`,
+  en:d=>`The building area differs by ${d} m² between the technical passport and the design. This must be clarified.`,
+  ru:d=>`Площадь здания различается на ${d} м² между техническим паспортом и проектом. Требуется уточнение.`},
+ fieldDiff:{az:f=>`${f} təqdim edilmiş sənədlərdə eyni deyil. Dəqiqləşdirilməlidir.`,
+  en:f=>`The ${f.toLowerCase()} is not identical across the submitted documents. This must be clarified.`,
+  ru:f=>`${f} не совпадает в представленных документах. Требуется уточнение.`},
+ licence:{az:()=>"Layihə lisenziyasının qüvvədə olma müddəti avtomatik yoxlanıla bilmir. Operator təsdiqi tələb olunur.",
+  en:()=>"The validity period of the design licence cannot be checked automatically. Operator confirmation is required.",
+  ru:()=>"Срок действия лицензии на проектирование не может быть проверен автоматически. Требуется подтверждение оператора."},
+ wrongClass:{az:(r,i)=>`${r} bəndi üçün seçilmiş sənəd növü uyğun deyil. ${i} bəndindəki sənəd bu hüquq növünü təsdiq etmir.`,
+  en:(r,i)=>`The selected document type does not fit provision ${r}. A document under item ${i} does not confirm this type of right.`,
+  ru:(r,i)=>`Выбранный тип документа не соответствует пункту ${r}. Документ по пункту ${i} не подтверждает этот вид права.`},
+ noArchive:{az:i=>`439 nömrəli Fərmanın 7-ci hissəsinə əsasən ${i} bəndi üzrə sənəd üçün onun milli arxiv fondunda əsasının olması tələb olunur. Milli Arxiv İdarəsinin arayışı təqdim edilməyib.`,
+  en:i=>`Under point 7 of Decree No. 439, a document under item ${i} requires a basis in the national archive fund. The certificate of the National Archive Administration has not been submitted.`,
+  ru:i=>`Согласно части 7 Указа № 439 документ по пункту ${i} требует наличия основания в национальном архивном фонде. Справка Национального архивного управления не представлена.`},
+ qrFailed:{az:()=>"Milli Arxiv İdarəsinin arayışındakı QR kod oxunmadı və ya həqiqiliyi təsdiqlənmədi. Arayışın həqiqiliyi təsdiqlənmədən 439 nömrəli Fərmanın 7-ci hissəsinin tələbi ödənmiş sayılmır.",
+  en:()=>"The QR code on the certificate of the National Archive Administration could not be read or its authenticity was not confirmed. Without that confirmation the requirement of point 7 of Decree No. 439 is not treated as met.",
+  ru:()=>"QR-код на справке Национального архивного управления не считан или его подлинность не подтверждена. Без такого подтверждения требование части 7 Указа № 439 не считается выполненным."},
+ qrAbsent:{az:()=>"Arayışda QR kod yoxdur — həqiqilik avtomatik təsdiqlənə bilmir, operator təsdiqi tələb olunur. QR kod Milli Arxiv İdarəsi tərəfindən saxta arayışların qarşısını almaq üçün son illərdə tətbiq edilib; köhnə arayışlarda olmaya bilər.",
+  en:()=>"The certificate carries no QR code, so authenticity cannot be confirmed automatically and operator confirmation is required. The QR code was introduced by the National Archive Administration in recent years to prevent forged certificates; it may be absent on older ones.",
+  ru:()=>"На справке нет QR-кода, поэтому подлинность не подтверждается автоматически и требуется подтверждение оператора. QR-код введён Национальным архивным управлением в последние годы для предотвращения поддельных справок; на старых справках он может отсутствовать."},
+ noRequisites:{az:i=>`${i} bəndi üzrə sənədin rekvizitləri tam deyil — imza, möhür, nömrə, tarix və ya obyektin təsviri çatışmır.`,
+  en:i=>`The requisites of the item ${i} document are incomplete — signature, seal, number, date or description of the object is missing.`,
+  ru:i=>`Реквизиты документа по пункту ${i} неполны — отсутствует подпись, печать, номер, дата или описание объекта.`},
+ noAuthority:{az:i=>`${i} bəndi üzrə sənədi verən orqan bu sənəd növü üçün səlahiyyətli orqan deyil.`,
+  en:i=>`The authority that issued the item ${i} document is not competent for this document type.`,
+  ru:i=>`Орган, выдавший документ по пункту ${i}, не является компетентным для этого типа документа.`},
+ licenceInvalid:{az:()=>"Layihə lisenziyası qüvvədə deyil — Lisenziyalar və İcazələr Portalı üzrə yoxlama mənfi nəticə verdi.",
+  en:()=>"The design licence is not valid — the check against the Licences and Permits Portal returned a negative result.",
+  ru:()=>"Лицензия на проектирование недействительна — проверка через Портал лицензий и разрешений дала отрицательный результат."},
+ notifApi:{az:()=>"Tikinti işlərinin aparılması barədə Şəhərsalma və Arxitektura Komitəsinə məlumat verilməyib (inteqrasiya üzrə yoxlama).",
+  en:()=>"No notification of the construction works was submitted to the Committee for Urban Planning and Architecture (verified through the integration).",
+  ru:()=>"Уведомление о проведении строительных работ в Комитет по градостроительству и архитектуре не подавалось (проверено через интеграцию)."},
+ notifLetter:{az:()=>"Tikinti 06.2025-dən əvvəl aparıldığı üçün quruma göndərilmiş məktub tələb olunur; təqdim edilməyib.",
+  en:()=>"As construction predates 06.2025, the letter sent to the authority is required; it has not been submitted.",
+  ru:()=>"Поскольку строительство велось до 06.2025, требуется письмо, направленное в орган; оно не представлено."},
+ landDiff:{az:d=>`Torpaq sahəsinin ölçüsü sənədlər arasında ${d} m² fərqlənir. Dəqiqləşdirilməlidir.`,
+  en:d=>`The land plot area differs by ${d} m² between the documents. This must be clarified.`,
+  ru:d=>`Площадь земельного участка различается на ${d} м² между документами. Требуется уточнение.`},
+ confirmGround:{az:()=>"Çatışmayan göstərici müəyyən edildikdən sonra hüquqi əsas operator tərəfindən təsdiqlənməlidir.",
+  en:()=>"The legal ground must be confirmed by the operator once the missing parameter is established.",
+  ru:()=>"Правовое основание должно быть подтверждено оператором после установления недостающего параметра."}};
+const m=(k,...a)=>MSG[k][L](...a);
+
+const GROUND_ITEMS=[
+ {ref:"MQS",cls:"own",mqs:true,n:{az:"Dövlət reyestrindən çıxarış (MQS-dən alınır, Maddə 12.1)",en:"Extract from the state registry (retrieved from MQS, Article 12.1)",ru:"Выписка из государственного реестра (из MQS, статья 12.1)"}},
+ {ref:"2.1",cls:"own",max:"2006-07-06",n:{az:"Torpaq sahəsinə mülkiyyət, sahiblik, istifadə hüququna dair dövlət aktı",en:"State act on ownership, possession or use of a land plot",ru:"Государственный акт на право собственности, владения или пользования земельным участком"}},
+ {ref:"8.0.5",cls:"own",max:"2006-07-06",n:{az:"Hüquqları təsdiq edən akt, şəhadətnamə və ya qeydiyyat vəsiqəsi",en:"Act, certificate or registration certificate confirming rights",ru:"Акт, свидетельство или регистрационное удостоверение, подтверждающее права"}},
+ {ref:"1.1",cls:"lu",max:"2006-07-06",n:{az:"Yerli sovetlərin icraiyyə komitələrinin təsərrüfat şöbələrinin torpaq qeydləri",en:"Land record — economic department of a local soviet executive committee",ru:"Земельная запись хозяйственного отдела исполкома местного совета"}},
+ {ref:"1.4",cls:"lu",max:"2006-07-06",n:{az:"Torpaq sahələrinin ayrılması barədə qərarlar (deputat sovetləri)",en:"Decision on the allocation of a land plot (soviet of people's deputies)",ru:"Решение о выделении земельного участка (совет депутатов)"}},
+ {ref:"1.6",cls:"lu",min:"1948-08-26",n:{az:"Yaşayış evi tikintisi üçün torpaq sahəsinin verilməsi haqqında notariat müqaviləsi",en:"Notarised contract on allocation of a plot for dwelling construction",ru:"Нотариальный договор о предоставлении участка под строительство жилого дома"}},
+ {ref:"2.2",cls:"lu",min:"1991-11-09",max:"1995-12-19",n:{az:"Torpaq sahələrinin ayrılması barədə qərar (rayon, şəhər, qəsəbə, kənd sovetləri)",en:"Decision on the allocation of land plots (district/city/village soviet)",ru:"Решение о выделении земельных участков (районный, городской, сельский совет)"}},
+ {ref:"2.3",cls:"lu",max:"2001-01-01",n:{az:"Təsərrüfatbaşına kitablarından çıxarış",en:"Extract from a household registration book",ru:"Выписка из похозяйственной книги"}},
+ {ref:"2.4",cls:"lu",max:"2001-01-01",n:{az:"Texniki inventarlaşdırma orqanlarının tərtib etdiyi texniki pasport (torpaq sahəsinin ölçüsü göstərildikdə)",en:"Technical passport drawn up by the technical inventory bodies (where the plot size is indicated)",ru:"Технический паспорт органов техинвентаризации (при указании размера участка)"}},
+ {ref:"2.5",cls:"lu",n:{az:"Kolxoz üzvlərinin ümumi yığıncağının qərarı və ya qaytanlanmış torpaq kitablarından çıxarış",en:"Decision of the general meeting of collective-farm members, or extract from the bound land books",ru:"Решение общего собрания членов колхоза либо выписка из прошнурованных земельных книг"}},
+ {ref:"2.5-1",cls:"lu",n:{az:"Sovxoz və ya dövlət tabeliyindəki kənd təsərrüfatı müəssisəsi rəhbərinin əmri",en:"Order of the head of a state farm or other state-subordinate agricultural enterprise",ru:"Приказ руководителя совхоза или иного сельхозпредприятия государственного подчинения"}},
+ {ref:"2.7",cls:"lu",max:"2001-01-01",n:{az:"Yaşayış evi tikintisi üçün həyətyanı torpaq sahəsinin ayrılması barədə qərarlar",en:"Decision on allocation of an adjoining plot for dwelling construction",ru:"Решение о выделении приусадебного участка под строительство жилого дома"}},
+ {ref:"2.8",cls:"lu",max:"2006-07-06",n:{az:"Mənzillərin sökülərək yerində fərdi yaşayış evinin inşası barədə qərarlar",en:"Decision on demolition of apartments and construction of a dwelling",ru:"Решение о сносе квартир и строительстве индивидуального жилого дома"}},
+ {ref:"8.0.1",cls:"lu",n:{az:"Dövlətə və ya bələdiyyələrə məxsus əmlakın icarəyə və ya istifadəyə verilməsi barədə akt",en:"Act on lease or use of state- or municipally-owned immovable property",ru:"Акт о передаче в аренду или пользование государственного или муниципального имущества"}}];
+const GCLASS={"8.0.9.1.2":"own","8.0.9.1.1":"lu"};
+const DOC_DEFS={
+ design:{n:{az:"Razılaşdırılmış layihə (icra hakimiyyəti orqanı ilə)",en:"Approved design (agreed with the executive authority)",ru:"Согласованный проект (с органом исполнительной власти)"}},
+ accept:{n:{az:"İstismara qəbul aktı",en:"Acceptance-into-operation act",ru:"Акт приёмки в эксплуатацию"}},
+ permitDec:{n:{az:"Tikintiyə icazə verilməsi barədə qərar",en:"Decision granting construction permission",ru:"Решение о выдаче разрешения на строительство"}},
+ permit:{n:{az:"Tikintiyə icazə",en:"Construction permit",ru:"Разрешение на строительство"}},
+ archPlan:{n:{az:"Tikinti layihəsinin memarlıq-planlaşdırma bölməsi",en:"Architectural and planning section of the design",ru:"Архитектурно-планировочный раздел проекта"},
+  subs:[{k:"composition",n:{az:"Tərkib tam: planlar, kəsiklər, fasadlar, baş plan (ŞTM 80.1)",en:"Composition complete — plans, sections, elevations, site plan (UPCC 80.1)",ru:"Состав полный: планы, разрезы, фасады, генплан (ГСК 80.1)"}},
+        {k:"signatures",n:{az:"Hər səhifədə memar və direktorun imza və möhürü",en:"Signatures and seals of architect and director on every page",ru:"Подписи и печати архитектора и директора на каждой странице"}},
+        {k:"licence",n:{az:"Sənəddə layihə lisenziyasının nömrəsi göstərilib",en:"Design licence number stated on the document",ru:"На документе указан номер лицензии на проектирование"}}]},
+ opPermit:{n:{az:"İstismara icazə",en:"Permit for operation",ru:"Разрешение на эксплуатацию"}},
+ notif:{n:{az:"Məlumatlandırılan quruma göndərilən məlumat",en:"Notification sent to the notified authority",ru:"Уведомление, направленное уведомляемому органу"}}};
+const GL={az:"Torpaq üzərində hüququ təsdiq edən sənəd",en:"Document confirming the right over the land",ru:"Документ, подтверждающий право на земельный участок"};
+const dname=k=>k==="ground"?GL[L]:DOC_DEFS[k].n[L];
+
+const REQUIREMENTS={"8.0.9.1.1":[["ground"],["design","accept"]],"8.0.9.1.2":[["ground"]],
+ "8.0.9.2":[["ground"],["design"],["permitDec"],["accept"]],
+ "8.0.10.1":[["ground"],["permit"],["archPlan"],["opPermit"]],
+ "8.0.10.2":[["ground"],["archPlan"],["notif"]]};
+const RULES=[
+ {ref:"8.0.9.1.1",c:{date:"<=2012-12-31",height:"<=12",landRight:"lease,use"}},
+ {ref:"8.0.9.1.2",c:{date:"<=2012-12-31",height:"<=12",landRight:"ownership",purpose:"residential"}},
+ {ref:"8.0.9.2",c:{date:"<=2012-12-31",height:">12"}},
+ {ref:"8.0.10.2",c:{date:">=2013-01-01",storeys:"<=3",height:"<=12",span:"<=6",purpose:"residential"}},
+ {ref:"8.0.10.1",c:{date:">=2013-01-01"}}];
+const COLS=["date","storeys","height","span","landRight","purpose"];
+const colh=c=>({date:t("l_date"),storeys:t("l_storeys"),height:t("l_height"),span:t("l_span"),
+ landRight:t("l_landRight"),purpose:t("l_purpose")})[c];
+
+function evalCond(f,e,p){
+ const v=p[f];
+ if(v===null||v===undefined||v==="unknown")return null;
+ if(f==="date"){const op=e.slice(0,2),lim=e.slice(2);return op==="<="?v<=lim:v>=lim;}
+ if(f==="landRight"||f==="purpose")return e.split(",").includes(v);
+ const mm=e.match(/^(<=|>=|<|>)(.+)$/),n=parseFloat(mm[2]);
+ return mm[1]==="<="?v<=n:mm[1]===">="?v>=n:mm[1]==="<"?v<n:v>n;}
+
+function determineGround(p){
+ const ev=RULES.map(r=>{const res={};let ex=false,un=false;
+  for(const[f,e]of Object.entries(r.c)){const v=evalCond(f,e,p);res[f]=v;if(v===false)ex=true;if(v===null)un=true;}
+  return{ref:r.ref,res,excluded:ex,unknown:un,full:!ex&&!un};});
+ const open=ev.filter(e=>!e.excluded);
+ if(!open.length)return{status:"none",evaluated:ev,candidates:[],noneSpecific:isUncovered(p)};
+ const cs=[];for(const e of open){cs.push(e);if(e.full)break;}
+ if(cs.length===1&&cs[0].full)return{status:"determined",ground:cs[0].ref,evaluated:ev,candidates:cs};
+ return{status:"multiple",evaluated:ev,candidates:cs,
+  divergence:cs.flatMap(c=>Object.entries(c.res).filter(([,v])=>v===null).map(([f])=>f)).filter((v,i,a)=>a.indexOf(v)===i)};}
+const isUncovered=p=>!!(p.date&&p.date<="2012-12-31"&&p.height!==null&&p.height<=12&&p.landRight==="ownership"&&p.purpose==="other");
+
+function checkGroundDoc(p,refs){
+ if(!p.groundPresent)return{status:"absent"};
+ const it=GROUND_ITEMS.find(i=>i.ref===p.groundItem);
+ if(!it)return{status:"absent"};
+ const notes=[];let st="ok";
+ if(it.mqs)return{status:"ok",item:it,date:p.groundDate,notes:[],mqs:true};
+ if(it.max&&p.groundDate>=it.max){st="invalid";notes.push(m("dateMax",it.ref,fmt(it.max),fmt(p.groundDate)));}
+ if(it.min&&p.groundDate<it.min){st="invalid";notes.push(m("dateMin",it.ref,fmt(it.min),fmt(p.groundDate)));}
+ for(const r of (refs||[])){const need=GCLASS[r];
+  if(need&&it.cls!==need){st="invalid";notes.push(m("wrongClass",r,it.ref));}}
+ const needArch=/^[12]\./.test(it.ref);
+ let qrState=null;
+ if(needArch){
+  if(!p.gArchive){st="invalid";notes.push(m("noArchive",it.ref));}
+  else if(p.gQR==="failed"){st="invalid";notes.push(m("qrFailed"));}
+  else if(p.gQR==="absent"){qrState="operator";}
+ }
+ if(!p.gRequisites){st="invalid";notes.push(m("noRequisites",it.ref));}
+ if(!p.gAuthority){st="invalid";notes.push(m("noAuthority",it.ref));}
+ return{status:st,item:it,date:p.groundDate,notes,qrState,needArch};}
+const fmt=d=>{const[y,mo,dd]=d.split("-");return`${dd}.${mo}.${y}`;};
+const gdLabel=gd=>gd.mqs?t("t_ownerNote"):gd.item?`${gd.item.ref} — ${gd.item.n[L]} · ${fmt(gd.date)}`:"—";
+
+function verify(p){
+ const g=determineGround(p);
+ const refs0=g.status==="determined"?[g.ground]:g.status==="multiple"?g.candidates.map(c=>c.ref):[];
+ const gd=checkGroundDoc(p,refs0);
+ const art10=[
+  {ref:"10.2.1",name:{az:"Maddə 8 üzrə əsas",en:"Ground under Article 8",ru:"Основание по статье 8"},st:gd.status==="absent"?"absent":"present"},
+  {ref:"10.2.2",name:{az:"Torpaq sahəsinin planı və ölçüsü",en:"Plan and dimensions of the land plot",ru:"План и размеры земельного участка"},st:p.d1022},
+  {ref:"10.2.3",name:{az:"Eskiz layihə (texniki sənəd)",en:"Sketch design (technical document)",ru:"Эскизный проект (технический документ)"},st:p.d1023},
+  {ref:"10.2.4",name:{az:"Dövlət rüsumunun ödənilməsi",en:"Payment of the state duty",ru:"Уплата государственной пошлины"},st:p.d1024}];
+ const refs=refs0;
+ const perRef={};
+ for(const r of refs)perRef[r]=(REQUIREMENTS[r]||[]).map(grp=>{
+  const opts=grp.map(k=>k==="ground"?{key:"ground",ok:gd.status==="ok"}:{key:k,ok:!!(p.docs[k]&&p.docs[k].present)});
+  return{opts,satisfied:opts.some(o=>o.ok)};});
+ const defs=[];
+ for(const a of art10)if(a.st==="absent"&&a.ref!=="10.2.1")defs.push({t:m("artMissing",a.ref,a.name[L].toLowerCase()),s:a.ref});
+ if(gd.status==="absent")defs.push({t:m("groundMissing"),s:"10.2.1"});
+ if(gd.status==="invalid")gd.notes.forEach(n=>defs.push({t:n,s:`439 · ${gd.item.ref}`}));
+ for(const r of refs)for(const grp of perRef[r])if(!grp.satisfied){
+  const names=grp.opts.filter(o=>o.key!=="ground").map(o=>dname(o.key).toLowerCase());
+  if(names.length&&!(grp.opts.length===1&&grp.opts[0].key==="notif"))
+   defs.push({t:m("provMissing",r,names.join(" "+t("or_")+" ")),s:r});}
+ const ap=p.docs.archPlan||{present:false,subs:{}},apReq=refs.some(r=>(REQUIREMENTS[r]||[]).flat().includes("archPlan"));
+ if(ap&&ap.present&&apReq){
+  if(!ap.subs.composition)defs.push({t:m("archIncomplete"),s:"ŞTM/UPCC 80.1"});
+  if(!ap.subs.signatures)defs.push({t:m("archSign"),s:"—"});
+  if(!p.licenceValid)defs.push({t:m("licenceInvalid"),s:"Lisenziyalar portalı"});}
+ if(gd.qrState==="operator")ops.push(m("qrAbsent"));
+ const ops=[];
+ if(g.status==="multiple")ops.push(m("confirmGround"));
+ const notifReq=refs.includes("8.0.10.2");
+ let notifMode=null;
+ if(notifReq&&p.date){notifMode=p.date>="2025-06-01"?"api":"letter";}
+ const ad=Math.abs(p.aPass-p.aDes);
+ const cons=[{key:"f_name",ok:p.cName},{key:"f_addr",ok:p.cAddr},
+  {key:"f_land",ok:ad<0.05,val:`${p.aPass} m² / ${p.aDes} m²`,diff:ad.toFixed(1)}];
+ const notifDoc=!!(p.docs.notif&&p.docs.notif.present);
+ if(notifMode==="api"&&!notifDoc&&!p.notifRegistered)defs.push({t:m("notifApi"),s:"ŞTM 80.6"});
+ if(notifMode==="letter"&&!notifDoc)defs.push({t:m("notifLetter"),s:"8.0.10.2"});
+ if(!p.cName)defs.push({t:m("fieldDiff",t("f_name")),s:t("cross_check")});
+ if(!p.cAddr)defs.push({t:m("fieldDiff",t("f_addr")),s:t("cross_check")});
+ if(ad>=0.05)defs.push({t:m("landDiff",ad.toFixed(1)),s:t("cross_check")});
+ const decision=g.status==="none"?"ground_not_determined":defs.length===0?(ops.length?"recommend_with_checks":"recommend"):"return_for_correction";
+ return{params:p,ground:g,groundDoc:gd,art10,perRef,refs,deficiencies:defs,operatorChecks:ops,consistency:cons,decision};}
+
+const pill=st=>{const map={present:["p-ok","p_present"],ehis:["p-eh","p_ehis"],absent:["p-dg","p_absent"],mqs:["p-eh","p_mqs"],later:["p-wn","p_later"],
+ ok:["p-ok","p_ok"],invalid:["p-dg","p_invalid"]};const[c,k]=map[st]||["p-wn",st];
+ return`<span class="pill ${c}">${T[L][k]||st}</span>`;};
+
+const P_=(p,k)=>!!(p.docs&&p.docs[k]&&p.docs[k].present);
+const SRCOF=p=>({
+ coord: p.d1022==="present"||p.d1022==="mqs" ? "doc":"operator",
+ dims: (P_(p,"archPlan")||P_(p,"design")) ? "doc":"operator",
+ right: p.groundPresent ? "doc":"operator"});
+const srcLbl=(k,p)=>{const s=SRCOF(p);
+ if(k==="coord")return s.coord==="doc"?t("src_landplan"):t("cs_op");
+ if(k==="dims")return s.dims==="doc"?t("src_design"):t("cs_op");
+ return s.right==="doc"?t("src_title"):t("cs_op");};
+function render(R){
+ const p=R.params;
+ const D={recommend:["b-ok",t("d_recommend"),t("d_recommend_sub")],
+  recommend_with_checks:["b-wn",t("d_checks"),t("d_checks_sub")],
+  return_for_correction:["b-wn",t("d_return"),""],ground_not_determined:["b-dg",t("d_none"),""]}[R.decision];
+ let sub=D[2];
+ if(R.decision==="return_for_correction")sub=`${R.deficiencies.length} ${t("deficiency")}, ${R.operatorChecks.length} ${t("opcheck")}. `
+  +(R.ground.status==="determined"?`${t("ground_is")} ${R.ground.ground}.`:t("ground_open"));
+ if(R.decision==="ground_not_determined")sub=R.ground.noneSpecific?t("none_specific"):t("none_generic");
+ let h=`<div class="banner ${D[0]}"><b>${D[1]}</b>${sub}</div>`;
+
+ h+=`<div class="card"><div class="hd">${t("s1")}</div><div class="bd"><table>`
+  +`<tr><th style="width:28%">${t("c_param")}</th><th style="width:22%">${t("c_value")}</th><th>${t("c_source")}</th></tr>`;
+ const prm=[[t("l_date"),p.date?fmt(p.date):null,t("ds_"+(p.dateSrc||"ge"))],
+  [t("l_storeys"),p.storeys,srcLbl("dims",p)],
+  [t("l_height"),p.height!==null?p.height+" m":null,srcLbl("dims",p)],
+  [t("l_span"),p.span!==null?p.span+" m":null,srcLbl("dims",p)],
+  [t("l_landRight"),p.landRight==="unknown"?null:t(p.landRight),srcLbl("right",p)],
+  [t("l_purpose"),p.purpose==="unknown"?null:t(p.purpose),srcLbl("right",p)]];
+ for(const[k,v,s]of prm)h+=`<tr><td>${k}</td><td>${v===null||v===undefined?`<span class="pill p-dg">${t("p_notest")}</span>`:v}</td><td style="color:var(--muted)">${s}</td></tr>`;
+ h+=`</table></div></div>`;
+
+ const S=SRCOF(p);
+ h+=`<div class="card"><div class="hd">${t("s_date")}</div><div class="bd"><table>`
+  +((p.dateSrc||"ge")==="ge"
+    ?`<tr><td style="width:34%">${t("l_coord")}</td><td style="width:24%" class="mono">${p.coord||"—"}</td>`
+     +`<td style="color:var(--muted)">${S.coord==="doc"?t("src_landplan"):t("cs_op")}</td></tr>`
+     +`<tr><td>${t("l_epochs")}</td><td class="mono">${p.epochs||"—"}</td><td style="color:var(--muted)">Google Earth API</td></tr>`
+    :"")
+  +`<tr><td style="width:34%">${t("l_date")}</td><td style="width:24%">${p.date?fmt(p.date):`<span class="pill p-dg">${t("p_notest")}</span>`}</td>`
+  +`<td style="color:var(--muted)">${t("ds_"+(p.dateSrc||"ge"))}</td></tr></table>`
+  +`<div class="note">${(p.dateSrc||"ge")==="ge"?t("n_ge"):t("n_dsalt")}</div></div></div>`;
+ const need=[];
+ if(S.coord==="operator")need.push(t("need_coord"));
+ if(S.dims==="operator")need.push(t("need_dims"));
+ if(S.right==="operator")need.push(t("need_right"));
+ if(need.length)h+=`<div class="card"><div class="hd">${t("s_need")}</div><div class="bd">`
+  +`<div class="note" style="margin:0 0 8px">${t("n_need")}</div>`
+  +need.map((x,i)=>`<div class="def">${i+1}. ${x}</div>`).join("")+`</div></div>`;
+ h+=`<div class="card"><div class="hd">${t("s2")}</div><div class="bd"><table>`
+  +`<tr><th style="width:11%">${t("c_prov")}</th><th>${t("c_doc")}</th><th style="width:26%">${t("c_status")}</th></tr>`;
+ for(const a of R.art10)h+=`<tr><td class="mono">${a.ref}</td><td>${a.name[L]}</td><td>${pill(a.st)}</td></tr>`;
+ h+=`</table></div></div>`;
+
+ h+=`<div class="card"><div class="hd">${t("s3")}</div><div class="bd"><div class="path">${pathText(p)}</div>`;
+ if(R.ground.status==="determined")h+=`<div><b>${t("res_one")}: ${R.ground.ground}</b> — ${t("res_one2")}</div>`;
+ else if(R.ground.status==="multiple"){
+  h+=`<div><b>${t("res_one")}: ${R.ground.candidates.length} ${t("res_multi")}</b> — ${R.ground.candidates.map(c=>c.ref).join(" / ")}. `
+   +`${t("res_multi2")} ${R.ground.divergence.map(d=>colh(d).toLowerCase()).join(", ")}.</div>`+compareTable(R);
+ }else h+=`<div><b>${t("res_none")}</b> ${R.ground.noneSpecific?t("none_specific"):t("none_generic")}</div>`;
+ h+=`</div></div>`;
+
+ if(R.refs.length){
+  h+=`<div class="card"><div class="hd">${t("s4")}</div><div class="bd">`;
+  for(const r of R.refs){
+   if(R.refs.length>1)h+=`<div style="font-weight:600;margin:8px 0 5px">${t("under_")} ${r}</div>`;
+   h+=`<table>`;
+   for(const grp of R.perRef[r]){
+    const names=grp.opts.map(o=>dname(o.key)).join(` &nbsp;<i>${t("or_")}</i>&nbsp; `);
+    const isG=grp.opts.some(o=>o.key==="ground");
+    const st=grp.satisfied?(isG&&R.groundDoc.status==="invalid"?"invalid":"ok"):"absent";
+    h+=`<tr><td>${names}${isG?`<span style="display:block;color:var(--muted);font-size:11.5px;margin-top:2px">${gdLabel(R.groundDoc)}</span>`:""}</td><td style="width:26%">${pill(st)}</td></tr>`;}
+   h+=`</table>`;}
+  h+=`</div></div>`;}
+
+ h+=`<div class="card"><div class="hd">${t("s5")}</div><div class="bd"><table>`
+  +`<tr><th style="width:30%">${t("c_data")}</th><th>${t("c_cmp")}</th><th style="width:26%">${t("c_res")}</th></tr>`;
+ for(const c of R.consistency)h+=`<tr><td>${t(c.key)}</td><td>${c.val||(c.ok?t("v_same"):t("v_diff"))}</td>`
+  +`<td>${c.ok?`<span class="pill p-ok">${t("p_consistent")}</span>`:`<span class="pill p-wn">${c.diff?t("v_diffby")+" "+c.diff+" m²":t("v_diff")}</span>`}</td></tr>`;
+ h+=`</table></div></div>`;
+
+ h+=`<div class="card"><div class="hd">${t("s6")}</div><div class="bd">`;
+ if(!R.deficiencies.length&&!R.operatorChecks.length)h+=`<div style="color:var(--muted)">${t("def_none")}</div>`;
+ R.deficiencies.forEach((d,i)=>h+=`<div class="def">${i+1}. ${d.t}<span>${d.s}</span></div>`);
+ R.operatorChecks.forEach((o,i)=>h+=`<div class="def">${R.deficiencies.length+i+1}. ${o}<span>${t("op_check")}</span></div>`);
+ h+=`</div></div>`;
+ document.getElementById("report").innerHTML=h;
+ renderContract(R);
+ renderRules(R);}
+
+function pathText(p){
+ const a=[];
+ a.push(p.date===null?t("pth_nodate"):(p.date<="2012-12-31"?t("pth_pre"):t("pth_post")));
+ if(p.storeys!==null)a.push(`${t("pth_st")} ${p.storeys}`);
+ a.push(p.height===null?t("pth_noh"):`${t("pth_h")} ${p.height} m`);
+ if(p.span!==null)a.push(`${t("pth_sp")} ${p.span} m`);
+ if(p.landRight!=="unknown")a.push(`${t("pth_lr")} ${t(p.landRight)}`);
+ if(p.purpose!=="unknown")a.push(`${t("pth_pu")} ${t(p.purpose)}`);
+ return a.join(" · ");}
+
+function compareTable(R){
+ const all=[...new Set(R.refs.flatMap(r=>(REQUIREMENTS[r]||[]).map(g=>g.join("|"))))];
+ let h=`<table style="margin-top:10px"><tr><th>${t("c_doc")}</th>${R.refs.map(r=>`<th>${r}</th>`).join("")}</tr>`;
+ for(const key of all){
+  h+=`<tr><td>${key.split("|").map(dname).join(` ${t("or_")} `)}</td>`;
+  for(const r of R.refs){
+   const grp=(R.perRef[r]||[]).find(g=>g.opts.map(o=>o.key).join("|")===key);
+   h+=`<td>${!grp?`<span class="dash">${t("p_notreq")}</span>`:grp.satisfied?`<span class="pill p-ok">${t("p_req_present")}</span>`:`<span class="pill p-dg">${t("p_req_absent")}</span>`}</td>`;}
+  h+=`</tr>`;}
+ return h+`</table>`;}
+
+function renderRules(R){
+ const cand=R?(R.ground.status==="determined"?[R.ground.ground]:R.ground.candidates.map(c=>c.ref)):[];
+ let h=`<div class="card"><div class="hd">${t("dt_title")}</div><div class="bd"><table>`
+  +`<tr><th>#</th>${COLS.map(c=>`<th>${colh(c)}</th>`).join("")}<th>${t("c_prov")}</th></tr>`;
+ RULES.forEach((r,i)=>{
+  h+=`<tr class="${cand.includes(r.ref)?"hit":""}"><td class="mono">${i+1}</td>`;
+  for(const c of COLS){let e=r.c[c];
+   if(e&&(c==="landRight"||c==="purpose"))e=e.split(",").map(x=>t(x)).join(", ");
+   h+=`<td class="mono">${e?e:`<span class="dash">—</span>`}</td>`;}
+  h+=`<td class="mono"><b>${r.ref}</b></td></tr>`;});
+ h+=`</table><div class="note">${t("dt_note")}</div></div></div>`;
+ h+=`<div class="card"><div class="hd">${t("dr_title")}</div><div class="bd"><table>`
+  +`<tr><th style="width:16%">${t("c_prov")}</th><th>${t("c_doc")}</th></tr>`;
+ for(const[r,gs]of Object.entries(REQUIREMENTS))
+  h+=`<tr class="${cand.includes(r)?"hit":""}"><td class="mono"><b>${r}</b></td><td>`
+   +gs.map(g=>g.map(dname).join(` <i>${t("or_")}</i> `)).join("<br>")+`</td></tr>`;
+ h+=`</table><div class="note">${t("dr_note")}</div></div></div>`;
+ h+=`<div class="card"><div class="hd">${t("dc_title")}</div><div class="bd"><table>`
+  +`<tr><th style="width:10%">${t("c_prov")}</th><th>${t("c_doc")}</th><th style="width:24%">${t("c_constraint")}</th></tr>`;
+ for(const i of GROUND_ITEMS)h+=`<tr><td class="mono">${i.ref}</td><td>${i.n[L]}</td><td class="mono">${
+  i.min&&i.max?fmt(i.min)+" – "+fmt(i.max):i.max?t("before_")+" "+fmt(i.max):i.min?t("after_")+" "+fmt(i.min):`<span class="dash">—</span>`}</td></tr>`;
+ h+=`</table></div></div>`;
+ document.getElementById("rules").innerHTML=h;}
+
+const summary=R=>({decision:R.decision,
+ legalGround:R.ground.status==="determined"?R.ground.ground:null,
+ candidateGrounds:R.ground.status==="multiple"?R.ground.candidates.map(c=>c.ref):[],
+ deficiencies:R.deficiencies.map(d=>d.t),operatorChecks:R.operatorChecks});
+
+const BASE={date:"2014-06-01",storeys:2,height:7.4,span:4.2,landRight:"ownership",purpose:"residential",
+ d1022:"ehis",d1023:"present",d1024:"ehis",groundItem:"MQS",groundDate:"1995-05-12",groundPresent:true,
+ gAuthority:true,gRequisites:true,gArchive:true,gQR:"ok",licenceValid:true,notifRegistered:false,
+ coord:"393455.94, 4488046.50",epochs:"2011, 2015",dateSrc:"ge",cName:true,cAddr:true,aPass:250,aDes:250,
+ docs:{design:{present:false,subs:{}},accept:{present:false,subs:{}},permitDec:{present:false,subs:{}},
+  permit:{present:false,subs:{}},archPlan:{present:false,subs:{composition:true,signatures:true,licence:true}},
+  opPermit:{present:false,subs:{}},notif:{present:false,subs:{}}}};
+const mk=o=>{const p=JSON.parse(JSON.stringify(BASE));Object.assign(p,o);
+ if(o.docs)for(const k in o.docs)p.docs[k]=Object.assign(JSON.parse(JSON.stringify(BASE.docs[k])),o.docs[k]);return p;};
+const D=(...ks)=>{const d={};ks.forEach(k=>d[k]={present:true});return d;};
+
+const FIXTURES=[
+ {n:{az:"2013-dən sonra · məlumatlandırma icraatı · tam paket",en:"Post-2013 · notification procedure · complete",ru:"После 2013 · уведомительное производство · полный пакет"},p:mk({docs:D("archPlan","notif")}),e:{ground:"8.0.10.2",decision:"recommend"}},
+ {n:{az:"2013-dən sonra · məlumatlandırma sənədi yoxdur",en:"Post-2013 · notification missing",ru:"После 2013 · уведомление отсутствует"},p:mk({docs:D("archPlan")}),e:{ground:"8.0.10.2",decision:"return_for_correction"}},
+ {n:{az:"2013-dən sonra · hündürlük müəyyən edilməyib",en:"Post-2013 · height not established",ru:"После 2013 · высота не установлена"},p:mk({height:null,docs:D("archPlan")}),e:{ground:null,decision:"return_for_correction"}},
+ {n:{az:"2013-dən sonra · 4 mərtəbə → icazə tələb olunur",en:"Post-2013 · 4 storeys → permit required",ru:"После 2013 · 4 этажа → требуется разрешение"},p:mk({storeys:4,docs:D("permit","archPlan","opPermit")}),e:{ground:"8.0.10.1",decision:"recommend"}},
+ {n:{az:"2013-dən sonra · hündürlük 15 m → icazə tələb olunur",en:"Post-2013 · height 15 m → permit required",ru:"После 2013 · высота 15 м → требуется разрешение"},p:mk({height:15,docs:D("permit","archPlan","opPermit")}),e:{ground:"8.0.10.1",decision:"recommend"}},
+ {n:{az:"2013-dən sonra · aşırım 8 m → icazə tələb olunur",en:"Post-2013 · span 8 m → permit required",ru:"После 2013 · пролёт 8 м → требуется разрешение"},p:mk({span:8,docs:D("permit","archPlan","opPermit")}),e:{ground:"8.0.10.1",decision:"recommend"}},
+ {n:{az:"2013-dən sonra · icazə rejimi, sənədlər çatışmır",en:"Post-2013 · permit-required case, documents missing",ru:"После 2013 · разрешительный режим, документов не хватает"},p:mk({storeys:4,docs:D("archPlan")}),e:{ground:"8.0.10.1",decision:"return_for_correction"}},
+ {n:{az:"2013-dək · icarə · 2.7 bənd, 1995 tarixli · qəbul aktı",en:"Pre-2013 · lease · item 2.7 dated 1995 · acceptance act",ru:"До 2013 · аренда · пункт 2.7 от 1995 · акт приёмки"},p:mk({date:"2010-05-01",height:8,landRight:"lease",groundItem:"2.7",docs:D("accept")}),e:{ground:"8.0.9.1.1",decision:"recommend"}},
+ {n:{az:"2013-dək · icarə · 2.7 bənd, 2003 tarixli → tarix həddi aşılıb",en:"Pre-2013 · lease · item 2.7 dated 2003 → outside its date limit",ru:"До 2013 · аренда · пункт 2.7 от 2003 → вне срока действия"},p:mk({date:"2010-05-01",height:8,landRight:"lease",groundItem:"2.7",groundDate:"2003-04-10",docs:D("accept")}),e:{ground:"8.0.9.1.1",decision:"return_for_correction"}},
+ {n:{az:"2013-dək · icarə · qəbul aktı əvəzinə layihə (VƏ YA)",en:"Pre-2013 · lease · approved design instead of acceptance act (OR)",ru:"До 2013 · аренда · проект вместо акта приёмки (ИЛИ)"},p:mk({date:"2010-05-01",height:8,landRight:"lease",groundItem:"2.7",docs:D("design")}),e:{ground:"8.0.9.1.1",decision:"recommend"}},
+ {n:{az:"2013-dək · icarə · nə layihə, nə qəbul aktı",en:"Pre-2013 · lease · neither design nor acceptance act",ru:"До 2013 · аренда · ни проекта, ни акта приёмки"},p:mk({date:"2010-05-01",height:8,landRight:"lease",groundItem:"2.7",docs:{}}),e:{ground:"8.0.9.1.1",decision:"return_for_correction"}},
+ {n:{az:"2013-dək · mülkiyyət · yaşayış təyinatı · tək sənəd",en:"Pre-2013 · ownership · residential purpose · single document",ru:"До 2013 · собственность · жилищное назначение · один документ"},p:mk({date:"2010-05-01",height:8,docs:{}}),e:{ground:"8.0.9.1.2",decision:"recommend"}},
+ {n:{az:"2013-dək · mülkiyyət · təyinat uyğun deyil → bənd tapılmır",en:"Pre-2013 · ownership · non-residential purpose → no provision applies",ru:"До 2013 · собственность · иное назначение → пункт не найден"},p:mk({date:"2010-05-01",height:8,purpose:"other",docs:{}}),e:{ground:null,decision:"ground_not_determined"}},
+ {n:{az:"2013-dək · hündürlük 12 m-dən çox",en:"Pre-2013 · height above 12 m",ru:"До 2013 · высота более 12 м"},p:mk({date:"2010-05-01",height:15,docs:D("design","permitDec","accept")}),e:{ground:"8.0.9.2",decision:"recommend"}},
+ {n:{az:"Sərhəd · 31.12.2012 → Məcəllədən əvvəlki rejim",en:"Boundary · 31.12.2012 → pre-Code regime",ru:"Граница · 31.12.2012 → режим до Кодекса"},p:mk({date:"2012-12-31",height:8,docs:{}}),e:{ground:"8.0.9.1.2",decision:"recommend"}},
+ {n:{az:"Sərhəd · 01.01.2013 → Məcəllədən sonrakı rejim",en:"Boundary · 01.01.2013 → post-Code regime",ru:"Граница · 01.01.2013 → режим после Кодекса"},p:mk({date:"2013-01-01",docs:D("archPlan","notif")}),e:{ground:"8.0.10.2",decision:"recommend"}},
+ {n:{az:"Tikinti tarixi müəyyən edilməyib",en:"Date of construction not established",ru:"Дата постройки не установлена"},p:mk({date:null,docs:D("archPlan","notif")}),e:{ground:null,decision:"return_for_correction"}},
+ {n:{az:"06.2025-dən sonra tikinti · məlumatlandırma inteqrasiya üzrə təsdiqləndi",en:"Built after 06.2025 · notification confirmed through the integration",ru:"Построено после 06.2025 · уведомление подтверждено через интеграцию"},p:mk({date:"2025-08-15",notifRegistered:true,docs:D("archPlan")}),e:{ground:"8.0.10.2",decision:"recommend"}},
+ {n:{az:"06.2025-dən sonra tikinti · məlumatlandırma qeydə alınmayıb",en:"Built after 06.2025 · no notification registered",ru:"Построено после 06.2025 · уведомление не зарегистрировано"},p:mk({date:"2025-08-15",notifRegistered:false,docs:D("archPlan")}),e:{ground:"8.0.10.2",decision:"return_for_correction"}},
+ {n:{az:"8.0.9.1.2 · sənəd növü uyğun deyil (icarə sənədi mülkiyyət halında)",en:"8.0.9.1.2 · wrong document class (lease document for an ownership case)",ru:"8.0.9.1.2 · неверный тип документа (документ аренды для случая собственности)"},p:mk({date:"2010-05-01",height:8,groundItem:"2.7",groundDate:"1995-05-12",docs:{}}),e:{ground:"8.0.9.1.2",decision:"return_for_correction"}},
+ {n:{az:"Layihə lisenziyası qüvvədə deyil (portal üzrə yoxlama)",en:"Design licence not valid (portal check)",ru:"Лицензия на проектирование недействительна (проверка через портал)"},p:mk({licenceValid:false,docs:D("archPlan","notif")}),e:{ground:"8.0.10.2",decision:"return_for_correction"}},
+ {n:{az:"Fərman 439 sənədi · Milli Arxiv Fondunda əsası yoxdur",en:"Decree 439 document · no basis in the National Archive Fund",ru:"Документ по Указу 439 · нет основания в Национальном архивном фонде"},p:mk({date:"2010-05-01",height:8,landRight:"lease",groundItem:"2.7",gArchive:false,docs:D("accept")}),e:{ground:"8.0.9.1.1",decision:"return_for_correction"}},
+ {n:{az:"Tikili sahəsi pasport və layihədə fərqlənir",en:"Building area differs between passport and design",ru:"Площадь здания различается в паспорте и проекте"},p:mk({aPass:148.6,aDes:152.0,docs:D("archPlan","notif")}),e:{ground:"8.0.10.2",decision:"return_for_correction"}}];
+
+function runTests(){
+ let pass=0;
+ let h=`<div class="card"><div class="hd">${t("ts_title")} — ${FIXTURES.length} ${t("ts_cases")}</div><div class="bd"><table>`
+  +`<tr><th style="width:40%">${t("c_case")}</th><th>${t("c_expg")}</th><th>${t("c_actg")}</th><th>${t("c_expd")}</th><th>${t("c_actd")}</th><th>${t("c_result")}</th></tr>`;
+ for(const f of FIXTURES){
+  const R=verify(f.p),ag=R.ground.status==="determined"?R.ground.ground:null;
+  const ok=ag===f.e.ground&&R.decision===f.e.decision;if(ok)pass++;
+  h+=`<tr><td>${f.n[L]}</td><td class="mono">${f.e.ground||"—"}</td><td class="mono">${ag||"—"}</td>`
+   +`<td class="mono">${f.e.decision}</td><td class="mono">${R.decision}</td><td class="${ok?"pass":"fail"}">${ok?"PASS":"FAIL"}</td></tr>`;}
+ h+=`</table><div class="note">${t("ts_note")}</div></div></div>`;
+ document.getElementById("tests").innerHTML=
+  `<div class="banner ${pass===FIXTURES.length?"b-ok":"b-dg"}"><b>${pass} / ${FIXTURES.length} ${t("ts_pass")}</b>${t("ts_self")}</div>`+h;}
+
+
+const SOURCES=[
+ {e:{az:"Koordinat",en:"Coordinates",ru:"Координаты"},
+  s:{az:"Təqdim edilmiş sənəddə koordinat varsa — həmin sənəddən",en:"From a submitted document, where it states coordinates",ru:"Из представленного документа, если в нём указаны координаты"},
+  f:{az:"Operator ərizəçidən aldığı məlumatla özü daxil edir",en:"The operator enters them from information obtained from the applicant",ru:"Оператор вводит их по сведениям, полученным от заявителя"},i:null},
+ {e:{az:"Tikinti tarixi",en:"Date of construction",ru:"Дата постройки"},
+  s:{az:"Google Earth API — koordinat üzrə tarixi peyk təsvirləri; 01.01.2013-dən əvvəl/sonra müəyyən edilir",en:"Google Earth API — historical satellite imagery at the coordinates; establishes before/after 01.01.2013",ru:"Google Earth API — исторические спутниковые снимки по координатам; определяет до/после 01.01.2013"},
+  f:{az:"Nəticə operator təsdiqi tələb edir; peyk təsviri hüquqi sənəd deyil",en:"The result requires operator confirmation; satellite imagery is not a legal document",ru:"Результат требует подтверждения оператора; снимок не является правовым документом"},i:"Google Earth API"},
+ {e:{az:"Yerüstü mərtəbə sayı",en:"Storeys above ground",ru:"Надземных этажей"},
+  s:{az:"Təqdim edilmiş layihədən",en:"From the submitted design",ru:"Из представленного проекта"},
+  f:{az:"Layihə təqdim edilmədikdə (8.0.9.1.2) operator daxil edir",en:"Where no design is submitted (8.0.9.1.2), the operator enters it",ru:"Если проект не представлен (8.0.9.1.2), вводит оператор"},i:null},
+ {e:{az:"Hündürlük",en:"Height",ru:"Высота"},
+  s:{az:"Təqdim edilmiş layihənin kəsik bölməsindən (ŞTM 80.1)",en:"From the section drawings of the submitted design (UPCC 80.1)",ru:"Из разрезов представленного проекта (ГСК 80.1)"},
+  f:{az:"Layihə təqdim edilmədikdə (8.0.9.1.2) operator daxil edir",en:"Where no design is submitted (8.0.9.1.2), the operator enters it",ru:"Если проект не представлен (8.0.9.1.2), вводит оператор"},i:null},
+ {e:{az:"Aşırım uzunluğu",en:"Span length",ru:"Длина пролёта"},
+  s:{az:"Təqdim edilmiş layihədən",en:"From the submitted design",ru:"Из представленного проекта"},
+  f:{az:"Layihə təqdim edilmədikdə (8.0.9.1.2) operator daxil edir",en:"Where no design is submitted (8.0.9.1.2), the operator enters it",ru:"Если проект не представлен (8.0.9.1.2), вводит оператор"},i:null},
+ {e:{az:"Torpağın məqsədli təyinatı",en:"Designated purpose of the land",ru:"Целевое назначение участка"},
+  s:{az:"Hüquqmüəyyənedici sənəddən — çıxarışın «Torpaq sahəsinin kateqoriyası» xanası. Eskiz layihədən götürülmür",en:"From the title document — the «land plot category» field of the extract. Not taken from the sketch design",ru:"Из правоустанавливающего документа — поле «категория земельного участка» выписки. Не берётся из эскизного проекта"},
+  f:{az:"Qeydiyyat vəsiqəsi, şəhadətnamə və ya dövlət aktının müvafiq xanası",en:"The corresponding field of a registration certificate, certificate or state act",ru:"Соответствующее поле регистрационного удостоверения, свидетельства или госакта"},i:"MQS"},
+ {e:{az:"Torpaq üzərində hüququn növü",en:"Type of right over the land",ru:"Вид права на участок"},
+  s:{az:"Hüquqmüəyyənedici sənədin növündən. Mülkiyyət: çıxarış, dövlət aktı, 8.0.5 sənədləri. İcarə/istifadə: qalan sənədlər",en:"From the type of title document. Ownership: extract, state act, 8.0.5 documents. Lease/use: the remaining documents",ru:"По типу правоустанавливающего документа. Собственность: выписка, госакт, документы 8.0.5. Аренда/пользование: остальные"},
+  f:{az:"8.0.9.2, 8.0.10.1 və 8.0.10.2 üçün hər iki qrup qəbul edilir",en:"For 8.0.9.2, 8.0.10.1 and 8.0.10.2 both groups are accepted",ru:"Для 8.0.9.2, 8.0.10.1 и 8.0.10.2 принимаются обе группы"},i:"MQS"},
+ {e:{az:"10.2.2 Torpaq sahəsinin planı və ölçüsü",en:"10.2.2 Plan and dimensions of the land plot",ru:"10.2.2 План и размеры земельного участка"},
+  s:{az:"MQS-dən alınır",en:"Retrieved from MQS",ru:"Получается из MQS"},
+  f:{az:"MQS-də yoxdursa təqdim edilmiş sənədlərdən; orada da yoxdursa «mövcud deyil» qeyd olunur",en:"If absent from MQS, from the submitted documents; if absent there too, recorded as unavailable",ru:"Если нет в MQS — из представленных документов; если и там нет — отмечается как отсутствующий"},i:"MQS"},
+ {e:{az:"10.2.3 Eskiz layihə",en:"10.2.3 Sketch design",ru:"10.2.3 Эскизный проект"},
+  s:{az:"Təqdim edilmiş sənədlərdən. Fərdi yaşayış evi üçün texniki sənəd məhz eskiz layihədir",en:"From the submitted documents. For an individual residential house the technical document is the sketch design",ru:"Из представленных документов. Для индивидуального жилого дома техническим документом является эскизный проект"},f:null,i:null},
+ {e:{az:"10.2.4 Dövlət rüsumu",en:"10.2.4 State duty",ru:"10.2.4 Государственная пошлина"},
+  s:{az:"İlkin müraciət zamanı mövcud olmur. Müraciət operator tərəfindən təsdiqləndikdən sonra ödənilir",en:"Not present at the initial application. Payable once the operator has approved the application",ru:"На момент первичного обращения отсутствует. Оплачивается после подтверждения обращения оператором"},
+  f:{az:"Bu mərhələdə çatışmazlıq sayılmır",en:"Not counted as a deficiency at this stage",ru:"На этом этапе не считается недостатком"},i:{az:"Ödəniş portalı",en:"Payment portal",ru:"Платёжный портал"}},
+ {e:{az:"Məlumatlandırma (8.0.10.2)",en:"Notification (8.0.10.2)",ru:"Уведомление (8.0.10.2)"},
+  s:{az:"Tikinti 06.2025-dən sonra aparılıbsa — Şəhərsalma və Arxitektura Komitəsinin informasiya sistemi ilə inteqrasiya üzrə yoxlanılır",en:"Where construction is after 06.2025 — verified through integration with the information system of the Committee for Urban Planning and Architecture",ru:"Если строительство после 06.2025 — проверяется через интеграцию с информационной системой Комитета по градостроительству и архитектуре"},
+  f:{az:"06.2025-dən əvvəl aparılıbsa — quruma göndərilmiş məktub tələb olunur",en:"Where construction predates 06.2025 — the letter sent to the authority is required",ru:"Если до 06.2025 — требуется письмо, направленное в орган"},i:{az:"Şəhərsalma və Arxitektura Komitəsi",en:"Committee for Urban Planning and Architecture",ru:"Комитет по градостроительству и архитектуре"}},
+ {e:{az:"Layihə lisenziyası",en:"Design licence",ru:"Лицензия на проектирование"},
+  s:{az:"Lisenziyalar və İcazələr Portalı — INPUT: VÖEN, OUTPUT: lisenziya qüvvədədir bəli/xeyr",en:"Licences and Permits Portal — INPUT: taxpayer ID, OUTPUT: licence valid yes/no",ru:"Портал лицензий и разрешений — INPUT: ИНН, OUTPUT: лицензия действительна да/нет"},f:null,
+  i:{az:"İqtisadiyyat Nazirliyi",en:"Ministry of Economy",ru:"Министерство экономики"}},
+ {e:{az:"Arxiv arayışının həqiqiliyi",en:"Authenticity of an archive reference",ru:"Подлинность архивной справки"},
+  s:{az:"QR kodlu arayışlar təqdim edildikdə həqiqilik QR kod vasitəsilə yoxlanılır",en:"Where a QR-coded reference is submitted, authenticity is verified via the QR code",ru:"Если справка с QR-кодом, подлинность проверяется по QR-коду"},f:null,i:null},
+ {e:{az:"Arxiv əsası (Fərman 439)",en:"Archive basis (Decree 439)",ru:"Архивное основание (Указ 439)"},
+  s:{az:"Milli Arxiv Fondunda ilkin qeydin mövcudluğu — Fərman 439, 7-ci hissə",en:"Existence of the original record in the National Archive Fund — Decree 439, point 7",ru:"Наличие первичной записи в Национальном архивном фонде — Указ 439, часть 7"},f:null,
+  i:{az:"Milli Arxiv İdarəsi",en:"National Archive Administration",ru:"Национальное архивное управление"}},
+ {e:{az:"Şəxsiyyət sənədi",en:"Identity document",ru:"Документ, удостоверяющий личность"},
+  s:{az:"DİN (İAMAS) → MQS, EHİS üzərindən",en:"Ministry of Internal Affairs (IAMAS) → MQS, via EHİS",ru:"МВД (IAMAS) → MQS, через EHİS"},f:null,i:"OK"},
+ {e:{az:"Etibarnamə",en:"Power of attorney",ru:"Доверенность"},
+  s:{az:"Elektron Notariat Sistemi → MQS",en:"Electronic Notary System → MQS",ru:"Электронная нотариальная система → MQS"},f:null,i:"OK"}
+];
+
+const INDICATORS=[
+ {n:{az:"Sənəd növünün təsnifatı — Maddə 8 / Fərman 439 siyahısındakı kateqoriya",en:"Document type classification — the Article 8 / Decree 439 category",ru:"Классификация типа документа — категория по статье 8 / Указу 439"},a:{az:"Bütün sənədlər",en:"All documents",ru:"Все документы"}},
+ {n:{az:"Verən orqanın uyğunluğu — orqan həmin sənəd növü üçün səlahiyyətli olmalıdır",en:"Issuing authority match — the issuer must be competent for that document type",ru:"Соответствие выдавшего органа — орган должен быть компетентен"},a:{az:"Bütün sənədlər",en:"All documents",ru:"Все документы"}},
+ {n:{az:"Tarix pəncərəsi — sənədin tarixi etibarlılıq pəncərəsinə düşməlidir",en:"Date window — the document date must fall within the validity window",ru:"Временное окно — дата документа должна попадать в окно действительности"},a:{az:"Tarix məhdudiyyətli sənədlər",en:"Date-constrained documents",ru:"Документы с ограничением по дате"}},
+ {n:{az:"Torpaq sahəsinin ölçüsünün göstərilməsi",en:"Indication of land plot size",ru:"Указание площади земельного участка"},a:"2.4; 2.8; 1.8"},
+ {n:{az:"Rekvizitlərin tamlığı — imza, möhür, nömrə, tarix, obyektin təsviri",en:"Completeness of requisites — signature, seal, number, date, description of the object",ru:"Полнота реквизитов — подпись, печать, номер, дата, описание объекта"},a:{az:"Bütün sənədlər",en:"All documents",ru:"Все документы"}},
+ {n:{az:"Arxiv əsası — Milli Arxiv Fondunda ilkin qeydin mövcudluğu",en:"Archive basis — existence of the original record in the National Archive Fund",ru:"Архивное основание — наличие первичной записи в Национальном архивном фонде"},a:{az:"Fərman 439 sənədləri",en:"Decree 439 documents",ru:"Документы по Указу 439"}},
+ {n:{az:"Mühafizə zonası istisnası — əmlak mühafizə zonalarında yerləşməməlidir",en:"Protection zone exclusion — the property must not lie in a protection zone",ru:"Исключение охранной зоны — объект не должен находиться в охранной зоне"},a:{az:"Fərman 439 sənədləri",en:"Decree 439 documents",ru:"Документы по Указу 439"}},
+ {n:{az:"Skript və dil — SSRİ dövrü sənədləri kiril əlifbasında və rus dilində ola bilər",en:"Script and language — Soviet-era documents may be in Cyrillic and in Russian",ru:"Графика и язык — документы советского периода могут быть на кириллице и по-русски"},a:{az:"Bölmə 1 sənədləri",en:"Section 1 documents",ru:"Документы раздела 1"}},
+ {n:{az:"Sənəd dəstinin tamlığı — bəzi əsaslar bir neçə sənədin birlikdə təqdimini tələb edir",en:"Package completeness — some grounds require several documents together",ru:"Полнота комплекта — некоторые основания требуют нескольких документов"},a:"8.0.9 – 8.0.10-2; 2.8"}
+];
+
+function buildContract(){
+ return {meta:{title:"Acceptance fixtures — document compliance verification",
+   scope:"Individual residential house",
+   basis:"Article 8 of the Law on the State Registry of Immovable Property (713-IIQ); Presidential Decree No. 439; Urban Planning and Construction Code, Articles 79-80",
+   version:"1.2",generated:new Date().toISOString().slice(0,10),
+   note:"An implementation is correct when, for every case below, it returns the same legalGround and the same decision. Deficiency wording may differ; the set of deficiencies must be equivalent."},
+  decisionTable:{hitPolicy:"FIRST",columns:COLS,rules:RULES},
+  documentRequirements:REQUIREMENTS,
+  landRightDocuments:GROUND_ITEMS.map(i=>({ref:i.ref,class:i.cls,fromMqs:!!i.mqs,min:i.min||null,max:i.max||null,name:i.n.en})),
+  documentFields:DOCFIELDS.map(d=>({id:d.id,name:d.n.en,appliesTo:d.refs,source:d.src||"uploaded",fields:d.f.map(f=>f.en)})),
+  parameterSources:{coordinates:"Plan and dimensions of the land plot (10.2.2); if absent — entered by the operator",
+   dateOfConstruction:"Google Earth API, using the coordinates; operator confirmation required",
+   storeysHeightSpan:"Sketch design; if absent — entered by the operator",
+   landRightAndPurpose:"Title document; if absent — entered by the operator"},
+  cases:FIXTURES.map((f,i)=>({id:"TC-"+String(i+1).padStart(2,"0"),name:f.n.en,input:f.p,
+   expected:summary(verify(f.p))}))};}
+
+function renderContract(R){
+ const c=buildContract();
+ let h=`<div class="card"><div class="hd">${t("jc_cur")}</div><div class="bd"><pre>`
+  +JSON.stringify(summary(R),null,2)+`</pre></div></div>`;
+ h+=`<div class="card"><div class="hd">${t("jc_title")} — ${c.cases.length} ${t("ts_cases")}</div><div class="bd">`
+  +`<p style="margin:0 0 10px;font-size:13px">${t("jc_note")}</p>`
+  +`<button onclick="downloadContract()">${t("jc_btn")}</button>`
+  +`<pre style="margin-top:12px;max-height:460px;overflow:auto">`+JSON.stringify(c,null,2)+`</pre></div></div>`;
+ document.getElementById("json").innerHTML=h;}
+
+function downloadContract(){
+ const blob=new Blob([JSON.stringify(buildContract(),null,2)],{type:"application/json;charset=utf-8"});
+ const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+ a.download="acceptance_fixtures.json";a.click();URL.revokeObjectURL(a.href);}
+
+function renderSources(){
+ const tx=v=>typeof v==="string"?v:(v?v[L]:null);
+ let h=`<div class="card"><div class="hd">${t("src_title")}</div><div class="bd"><table>`
+  +`<tr><th style="width:20%">${t("src_c1")}</th><th style="width:33%">${t("src_c2")}</th><th style="width:30%">${t("src_c3")}</th><th>${t("src_c4")}</th></tr>`;
+ for(const r of SOURCES){
+  const ig=r.i==="OK"?`<span class="pill p-ok">${t("exists")}</span>`
+    :r.i?`<span class="pill p-wn">${tx(r.i)}</span>`:`<span class="dash">${t("na")}</span>`;
+  h+=`<tr><td><b>${r.e[L]}</b></td><td>${r.s[L]}</td><td>${r.f?r.f[L]:`<span class="dash">${t("na")}</span>`}</td><td>${ig}</td></tr>`;}
+ h+=`</table><div class="note">${t("src_note")}</div></div></div>`;
+ h+=`<div class="card"><div class="hd">${t("ind_title")}</div><div class="bd"><table>`
+  +`<tr><th style="width:6%">${t("ind_c1")}</th><th>${t("ind_c2")}</th><th style="width:26%">${t("ind_c3")}</th></tr>`;
+ INDICATORS.forEach((x,i)=>{h+=`<tr><td class="mono">${i+1}</td><td>${x.n[L]}</td><td>${tx(x.a)}</td></tr>`;});
+ h+=`</table></div></div>`;
+ document.getElementById("src").innerHTML=h;}
+
+
+/* ============ DOCUMENT FIELD CONTRACT (OCR extraction) ============ */
+const F=(az,en,ru)=>({az,en,ru});
+const DOCFIELDS=[
+ {id:"extract",refs:["8.0.9.1.2","8.0.9.2","8.0.10.1","8.0.10.2"],src:"MQS",
+  n:F("Dövlət reyestrindən çıxarış","Extract from the state registry","Выписка из государственного реестра"),
+  f:[F("Hüququ rəsmiləşdirilən şəxs","Person whose right is formalised","Лицо, чьё право оформлено"),
+     F("Daşınmaz əmlakın növü","Type of immovable property","Вид недвижимого имущества"),
+     F("Ünvan və köhnə ünvan","Address and former address","Адрес и прежний адрес"),
+     F("Torpaq sahəsinin mülkiyyət növü","Ownership type of the land plot","Вид собственности на участок"),
+     F("Torpaq sahəsi üzərində hüququn növü","Type of right over the land plot","Вид права на участок"),
+     F("Torpaq sahəsinin kateqoriyası","Category of the land plot","Категория земельного участка"),
+     F("Torpaq sahəsinin ölçüsü (ha)","Size of the land plot (ha)","Размер участка (га)"),
+     F("Reyestr nömrəsi","Registry number","Реестровый номер"),
+     F("Hüquq sahibləri: ad, pay, qeydiyyat nömrəsi və tarixi","Rightholders: name, share, registration number and date","Правообладатели: имя, доля, номер и дата регистрации"),
+     F("QR kod","QR code","QR-код")]},
+ {id:"landplan",refs:["10.2.2"],src:"MQS",
+  n:F("Torpaq sahəsinin planı və ölçüsü","Plan and dimensions of the land plot","План и размеры земельного участка"),
+  f:[F("Torpaq sahəsinin ünvanı","Address of the land plot","Адрес земельного участка"),
+     F("Hüquq sahibi","Rightholder","Правообладатель"),
+     F("Kateqoriyası (məqsədli təyinatı)","Category (designated purpose)","Категория (целевое назначение)"),
+     F("Mülkiyyət növü və hüququn növü","Ownership type and type of right","Вид собственности и вид права"),
+     F("Reyestr nömrəsi","Registry number","Реестровый номер"),
+     F("Sənəd üzrə sahə (ha) və faktiki sahə (ha)","Area per the document (ha) and actual area (ha)","Площадь по документу (га) и фактическая (га)"),
+     F("Servitutlar","Easements","Сервитуты"),
+     F("Əsas döngə nöqtələrinin koordinatları (X, Y) və aralarındakı məsafələr","Coordinates of the principal turning points (X, Y) and distances between them","Координаты основных поворотных точек (X, Y) и расстояния между ними"),
+     F("Plan və ölçünün tərtibinə əsas","Basis for drawing up the plan","Основание составления плана"),
+     F("Tərtib edilmə tarixi və miqyas","Date of preparation and scale","Дата составления и масштаб"),
+     F("Verən ərazi idarəsi, QR kod","Issuing territorial office, QR code","Выдавшее территориальное управление, QR-код")]},
+ {id:"sketch",refs:["10.2.3","8.0.10.1","8.0.10.2"],src:null,
+  n:F("Eskiz layihə (memarlıq-planlaşdırma bölməsi)","Sketch design (architectural and planning section)","Эскизный проект (архитектурно-планировочный раздел)"),
+  f:[F("Layihə təşkilatının adı və VÖEN","Name and taxpayer ID of the design organisation","Наименование и ИНН проектной организации"),
+     F("Direktor və layihənin baş memarı","Director and chief architect of the design","Директор и главный архитектор проекта"),
+     F("Sifarişçi","Client","Заказчик"),
+     F("Obyektin ünvanı və adı","Address and name of the object","Адрес и наименование объекта"),
+     F("Cizgilər cədvəli və vərəq sayı","Drawing schedule and number of sheets","Ведомость чертежей и количество листов"),
+     F("Tərkib: mövqe planı, baş plan, mərtəbə planları, damın planı, kəsim, fasadlar","Composition: location plan, site plan, floor plans, roof plan, section, elevations","Состав: ситуационный план, генплан, поэтажные планы, план кровли, разрез, фасады"),
+     F("Texniki-iqtisadi göstəricilər: tikinti sahəsi, ümumi sahə, tikinti həcmi","Technical and economic indicators: built-up area, total area, building volume","Технико-экономические показатели: площадь застройки, общая площадь, строительный объём"),
+     F("Mərtəbə sayı (mərtəbə planlarının sayına görə)","Number of storeys (from the count of floor plans)","Количество этажей (по числу поэтажных планов)"),
+     F("±0.000 səviyyəsinin tərifi (1-ci mərtəbənin döşəmə səviyyəsi)","Definition of the ±0.000 datum (floor level of the first storey)","Определение отметки ±0.000 (уровень пола первого этажа)"),
+     F("Kəsimdəki hündürlük nişanları — hündürlük ±0.000-dan sonuncu mərtəbənin örtüyünün alt hissəsinədək (ŞTM 80.1)","Height marks on the section — height from ±0.000 to the underside of the top storey covering (UPCC 80.1)","Отметки высот на разрезе — высота от ±0.000 до низа перекрытия верхнего этажа (ГСК 80.1)"),
+     F("Texniki-iqtisadi göstəricilər cədvəlində «Binanın hündürlüyü» və «Mərtəbənin sayı» sətirləri","The rows «height of the building» and «number of storeys» in the table of technical and economic indicators","Строки «высота здания» и «количество этажей» в таблице технико-экономических показателей"),
+     F("Aşırım ölçüləri — mərtəbə planlarındakı ox aralıqları (hesablama qaydası aşağıda)","Span dimensions — the axis spacings on the floor plans (calculation rule below)","Размеры пролётов — шаги осей на поэтажных планах (правило расчёта ниже)"),
+     F("Miqyas","Scale","Масштаб"),
+     F("Hər səhifədə memarın və direktorun imzası və möhür","Signature of the architect and the director and the seal on every page","Подпись архитектора и директора и печать на каждой странице")]},
+ {id:"licence",refs:["8.0.10.1","8.0.10.2"],src:"licportal",
+  n:F("Layihə lisenziyası","Design licence","Лицензия на проектирование"),
+  f:[F("Lisenziyanın qeydiyyat nömrəsi və tarixi","Registration number and date of the licence","Регистрационный номер и дата лицензии"),
+     F("Verən orqan","Issuing authority","Выдавший орган"),
+     F("Fəaliyyət növü","Type of activity","Вид деятельности"),
+     F("Lisenziya verilən şəxs: ad, ünvan, VÖEN","Licensee: name, address, taxpayer ID","Лицензиат: наименование, адрес, ИНН"),
+     F("İmzalayan vəzifəli şəxs","Signing official","Подписавшее должностное лицо")]},
+ {id:"acceptAct",refs:["8.0.9.1.1","8.0.9.2"],src:null,
+  n:F("İstismara qəbul aktı","Acceptance-into-operation act","Акт приёмки в эксплуатацию"),
+  f:[F("Aktı təsdiq edən orqan, qərarın/sərəncamın nömrəsi və tarixi","Authority approving the act, number and date of the decision","Орган, утвердивший акт, номер и дата решения"),
+     F("Obyektin ünvanı və adı","Address and name of the object","Адрес и наименование объекта"),
+     F("Sifarişçi (hüquqi və ya fiziki şəxs)","Client (legal or natural person)","Заказчик (юридическое или физическое лицо)"),
+     F("Qəbul komissiyasının sədri və üzvləri","Chair and members of the acceptance commission","Председатель и члены приёмочной комиссии"),
+     F("Podratçının nümayəndəsi","Representative of the contractor","Представитель подрядчика"),
+     F("Tarix, imzalar, möhür","Date, signatures, seal","Дата, подписи, печать")]},
+ {id:"notification",refs:["8.0.10.2"],src:"urban",
+  n:F("Məlumatlandırma — İcra Hakimiyyətinə müraciət","Notification — application to the Executive Authority","Уведомление — обращение в Исполнительную власть"),
+  f:[F("Ünvanlanan orqan (şəhər/rayon İcra Hakimiyyəti)","Addressee authority (city/district Executive Authority)","Орган-адресат (городская/районная Исполнительная власть)"),
+     F("Ərizəçinin adı","Name of the applicant","Имя заявителя"),
+     F("Obyektin ünvanı","Address of the object","Адрес объекта"),
+     F("Torpaq sahəsinin ölçüsü","Size of the land plot","Размер земельного участка"),
+     F("Tikilinin növü (fərdi yaşayış evi)","Type of building (individual residential house)","Тип строения (индивидуальный жилой дом)"),
+     F("İmza və tarix","Signature and date","Подпись и дата")]},
+ {id:"permit",refs:["8.0.10.1"],src:"urban",
+  n:F("Tikintiyə icazə","Construction permit","Разрешение на строительство"),
+  f:[F("İcazənin nömrəsi və tarixi","Number and date of the permit","Номер и дата разрешения"),
+     F("Verən orqan","Issuing authority","Выдавший орган"),
+     F("Obyektin ünvanı","Address of the object","Адрес объекта"),
+     F("Sifarişçi","Client","Заказчик")]},
+ {id:"opPermit",refs:["8.0.10.1"],src:"urban",
+  n:F("İstismara icazə","Permit for operation","Разрешение на эксплуатацию"),
+  f:[F("İcazənin nömrəsi və tarixi","Number and date of the permit","Номер и дата разрешения"),
+     F("Verən orqan","Issuing authority","Выдавший орган"),
+     F("Obyektin ünvanı və parametrləri","Address and parameters of the object","Адрес и параметры объекта")]},
+ {id:"permitDec",refs:["8.0.9.2"],src:null,
+  n:F("Tikintiyə icazə barədə qərar","Decision granting construction permission","Решение о выдаче разрешения на строительство"),
+  f:[F("Qərarın nömrəsi və tarixi","Number and date of the decision","Номер и дата решения"),
+     F("Qərarı qəbul edən orqan","Authority adopting the decision","Орган, принявший решение"),
+     F("Obyektin ünvanı","Address of the object","Адрес объекта"),
+     F("İmza və möhür","Signature and seal","Подпись и печать")]},
+ {id:"archiveCert",refs:["8.0.9.1.1","8.0.9.1.2"],src:null,
+  n:F("Milli Arxiv İdarəsinin arayışı (Fərman 439, 7-ci hissə)","Certificate of the National Archive Administration (Decree 439, point 7)","Справка Национального архивного управления (Указ 439, часть 7)"),
+  f:[F("Arayışı verən arxiv (mərkəzi idarə, filial və ya rayon dövlət arxivi)","The archive issuing the certificate (central administration, branch or district state archive)","Архив, выдавший справку (центральное управление, филиал или районный государственный архив)"),
+     F("Arayışın nömrəsi və tarixi","Number and date of the certificate","Номер и дата справки"),
+     F("İstinad edilən sənəd və onun rekvizitləri","The document referred to and its requisites","Документ, на который дана ссылка, и его реквизиты"),
+     F("Arxiv fondu, siyahı, iş, vərəq","Archive fond, inventory, file, sheet","Архивный фонд, опись, дело, лист"),
+     F("İmza, möhür","Signature, seal","Подпись, печать"),
+     F("QR kod — arayışın həqiqiliyinin yoxlanması üçün","QR code — used to verify the authenticity of the certificate","QR-код — для проверки подлинности справки")]},
+ {id:"decree439",refs:["8.0.9.1.1"],src:null,
+  n:F("Fərman 439 üzrə sənəd (torpaq qeydi, qərar, arxiv çıxarışı)","Decree 439 document (land record, decision, archive extract)","Документ по Указу 439 (земельная запись, решение, архивная выписка)"),
+  f:[F("Sənədin nömrəsi və tarixi","Number and date of the document","Номер и дата документа"),
+     F("Verən orqan (səlahiyyət yoxlanılır)","Issuing authority (competence is checked)","Выдавший орган (проверяется компетенция)"),
+     F("Şəxsin soyadı, adı, atasının adı","Surname, name and patronymic of the person","Фамилия, имя, отчество лица"),
+     F("Obyektin ünvanı","Address of the object","Адрес объекта"),
+     F("Torpaq sahəsinin ölçüsü","Size of the land plot","Размер земельного участка"),
+     F("Fərman 439 üzrə bənd nömrəsi (təsnifat)","Item number under Decree 439 (classification)","Номер пункта по Указу 439 (классификация)"),
+     F("Arxiv fondu, siyahı, iş, vərəq","Archive fond, inventory, file, sheet","Архивный фонд, опись, дело, лист"),
+     F("İmza, möhür","Signature, seal","Подпись, печать")]}
+];
+const SRCLABEL={MQS:"MQS",licportal:{az:"Lisenziyalar Portalı",en:"Licences Portal",ru:"Портал лицензий"},
+ urban:{az:"Şəhərsalma Komitəsi",en:"Urban Planning Committee",ru:"Комитет по градостроительству"},
+ archive:{az:"Milli Arxiv",en:"National Archive",ru:"Национальный архив"}};
+
+const CALC=[
+ {t:{az:"Aşırım uzunluğunun hesablanması",en:"Calculating the span length",ru:"Расчёт длины пролёта"},
+  d:{az:"Aşırım — yanaşı yükdaşıyan konstruksiyaların mərkəzi oxları arasındakı məsafədir (ŞTM 3.0.48). Bu, nə otağın ölçüsü, nə də binanın ümumi enidir.",
+     en:"A span is the distance between the centre axes of adjacent load-bearing structures (UPCC 3.0.48). It is neither the size of a room nor the overall width of the building.",
+     ru:"Пролёт — расстояние между центральными осями соседних несущих конструкций (ГСК 3.0.48). Это не размер комнаты и не общая ширина здания."},
+  st:{az:["Mərtəbə planında ox nişanlarını tapmaq — dairəyə alınmış rəqəmlər (1, 2, 3) və hərflər (A, B, C, D, E)",
+          "Oxlarla eyni xətdə duran ölçü zəncirini oxumaq. Ümumi ölçü zənciri götürülmür",
+          "Qonşu iki ox arasındakı hər bir məsafə bir aşırımdır",
+          "Hər iki istiqamətdə ən böyük aşırımı seçmək",
+          "Ən böyük aşırımı 6 metrlə müqayisə etmək"],
+      en:["Find the axis marks on the floor plan — the circled numerals (1, 2, 3) and letters (A, B, C, D, E)",
+          "Read the dimension chain that lies on the same line as the axes. The overall dimension chain is not used",
+          "Each distance between two adjacent axes is one span",
+          "Take the largest span in each direction",
+          "Compare the largest span with 6 metres"],
+      ru:["Найти осевые обозначения на поэтажном плане — цифры (1, 2, 3) и буквы (A, B, C, D, E) в кружках",
+          "Считать размерную цепочку, расположенную на одной линии с осями. Общая размерная цепочка не используется",
+          "Каждое расстояние между двумя соседними осями — один пролёт",
+          "Взять наибольший пролёт по каждому направлению",
+          "Сравнить наибольший пролёт с 6 метрами"]},
+  w:{az:"Otağın ölçüsü ilə hesablamaq olmaz: bir otaq bir neçə oxu keçə bilər. Nümunədə studio zal A oxundan C oxuna qədər uzanır — 2400 + 5200 = 7600 mm, halbuki arada B oxu var və faktiki aşırım 5200 mm-dir. Binanın ümumi eni ilə hesablamaq da olmaz — o, həmişə 6 metri aşır və heç bir fərdi yaşayış evi 8.0.10.2-yə düşməz.",
+     en:"The size of a room must not be used: one room may cross several axes. In the example the studio hall runs from axis A to axis C — 2400 + 5200 = 7600 mm, yet axis B lies between them and the actual span is 5200 mm. The overall width of the building must not be used either — it always exceeds 6 metres, so no individual house would ever fall under 8.0.10.2.",
+     ru:"Нельзя использовать размер комнаты: одна комната может пересекать несколько осей. В примере студия идёт от оси A до оси C — 2400 + 5200 = 7600 мм, но между ними находится ось B, и фактический пролёт составляет 5200 мм. Нельзя использовать и общую ширину здания — она всегда превышает 6 метров, и тогда ни один индивидуальный жилой дом не попал бы под 8.0.10.2."}},
+ {t:{az:"Ölçü vahidinin müəyyən edilməsi",en:"Determining the unit of measurement",ru:"Определение единицы измерения"},
+  d:{az:"Rəqəmlərin sayına görə vahid təyin etmək etibarsızdır. Nümunə layihədə ümumi məlumatlar vərəqində «Ölçülər sm-ilə verilib» yazılıb, lakin rəqəmlər millimetrdir.",
+     en:"Inferring the unit from the number of digits is unreliable. In the sample design the general information sheet states that dimensions are given in centimetres, yet the figures are in millimetres.",
+     ru:"Определять единицу по количеству знаков ненадёжно. В образце проекта на листе общих данных указано, что размеры даны в сантиметрах, однако цифры приведены в миллиметрах."},
+  st:{az:["Texniki-iqtisadi göstəricilər cədvəlindən tikinti sahəsini götürmək",
+          "Ox zəncirlərinin ümumi ölçülərini bir-birinə vurmaq",
+          "Nəticəni göstərilən tikinti sahəsi ilə tutuşdurmaq və uyğun gələn vahidi seçmək"],
+      en:["Take the built-up area from the table of technical and economic indicators",
+          "Multiply the overall dimensions of the axis chains by one another",
+          "Compare the result with the stated built-up area and select the unit that matches"],
+      ru:["Взять площадь застройки из таблицы технико-экономических показателей",
+          "Перемножить общие размеры осевых цепочек",
+          "Сравнить результат с указанной площадью застройки и выбрать подходящую единицу"]},
+  w:{az:"Nümunədə ox zəncirləri 14400 × 9200, tikinti sahəsi isə 130,2 m² göstərilib. Millimetr kimi oxunduqda 14,4 × 9,2 = 132,5 m² — uyğundur. Santimetr kimi oxunduqda 144 × 92 = 13 248 m² — mümkünsüzdür.",
+     en:"In the example the axis chains are 14400 × 9200 and the built-up area is stated as 130.2 m². Read as millimetres, 14.4 × 9.2 = 132.5 m² — consistent. Read as centimetres, 144 × 92 = 13,248 m² — impossible.",
+     ru:"В примере осевые цепочки составляют 14400 × 9200, а площадь застройки указана как 130,2 м². При чтении в миллиметрах 14,4 × 9,2 = 132,5 м² — согласуется. При чтении в сантиметрах 144 × 92 = 13 248 м² — невозможно."}},
+ {t:{az:"Hündürlüyün ölçülməsi",en:"Measuring the height",ru:"Измерение высоты"},
+  d:{az:"ŞTM 80.1: binanın hündürlüyü «0» səviyyəsindən, yəni birinci yerüstü mərtəbənin döşəməsinin üst hissəsindən, sonuncu mərtəbənin örtüyünün alt hissəsinədək (çardaqaltı döşəmənin alt hissəsi) ölçülür. Hər iki nöqtə kəsimdəki nişanlarla verilir.",
+     en:"UPCC 80.1: the height of a building is measured from the «0» level, that is the top of the floor of the first above-ground storey, to the underside of the covering of the top storey (the underside of the attic floor). Both points are given as marks on the section drawing.",
+     ru:"ГСК 80.1: высота здания измеряется от отметки «0», то есть от верха пола первого надземного этажа, до низа перекрытия верхнего этажа (низ чердачного перекрытия). Обе точки заданы отметками на разрезе."},
+  st:{az:["Aşağı nöqtə: kəsimdəki ±0.00 nişanı. Zirzəmi və ya kürsülük nişanı (məsələn −0.60) götürülmür",
+          "Yuxarı nöqtə: sonuncu mərtəbənin örtüyünün ALT hissəsi. Kəsimdə örtük iki nişanla verilir — alt və üst. Aşağıdakı rəqəm götürülür",
+          "Nümunədə sonuncu mərtəbədə +6.20 (örtüyün altı) və +6.40 (örtüyün üstü) durur. Götürülən +6.20-dir",
+          "Hündürlük = yuxarı nöqtə − aşağı nöqtə. Nümunədə 6.20 − 0.00 = 6,20 m",
+          "Nəticəni texniki-iqtisadi göstəricilər cədvəlindəki «Binanın hündürlüyü» sətri ilə tutuşdurmaq",
+          "Mərtəbə sayını mərtəbə planlarının sayı ilə yoxlamaq"],
+      en:["Lower point: the ±0.00 mark on the section. A basement or plinth mark (for example −0.60) is not used",
+          "Upper point: the UNDERSIDE of the covering of the top storey. On the section the covering is given by two marks — underside and top. The lower figure is taken",
+          "In the example the top storey carries +6.20 (underside of the covering) and +6.40 (top of the covering). The figure taken is +6.20",
+          "Height = upper point − lower point. In the example 6.20 − 0.00 = 6.20 m",
+          "Compare the result with the row «height of the building» in the table of technical and economic indicators",
+          "Verify the number of storeys against the number of floor plans"],
+      ru:["Нижняя точка: отметка ±0.00 на разрезе. Отметка подвала или цоколя (например −0.60) не используется",
+          "Верхняя точка: НИЗ перекрытия верхнего этажа. На разрезе перекрытие задано двумя отметками — низ и верх. Берётся меньшая",
+          "В примере на верхнем этаже стоят +6.20 (низ перекрытия) и +6.40 (верх перекрытия). Берётся +6.20",
+          "Высота = верхняя точка − нижняя точка. В примере 6,20 − 0,00 = 6,20 м",
+          "Сравнить результат со строкой «высота здания» в таблице технико-экономических показателей",
+          "Проверить количество этажей по числу поэтажных планов"]},
+  w:{az:"Üç nişan səhvən götürülə bilər. Damın təpə nişanı (nümunədə +9.00) hündürlüyə daxil deyil — çardaqaltı döşəmədən yuxarıdadır. Kürsülük nişanı (−0.60) də götürülmür, çünki ölçmə «0» səviyyəsindən başlayır. Cədvəldəki «Xarici divarların hündürlüyü» sətri isə ayrı göstəricidir: nümunədə 6,80 m-dir və −0.60-dan +6.20-yə qədər olan məsafəni əks etdirir, yəni yeraltı hissəni də əhatə edir. ŞTM 80.1 üçün yalnız «Binanın hündürlüyü» sətri keçərlidir.",
+     en:"Three marks may be taken by mistake. The ridge mark (+9.00 in the example) is not part of the height — it lies above the attic floor. The plinth mark (−0.60) is not used either, because the measurement starts at the «0» level. The row «height of the external walls» in the table is a different indicator: in the example it is 6.80 m and reflects the distance from −0.60 to +6.20, that is it includes the below-ground part. Only the row «height of the building» is valid for UPCC 80.1.",
+     ru:"Три отметки могут быть взяты по ошибке. Отметка конька (в примере +9.00) в высоту не входит — она выше чердачного перекрытия. Отметка цоколя (−0.60) также не используется, поскольку измерение начинается от уровня «0». Строка «высота наружных стен» в таблице — отдельный показатель: в примере она равна 6,80 м и отражает расстояние от −0.60 до +6.20, то есть включает подземную часть. Для ГСК 80.1 действительна только строка «высота здания»."}}
+];
+
+function renderCalc(){
+ let h=`<div class="card"><div class="hd">${t("calc_title")}</div><div class="bd">`
+  +`<div class="note" style="margin:0 0 12px">${t("calc_note")}</div>`;
+ CALC.forEach((c,i)=>{
+  h+=`<div style="border-top:0.5px solid var(--border);padding-top:12px;margin-top:12px">`
+   +`<div style="font-weight:600;font-size:13px;margin-bottom:5px">${i+1}. ${c.t[L]}</div>`
+   +`<div style="font-size:13px;margin-bottom:8px">${c.d[L]}</div>`
+   +`<table style="margin-bottom:8px">`
+   +c.st[L].map((x,j)=>`<tr><td class="mono" style="width:6%">${j+1}</td><td>${x}</td></tr>`).join("")
+   +`</table>`
+   +`<div style="background:var(--bg-warning);color:#633806;border-radius:var(--radius);padding:9px 11px;font-size:12.5px">${c.w[L]}</div>`
+   +`</div>`;});
+ return h+`</div></div>`;}
+
+function renderDocs(){
+ const tx=v=>typeof v==="string"?v:(v?v[L]:null);
+ let h=`<div class="card"><div class="hd">${t("dfx_title")}</div><div class="bd"><table>`
+  +`<tr><th style="width:22%">${t("c_doc")}</th><th style="width:16%">${t("dfx_refs")}</th>`
+  +`<th>${t("dfx_fields")}</th><th style="width:14%">${t("c_src2")}</th></tr>`;
+ for(const d of DOCFIELDS){
+  h+=`<tr><td><b>${d.n[L]}</b></td><td class="mono">${d.refs.join("<br>")}</td><td>`
+   +d.f.map(x=>"• "+x[L]).join("<br>")+`</td><td>`
+   +(d.src?`<span class="pill p-eh">${tx(SRCLABEL[d.src])}</span>`:`<span class="dash">${t("dfx_upload")}</span>`)
+   +`</td></tr>`;}
+ h+=`</table><div class="note">${t("dfx_note")}</div></div></div>`;
+ h+=renderCalc();
+ h+=`<div class="card"><div class="hd">${t("exp_title")}</div><div class="bd">`
+  +`<p style="margin:0 0 10px;font-size:13px">${t("exp_note")}</p>`
+  +`<button onclick="exportTemplate()">${t("exp_btn")}</button></div></div>`;
+ document.getElementById("docs_tab").innerHTML=h;}
+
+const XL={
+ hdr:{az:["№ / Qaydanın sırası (hit policy: FIRST)","Prosedurun adı","Əsas / tələbin mənbəyi","Tələb olunan sənəd dəsti","Oxunmalı sahələr","Şərtə təsir edən göstərici","Dəyər / şərt","Qeyd","Operatorun yoxlamalı olduqları","Tövsiyə / sonrakı addım"],
+   en:["No. / Rule order (hit policy: FIRST)","Procedure name","Ground / source of the requirement","Required document set","Fields to extract","Parameter affecting the condition","Value / condition","Note","What the operator must check","Recommendation / further action"],
+   ru:["№ / Порядок правила (hit policy: FIRST)","Название процедуры","Основание / источник требования","Обязательный комплект документов","Обязательные поля","Параметр / (влияющий на условие)","Значение / условие","Примечание","Что необходимо проверить оператору","Рекомендация / дальнейшее действие"]},
+ proc:{az:"Fərdi yaşayış evinin ilkin dövlət qeydiyyatı",en:"Initial state registration of an individual residential house",ru:"Первичная государственная регистрация индивидуального жилого дома"},
+ art:{az:r=>"713-IIQ Qanununun "+r+" maddəsi",en:r=>"Article "+r+" of Law 713-IIQ",ru:r=>"Статья "+r+" Закона 713-IIQ"},
+ param:{az:"Tikinti tarixi / Mərtəbə sayı / Hündürlük / Aşırım / Torpaq üzərində hüququn növü / Torpağın məqsədli təyinatı",
+   en:"Date of construction / Storeys / Height / Span / Type of right over the land / Designated purpose of the land",
+   ru:"Дата постройки / Этажность / Высота / Пролёт / Вид права на участок / Целевое назначение участка"},
+ or:{az:"VƏ YA",en:"OR",ru:"ИЛИ"},
+ cond:{
+  "8.0.9.1.1":{az:"Tikinti ≤ 31.12.2012; hündürlük ≤ 12 m; torpaq icarədə və ya istifadədə",en:"Built ≤ 31.12.2012; height ≤ 12 m; land held under lease or use",ru:"Дата постройки ≤ 31.12.2012; высота ≤ 12 м; участок в аренде или пользовании"},
+  "8.0.9.1.2":{az:"Tikinti ≤ 31.12.2012; hündürlük ≤ 12 m; torpaq xüsusi mülkiyyətdə; təyinatı — yaşayış evi tikintisi",en:"Built ≤ 31.12.2012; height ≤ 12 m; land in private ownership; designated for residential construction",ru:"Дата постройки ≤ 31.12.2012; высота ≤ 12 м; участок в частной собственности; назначение — жилищное строительство"},
+  "8.0.9.2":{az:"Tikinti ≤ 31.12.2012; hündürlük > 12 m",en:"Built ≤ 31.12.2012; height > 12 m",ru:"Дата постройки ≤ 31.12.2012; высота > 12 м"},
+  "8.0.10.1":{az:"Tikinti ≥ 01.01.2013; tikintiyə icazə tələb olunur (ŞTM 80.1-in dörd şərtindən ən azı biri ödənmir)",en:"Built ≥ 01.01.2013; a construction permit is required (at least one of the four conditions of UPCC 80.1 is not met)",ru:"Дата постройки ≥ 01.01.2013; требуется разрешение на строительство (не выполнено хотя бы одно из четырёх условий ГСК 80.1)"},
+  "8.0.10.2":{az:"Tikinti ≥ 01.01.2013; mərtəbə ≤ 3; hündürlük ≤ 12 m; aşırım ≤ 6 m; torpaq təyinatı üzrə istifadə olunur",en:"Built ≥ 01.01.2013; storeys ≤ 3; height ≤ 12 m; span ≤ 6 m; land used for its designated purpose",ru:"Дата постройки ≥ 01.01.2013; этажей ≤ 3; высота ≤ 12 м; пролёт ≤ 6 м; участок используется по назначению"}},
+ fallback:{az:"Qalıq qayda — 8.0.10.2-nin dörd şərti tam ödənmədikdə tətbiq olunur",en:"Fallback rule — applies where the four conditions of 8.0.10.2 are not all met",ru:"Резервное правило — применяется, если не выполнены все четыре условия 8.0.10.2"},
+ act:{az:"Sənəd olmadıqda və ya uyğun gəlmədikdə hesabatda konkret qanun bəndinə istinadla qeyd edilir; müraciət təkmilləşdirməyə qaytarılır",
+   en:"Where a document is absent or non-compliant, a note citing the specific legal provision is made in the report; the application is returned for correction",
+   ru:"При отсутствии или несоответствии — отметка в отчёте со ссылкой на конкретный пункт закона; заявка возвращается на доработку"},
+ chk:{
+  extract:{az:"Çıxarışın həqiqiliyi MQS vasitəsilə təsdiqlənir; torpaq sahəsinin kateqoriyası və hüququn növü tutuşdurulur",en:"Authenticity of the extract is confirmed through MQS; the land category and the type of right are cross-checked",ru:"Подлинность выписки подтверждается через MQS; сверяются категория участка и вид права"},
+  landplan:{az:"Sənəd üzrə və faktiki sahə tutuşdurulur; döngə nöqtələrinin koordinatları peyk təsviri sorğusu üçün götürülür",en:"Area per the document and the actual area are cross-checked; the turning-point coordinates are taken for the satellite imagery request",ru:"Сверяются площадь по документу и фактическая; координаты поворотных точек берутся для запроса к спутниковым снимкам"},
+  sketch:{az:"Tərkib yoxlanılır (planlar, kəsiklər, fasadlar, baş plan), hər səhifədə imza və möhür; hündürlük kəsimdən ölçülür",en:"Composition is checked (plans, sections, elevations, site plan), signature and seal on every page; height is measured from the section",ru:"Проверяется состав (планы, разрезы, фасады, генплан), подписи и печати на каждом листе; высота снимается с разреза"},
+  licence:{az:"Lisenziyanın qüvvədə olması Lisenziyalar Portalı ilə yoxlanılır (giriş: VÖEN, çıxış: bəli/xeyr)",en:"Validity of the licence is checked through the Licences Portal (input: taxpayer ID, output: yes/no)",ru:"Действительность лицензии проверяется через Портал лицензий (вход: ИНН, выход: да/нет)"},
+  acceptAct:{az:"Komissiyanın imzaları, möhür və tarix yoxlanılır; obyektin ünvanı tutuşdurulur",en:"Signatures of the commission, the seal and the date are checked; the object address is cross-checked",ru:"Проверяются подписи комиссии, печать и дата; сверяется адрес объекта"},
+  notification:{az:"Tikinti 06.2025-dən sonradırsa — Şəhərsalma Komitəsi ilə inteqrasiya üzrə yoxlanılır; əvvəldirsə — İcra Hakimiyyətinə müraciət tələb olunur",en:"Where construction is after 06.2025 — verified through the integration with the Urban Planning Committee; where earlier — the application to the Executive Authority is required",ru:"Постройка после 06.2025 — проверка через интеграцию с Комитетом по градостроительству; до 06.2025 — требуется обращение в Исполнительную власть"},
+  permit:{az:"Nömrə, tarix və verən orqan tutuşdurulur",en:"Number, date and issuing authority are cross-checked",ru:"Сверяются номер, дата и выдавший орган"},
+  opPermit:{az:"Nömrə, tarix və obyektin parametrləri tutuşdurulur",en:"Number, date and object parameters are cross-checked",ru:"Сверяются номер, дата и параметры объекта"},
+  permitDec:{az:"İmza, möhür, nömrə və tarix yoxlanılır",en:"Signature, seal, number and date are checked",ru:"Проверяются подпись, печать, номер и дата"},
+  decree439:{az:"Verən orqanın səlahiyyəti, tarixin etibarlılıq pəncərəsinə düşməsi, Milli Arxiv Fondunda əsasın mövcudluğu və rekvizitlərin tamlığı yoxlanılır",en:"Competence of the issuing authority, the date falling within the validity window, existence of the basis in the National Archive Fund and completeness of the requisites are checked",ru:"Проверяются компетенция выдавшего органа, попадание даты в окно действительности, наличие основания в Национальном архивном фонде и полнота реквизитов"}},
+ pkgRow:{az:["","","Ümumi paket (Maddə 10.2)","Torpaq sahəsinin planı və ölçüsü — MQS-dən; eskiz layihə; Maddə 8 üzrə sənəd","","",
+   "Dövlət rüsumu ilkin müraciətdə mövcud olmur — operator təsdiqindən sonra ödənilir. Ərizəni MQS formalaşdırır. Şəxsiyyət sənədi və etibarnamə inteqrasiya ilə alınır (DİN, Elektron Notariat Sistemi)",
+   "Planın MQS-də olması yoxlanılır; olmadıqda təqdim edilmiş sənədlərdən axtarılır; orada da yoxdursa «mövcud deyil» qeyd edilir"],
+  en:["","","General package (Article 10.2)","Plan and dimensions of the land plot — from MQS; sketch design; document under Article 8","","",
+   "The state duty is not present at the initial application — it is paid after the operator approves it. The application is generated by MQS. The identity document and the power of attorney are obtained through integrations (Ministry of Internal Affairs, Electronic Notary System)",
+   "Presence of the plan in MQS is checked; if absent, it is sought among the submitted documents; if absent there too, it is recorded as unavailable"],
+  ru:["","","Общий пакет (статья 10.2)","План и размеры земельного участка — из MQS; эскизный проект; документ по статье 8","","",
+   "Госпошлина на этапе первичного обращения отсутствует — оплачивается после подтверждения оператором. Заявление формируется MQS. Удостоверение личности и доверенность получаются через интеграцию (МВД, Электронная нотариальная система)",
+   "Проверяется наличие плана в MQS; при отсутствии — поиск в представленных документах; если нет и там — отметить как отсутствующий"]},
+ sheet:{az:"Tələblər",en:"Requirements",ru:"Требования"},
+ file:{az:"telebler_ferdi_yasayis_evi.xlsx",en:"requirements_individual_residential_house.xlsx",ru:"trebovaniya_individualnyy_zhiloy_dom.xlsx"}};
+
+const DOCMAP={ground:"extract",design:"sketch",accept:"acceptAct",permitDec:"permitDec",
+ permit:"permit",archPlan:"sketch",opPermit:"opPermit",notif:"notification"};
+
+function exportTemplate(){
+ const rows=[XL.hdr[L].slice()];
+ const groundDocs=r=>DOCFIELDS.filter(d=>d.refs.includes(r)&&(d.id==="extract"||d.id==="decree439"));
+ RULES.forEach((r,i)=>{
+  const groups=REQUIREMENTS[r.ref]||[];
+  groups.forEach((grp,gi)=>{
+   const docsFor=k=>k==="ground"
+     ? (groundDocs(r.ref).length?groundDocs(r.ref):[DOCFIELDS.find(d=>d.id==="extract")])
+     : [DOCFIELDS.find(d=>d.id===DOCMAP[k])].filter(Boolean);
+   const names=grp.map(k=>docsFor(k).map(d=>d.n[L]).join(" / ")).join(" "+XL.or[L]+" ");
+   const flds=grp.map(k=>docsFor(k).map(d=>d.f.map(f=>f[L]).join("; ")).join(" | ")).join(" | ");
+   const chk=grp.map(k=>docsFor(k).map(d=>(XL.chk[d.id]||{})[L]||"").filter(Boolean).join(" | "))
+     .filter(Boolean).join(" | ");
+   rows.push([gi===0?String(i+1):"",gi===0?XL.proc[L]:"",gi===0?XL.art[L](r.ref):"",
+    names,flds,gi===0?XL.param[L]:"",gi===0?XL.cond[r.ref][L]:"",
+    gi===0&&r.ref==="8.0.10.1"?XL.fallback[L]:"",chk,XL.act[L]]);});
+  const pr=XL.pkgRow[L].slice();
+  const lp=DOCFIELDS.find(d=>d.id==="landplan");
+  rows.push([pr[0],pr[1],pr[2],pr[3],lp.f.map(f=>f[L]).join("; "),pr[4],pr[5],pr[6],pr[7],XL.act[L]]);});
+ downloadXlsx(rows,XL.sheet[L],XL.file[L]);}
+
+/* ---- minimal XLSX writer (stored ZIP, no dependencies) ---- */
+const CRCT=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;
+ for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+const crc32=b=>{let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRCT[(c^b[i])&0xFF]^(c>>>8);return (c^0xFFFFFFFF)>>>0;};
+const enc=s=>new TextEncoder().encode(s);
+const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+
+function sheetXml(rows){
+ const col=i=>{let s="",n=i+1;while(n>0){const r=(n-1)%26;s=String.fromCharCode(65+r)+s;n=Math.floor((n-1)/26);}return s;};
+ let x=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>`
+  +`<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols>`
+  +`<col min="1" max="1" width="10"/><col min="2" max="2" width="38"/><col min="3" max="3" width="26"/>`
+  +`<col min="4" max="4" width="42"/><col min="5" max="5" width="70"/><col min="6" max="6" width="34"/>`
+  +`<col min="7" max="7" width="46"/><col min="8" max="8" width="46"/><col min="9" max="9" width="52"/>`
+  +`<col min="10" max="10" width="46"/></cols><sheetData>`;
+ rows.forEach((r,ri)=>{x+=`<row r="${ri+1}">`;
+  r.forEach((c,ci)=>{x+=`<c r="${col(ci)}${ri+1}" t="inlineStr" s="${ri===0?1:0}"><is><t xml:space="preserve">${esc(c)}</t></is></c>`;});
+  x+=`</row>`;});
+ return x+`</sheetData></worksheet>`;}
+
+function downloadXlsx(rows,sheetName,fname){
+ const files={
+  "[Content_Types].xml":`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`,
+  "_rels/.rels":`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`,
+  "xl/workbook.xml":`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${esc(sheetName)}" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+  "xl/_rels/workbook.xml.rels":`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`,
+  "xl/styles.xml":`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1B2A41"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs></styleSheet>`,
+  "xl/worksheets/sheet1.xml":sheetXml(rows)};
+ const parts=[],cd=[];let off=0;
+ for(const name of Object.keys(files)){
+  const nb=enc(name),db=enc(files[name]),c=crc32(db);
+  const lh=new DataView(new ArrayBuffer(30));
+  lh.setUint32(0,0x04034b50,true);lh.setUint16(4,20,true);lh.setUint16(6,0x0800,true);
+  lh.setUint16(8,0,true);lh.setUint16(10,0,true);lh.setUint16(12,0,true);
+  lh.setUint32(14,c,true);lh.setUint32(18,db.length,true);lh.setUint32(22,db.length,true);
+  lh.setUint16(26,nb.length,true);lh.setUint16(28,0,true);
+  parts.push(new Uint8Array(lh.buffer),nb,db);
+  const ch=new DataView(new ArrayBuffer(46));
+  ch.setUint32(0,0x02014b50,true);ch.setUint16(4,20,true);ch.setUint16(6,20,true);
+  ch.setUint16(8,0x0800,true);ch.setUint16(10,0,true);ch.setUint16(12,0,true);ch.setUint16(14,0,true);
+  ch.setUint32(16,c,true);ch.setUint32(20,db.length,true);ch.setUint32(24,db.length,true);
+  ch.setUint16(28,nb.length,true);ch.setUint16(30,0,true);ch.setUint16(32,0,true);
+  ch.setUint16(34,0,true);ch.setUint16(36,0,true);ch.setUint32(38,0,true);ch.setUint32(42,off,true);
+  cd.push(new Uint8Array(ch.buffer),nb);
+  off+=30+nb.length+db.length;}
+ const cdSize=cd.reduce((a,b)=>a+b.length,0);
+ const eo=new DataView(new ArrayBuffer(22));
+ eo.setUint32(0,0x06054b50,true);eo.setUint16(8,Object.keys(files).length,true);
+ eo.setUint16(10,Object.keys(files).length,true);eo.setUint32(12,cdSize,true);eo.setUint32(16,off,true);
+ const blob=new Blob([...parts,...cd,new Uint8Array(eo.buffer)],
+  {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+ const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=fname;a.click();
+ URL.revokeObjectURL(a.href);}
+
+const opt=(v,l,s)=>`<option value="${v}"${s?" selected":""}>${l}</option>`;
+
+function paintUI(){
+ document.documentElement.lang=L;
+ document.getElementById("hT").textContent=t("title");
+ document.getElementById("hS").textContent=t("sub");
+ ["h_preset","h_params","h_art10","h_ground","h_docs","h_cross","l_date","l_storeys","l_height","l_span",
+  "l_landRight","l_purpose","n_empty","l_1022","l_1023","l_1024","l_gitem","l_gdate","l_aPass","l_aDes",
+  "l_coord","l_epochs","l_dateSrc","h_ind"]
+  .forEach(k=>{const el=document.getElementById(k);if(el)el.textContent=t(k);});
+ document.getElementById("btnPreset").textContent=t("btnPreset");
+ document.getElementById("btnRun").textContent=t("btnRun");
+ document.getElementById("t_ownerNote").textContent=t("t_ownerNote");
+ document.getElementById("t_gpresent").textContent=t("t_gpresent");
+ document.getElementById("t_cName").textContent=t("t_cName");
+ document.getElementById("t_cAddr").textContent=t("t_cAddr");
+ ["t_gAuth","t_gReq","t_gArch","l_gQR","t_lic","t_notifReg"].forEach(k=>{const e=document.getElementById(k);if(e)e.textContent=t(k);});
+ document.querySelectorAll(".tab").forEach(el=>el.textContent=t("tab_"+el.dataset.t));
+ document.querySelectorAll(".lang button").forEach(b=>b.classList.toggle("on",b.dataset.l===L));
+ const k=id=>document.getElementById(id).value;
+ const vD=k("dateKnown"),vL=k("landRight"),vP=k("purpose"),v2=k("d1022"),v3=k("d1023"),v4=k("d1024"),vG=k("gitem"),vS=k("preset");
+ document.getElementById("dateKnown").innerHTML=opt("1",t("known"),vD==="1")+opt("0",t("unknown_opt"),vD==="0");
+ const vDS=k("dateSrc");
+ document.getElementById("dateSrc").innerHTML=["ge","doc","operator"].map(x=>opt(x,t("ds_"+x),vDS===x)).join("");
+ document.getElementById("landRight").innerHTML=["ownership","lease","use"].map(x=>opt(x,t(x),vL===x)).join("")+opt("unknown",t("unknown_opt"),vL==="unknown");
+ document.getElementById("purpose").innerHTML=["residential","other"].map(x=>opt(x,t(x),vP===x)).join("")+opt("unknown",t("unknown_opt"),vP==="unknown");
+ document.getElementById("d1022").innerHTML=["mqs","package","absent"].map(x=>opt(x,t("o_"+x),v2===x)).join("");
+ document.getElementById("d1023").innerHTML=["package","absent"].map(x=>opt(x,t("o_"+x),v3===x)).join("");
+ document.getElementById("d1024").innerHTML=["later","package"].map(x=>opt(x,t("o_"+x),v4===x)).join("");
+ document.getElementById("gitem").innerHTML=GROUND_ITEMS.map(i=>opt(i.ref,`${i.ref} — ${i.n[L].slice(0,46)}${i.n[L].length>46?"…":""}`,vG===i.ref)).join("");
+ const vQ=k("gQR");
+ document.getElementById("gQR").innerHTML=["ok","absent","failed"].map(x=>opt(x,t("qr_"+x),vQ===x)).join("");
+ document.getElementById("preset").innerHTML=FIXTURES.map((f,i)=>opt(i,f.n[L],vS==String(i))).join("");
+ const st={};
+ for(const key of Object.keys(DOC_DEFS)){
+  const el=document.getElementById("doc_"+key);st[key]={p:el?el.checked:false,s:{}};
+  if(DOC_DEFS[key].subs)for(const s of DOC_DEFS[key].subs){
+   const se=document.getElementById("sub_"+key+"_"+s.k);st[key].s[s.k]=se?se.checked:true;}}
+ let dh="";
+ for(const[key,d]of Object.entries(DOC_DEFS)){
+  dh+=`<div class="chk"><input type="checkbox" id="doc_${key}"${st[key].p?" checked":""}><span>${d.n[L]}</span></div>`;
+  if(d.subs){dh+=`<div class="sub">`;
+   for(const s of d.subs)dh+=`<div class="chk"><input type="checkbox" id="sub_${key}_${s.k}"${st[key].s[s.k]?" checked":""}><span>${s.n[L]}</span></div>`;
+   dh+=`</div>`;}}
+ document.getElementById("docs").innerHTML=dh;
+ bind();}
+
+function setLang(l){L=l;paintUI();syncGround();run();runTests();renderSources();renderDocs();}
+const num=id=>{const v=document.getElementById(id).value;return v===""?null:parseFloat(v);};
+
+function collect(){
+ const docs={};
+ for(const k of Object.keys(DOC_DEFS)){
+  const el=document.getElementById("doc_"+k);const d={present:el?el.checked:false,subs:{}};
+  if(DOC_DEFS[k].subs)for(const s of DOC_DEFS[k].subs){
+   const se=document.getElementById("sub_"+k+"_"+s.k);d.subs[s.k]=se?se.checked:false;}
+  docs[k]=d;}
+ const g=id=>document.getElementById(id).value;
+ return{coord:g("coord"),epochs:g("epochs"),dateSrc:g("dateSrc"),
+  date:g("dateKnown")==="1"?g("cdate"):null,storeys:num("storeys"),height:num("height"),span:num("span"),
+  landRight:g("landRight"),purpose:g("purpose"),
+  d1022:g("d1022")==="package"?"present":g("d1022"),
+  d1023:g("d1023")==="package"?"present":"absent",
+  d1024:g("d1024")==="package"?"present":"later",
+  groundItem:g("gitem"),groundDate:g("gdate"),groundPresent:document.getElementById("gpresent").checked,
+  gAuthority:document.getElementById("gAuthority").checked,gRequisites:document.getElementById("gRequisites").checked,
+  gArchive:document.getElementById("gArchive").checked,gQR:document.getElementById("gQR").value,
+  licenceValid:document.getElementById("licenceValid").checked,
+  notifRegistered:document.getElementById("notifRegistered").checked,docs,
+  cName:document.getElementById("cName").checked,cAddr:document.getElementById("cAddr").checked,
+  aPass:num("aPass"),aDes:num("aDes")};}
+
+function syncGround(){
+ document.getElementById("ownerNote").style.display="none";
+ document.getElementById("groundPick").style.display="";
+ const it=GROUND_ITEMS.find(i=>i.ref===document.getElementById("gitem").value);
+ const isD=it&&/^[12]\./.test(it.ref);
+ document.getElementById("gArchive").parentElement.style.display=isD?"":"none";
+ document.getElementById("qrRow").style.display=isD?"":"none";
+ document.getElementById("gdate").parentElement.style.display=(it&&it.mqs)?"none":"";}
+
+function loadPreset(){
+ const p=FIXTURES[+document.getElementById("preset").value].p,s=(i,v)=>document.getElementById(i).value=v;
+ s("dateKnown",p.date?"1":"0");if(p.date)s("cdate",p.date);
+ s("storeys",p.storeys??"");s("height",p.height??"");s("span",p.span??"");
+ s("landRight",p.landRight);s("purpose",p.purpose);
+ s("d1022",p.d1022==="present"?"package":p.d1022);
+ s("d1023",p.d1023==="present"?"package":"absent");
+ s("d1024",p.d1024==="present"?"package":p.d1024);
+ s("gitem",p.groundItem);s("gdate",p.groundDate);
+ document.getElementById("gpresent").checked=p.groundPresent;
+ ["gAuthority","gRequisites","gArchive","licenceValid","notifRegistered"].forEach(k=>{
+  const e=document.getElementById(k);if(e)e.checked=!!p[k];});
+ document.getElementById("gQR").value=p.gQR||"ok";
+ s("coord",p.coord||"");s("epochs",p.epochs||"");s("dateSrc",p.dateSrc||"ge");
+ for(const k of Object.keys(DOC_DEFS)){
+  document.getElementById("doc_"+k).checked=!!(p.docs[k]&&p.docs[k].present);
+  if(DOC_DEFS[k].subs)for(const sb of DOC_DEFS[k].subs)
+   document.getElementById("sub_"+k+"_"+sb.k).checked=!!(p.docs[k]&&p.docs[k].subs[sb.k]);}
+ document.getElementById("cName").checked=p.cName;
+ document.getElementById("cAddr").checked=p.cAddr;
+ s("aPass",p.aPass);s("aDes",p.aDes);
+ syncGround();run();}
+
+function tab(x){
+ ["report","rules","tests","docs","src","json"].forEach(k=>document.getElementById(k==="docs"?"docs_tab":k).style.display=k===x?"":"none");
+ document.querySelectorAll(".tab").forEach(el=>el.classList.toggle("on",el.dataset.t===x));}
+
+function bind(){
+ document.querySelectorAll(".panel input, .panel select").forEach(el=>{
+  el.onchange=()=>{if(el.id==="landRight")syncGround();if(el.id!=="preset")run();};});}
+
+function run(){render(verify(collect()));}
+
+paintUI();syncGround();loadPreset();runTests();renderSources();renderDocs();
+</script>
+</body>
+</html>

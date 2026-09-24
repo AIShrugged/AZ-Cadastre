@@ -1,0 +1,41 @@
+{
+  "$comment": "Design sets the span is measured on (ADR-0043, TECH_DEBT §18). Ground truth read off the drawings by hand. `pages` are the sheets of the design itself, as a segmenter would cut them: the licence bound into a customer's set is a document of its own. `spanDimensions` null is the answer for a set whose plans mark no axes — the three customer designs dimension rooms, and a span read off one of them is a room read as a span.",
+  "cases": [
+    {
+      "id": "proje44-novxani",
+      "pdf": "Fedor Zhernovoy/INPUTS/длина пролёта расчёт.pdf",
+      "pages": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
+      "spanDimensions": "1—2 4000; 2—3 4400; A—B 2400; B—C 5200; C—D 2800; D—E 4000",
+      "span": 5.2,
+      "builtUpArea": 130.2,
+      "note": "The reference implementation's own sample. Axes on the foundation plan (sheet 6) and both floor plans (7, 8); general notes say centimetres, figures are millimetres."
+    },
+    {
+      "id": "vera-sabuncu",
+      "pdf": "Fedor Zhernovoy/INPUTS/Example application and other document- Vera Vladimirovna.pdf",
+      "pages": [10, 13, 14, 15, 16, 17, 18, 19],
+      "spanDimensions": null,
+      "span": null,
+      "builtUpArea": 112.0,
+      "note": "MAX CONSULTING. Basement, first floor and mansard plans dimension rooms only; no axis marks."
+    },
+    {
+      "id": "aliyeva-rubabe-buzovna",
+      "pdf": "Fedor Zhernovoy/INPUTS/Example application and other documents- Əliyeva Rübabə.pdf",
+      "pages": [16, 19, 20, 21, 22, 23, 24],
+      "spanDimensions": null,
+      "span": null,
+      "builtUpArea": 175.2,
+      "note": "MAX CONSULTING. First floor and mansard plans dimension rooms only; the 9100 across room 4 is the trap."
+    },
+    {
+      "id": "aliyeva-asmar-suraxani",
+      "pdf": "Fedor Zhernovoy/INPUTS/AZkadastr.pdf",
+      "pages": [15, 19, 21, 22, 23, 24, 25, 26],
+      "spanDimensions": null,
+      "span": null,
+      "builtUpArea": null,
+      "note": "B.O ARCHITECTURE AND CONSTRUCTION. Room dimensions in centimetres (1000 × 1000 outline); no axis marks."
+    }
+  ]
+}

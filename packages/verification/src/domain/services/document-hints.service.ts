@@ -94,3 +94,35 @@ function fold(text: string): string {
     .replace(/ə/g, 'e')
     .replace(/ı/g, 'i');
 }
+
+/**
+ * Which sheets of a document a reader is shown as pictures, when it cannot be
+ * shown all of them: the sheets headed by one of the type's key-sheet headings
+ * first, then the rest, both in page order — at most `limit`, returned in page
+ * order.
+ *
+ * A drawing set is the reason. It opens with a cover, general notes, a location
+ * plan and a site plan, so the first six sheets of the customer's sample never
+ * reached a floor plan, and the span was read — invented — off a site plan's
+ * turning points (TECH_DEBT §18). The transcription of every sheet still
+ * travels; only the pictures are rationed, and they go to the sheets that
+ * dimension what is asked.
+ */
+export function sheetsToPicture(
+  sheets: readonly { readonly number: number; readonly text: string }[],
+  headings: readonly string[],
+  limit: number,
+): readonly number[] {
+  const needles = headings.map(fold);
+  const keyed = (text: string) => {
+    const hay = fold(text);
+    return needles.some(needle => hay.includes(needle));
+  };
+  const first = sheets.filter(sheet => keyed(sheet.text));
+  const rest = sheets.filter(sheet => !keyed(sheet.text));
+
+  return [...first, ...rest]
+    .slice(0, Math.max(0, limit))
+    .map(sheet => sheet.number)
+    .sort((one, other) => one - other);
+}

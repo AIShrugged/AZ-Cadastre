@@ -84,6 +84,9 @@ import {
   SIGNATURE_TONE,
   signatureRows,
   signatureStanding,
+  spanParameter,
+  spanPhrase,
+  spanWithinLimit,
   speaksAgainst,
   stageStatuses,
   STANDING_NOTE,
@@ -139,6 +142,7 @@ import { CONFIDENCE_FLOOR } from '@cadastre/api-contracts/verification';
 import type {
   ArchiveQrCheckDto,
   ArchiveQrFieldCheckDto,
+  CaseProvisionDto,
   CheckedValueDto,
   CrossCheckDto,
   CrossCheckVerdict,
@@ -154,6 +158,7 @@ import type {
   RegistryDocumentDto,
   ReportDto,
   SourceFileDto,
+  SpanCalculationDto,
   StatedValueDto,
 } from '@cadastre/api-contracts/verification';
 
@@ -172,7 +177,7 @@ import {
 import { PANEL, panelForHash, type PanelId } from '../model/panels';
 
 import { CaseChecklist, type FindingGroup } from './case-checklist';
-import { CaseProvisionPanel } from './case-provision';
+import { CaseProvisionPanel, SpanWorking } from './case-provision';
 
 type Translate = (
   key: string,
@@ -813,12 +818,20 @@ function Field({
   sourceText,
   folded,
   corrections,
+  span = null,
   onJump,
 }: {
   field: FieldDto;
   docId: string;
   sourceText: string;
   folded: boolean;
+  /** The span the case was decided on, where it was calculated off this row:
+   *  the row states the axis chain and the result is said under it, so the
+   *  inspector checks the one against the other on the same line (ADR-0043). */
+  span?: {
+    calculation: SpanCalculationDto;
+    withinLimit: boolean | null;
+  } | null;
   /** How this card's corrections are being held, or null where it takes none —
    *  a paper out of force, one with no type, or a package mid-run. The row then
    *  offers nothing at all rather than a control that would be refused. */
@@ -890,6 +903,7 @@ function Field({
             {field.takenFrom && (
               <TakenFrom source={field.takenFrom} onJump={onJump} />
             )}
+            {span && <SpanOfRow span={span} />}
           </>
         )}
       </dd>
@@ -921,6 +935,30 @@ function Field({
           <CorrectButton field={field} corrections={corrections} />
         )}
       </span>
+    </div>
+  );
+}
+
+/** The span worked out of a row's axis chain, stated under the chain. */
+function SpanOfRow({
+  span,
+}: {
+  span: { calculation: SpanCalculationDto; withinLimit: boolean | null };
+}) {
+  const { t, locale } = useI18n();
+
+  return (
+    <div className='mt-1.5 rounded-md bg-secondary/60 px-2.5 py-1.5 text-[0.75rem] leading-snug text-muted-foreground'>
+      <p>
+        {t('span.title')}:{' '}
+        <span className='text-[0.8125rem] font-medium tabular-nums text-foreground'>
+          {spanPhrase(t, span.calculation, locale)}
+        </span>
+      </p>
+      <SpanWorking
+        calculation={span.calculation}
+        withinLimit={span.withinLimit}
+      />
     </div>
   );
 }
@@ -989,6 +1027,20 @@ function Fields({
   // hook cannot be called conditionally.
   const corrections = useCorrections(pkg.id, doc, fields);
   const editable = refusal === null ? corrections : null;
+  // The row the span was calculated off, if it is on this card.
+  const spanFigure = spanParameter(pkg.provision);
+  const spanRow =
+    spanFigure?.calculation && spanFigure.from?.documentId === doc.id
+      ? {
+          name: spanFigure.from.fieldName,
+          span: {
+            calculation: spanFigure.calculation,
+            withinLimit: spanWithinLimit(pkg.provision),
+          },
+        }
+      : null;
+  const spanOf = (field: FieldDto) =>
+    spanRow && spanRow.name === field.name ? spanRow.span : null;
 
   return (
     <>
@@ -1007,6 +1059,7 @@ function Fields({
             sourceText={sourceText}
             folded={false}
             corrections={editable}
+            span={spanOf(field)}
             onJump={onJump}
           />
         ))}
@@ -1018,6 +1071,7 @@ function Fields({
             sourceText={sourceText}
             folded={!whole}
             corrections={editable}
+            span={spanOf(field)}
             onJump={onJump}
           />
         ))}
@@ -3538,6 +3592,45 @@ function SheetValue({ value }: { value: StatedValueDto | null }) {
 }
 
 /**
+ * The span on the sheet: the longest span and its axes, and whether it is
+ * within the limit — or that it was not calculated, which on a case without a
+ * sketch design is the answer and not a gap in the page.
+ */
+function SheetSpan({ provision }: { provision: CaseProvisionDto }) {
+  const { t, locale } = useI18n();
+  const figure = spanParameter(provision);
+  const within = spanWithinLimit(provision);
+
+  if (!figure?.calculation) {
+    return (
+      <span className='text-muted-foreground/70'>
+        {figure?.stated
+          ? t('provision.stated_refused', { stated: figure.stated })
+          : t('span.not_calculated')}
+      </span>
+    );
+  }
+
+  return (
+    <span className='flex min-w-0 flex-wrap items-baseline gap-x-2'>
+      <span className='tabular-nums'>
+        {spanPhrase(t, figure.calculation, locale)}
+      </span>
+      {within !== null && (
+        <span
+          className={cn(
+            'text-[0.75rem]',
+            within ? 'text-ok-ink' : 'text-incomplete-ink',
+          )}
+        >
+          {t(within ? 'span.limit.holds' : 'span.limit.fails')}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/**
  * A value somebody typed at the counter. Never drawn with a confidence — a
  * declaration carries none, and the moment it is shown among readings a figure
  * nobody checked reads as one the engine found (ADR-0021).
@@ -3687,6 +3780,14 @@ function CaseSheet({
             <Requisite label={t('sheet.cadastral')}>
               <SheetValue value={pkg.cadastralNumber} />
             </Requisite>
+            {/* The one figure of the case that is calculated rather than read,
+                stated on the sheet because the procedure a house built from
+                2013 falls under turns on it (ADR-0043). */}
+            {pkg.provision && (
+              <Requisite label={t('span.title')}>
+                <SheetSpan provision={pkg.provision} />
+              </Requisite>
+            )}
           </RequisiteGroup>
 
           <RequisiteGroup

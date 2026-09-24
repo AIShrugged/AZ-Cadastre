@@ -12,12 +12,12 @@ import type {
 import {
   dateSpanIn,
   heightInMetres,
-  spanInMetres,
   storeysIn,
   yearIn,
 } from './building-measures.service.js';
 import type { ReadDocument } from './document-gaps.service.js';
 import { landPurposeIn, landRightIn } from './land-title.service.js';
+import { spanCalculationOf, type SpanCalculation } from './span.service.js';
 
 /*
  * Which provision of Article 8 this package's case falls under, what that
@@ -67,6 +67,10 @@ export type ParameterReading = {
   readonly source: ParameterSource | null;
   readonly stated: string | null;
   readonly from: FigureReading | null;
+  // How the figure was worked out of what was stated, where it was worked out
+  // rather than read: the span is calculated from the axis chains (ADR-0043).
+  // Null for every other figure.
+  readonly calculation: SpanCalculation | null;
 };
 
 export type RequirementStanding = {
@@ -153,7 +157,7 @@ export function provisionOf(
   const builtYear = figure('builtYear', spec.builtIn, placed, yearIn);
   const storeys = figure('storeys', spec.storeys, placed, storeysIn);
   const height = figure('height', spec.height, placed, heightInMetres);
-  const span = figure('span', spec.span, placed, spanInMetres);
+  const span = spanOf(spec, placed);
   const landRight = rightOf(spec, placed);
   const purpose = figure('purpose', spec.purpose, placed, landPurposeIn);
 
@@ -269,6 +273,7 @@ function rightOf(
       parameter: 'landRight',
       source: 'TitleDocumentType',
       stated: [...rights].join(', '),
+      calculation: null,
       from: {
         documentId: first.document.documentId,
         documentType: first.type.value,
@@ -315,6 +320,7 @@ function figure<T>(
             pageNumber: reading.pageNumber,
             confidence: reading.confidence,
           },
+          calculation: null,
         },
       };
     }
@@ -322,9 +328,48 @@ function figure<T>(
 
   return {
     value: null,
-    reading: { parameter, source: null, stated: null, from: null },
+    reading: {
+      parameter,
+      source: null,
+      stated: null,
+      from: null,
+      calculation: null,
+    },
   };
 }
+
+/*
+ * The span, calculated out of the axis chains the design dimensions and held
+ * against the built-up area the same design states (ADR-0043). The area is
+ * taken off the paper the chains were read off and no other: the unit of a
+ * figure is the unit of the drawing it is printed on.
+ */
+function spanOf(
+  spec: ProvisionsSpec,
+  placed: readonly Placed[],
+): Established<number> {
+  const read = figure('span', spec.span, placed, raw => raw);
+  const from = read.reading.from;
+
+  if (read.value === null || from === null) {
+    return { value: null, reading: read.reading };
+  }
+
+  const area =
+    placed
+      .find(one => one.document.documentId === from.documentId)
+      ?.document.readings.find(one => one.key === BUILT_UP_AREA)?.value ?? null;
+  const calculation = spanCalculationOf(read.value, area);
+
+  return {
+    value: calculation?.longest ?? null,
+    reading: { ...read.reading, calculation },
+  };
+}
+
+// The line of the technical and economic indicators the footprint of the axis
+// chains is held against.
+const BUILT_UP_AREA = 'built_up_area';
 
 function titleStandingOf(
   spec: ProvisionsSpec,

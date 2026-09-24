@@ -24,6 +24,15 @@ type Declaration = {
   // Headings as they actually appear on the paper, in the languages it is
   // written in. Azerbaijani first, then Russian.
   readonly hints: readonly string[];
+  /*
+   * Headings of the sheets a reader has to SEE and not only read the
+   * transcription of: the floor plans a span is dimensioned on, the table of
+   * indicators the built-up area is printed in. Only a paper of more sheets
+   * than the extractor is shown pictures of needs it — a drawing set — so it is
+   * the one declaration a type may leave out, and leaving it out keeps the
+   * first sheets (TECH_DEBT §18).
+   */
+  readonly keySheets?: readonly string[];
   readonly required: boolean;
   /*
    * Whether this policy takes a paper of this kind at any time, whether or not
@@ -478,6 +487,9 @@ export class DocumentTypeSpec {
     public readonly type: DocumentType,
     public readonly description: string,
     public readonly hints: readonly string[],
+    // Headings of the sheets a reader is shown as pictures first. Empty for a
+    // type whose first sheets are the ones to see.
+    public readonly keySheets: readonly string[],
     public readonly schema: FieldSchema,
     public readonly isRequired: boolean,
     // Whether the profile takes a paper of this type at any time, which is what
@@ -493,6 +505,7 @@ export class DocumentTypeSpec {
       DocumentType.create(declaration.key),
       declaration.description,
       [...declaration.hints],
+      [...(declaration.keySheets ?? [])],
       FieldSchema.of(
         declaration.fields.map(([key, label, note]) =>
           FieldSpec.of(key, label, note ?? null),
@@ -518,6 +531,7 @@ export class DocumentTypeSpec {
       DocumentType.create(declaration.key),
       declaration.description,
       [...declaration.hints],
+      [],
       FieldSchema.none(),
       false,
       // No profile asks for it, so there is no gap to offer it against either.
@@ -537,6 +551,7 @@ export class DocumentTypeSpec {
     return new DocumentTypeSpec(
       type,
       '',
+      [],
       [],
       FieldSchema.none(),
       false,
@@ -576,9 +591,47 @@ const HEIGHT_NOTE =
   'the covering of the top storey (UPCC 80.1). Not the ridge, not the parapet ' +
   'and not the absolute mark.';
 
+// The span is calculated off this line and not read (ADR-0043), so the note asks
+// for the one chain the calculation works on and names the two figures a plan
+// prints more prominently than it: the overall dimension and the size of a
+// room, either of which would put a house over six metres.
 const SPAN_NOTE =
-  'the axis spacings dimensioned on the floor plans, as printed, separated by ' +
-  'semicolons.';
+  'the spacing between each pair of ADJACENT axes on the floor plans — the ' +
+  'axes are the circled numerals (1, 2, 3) and the circled letters (A, B, C) ' +
+  '— off the dimension chain that runs along the axis marks, for both ' +
+  'directions and for every pair: a chain of five axes is four entries. One ' +
+  'entry per pair, the two axes and the figure, in the shape "1—2 3600; ' +
+  '2—3 4800; A—B 3000; B—C 4500" — the shape only, never these figures. ' +
+  'Copy each figure exactly as printed, with a unit only where one is ' +
+  'printed beside it; never convert. Leave out the overall dimension of the ' +
+  'building, the outer chain that includes the walls, and the sizes of ' +
+  'rooms: a figure between two axes with another axis between them is not ' +
+  'an entry. Many sets dimension rooms and mark no axes at all; where no ' +
+  'plan carries circled axis marks, the answer is null — never room sizes ' +
+  'and never axes you number yourself.';
+
+/*
+ * The sheets of a design a reader has to be shown: the plans the axis chains
+ * are dimensioned on, and the general sheet whose indicators state the built-up
+ * area the unit of those chains is decided by (ADR-0043). As the sets title
+ * them, in both languages; folded like every heading, so a scan's "MƏRTƏBƏNİN
+ * PLANI" and a typed "mertebenin plani" are one heading.
+ */
+const DESIGN_KEY_SHEETS = [
+  'mərtəbənin planı',
+  'mərtəbə planı',
+  'bünövrənin planı',
+  'bünövrə planı',
+  'zirzəminin planı',
+  'mansardın planı',
+  'texniki-iqtisadi göstəricilər',
+  'план этажа',
+  'план первого этажа',
+  'план фундамента',
+  'план подвала',
+  'план мансарды',
+  'технико-экономические показатели',
+];
 
 // What every title to the land is read for.
 const TITLE_FIELDS: Fields = [
@@ -981,6 +1034,7 @@ export class VerificationProfile {
         ],
         // Required of every package whatever its provision: for an individual
         // house the technical document is the sketch design (Article 10.2.3).
+        keySheets: DESIGN_KEY_SHEETS,
         required: true,
         alwaysAccepted: false,
         // Produced and approved by a design organisation, which signs and
@@ -1072,12 +1126,7 @@ export class VerificationProfile {
               'the ridge, not the parapet and not the absolute mark: where ' +
               'several heights are marked, this is the one meant.',
           ],
-          [
-            'span_dimensions',
-            'Span dimensions',
-            'the axis spacings dimensioned on the floor plans, as printed, ' +
-              'separated by semicolons.',
-          ],
+          ['span_dimensions', 'Span dimensions', SPAN_NOTE],
           ['project_scale', 'Scale of the drawings'],
           ['approval_date', 'Approval date'],
         ],
@@ -1201,6 +1250,7 @@ export class VerificationProfile {
           'утверждённый проект',
           'согласованный проект',
         ],
+        keySheets: DESIGN_KEY_SHEETS,
         required: false,
         alwaysAccepted: false,
         // Approved by an authority, over its seal, and signed by the designer.
@@ -1291,6 +1341,7 @@ export class VerificationProfile {
           'архитектурно-планировочный раздел проекта',
           'архитектурно-планировочная часть проекта',
         ],
+        keySheets: DESIGN_KEY_SHEETS,
         required: false,
         alwaysAccepted: false,
         expectsStamp: true,

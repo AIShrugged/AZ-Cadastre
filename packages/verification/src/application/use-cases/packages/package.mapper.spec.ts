@@ -6,8 +6,14 @@ import {
   PackageDtoSchema,
   PackagesOverviewResponseSchema,
   PackageStandingSchema,
+  SpanCalculationDtoSchema,
 } from '@cadastre/api-contracts/verification';
 
+import {
+  AXIS_CHAINS,
+  SPAN_UNIT_BASES,
+  SPAN_UNITS,
+} from '../../../domain/services/index.js';
 import { PackageStanding } from '../../../domain/value-objects/index.js';
 import type {
   CrossCheckView,
@@ -267,6 +273,7 @@ function aProvisionView(): NonNullable<PackageDetailView['provision']> {
         source: 'DeclaredAtIntake',
         stated: '2014',
         from: null,
+        calculation: null,
       },
       {
         parameter: 'purpose',
@@ -279,6 +286,44 @@ function aProvisionView(): NonNullable<PackageDetailView['provision']> {
           fieldName: 'land_category',
           pageNumber: 1,
           confidence: 0.91,
+        },
+        calculation: null,
+      },
+      {
+        parameter: 'span',
+        value: 5.2,
+        source: 'ReadOffDocument',
+        stated: '1—2 4000; 2—3 4400; A—B 2400; B—C 5200; A—C 7600',
+        from: {
+          documentId: plan,
+          documentType: 'sketch_project',
+          fieldName: 'span_dimensions',
+          pageNumber: 5,
+          confidence: 0.9,
+        },
+        calculation: {
+          longest: 5.2,
+          chains: [
+            {
+              chain: 'Numbered',
+              spans: [
+                { from: '1', to: '2', length: 4 },
+                { from: '2', to: '3', length: 4.4 },
+              ],
+              longest: { from: '2', to: '3', length: 4.4 },
+            },
+            {
+              chain: 'Lettered',
+              spans: [
+                { from: 'A', to: 'B', length: 2.4 },
+                { from: 'B', to: 'C', length: 5.2 },
+              ],
+              longest: { from: 'B', to: 'C', length: 5.2 },
+            },
+          ],
+          unit: 'mm',
+          unitBasis: 'BuiltUpArea',
+          setAside: ['A—C 7600'],
         },
       },
     ],
@@ -545,6 +590,39 @@ describe('toDetailDto', () => {
     expect(dto.status).toBe('Completed');
     expect(dto.filesCount).toBe(view.filesCount);
     expect(dto.documentsCount).toBe(view.documentsCount);
+  });
+
+  // The span as it was calculated, so the inspector sees which two axes it lies
+  // between and what unit the figures were read in (ADR-0043).
+  it('carries how the span was calculated, and nothing for the other figures', () => {
+    const dto = PackageDetailDtoSchema.parse(toDetailDto(aDetailView()));
+    const parameters = dto.provision?.parameters ?? [];
+
+    expect(
+      parameters.find(one => one.parameter === 'span')?.calculation,
+    ).toMatchObject({
+      longest: 5.2,
+      unit: 'mm',
+      unitBasis: 'BuiltUpArea',
+      setAside: ['A—C 7600'],
+    });
+    expect(
+      parameters
+        .filter(one => one.parameter !== 'span')
+        .map(one => one.calculation),
+    ).toEqual([null, null]);
+  });
+
+  // The mapper casts the read model's strings to the contract's enums; this is
+  // the check that the two name the same members.
+  it('offers exactly the chains, units and unit bases the span service produces', () => {
+    const shape = SpanCalculationDtoSchema.shape;
+
+    expect([...shape.chains.element.shape.chain.options]).toEqual([
+      ...AXIS_CHAINS,
+    ]);
+    expect([...shape.unit.options]).toEqual([...SPAN_UNITS]);
+    expect([...shape.unitBasis.options]).toEqual([...SPAN_UNIT_BASES]);
   });
 
   it('renders a package with no files as an empty list rather than leaving it out', () => {

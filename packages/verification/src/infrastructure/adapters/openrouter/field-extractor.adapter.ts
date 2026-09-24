@@ -27,6 +27,7 @@ import { MissingOpenRouterApiKeyException } from '../../exceptions/index.js';
 import { answerOf } from './answered.js';
 import { extractionInstructions } from './extractor-prompt.js';
 import { confidenceFromLogprobs } from './logprob-confidence.js';
+import { saysNothing } from './placeholder.js';
 import { telemetryOf } from './telemetry.js';
 
 const MAX_TEXT = 12000;
@@ -137,8 +138,23 @@ export class OpenRouterFieldExtractorAdapter extends FieldExtractor {
 
     for (const spec of specs) {
       const answer = answered[spec.key.value];
-      const value = answer?.value?.trim();
-      if (!answer || !value) continue;
+      const value = answer?.value?.trim() ?? '';
+
+      // A word the model writes for "I found nothing" is not a value, and a
+      // field carrying it is worse than no field at all — the case sheet reads
+      // it out to the operator as the document's own answer. Not a fault of the
+      // model's, so not a warning: it is an honest miss, and the `read` count
+      // below already says one fewer field came back.
+      if (!answer || saysNothing(value)) {
+        if (answer) {
+          this.logger.debug('The model answered a field with nothing', {
+            type: request.spec.type.value,
+            field: spec.key.value,
+            answered: value,
+          });
+        }
+        continue;
+      }
 
       // Where the model says it read the value, but only if that is a sheet
       // this document actually occupies: a page reference the inspector cannot

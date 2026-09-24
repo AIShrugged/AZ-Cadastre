@@ -43,18 +43,27 @@ export const ARTICLE_8_PROVISIONS: ProvisionsDeclaration = {
     ['construction_completion_notice', 'notice_date'],
   ],
   // The design is the only paper that describes the building rather than the
-  // plot, and the sketch design is the one every provision's package carries.
+  // plot, and the sketch design is the one every provision's package carries —
+  // so it is believed first, then the approved design, then the architectural
+  // and planning section of one. The section is a source and not an oversight:
+  // it is the very paper 8.0.10.1 and 8.0.10.2 ask for, and 8.0.10.2 is decided
+  // on three storeys, twelve metres and six-metre spans. A package of that
+  // provision that carried no sketch design would state none of the three
+  // figures the provision turns on (COMM-158, ADR-0045).
   storeys: [
     ['sketch_project', 'storeys'],
     ['approved_design', 'storeys'],
+    ['architectural_planning_section', 'storeys'],
   ],
   height: [
     ['sketch_project', 'building_height'],
     ['approved_design', 'building_height'],
+    ['architectural_planning_section', 'building_height'],
   ],
   span: [
     ['sketch_project', 'span_dimensions'],
     ['approved_design', 'span_dimensions'],
+    ['architectural_planning_section', 'span_dimensions'],
   ],
   // "From the title document — the land plot category field of the extract.
   // Not taken from the sketch design." The plan-scheme prints the same category
@@ -232,6 +241,43 @@ export const ARTICLE_8_PROVISIONS: ProvisionsDeclaration = {
       dateField: 'issue_date',
       issuedFrom: null,
       issuedBefore: null,
+    },
+  ],
+  /*
+   * The fields this profile declares under a key some paper's figure is read
+   * under, and which are deliberately not that figure — each with the reason
+   * it is not, because the guard that reads this list refuses every other one
+   * (COMM-158).
+   *
+   * The list exists so that a field a type declares and nothing reads is a
+   * decision somebody wrote down rather than a gap nobody noticed: the three
+   * figures of the architectural and planning section were declared, read off
+   * the page and dropped for a year because no row above named the type.
+   */
+  notFigures: [
+    {
+      type: 'construction_permit',
+      key: 'permit_date',
+      because:
+        'the permit dates the start of the construction and not its finish, ' +
+        'and the regime turns on the year the house was built (ADR-0026). ' +
+        'The permit for operation is the one that dates a building, and it is ' +
+        'listed under `builtIn`.',
+    },
+    {
+      type: 'archive_certificate',
+      key: 'issue_date',
+      because:
+        'the certificate is the archive answering about a paper, not a title ' +
+        'to the land: no item of the table lists it and no window is held ' +
+        'against its date.',
+    },
+    {
+      type: 'identity_card',
+      key: 'issue_date',
+      because:
+        'a paper of the application and not a ground: the date is shown to ' +
+        'the operator and founds nothing.',
     },
   ],
   rules: [

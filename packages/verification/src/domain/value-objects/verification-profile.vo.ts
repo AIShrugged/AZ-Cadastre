@@ -1,6 +1,7 @@
 import {
   CrossCheckNotInProfileException,
   DocumentTypeNotInProfileException,
+  FieldIsNoFigureException,
   FieldNotInSchemaException,
   RegistryCheckNotInProfileException,
   UnknownProfileException,
@@ -726,6 +727,21 @@ const REGISTER_EXTRACT_FIELDS: Fields = [
   ['qr_code', 'QR code', QR_NOTE],
 ];
 
+/*
+ * The line the unit of a bare axis figure is decided by (ADR-0043): the span is
+ * calculated off the chains of one paper and held against the built-up area of
+ * that same paper, so every set the span may be read off has to be asked for
+ * its own area. A design that states no area falls back to the rule that a
+ * drawing is dimensioned in millimetres, which is a guess and is reported as
+ * one (COMM-158).
+ */
+const BUILT_UP_AREA_FIELD = [
+  'built_up_area',
+  'Built-up area',
+  'the footprint of the building, from the technical and economic ' +
+    'indicators. Not the total area and not the area of the parcel.',
+] as const;
+
 const APPROVED_DESIGN_FIELDS: Fields = [
   ['designer_name', 'Design organisation'],
   [
@@ -738,6 +754,7 @@ const APPROVED_DESIGN_FIELDS: Fields = [
   ['project_name', 'Name of the object'],
   ['storeys', 'Storeys above ground'],
   ['building_height', 'Building height', HEIGHT_NOTE],
+  BUILT_UP_AREA_FIELD,
   ['span_dimensions', 'Span dimensions', SPAN_NOTE],
 ];
 
@@ -810,6 +827,7 @@ const PLANNING_SECTION_FIELDS: Fields = [
   ['property_address', 'Property address'],
   ['storeys', 'Storeys above ground'],
   ['building_height', 'Building height', HEIGHT_NOTE],
+  BUILT_UP_AREA_FIELD,
   ['span_dimensions', 'Span dimensions', SPAN_NOTE],
 ];
 
@@ -1025,7 +1043,11 @@ export class VerificationProfile {
           'Sketch design of the house, produced by a design organisation. ' +
           "Carries drawings, the designer's name and the areas, storeys and " +
           'height of what is proposed — the building, not the plot it stands ' +
-          'on.',
+          'on. It is a COMPLETE set standing on its own: a cover, technical ' +
+          'and economic indicators, a location plan, a site plan, a foundation ' +
+          'plan, a plan of every storey, sections and elevations, and no ' +
+          'authority has approved it. A set of that composition is this type ' +
+          'even where no sheet spells out "eskiz layihə" (COMM-158).',
         hints: [
           'eskiz layihəsi',
           'eskiz layihə',
@@ -1088,12 +1110,7 @@ export class VerificationProfile {
               'plan, floor plans, roof plan, section, elevations — as it ' +
               'names them, separated by semicolons.',
           ],
-          [
-            'built_up_area',
-            'Built-up area',
-            'the footprint of the building, from the technical and economic ' +
-              'indicators. Not the total area and not the area of the parcel.',
-          ],
+          BUILT_UP_AREA_FIELD,
           ['total_area', 'Total area'],
           [
             'building_volume',
@@ -1334,7 +1351,12 @@ export class VerificationProfile {
           'Architectural and planning section of a construction design, required ' +
           'of objects that need a permit and of those under the notification ' +
           'procedure (Articles 8.0.10.1, 8.0.10.2). It is a section OF an ' +
-          "approved design, not the designer's sketch design of the house.",
+          "approved design, not the designer's sketch design of the house: it " +
+          'says so of itself — a section mark or a part number in the title ' +
+          'block, the design it belongs to named above it, and the approval or ' +
+          'agreement of an authority on it. A stand-alone set of drawings that ' +
+          'names no larger design and carries no approval is the sketch design ' +
+          'however much of a house it draws (COMM-158).',
         hints: [
           'layihənin memarlıq-planlaşdırma bölməsi',
           'memarlıq-planlaşdırma bölməsi',
@@ -1997,6 +2019,42 @@ export class VerificationProfile {
     for (const rule of provisions.rules) {
       for (const requirement of rule.requirements) {
         requirement.anyOf.forEach(specFor);
+      }
+    }
+
+    VerificationProfile.guardFiguresAreTaken(specs, provisions, figures);
+  }
+
+  /*
+   * The other side of the same promise (COMM-158): a type that declares a field
+   * under a key a figure is read under is either one of the places that figure
+   * is printed, or is named under `notFigures` with the reason it is not.
+   *
+   * The check is on the key and not on every field, because a key is what says
+   * two papers print the same thing: `storeys` on the architectural and
+   * planning section is the storeys of the building however the section is
+   * headed, and that is exactly the field the model read at 0.94 and the case
+   * never saw. A field no key of the table names — a licence number, a payer —
+   * is nothing to do with Article 8 and is not asked about here.
+   */
+  private static guardFiguresAreTaken(
+    specs: readonly DocumentTypeSpec[],
+    provisions: ProvisionsSpec,
+    figures: readonly { type: DocumentType; key: FieldKey }[],
+  ): void {
+    const isTaken = (type: DocumentType, key: FieldKey): boolean =>
+      figures.some(at => at.type.equals(type) && at.key.equals(key)) ||
+      provisions.notFigures.some(
+        at => at.type.equals(type) && at.key.equals(key),
+      );
+
+    for (const spec of specs) {
+      for (const field of spec.schema.specs) {
+        const read = figures.some(at => at.key.equals(field.key));
+
+        if (read && !isTaken(spec.type, field.key)) {
+          throw new FieldIsNoFigureException(field.key.value, spec.type.value);
+        }
       }
     }
   }

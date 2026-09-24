@@ -173,6 +173,81 @@ describe('provisionOf', () => {
 
       expect(provisionOf(TABLE, [unplaced]).parameters.height).toBeNull();
     });
+
+    /*
+     * COMM-158. The architectural and planning section declared `storeys`,
+     * `building_height` and `span_dimensions`, the model read all three off a
+     * package on production, and no row of the table named the type: the three
+     * figures came out null on a paper that plainly stated them. The section is
+     * the very document 8.0.10.1 and 8.0.10.2 ask for, and 8.0.10.2 is decided
+     * on storeys, height and span (ADR-0045).
+     */
+    describe('off the architectural and planning section', () => {
+      function aSection(): ReadDocument {
+        return aDocument('architectural_planning_section', {
+          storeys: '2',
+          building_height: '6,20 m',
+          built_up_area: '130.2 m²',
+          span_dimensions:
+            '1—2 4000; 2—3 4400; A—B 2400; B—C 5200; C—D 2800; D—E 4000',
+        });
+      }
+
+      it('states the storeys, the height and the span of the building', () => {
+        const answer = provisionOf(TABLE, [aSection(), aPlan(), anActOf(2014)]);
+
+        expect(answer.parameters.storeys).toBe(2);
+        expect(answer.parameters.height).toBeCloseTo(6.2, 9);
+        expect(answer.parameters.span).toBeCloseTo(5.2, 9);
+        expect(
+          answer.readings.find(one => one.parameter === 'storeys'),
+        ).toMatchObject({
+          source: 'ReadOffDocument',
+          from: { documentType: 'architectural_planning_section' },
+        });
+      });
+
+      // The section's own built-up area, and not another paper's: the unit of a
+      // chain is the unit of the drawing it is printed on (ADR-0043).
+      it('decides the unit of its chains by the area it states itself', () => {
+        const answer = provisionOf(TABLE, [aSection(), aPlan(), anActOf(2014)]);
+
+        expect(
+          answer.readings.find(one => one.parameter === 'span')?.calculation,
+        ).toMatchObject({ unit: 'mm', unitBasis: 'BuiltUpArea' });
+      });
+
+      // It comes last of the three designs: the sketch design is the paper
+      // every package carries (Article 10.2.3) and is believed first.
+      it('is read after the sketch design and the approved design', () => {
+        const answer = provisionOf(TABLE, [aSection(), aDesign(), aPlan()]);
+
+        expect(answer.parameters.height).toBeCloseTo(7.4, 9);
+        expect(
+          answer.readings.find(one => one.parameter === 'height')?.from,
+        ).toMatchObject({ documentType: 'sketch_project' });
+      });
+
+      // The whole point of the fix: a 2014 house whose package carries the
+      // section the provision asks for is decided, not left Ambiguous on six
+      // unstated figures.
+      it('decides a case of the notification procedure on its own figures', () => {
+        const answer = provisionOf(TABLE, [
+          aSection(),
+          aPlan(),
+          anActOf(2014),
+          aDocument('state_register_extract', {
+            issue_date: '12.04.2015',
+            land_category: 'Fərdi yaşayış tikintisi üçün torpaq',
+          }),
+        ]);
+
+        expect(answer.decision.outcome).toBe('Determined');
+        expect(answer.provisions.map(one => one.provision)).toEqual([
+          '8.0.10.2',
+        ]);
+      });
+    });
   });
 
   /*

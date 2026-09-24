@@ -40,6 +40,8 @@ export {
   stageStatuses,
 } from './model/run-stages';
 
+export { isHandwritten, isMachineDecoded } from './model/handwritten';
+
 export {
   fieldsReadHere,
   isCarriedOver,

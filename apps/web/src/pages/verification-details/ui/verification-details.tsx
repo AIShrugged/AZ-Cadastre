@@ -56,6 +56,7 @@ import {
   HOLDING_TONE,
   holdsHash,
   isClassified,
+  isHandwritten,
   isOperatorEntered,
   isScored,
   ISSUE_KIND_KEY,
@@ -605,27 +606,6 @@ function PageTally({ file, failed }: { file: SourceFileDto; failed: boolean }) {
 // makes a name in the application comparable to the name on the identity card at
 // a glance. Nothing is truncated; a long value wraps, because a value the
 // inspector cannot read is a value they cannot verify.
-const HANDWRITTEN_FRAGMENT = /\[hw:\s*([^\]]+?)\s*\]/giu;
-
-// OCR marks handwriting in the transcription itself. Field DTOs intentionally
-// stay neutral, so the report derives provenance from the source it already
-// shows instead of inventing another field classification at the HTTP edge.
-function isHandwritten(value: string, sourceText: string): boolean {
-  const normalise = (text: string) =>
-    text
-      .toLocaleLowerCase()
-      .replace(/[^\p{L}\p{N}]+/gu, ' ')
-      .trim()
-      .replace(/\s+/g, ' ');
-  const needle = normalise(value);
-
-  if (needle.length < 2) return false;
-
-  return [...sourceText.matchAll(HANDWRITTEN_FRAGMENT)].some(match => {
-    const marked = normalise(match[1] ?? '');
-    return marked.includes(needle) || needle.includes(marked);
-  });
-}
 
 /**
  * Where a value the document never printed was actually read.
@@ -700,7 +680,7 @@ function Marks({
   stacked: boolean;
 }) {
   const { t, locale } = useI18n();
-  const handwritten = isHandwritten(field.value, sourceText);
+  const handwritten = isHandwritten(field, sourceText);
   const confirmed = field.origin === 'ConfirmedByRegistry';
   const corrected = isOperatorEntered(field);
   // The day it was put right, which is the whole of what this client can say

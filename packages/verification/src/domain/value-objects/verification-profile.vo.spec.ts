@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   CrossCheckNotInProfileException,
+  FieldIsNoFigureException,
   UnknownProfileException,
 } from '../exceptions/index.js';
 
@@ -808,6 +809,147 @@ describe('VerificationProfile', () => {
     it('reads the height off the design, the paper that describes the building', () => {
       expect(PROVISIONS.height[0]?.type.value).toBe('sketch_project');
       expect(PROVISIONS.height[0]?.key.value).toBe('building_height');
+    });
+
+    /*
+     * COMM-158. The architectural and planning section is the paper 8.0.10.1
+     * and 8.0.10.2 ask for, and 8.0.10.2 is decided on storeys, height and
+     * span: it is a place all three are printed, after the two designs
+     * (ADR-0045).
+     */
+    it('reads the three figures of the building off the planning section too', () => {
+      for (const places of [
+        PROVISIONS.storeys,
+        PROVISIONS.height,
+        PROVISIONS.span,
+      ]) {
+        expect(places.map(at => at.type.value)).toEqual([
+          'sketch_project',
+          'approved_design',
+          'architectural_planning_section',
+        ]);
+      }
+    });
+
+    // The span is calculated off the chains of one paper and held against the
+    // built-up area of that same paper (ADR-0043), so a paper the span may be
+    // read off has to be asked for its own area.
+    it('asks every paper a span may be read off for its own built-up area', () => {
+      for (const at of PROVISIONS.span) {
+        expect(
+          VerificationProfile.CADASTRE.schemaFor(at.type).declares(
+            FieldKey.create('built_up_area'),
+          ),
+        ).toBe(true);
+      }
+    });
+
+    /*
+     * The other side of `guardProvisionsAreDeclared` (COMM-158): a field
+     * declared under a figure's key on a paper no row names is a value the
+     * model is asked for, the page gives and nothing reads — which is exactly
+     * how the planning section's storeys were lost. The profile's constructor
+     * is private by design; the guard runs in it, so the spec reaches it the
+     * one way a spec can.
+     */
+    describe('a field declared under a figure’s key', () => {
+      const build = (declarations: unknown[], provisions: unknown): void => {
+        Reflect.construct(VerificationProfile as unknown as Function, [
+          'test_profile',
+          declarations,
+          [],
+          [],
+          null,
+          null,
+          provisions,
+        ]);
+      };
+
+      const aPaper = (key: string, fields: readonly string[]) => ({
+        key,
+        description: 'A paper.',
+        hints: ['paper'],
+        required: false,
+        alwaysAccepted: false,
+        expectsStamp: false,
+        expectsSignature: false,
+        source: 'Package',
+        fields: fields.map(field => [field, field]),
+      });
+
+      const provisionsWith = (
+        storeys: readonly (readonly [string, string])[],
+        notFigures: readonly { type: string; key: string; because: string }[],
+      ) => ({
+        key: 'test_provisions',
+        description: 'A table.',
+        builtIn: [],
+        storeys,
+        height: [],
+        span: [],
+        purpose: [],
+        landRight: [],
+        titleDocuments: [],
+        notFigures,
+        rules: [],
+      });
+
+      it('is refused when no row of the table reads it', () => {
+        expect(() =>
+          build(
+            [
+              aPaper('sketch_project', ['storeys']),
+              aPaper('technical_passport', ['storeys']),
+            ],
+            provisionsWith([['sketch_project', 'storeys']], []),
+          ),
+        ).toThrow(FieldIsNoFigureException);
+      });
+
+      it('names the paper and the field it refused', () => {
+        expect(() =>
+          build(
+            [
+              aPaper('sketch_project', ['storeys']),
+              aPaper('technical_passport', ['storeys']),
+            ],
+            provisionsWith([['sketch_project', 'storeys']], []),
+          ),
+        ).toThrow(/technical_passport.*storeys/u);
+      });
+
+      it('is admitted where the table says in so many words that it is not the figure', () => {
+        expect(() =>
+          build(
+            [
+              aPaper('sketch_project', ['storeys']),
+              aPaper('technical_passport', ['storeys']),
+            ],
+            provisionsWith(
+              [['sketch_project', 'storeys']],
+              [
+                {
+                  type: 'technical_passport',
+                  key: 'storeys',
+                  because: 'it counts the storeys as built, not as designed.',
+                },
+              ],
+            ),
+          ),
+        ).not.toThrow();
+      });
+
+      it('asks nothing of a field no figure is read under', () => {
+        expect(() =>
+          build(
+            [
+              aPaper('sketch_project', ['storeys']),
+              aPaper('payment_receipt', ['amount']),
+            ],
+            provisionsWith([['sketch_project', 'storeys']], []),
+          ),
+        ).not.toThrow();
+      });
     });
 
     // A design approved in 2012 is a house built in 2014 as often as not.

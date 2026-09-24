@@ -12,6 +12,7 @@ export { DocumentTypeNotInProfileException } from './document-type-not-in-profil
 export { DocumentsMustCoverEverySheetException } from './documents-must-cover-every-sheet.exception.js';
 export { DuplicatePageNumberException } from './duplicate-page-number.exception.js';
 export { DuplicateStorageKeyException } from './duplicate-storage-key.exception.js';
+export { FieldIsNoFigureException } from './field-is-no-figure.exception.js';
 export { FieldNotInSchemaException } from './field-not-in-schema.exception.js';
 export { FileTooLargeException } from './file-too-large.exception.js';
 export { InvalidApprovalCommentException } from './invalid-approval-comment.exception.js';

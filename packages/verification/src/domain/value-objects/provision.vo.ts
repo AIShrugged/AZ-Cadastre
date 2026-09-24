@@ -153,8 +153,18 @@ export type ProvisionsDeclaration = {
   // its class, before any of these is read.
   readonly landRight: readonly (readonly [string, string])[];
   readonly titleDocuments: readonly TitleDocumentDeclaration[];
+  // The fields declared under a key a figure is read under elsewhere that are
+  // deliberately not that figure, each with the reason (COMM-158). Every other
+  // such field is a gap and the profile refuses to build.
+  readonly notFigures: readonly NotAFigureDeclaration[];
   // In declaration order; the first rule whose conditions all hold applies.
   readonly rules: readonly ProvisionRuleDeclaration[];
+};
+
+export type NotAFigureDeclaration = {
+  readonly type: string;
+  readonly key: string;
+  readonly because: string;
 };
 
 // ─── Specs ───────────────────────────────────────────────────────────────────
@@ -164,6 +174,10 @@ export type FigureAt = {
   readonly type: DocumentType;
   readonly key: FieldKey;
 };
+
+// A field of a type that carries a figure's key and is not that figure, and
+// why it is not.
+export type NotAFigure = FigureAt & { readonly because: string };
 
 function figuresAt(
   pairs: readonly (readonly [string, string])[],
@@ -474,6 +488,7 @@ export class ProvisionsSpec {
     public readonly purpose: readonly FigureAt[],
     public readonly landRight: readonly FigureAt[],
     titleDocuments: readonly TitleDocumentEntry[],
+    public readonly notFigures: readonly NotAFigure[],
     rules: readonly ProvisionRule[],
   ) {
     this.#titleDocuments = [...titleDocuments];
@@ -497,6 +512,11 @@ export class ProvisionsSpec {
       figuresAt(declaration.purpose),
       figuresAt(declaration.landRight),
       entries,
+      declaration.notFigures.map(one => ({
+        type: DocumentType.create(one.type),
+        key: FieldKey.create(one.key),
+        because: one.because,
+      })),
       declaration.rules.map(rule => ProvisionRule.of(rule)),
     );
   }

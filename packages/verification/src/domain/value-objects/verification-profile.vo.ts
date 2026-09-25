@@ -1020,9 +1020,33 @@ export class VerificationProfile {
         expectsSignature: true,
         source: 'Package',
         fields: [
-          ['order_no', 'Order number'],
+          /*
+           * The pair a reader is most likely to split across two orders: an
+           * order that amends an earlier one names the earlier one's number and
+           * date in its own subject line, over and over in its body, and does
+           * it in printed text while its own number and date are filled in by
+           * hand on the blank (COMM-169).
+           */
+          [
+            'order_no',
+            'Order number',
+            'the number of the order on this sheet, printed or written beside ' +
+              'its heading — not the number of an order its subject line or ' +
+              'its body cites.',
+          ],
           ['issuing_authority', 'Issuing authority'],
-          ['issue_date', 'Issue date'],
+          [
+            'issue_date',
+            'Issue date',
+            'the date of the order on this sheet, beside its own number in ' +
+              'its heading. An extract restates one order, so give the date ' +
+              'of the order it extracts and not the date the extract or the ' +
+              'certified copy of it was issued. An order that amends, ' +
+              'corrects or merely cites another order is an order of its own: ' +
+              'give its date and not the date of the order its subject line ' +
+              'names. A day or a month filled in by hand on a printed blank ' +
+              "is still this order's own date.",
+          ],
           ['applicant_name', 'Applicant name'],
           ['property_address', 'Property address'],
           ['plot_area', 'Plot area'],
@@ -1201,7 +1225,17 @@ export class VerificationProfile {
         fields: [
           ['certificate_no', 'Certificate number'],
           ['issuing_authority', 'Issuing authority'],
-          ['issue_date', 'Issue date'],
+          // A certificate says what is on record and states the date of the
+          // paper it reports on while it does — the archive's covering letter
+          // in the Rusadze package prints both its own 23.01.2026 and the
+          // 29.10.1998 of the order it sends (COMM-169).
+          [
+            'issue_date',
+            'Issue date',
+            'the date the archive issued this certificate, as its own heading ' +
+              'states it — not the date of the document it reports on, which ' +
+              'its body states too.',
+          ],
           ['property_address', 'Property address'],
           ['owner_name', 'Owner name'],
           /*

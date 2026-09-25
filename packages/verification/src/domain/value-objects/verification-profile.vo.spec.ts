@@ -575,6 +575,44 @@ describe('VerificationProfile', () => {
         expect(noteOn('building_height')).toMatch(/UPCC 80\.1/);
         expect(noteOn('storeys')).toMatch(/floor plans/i);
       });
+
+      /*
+       * A sheet of an order carries more than one date and more than one order
+       * number, because an order that corrects an earlier one names the earlier
+       * one — in printed text, in its subject line, while its own date is
+       * filled in by hand on the blank. Told only the label, a reader answers
+       * the cited order's date, and the paper is then dated years before the
+       * office wrote it (COMM-169).
+       */
+      it('says which of the orders named on a disposal order the number and the date are of', () => {
+        const schema = VerificationProfile.CADASTRE.schemaFor(
+          DocumentType.create('disposal_order'),
+        );
+        const noteOn = (key: string) =>
+          schema.specs.find(spec => spec.key.value === key)?.note;
+
+        expect(noteOn('issue_date')).toMatch(
+          /amends, corrects or merely cites/i,
+        );
+        expect(noteOn('issue_date')).toMatch(/extract/i);
+        expect(noteOn('issue_date')).toMatch(/by hand/i);
+        expect(noteOn('order_no')).toMatch(/not the number of an order/i);
+      });
+
+      // The same two dates on the archive's own paper: the certificate states
+      // when the archive wrote it and, in its body, the date of the document it
+      // sends (COMM-169).
+      it("says the date of an archival certificate is the certificate's own", () => {
+        const schema = VerificationProfile.CADASTRE.schemaFor(
+          DocumentType.create('archive_certificate'),
+        );
+        const note = schema.specs.find(
+          spec => spec.key.value === 'issue_date',
+        )?.note;
+
+        expect(note).toMatch(/the date the archive issued this certificate/i);
+        expect(note).toMatch(/not the date of the document it reports on/i);
+      });
     });
 
     it('has the papers that name the same property agree on the key that ties them together', () => {

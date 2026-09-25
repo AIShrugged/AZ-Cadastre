@@ -248,6 +248,12 @@ export {
   spanWithinLimit,
   unitLine,
 } from './model/span';
+export {
+  markupCounts,
+  markupSheets,
+  markupUnitLine,
+  spanMarkupOf,
+} from './model/span-markup';
 
 export type { RegisterQuery } from './model/register-query';
 export {

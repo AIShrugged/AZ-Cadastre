@@ -16,6 +16,7 @@ const specOf = (type: string) =>
 
 const PLAN_SCHEME = specOf('land_plot_plan');
 const SKETCH_DESIGN = specOf('sketch_project');
+const DISPOSAL_ORDER = specOf('disposal_order');
 
 describe('extractionInstructions', () => {
   it('asks for every key the type declares, and names the type it is reading', () => {
@@ -73,6 +74,30 @@ describe('extractionInstructions', () => {
 
     expect(prompt).toMatch(/never copy a figure across to fill a key in/i);
     expect(prompt).toMatch(/documentary figure/i);
+  });
+
+  /*
+   * A sheet states more than one date, and the one printed where a reader looks
+   * for a date can be another paper's: an order amending an earlier order names
+   * the earlier order's date in its printed subject line, while its own day and
+   * month are filled in by hand on the blank. Read the way round, order 396 of
+   * 02.12.2021 was reported as issued on 29.10.1998 (COMM-169).
+   */
+  it('tells the reader a date key means the document own date and not a cited one', () => {
+    const prompt = extractionInstructions(DISPOSAL_ORDER);
+
+    expect(prompt).toMatch(/A date key means this document's own date/i);
+    expect(prompt).toMatch(/amends, extracts from, cites or reports on/i);
+    expect(prompt).toMatch(/filled in by hand/i);
+  });
+
+  it('says of an order which of the orders it names the number and the date are of', () => {
+    const prompt = extractionInstructions(DISPOSAL_ORDER);
+
+    expect(prompt).toMatch(
+      /- issue_date: Issue date\n {4}the date of the order on this sheet/,
+    );
+    expect(prompt).toMatch(/not the number of an order its subject line/);
   });
 
   /*

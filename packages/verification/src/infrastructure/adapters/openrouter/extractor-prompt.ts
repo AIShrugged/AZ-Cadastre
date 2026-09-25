@@ -46,6 +46,16 @@ export function extractionInstructions(spec: DocumentTypeSpec): string {
     '  Rübabə Kavı qızı"; return the base form, without the case ending.',
     '- Write every date as DD.MM.YYYY, whatever form it appears in. Never',
     '  adjust a year to make it look plausible: copy the year that is printed.',
+    // A paper that amends, extracts from or reports on another paper states
+    // that other paper's date as well, and states it where a reader looks for
+    // a date: in the printed subject line above the body, while the paper's
+    // own date is filled in by hand on the blank. Reading the cited date as
+    // the document's own is COMM-169.
+    "- A date key means this document's own date, unless the key says",
+    '  otherwise. A document that amends, extracts from, cites or reports on',
+    '  another one states that other date too, often in its subject line:',
+    "  that is not this document's date. A day or a month filled in by hand",
+    "  on a printed blank is this document's date as much as a printed one.",
     '- A surname printed in capitals stays in capitals.',
     '- Give the value alone, without its printed label.',
     // The contract asks a drawing for its turning points, its drawing schedule

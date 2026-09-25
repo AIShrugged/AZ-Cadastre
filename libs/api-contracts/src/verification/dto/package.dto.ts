@@ -407,6 +407,36 @@ export const SpanMarkupSheetDtoSchema = z.object({
 });
 export type SpanMarkupSheetDto = z.infer<typeof SpanMarkupSheetDtoSchema>;
 
+/*
+ * Why the markup is incomplete or empty — a closed list, and not a sentence.
+ *
+ * A reason is published as a word the client has translations for, the way a
+ * refused calculation publishes `refusedFor`: the same four clauses were once
+ * an English sentence built on the server, and an English sentence reaches a
+ * Russian or Azerbaijani screen untranslated (COMM-166).
+ */
+export const SpanMarkupNoteReasonSchema = z.enum([
+  // No sheet of the set carries circled axis marks — the set dimensions rooms
+  // only, and a span is not read off it by rule (ADR-0044).
+  'NoAxesOnSheets',
+  // No room outlines were read on any sheet.
+  'NoRoomOutlines',
+  // The unit of the printed figures could not be established, so every length
+  // on the pictures is labelled «ед.».
+  'UnitUnestablished',
+  // Some of the sheets that were asked for could not be marked up.
+  'SheetsUnmarked',
+]);
+export type SpanMarkupNoteReason = z.infer<typeof SpanMarkupNoteReasonSchema>;
+
+export const SpanMarkupNoteDtoSchema = z.object({
+  reason: SpanMarkupNoteReasonSchema,
+  // How many sheets the reason is about. Set only on 'SheetsUnmarked'; null on
+  // the other three, which are about the set as a whole.
+  sheets: z.number().int().positive().nullable(),
+});
+export type SpanMarkupNoteDto = z.infer<typeof SpanMarkupNoteDtoSchema>;
+
 export const SpanMarkupDtoSchema = z.object({
   // Never empty: a document nothing could be drawn for carries no markup at
   // all rather than an empty list of sheets.
@@ -417,9 +447,10 @@ export const SpanMarkupDtoSchema = z.object({
   // rather than assumed to be millimetres.
   unit: z.enum(['mm', 'cm', 'm']).nullable(),
   unitBasis: z.enum(['Printed', 'BuiltUpArea', 'Assumed']).nullable(),
-  // Why the markup is incomplete or empty, in the words of an audit. Null when
-  // everything that was asked for is on the picture.
-  note: z.string().nullable(),
+  // Why the markup is incomplete or empty. Empty when everything that was
+  // asked for is on the pictures, and always in the order the reasons are
+  // declared above, so that a reader meets them in one order every time.
+  notes: z.array(SpanMarkupNoteDtoSchema),
 });
 export type SpanMarkupDto = z.infer<typeof SpanMarkupDtoSchema>;
 

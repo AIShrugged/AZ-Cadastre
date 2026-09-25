@@ -81,8 +81,19 @@ the profile gets the markup with it.
 **Nothing here can refuse a span.** The stage runs after extraction and touches
 no reading. A sheet whose geometry came back empty, a canvas that failed, a PNG
 that would not store — each costs its own picture and is said in the markup's
-`note`, in the words of an audit. The calculation is exactly what it would have
-been without the stage.
+`notes`. The calculation is exactly what it would have been without the stage.
+
+**Why the markup is short is said as reasons, not as a sentence.** `notes` is a
+list of four possible words — `NoAxesOnSheets`, `NoRoomOutlines`,
+`UnitUnestablished`, `SheetsUnmarked` — each with the number of sheets it is
+about where it counts any, and empty where everything asked for is on the
+pictures. It was first published as an English sentence the stage assembled, and
+that sentence reached Russian and Azerbaijani screens in English (COMM-166,
+COMM-170). The clauses were only ever four, which makes this the same closed
+list `SpanCalculationDto.refusedFor` is, and the same rule: the server says
+which case holds and the client says it in the reader's language. The one thing
+the pictures keep in one language is the `ед.` printed on them, which is
+graphics of the pipeline and not interface.
 
 ## Consequences
 

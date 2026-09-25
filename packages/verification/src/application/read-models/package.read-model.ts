@@ -297,8 +297,15 @@ export type SpanMarkupView = {
   // labelled «ед.».
   unit: string | null;
   unitBasis: string | null;
-  // Why the markup is incomplete or empty, in the words of an audit.
-  note: string | null;
+  // Why the markup is incomplete or empty: words of the domain's
+  // `SPAN_MARKUP_NOTE_REASONS`, each with the number of sheets it is about
+  // where it counts any. Empty where everything asked for is on the pictures.
+  notes: readonly SpanMarkupNoteView[];
+};
+
+export type SpanMarkupNoteView = {
+  reason: string;
+  sheets: number | null;
 };
 
 export type DocumentView = {

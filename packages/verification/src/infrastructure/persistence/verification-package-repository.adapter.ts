@@ -38,7 +38,12 @@ const WHOLE_AGGREGATE = {
     include: {
       extractedFields: { orderBy: { createdAt: 'asc' } },
       archiveQrCheck: { include: { fields: { orderBy: { position: 'asc' } } } },
-      spanMarkup: { include: { sheets: { orderBy: { position: 'asc' } } } },
+      spanMarkup: {
+        include: {
+          notes: { orderBy: { position: 'asc' } },
+          sheets: { orderBy: { position: 'asc' } },
+        },
+      },
     },
   },
   crossChecks: {
@@ -354,7 +359,7 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
       return;
     }
 
-    const { sheets, ...drawn } = markup;
+    const { sheets, notes, ...drawn } = markup;
     const stored = await tx.spanMarkup.upsert({
       where: { documentId },
       create: { documentId, ...drawn },
@@ -366,6 +371,13 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
     });
     await tx.spanMarkupSheet.createMany({
       data: sheets.map(sheet => ({ ...sheet, spanMarkupId: stored.id })),
+    });
+
+    await tx.spanMarkupNote.deleteMany({
+      where: { spanMarkupId: stored.id },
+    });
+    await tx.spanMarkupNote.createMany({
+      data: notes.map(note => ({ ...note, spanMarkupId: stored.id })),
     });
   }
 

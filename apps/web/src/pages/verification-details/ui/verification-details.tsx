@@ -1294,14 +1294,11 @@ function SpanMarkup({ markup }: { markup: SpanMarkupDto | null }) {
       <p className='mt-2 text-[0.6875rem] leading-snug text-muted-foreground'>
         {markupUnitLine(t, markup)}
       </p>
-      {/* Why the markup is short of what was asked for. Written by the run in
-          the words of an audit, and shown as it stands — there is no list of
-          reasons to translate it against. */}
-      {markup.note !== null && (
-        <p className='mt-1.5 text-[0.6875rem] leading-snug text-incomplete-ink'>
-          {t('span.markup.note', { note: markup.note })}
-        </p>
-      )}
+      {/* Why the markup is short of what was asked for used to be printed
+          here as the English sentence the run wrote (COMM-166). The contract
+          now carries `markup.notes` — a closed list of reasons with a sheet
+          count on the one that counts — and saying them in the reader's own
+          language is COMM-168's, which is why nothing is printed meanwhile. */}
     </section>
   );
 }

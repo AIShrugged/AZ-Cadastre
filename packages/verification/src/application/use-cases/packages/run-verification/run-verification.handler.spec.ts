@@ -1640,7 +1640,7 @@ describe('drawing the span working onto a design set', () => {
    * Three of the four designs in the reference set mark no axes at all
    * (ADR-0044). The rooms are still drawn and the axes are honestly none:
    * that is exactly what an inspector needs in order to agree that no span was
-   * established, and the note says so in words.
+   * established, and the reasons say so.
    */
   it('draws the rooms and no axes on a set that marks none, and says why', async () => {
     const { run, packages } = markupPipeline({
@@ -1656,7 +1656,10 @@ describe('drawing the span working onto a design set', () => {
     expect(markup?.sheets.every(sheet => sheet.axes === 0)).toBe(true);
     expect(markup?.sheets.every(sheet => sheet.rooms === 1)).toBe(true);
     expect(markup?.unit).toBeNull();
-    expect(markup?.note).toContain('No circled axis marks were read');
+    expect(markup?.notes.map(note => note.reason)).toEqual([
+      'NoAxesOnSheets',
+      'UnitUnestablished',
+    ]);
   });
 
   it('asks nothing about a paper no span is read off', async () => {

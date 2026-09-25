@@ -75,7 +75,7 @@ export { quotedIn } from './quotation-evidence.service.js';
 export {
   dimensionsASpan,
   sheetMarkupOf,
-  spanMarkupNoteOf,
+  spanMarkupNotesOf,
   type MarkupAxis,
   type MarkupChain,
   type MarkupCorner,

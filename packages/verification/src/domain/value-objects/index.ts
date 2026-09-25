@@ -101,7 +101,13 @@ export {
   type SheetGeometry,
   type SheetPoint,
 } from './sheet-geometry.vo.js';
-export { SpanMarkup, SpanMarkupSheet } from './span-markup.vo.js';
+export {
+  SPAN_MARKUP_NOTE_REASONS,
+  SpanMarkup,
+  SpanMarkupSheet,
+  type SpanMarkupNote,
+  type SpanMarkupNoteReason,
+} from './span-markup.vo.js';
 export {
   SPAN_UNIT_BASES,
   SPAN_UNITS,

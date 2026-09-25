@@ -35,6 +35,40 @@ export class SpanMarkupSheet {
   }
 }
 
+/*
+ * Why a markup is incomplete or empty: a closed vocabulary, not a sentence.
+ *
+ * A vocabulary of its own for the reason `SPAN_UNITS` is one — the drawing
+ * stage decides these, the contract publishes them and the screen says them in
+ * the reader's language. Said as words and not as prose because a sentence
+ * built here is a sentence in one language, and it reached Russian and
+ * Azerbaijani screens in English (COMM-166).
+ *
+ * The order is the order a reader meets them in, wherever two of them hold at
+ * once.
+ */
+export const SPAN_MARKUP_NOTE_REASONS = [
+  // No sheet of the set carries circled axis marks: the set dimensions rooms
+  // only, and a span is not read off it by rule (ADR-0044).
+  'NoAxesOnSheets',
+  // No room outlines were read on any sheet.
+  'NoRoomOutlines',
+  // The unit of the printed figures could not be established, so every length
+  // on the pictures is labelled «ед.».
+  'UnitUnestablished',
+  // Some of the sheets that were asked for could not be marked up.
+  'SheetsUnmarked',
+] as const;
+
+export type SpanMarkupNoteReason = (typeof SPAN_MARKUP_NOTE_REASONS)[number];
+
+export type SpanMarkupNote = {
+  readonly reason: SpanMarkupNoteReason;
+  // How many sheets the reason is about. Only 'SheetsUnmarked' counts anything;
+  // the other three are about the set as a whole and carry null.
+  readonly sheets: number | null;
+};
+
 export class SpanMarkup {
   private constructor(
     public readonly sheets: readonly SpanMarkupSheet[],
@@ -47,26 +81,27 @@ export class SpanMarkup {
      */
     public readonly unit: SpanUnit | null,
     public readonly unitBasis: SpanUnitBasis | null,
-    // Why the markup is incomplete or empty, in the words of an audit. Null
-    // where everything asked for is on the pictures.
-    public readonly note: string | null,
+    /*
+     * Why the markup is incomplete or empty, as reasons and not as a sentence:
+     * the words a reader sees are the client's, in the reader's language
+     * (COMM-166). Empty where everything asked for is on the pictures, and
+     * always in the order the domain declares the reasons in.
+     */
+    public readonly notes: readonly SpanMarkupNote[],
   ) {}
 
   static of(state: {
     sheets: readonly SpanMarkupSheet[];
     unit: SpanUnit | null;
     unitBasis: SpanUnitBasis | null;
-    note: string | null;
+    notes: readonly SpanMarkupNote[];
   }): SpanMarkup {
     if (state.sheets.length === 0) {
       throw new SpanMarkupWithoutSheetsException();
     }
 
-    return new SpanMarkup(
-      [...state.sheets],
-      state.unit,
-      state.unitBasis,
-      state.note,
-    );
+    return new SpanMarkup([...state.sheets], state.unit, state.unitBasis, [
+      ...state.notes,
+    ]);
   }
 }

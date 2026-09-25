@@ -250,6 +250,7 @@ export {
 } from './model/span';
 export {
   markupCounts,
+  markupNotes,
   markupSheets,
   markupUnitLine,
   spanMarkupOf,

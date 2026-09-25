@@ -15,7 +15,10 @@ import {
   SPAN_UNIT_BASES,
   SPAN_UNITS,
 } from '../../../domain/services/index.js';
-import { PackageStanding } from '../../../domain/value-objects/index.js';
+import {
+  PackageStanding,
+  SPAN_MARKUP_NOTE_REASONS,
+} from '../../../domain/value-objects/index.js';
 import type {
   CrossCheckView,
   DocumentView,
@@ -648,7 +651,7 @@ describe('toDetailDto', () => {
       ],
       unit: 'mm',
       unitBasis: 'BuiltUpArea',
-      note: null,
+      notes: [],
     });
 
     it('publishes the marked-up sheets with the sheet number and the signed link', () => {
@@ -673,7 +676,7 @@ describe('toDetailDto', () => {
         ],
         unit: 'mm',
         unitBasis: 'BuiltUpArea',
-        note: null,
+        notes: [],
       });
       expect(
         PackageDetailDtoSchema.safeParse(
@@ -750,7 +753,7 @@ describe('toDetailDto', () => {
                     ...aMarkupView(),
                     unit: null,
                     unitBasis: null,
-                    note: 'The unit of the printed figures was not established.',
+                    notes: [{ reason: 'UnitUnestablished', sheets: null }],
                   },
                 }),
               ],
@@ -771,6 +774,46 @@ describe('toDetailDto', () => {
       expect([...shape.unit.unwrap().options]).toEqual([...SPAN_UNITS]);
       expect([...shape.unitBasis.unwrap().options]).toEqual([
         ...SPAN_UNIT_BASES,
+      ]);
+    });
+
+    /*
+     * The reasons are cast the same way, and they are what the screen picks a
+     * translation by: a word the contract does not name is a caption the client
+     * cannot say, which is the whole failure this replaced (COMM-166).
+     */
+    it('offers exactly the reasons the markup service produces', () => {
+      expect([
+        ...SpanMarkupDtoSchema.shape.notes.element.shape.reason.options,
+      ]).toEqual([...SPAN_MARKUP_NOTE_REASONS]);
+    });
+
+    // Published in the order the domain declares them and not in the order the
+    // view happens to carry them, so two cases read the same way round.
+    it('publishes the reasons with the sheet count the counted one carries', () => {
+      const dto = toDetailDto(
+        aDetailView({
+          files: [
+            aFileView({
+              documents: [
+                aDocumentView({
+                  spanMarkup: {
+                    ...aMarkupView(),
+                    notes: [
+                      { reason: 'NoAxesOnSheets', sheets: null },
+                      { reason: 'SheetsUnmarked', sheets: 3 },
+                    ],
+                  },
+                }),
+              ],
+            }),
+          ],
+        }),
+      );
+
+      expect(dto.files[0]!.documents[0]!.spanMarkup?.notes).toEqual([
+        { reason: 'NoAxesOnSheets', sheets: null },
+        { reason: 'SheetsUnmarked', sheets: 3 },
       ]);
     });
   });

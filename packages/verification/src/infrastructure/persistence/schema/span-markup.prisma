@@ -25,10 +25,7 @@ model SpanMarkup {
   unit      String?
   unitBasis String?
 
-  /// Why the markup is incomplete or empty, in the words of an audit. Null
-  /// where everything asked for is on the pictures.
-  note String?
-
+  notes  SpanMarkupNote[]
   sheets SpanMarkupSheet[]
 
   createdAt DateTime @default(now())
@@ -64,4 +61,32 @@ model SpanMarkupSheet {
 
   @@index([spanMarkupId])
   @@map("span_markup_sheets")
+}
+
+/// Why the markup is incomplete or empty: one row per reason, none where
+/// everything asked for is on the pictures (COMM-170).
+///
+/// Rows and not a sentence. The reasons were once assembled into an English
+/// sentence and published as it stood, which is what a Russian or Azerbaijani
+/// screen then showed; the client has the words, and this table has which of
+/// them apply.
+model SpanMarkupNote {
+  id           String     @id @default(uuid()) @db.Uuid
+  spanMarkupId String     @db.Uuid
+  spanMarkup   SpanMarkup @relation(fields: [spanMarkupId], references: [id], onDelete: Cascade)
+
+  /// One of the domain's `SPAN_MARKUP_NOTE_REASONS`. A string and not an enum,
+  /// for the reason `SpanMarkup.unit` is one: the domain owns the vocabulary,
+  /// and a reason added to it should not need a migration.
+  reason String
+
+  /// How many sheets the reason is about — set only on `SheetsUnmarked`, null
+  /// on the three that are about the set as a whole.
+  sheets Int?
+
+  /// The order the contract publishes the reasons in.
+  position Int
+
+  @@index([spanMarkupId])
+  @@map("span_markup_notes")
 }

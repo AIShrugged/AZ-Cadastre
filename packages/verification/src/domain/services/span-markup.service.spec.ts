@@ -9,7 +9,7 @@ import {
 import {
   dimensionsASpan,
   sheetMarkupOf,
-  spanMarkupNoteOf,
+  spanMarkupNotesOf,
 } from './span-markup.service.js';
 
 /*
@@ -180,48 +180,89 @@ describe('sheetMarkupOf', () => {
   });
 });
 
-describe('spanMarkupNoteOf', () => {
+describe('spanMarkupNotesOf', () => {
   it('says nothing where everything asked for is on the pictures', () => {
     expect(
-      spanMarkupNoteOf({
+      spanMarkupNotesOf({
         marked: [{ rooms: 4, axes: 5 }],
         unmarked: 0,
         unitEstablished: true,
       }),
-    ).toBeNull();
+    ).toEqual([]);
   });
 
   it('says that the set marks no axes rather than leaving the absence to be guessed at', () => {
-    const note = spanMarkupNoteOf({
-      marked: [{ rooms: 3, axes: 0 }],
-      unmarked: 0,
-      unitEstablished: true,
-    });
-
-    expect(note).toContain('No circled axis marks were read');
-    expect(note).toContain('dimensions rooms only');
+    expect(
+      spanMarkupNotesOf({
+        marked: [{ rooms: 3, axes: 0 }],
+        unmarked: 0,
+        unitEstablished: true,
+      }),
+    ).toEqual([{ reason: 'NoAxesOnSheets', sheets: null }]);
   });
 
-  it('says how the lengths are labelled where the unit was not established', () => {
+  it('says that no room outlines were read', () => {
     expect(
-      spanMarkupNoteOf({
+      spanMarkupNotesOf({
+        marked: [{ rooms: 0, axes: 4 }],
+        unmarked: 0,
+        unitEstablished: true,
+      }),
+    ).toEqual([{ reason: 'NoRoomOutlines', sheets: null }]);
+  });
+
+  it('says that the unit was not established', () => {
+    expect(
+      spanMarkupNotesOf({
         marked: [{ rooms: 2, axes: 4 }],
         unmarked: 0,
         unitEstablished: false,
       }),
-    ).toBe(
-      'The unit of the printed figures was not established, so every length ' +
-        'is labelled «ед.».',
-    );
+    ).toEqual([{ reason: 'UnitUnestablished', sheets: null }]);
   });
 
   it('counts the sheets that were asked for and could not be drawn', () => {
     expect(
-      spanMarkupNoteOf({
+      spanMarkupNotesOf({
         marked: [{ rooms: 2, axes: 4 }],
         unmarked: 2,
         unitEstablished: true,
       }),
-    ).toBe('2 further sheets were asked for and could not be marked up.');
+    ).toEqual([{ reason: 'SheetsUnmarked', sheets: 2 }]);
+  });
+
+  // One sheet of the set carrying axes is the set carrying them: the reason is
+  // about the whole complect and not about the sheet that came back thinnest.
+  it('does not say the set marks no axes where one sheet carries some', () => {
+    expect(
+      spanMarkupNotesOf({
+        marked: [
+          { rooms: 3, axes: 0 },
+          { rooms: 3, axes: 6 },
+        ],
+        unmarked: 0,
+        unitEstablished: true,
+      }),
+    ).toEqual([]);
+  });
+
+  /*
+   * The order is the order the reasons are declared in, never the order they
+   * were found in — a reader who meets two of them on one case and two on the
+   * next reads them the same way round both times.
+   */
+  it('gives the reasons in one order, whatever holds at once', () => {
+    expect(
+      spanMarkupNotesOf({
+        marked: [{ rooms: 0, axes: 0 }],
+        unmarked: 3,
+        unitEstablished: false,
+      }).map(note => note.reason),
+    ).toEqual([
+      'NoAxesOnSheets',
+      'NoRoomOutlines',
+      'UnitUnestablished',
+      'SheetsUnmarked',
+    ]);
   });
 });

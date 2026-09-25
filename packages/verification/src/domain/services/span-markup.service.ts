@@ -21,6 +21,7 @@ import {
   type DocumentTypeSpec,
   type SheetGeometry,
   type SheetPoint,
+  type SpanMarkupNote,
   type SpanUnit,
   type SpanUnitBasis,
 } from '../value-objects/index.js';
@@ -160,50 +161,44 @@ export function sheetMarkupOf(input: {
 }
 
 /**
- * Why the markup is incomplete or empty, in the words of an audit — or null
- * where everything that was asked for is on the pictures.
+ * Why the markup is incomplete or empty — or nothing at all where everything
+ * that was asked for is on the pictures.
  *
- * Every clause is something an inspector would otherwise have to work out from
+ * Every reason is something an inspector would otherwise have to work out from
  * an absence. A set that marks no axes draws none, and "no axes were drawn" on
  * its own reads like a failure of ours; saying that the sheets carry none is
  * the difference between a reading refused and a reading not made (ADR-0044).
+ *
+ * The reasons come back in the order they are declared, never in the order they
+ * happened to be found, so that a reader who sees two of them twice sees them
+ * the same way round both times.
  */
-export function spanMarkupNoteOf(input: {
+export function spanMarkupNotesOf(input: {
   // The sheets a picture was produced for.
   readonly marked: readonly { readonly rooms: number; readonly axes: number }[];
   // The sheets that were asked for and produced none.
   readonly unmarked: number;
   readonly unitEstablished: boolean;
-}): string | null {
-  const clauses: string[] = [];
+}): readonly SpanMarkupNote[] {
+  const notes: SpanMarkupNote[] = [];
 
   if (input.marked.every(sheet => sheet.axes === 0)) {
-    clauses.push(
-      'No circled axis marks were read on these sheets, so no axes are ' +
-        'drawn: the set dimensions rooms only.',
-    );
+    notes.push({ reason: 'NoAxesOnSheets', sheets: null });
   }
 
   if (input.marked.every(sheet => sheet.rooms === 0)) {
-    clauses.push('No room outlines were read on these sheets.');
+    notes.push({ reason: 'NoRoomOutlines', sheets: null });
   }
 
   if (!input.unitEstablished) {
-    clauses.push(
-      `The unit of the printed figures was not established, so every length ` +
-        `is labelled «${UNIT_UNESTABLISHED}».`,
-    );
+    notes.push({ reason: 'UnitUnestablished', sheets: null });
   }
 
   if (input.unmarked > 0) {
-    clauses.push(
-      `${input.unmarked} further ` +
-        `${input.unmarked === 1 ? 'sheet was' : 'sheets were'} asked for and ` +
-        `could not be marked up.`,
-    );
+    notes.push({ reason: 'SheetsUnmarked', sheets: input.unmarked });
   }
 
-  return clauses.length === 0 ? null : clauses.join(' ');
+  return notes;
 }
 
 function withLength(

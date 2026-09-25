@@ -46,6 +46,7 @@ import {
   RegistryOutcome,
   ReportStatus,
   SourceFileId,
+  SPAN_MARKUP_NOTE_REASONS,
   SPAN_UNIT_BASES,
   SPAN_UNITS,
   SpanMarkup,
@@ -56,6 +57,7 @@ import {
   ValidationIssue,
   VerificationProfile,
   VerificationReport,
+  type SpanMarkupNoteReason,
   type SpanUnit,
   type SpanUnitBasis,
 } from '../../domain/value-objects/index.js';
@@ -215,8 +217,13 @@ export type DocumentRow = {
 export type SpanMarkupRow = {
   readonly unit: string | null;
   readonly unitBasis: string | null;
-  readonly note: string | null;
+  readonly notes: readonly SpanMarkupNoteRow[];
   readonly sheets: readonly SpanMarkupSheetRow[];
+};
+
+export type SpanMarkupNoteRow = {
+  readonly reason: string;
+  readonly sheets: number | null;
 };
 
 export type SpanMarkupSheetRow = {
@@ -415,7 +422,11 @@ export type DocumentWrite = {
 export type SpanMarkupWrite = {
   readonly unit: string | null;
   readonly unitBasis: string | null;
-  readonly note: string | null;
+  readonly notes: readonly {
+    readonly reason: string;
+    readonly sheets: number | null;
+    readonly position: number;
+  }[];
   readonly sheets: readonly {
     readonly pageNumber: number;
     readonly imageStorageKey: string;
@@ -963,7 +974,14 @@ export class VerificationPackageMapper {
       // it restores as nothing decided rather than taking the package down.
       unit: unitOrNone(row.unit),
       unitBasis: unitBasisOrNone(row.unitBasis),
-      note: row.note,
+      // Same rule for the reasons: a stored word the enumeration does not name
+      // is one this build does not know, and it is dropped rather than restored
+      // as a reason no client can say.
+      notes: row.notes.flatMap(note => {
+        const reason = noteReasonOrNone(note.reason);
+
+        return reason === null ? [] : [{ reason, sheets: note.sheets }];
+      }),
     });
   }
 
@@ -975,7 +993,11 @@ export class VerificationPackageMapper {
     return {
       unit: markup.unit,
       unitBasis: markup.unitBasis,
-      note: markup.note,
+      notes: markup.notes.map((note, position) => ({
+        reason: note.reason,
+        sheets: note.sheets,
+        position,
+      })),
       sheets: markup.sheets.map((sheet, position) => ({
         pageNumber: sheet.pageNumber.value,
         imageStorageKey: sheet.image.storageKey.value,
@@ -1201,4 +1223,8 @@ function unitOrNone(stored: string | null): SpanUnit | null {
 
 function unitBasisOrNone(stored: string | null): SpanUnitBasis | null {
   return SPAN_UNIT_BASES.find(basis => basis === stored) ?? null;
+}
+
+function noteReasonOrNone(stored: string): SpanMarkupNoteReason | null {
+  return SPAN_MARKUP_NOTE_REASONS.find(reason => reason === stored) ?? null;
 }

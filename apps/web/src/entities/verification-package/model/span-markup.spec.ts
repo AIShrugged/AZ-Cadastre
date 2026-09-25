@@ -32,7 +32,7 @@ const MARKED: SpanMarkupDto = {
   ],
   unit: 'mm',
   unitBasis: 'BuiltUpArea',
-  note: null,
+  notes: [],
 };
 
 function aDocument(over: Partial<DocumentDto> = {}): DocumentDto {

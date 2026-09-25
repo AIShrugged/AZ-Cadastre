@@ -28,6 +28,7 @@ import type {
   ReportDto,
   SourceFileDto,
   SpanMarkupDto,
+  SpanMarkupNoteDto,
   StatedValueDto,
 } from '@cadastre/api-contracts/verification';
 
@@ -457,7 +458,12 @@ function toSpanMarkupDto(
     // is one the contract names.
     unit: view.unit as SpanMarkupDto['unit'],
     unitBasis: view.unitBasis as SpanMarkupDto['unitBasis'],
-    note: view.note,
+    // Same: the reasons are only ever written through the domain's own
+    // enumeration, and a stored word it does not name never reaches the view.
+    notes: view.notes.map(note => ({
+      reason: note.reason as SpanMarkupNoteDto['reason'],
+      sheets: note.sheets,
+    })),
   };
 }
 

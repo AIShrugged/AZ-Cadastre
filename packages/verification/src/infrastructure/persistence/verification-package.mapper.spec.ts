@@ -724,7 +724,7 @@ describe('VerificationPackageMapper', () => {
       const spanMarkup = {
         unit: 'mm',
         unitBasis: 'BuiltUpArea',
-        note: null,
+        notes: [{ reason: 'SheetsUnmarked', sheets: 2 }],
         sheets: [
           {
             pageNumber: 1,
@@ -745,6 +745,10 @@ describe('VerificationPackageMapper', () => {
 
       expect(written?.spanMarkup).toEqual({
         ...spanMarkup,
+        notes: spanMarkup.notes.map((note, position) => ({
+          ...note,
+          position,
+        })),
         sheets: spanMarkup.sheets.map((sheet, position) => ({
           ...sheet,
           position,
@@ -763,7 +767,7 @@ describe('VerificationPackageMapper', () => {
             spanMarkup: {
               unit: 'versts',
               unitBasis: 'Divination',
-              note: null,
+              notes: [{ reason: 'TheDogAteIt', sheets: null }],
               sheets: [
                 {
                   pageNumber: 1,
@@ -783,6 +787,9 @@ describe('VerificationPackageMapper', () => {
       expect(document?.spanMarkup?.unit).toBeNull();
       expect(document?.spanMarkup?.unitBasis).toBeNull();
       expect(document?.spanMarkup?.sheets).toHaveLength(1);
+      // And a reason it does not name is dropped for the same reason: a word no
+      // client can translate is a caption nobody can read.
+      expect(document?.spanMarkup?.notes).toEqual([]);
     });
 
     /*

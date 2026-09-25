@@ -477,7 +477,10 @@ export class PackageQueriesAdapter extends PackageQueries {
                   select: {
                     unit: true,
                     unitBasis: true,
-                    note: true,
+                    notes: {
+                      orderBy: { position: 'asc' },
+                      select: { reason: true, sheets: true },
+                    },
                     sheets: {
                       orderBy: { position: 'asc' },
                       select: {
@@ -608,7 +611,7 @@ export class PackageQueriesAdapter extends PackageQueries {
               ? {
                   unit: document.spanMarkup.unit,
                   unitBasis: document.spanMarkup.unitBasis,
-                  note: document.spanMarkup.note,
+                  notes: document.spanMarkup.notes,
                   sheets: document.spanMarkup.sheets.map(sheet => ({
                     pageNumber: sheet.pageNumber,
                     imageStorageKey: sheet.imageStorageKey,

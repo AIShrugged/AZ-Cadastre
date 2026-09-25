@@ -16,7 +16,7 @@ import {
   sheetMarkupOf,
   sheetsToPicture,
   spanCalculationOf,
-  spanMarkupNoteOf,
+  spanMarkupNotesOf,
   type ArchivedPaper,
 } from '../../../../domain/services/index.js';
 import {
@@ -787,7 +787,7 @@ export class RunVerificationHandler implements ICommandHandler<
         sheets: drawn,
         unit,
         unitBasis,
-        note: spanMarkupNoteOf({
+        notes: spanMarkupNotesOf({
           marked: drawn.map(sheet => ({
             rooms: sheet.rooms,
             axes: sheet.axes,

@@ -274,6 +274,33 @@ export type ArchiveQrCheckView = {
   }[];
 };
 
+/**
+ * One sheet of a design set with the span working drawn onto it (COMM-165).
+ *
+ * The register keeps the key; the link is minted per request and expires, for
+ * the reason a page's is — a URL that opens somebody's drawing has no business
+ * outliving the screen that showed it.
+ */
+export type SpanMarkupSheetView = {
+  pageNumber: number;
+  imageStorageKey: string;
+  imageUrl: string | null;
+  rooms: number;
+  axes: number;
+};
+
+export type SpanMarkupView = {
+  // Never empty: a document nothing could be drawn for carries no markup.
+  sheets: readonly SpanMarkupSheetView[];
+  // One of the domain's `SPAN_UNITS` and `SPAN_UNIT_BASES`, or null in both
+  // where nothing decided the unit — and then the lengths on the pictures are
+  // labelled «ед.».
+  unit: string | null;
+  unitBasis: string | null;
+  // Why the markup is incomplete or empty, in the words of an audit.
+  note: string | null;
+};
+
 export type DocumentView = {
   id: string;
   firstPage: number;
@@ -288,6 +315,10 @@ export type DocumentView = {
   // Null on a paper that is not a Decree 439 title, and on one the archive has
   // not been asked about yet.
   archiveQrCheck: ArchiveQrCheckView | null;
+  // The span working drawn onto this paper's sheets. Non-empty only on the
+  // types of design documentation a span is read off, and null on a design set
+  // no run has marked up yet (COMM-165).
+  spanMarkup: SpanMarkupView | null;
   // What replaced this document and when, or null while it is in force. A
   // replaced document stays in the package and stays readable; nothing the
   // package states is worked out from it (COMM-80).

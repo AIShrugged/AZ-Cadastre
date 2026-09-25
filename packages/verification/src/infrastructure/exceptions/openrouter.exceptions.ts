@@ -9,6 +9,7 @@ export class MissingOpenRouterApiKeyException extends InfrastructureException {
       | 'SEGMENTER_PROVIDER'
       | 'CLASSIFIER_PROVIDER'
       | 'EXTRACTOR_PROVIDER'
+      | 'GEOMETRY_PROVIDER'
       | 'CROSS_CHECKER_PROVIDER',
   ) {
     super(

@@ -12,11 +12,17 @@ import {
 } from '../../../../domain/entities/index.js';
 import {
   archiveQrCheckOf,
+  dimensionsASpan,
+  sheetMarkupOf,
+  sheetsToPicture,
+  spanCalculationOf,
+  spanMarkupNoteOf,
   type ArchivedPaper,
 } from '../../../../domain/services/index.js';
 import {
   ArchiveQrSignature,
   Confidence,
+  ContentType,
   CrossCheck,
   FailureReason,
   PackageId,
@@ -27,6 +33,9 @@ import {
   RegistryCheck,
   RegistryDocument,
   RegistryOutcome,
+  SpanMarkup,
+  SpanMarkupSheet,
+  StorageKey,
   type CrossCheckSpec,
   type DocumentId,
   type PageRange,
@@ -43,9 +52,12 @@ import {
   FieldExtractor,
   IdGenerator,
   NationalArchivePort,
+  ObjectStorage,
   OcrProvider,
   PdfSplitter,
   QrCodeReader,
+  SheetGeometryReader,
+  SpanMarkupRenderer,
   VerificationPackageRepository,
   type ArchivedDocument,
 } from '../../../ports/outbound/index.js';
@@ -56,6 +68,16 @@ import { RunVerificationCommand } from './run-verification.command.js';
 // could not be read. Providers rate-limit and time out for reasons that have
 // nothing to do with the sheet in hand, and the second ask usually succeeds.
 const ATTEMPTS_PER_SHEET = 3;
+
+/*
+ * How many sheets of a design set are marked up (COMM-165).
+ *
+ * The same count the extractor is shown pictures of, chosen the same way — the
+ * type's key sheets first (`sheetsToPicture`, ADR-0044). Deliberately the same:
+ * the markup is evidence for what the extractor read, and a picture of a sheet
+ * the reader never saw would be evidence for nothing.
+ */
+const MAX_MARKUP_SHEETS = 6;
 
 @CommandHandler(RunVerificationCommand)
 export class RunVerificationHandler implements ICommandHandler<
@@ -78,6 +100,11 @@ export class RunVerificationHandler implements ICommandHandler<
     @Inject(CrossChecker) private readonly crossChecker: CrossChecker,
     @Inject(ArchiveRegistryPort) private readonly registry: ArchiveRegistryPort,
     @Inject(NationalArchivePort) private readonly archive: NationalArchivePort,
+    @Inject(ObjectStorage) private readonly storage: ObjectStorage,
+    @Inject(SheetGeometryReader)
+    private readonly geometry: SheetGeometryReader,
+    @Inject(SpanMarkupRenderer)
+    private readonly markupRenderer: SpanMarkupRenderer,
   ) {
     this.logger = logger.child({ scope: RunVerificationHandler.name });
   }
@@ -139,6 +166,12 @@ export class RunVerificationHandler implements ICommandHandler<
         );
         await this.despite('extract', document, () =>
           this.extract(packageId, documentId),
+        );
+        // After extraction, because the unit the lengths on the picture are
+        // labelled with is the one the span calculation decided, and that is
+        // decided off the values this paper was just read for (ADR-0043).
+        await this.despite('markup', document, () =>
+          this.markup(packageId, documentId),
         );
       }
 
@@ -596,6 +629,193 @@ export class RunVerificationHandler implements ICommandHandler<
 
     verification.recordExtractedFields(documentId, fields);
     await this.packages.save(verification);
+  }
+
+  /*
+   * The span working drawn onto the sheets it was read off (COMM-165).
+   *
+   * A span reaches an inspector as a number and a string of axis pairs, and
+   * neither can be held against the drawing on the desk: a production case was
+   * decided on a chain no sheet of the set carries, and nobody could see that
+   * from what was published (COMM-160). So the sheets the reader was shown are
+   * asked for their geometry, the rooms and axes are drawn back onto them, and
+   * the picture goes in beside the calculation.
+   *
+   * Only the three types a span is read off, and only once: a re-run of a package
+   * whose design set nothing has changed on keeps the pictures it drew, the way
+   * extraction keeps the readings it made.
+   *
+   * Nothing here can refuse the span. A sheet whose geometry came back empty, a
+   * canvas that failed, a PNG that would not store — each costs its own picture
+   * and is said in the note the contract publishes, and the calculation is
+   * exactly what it would have been without this stage.
+   */
+  private async markup(
+    packageId: PackageId,
+    documentId: DocumentId,
+  ): Promise<void> {
+    const verification = await this.load(packageId);
+    const document = verification.documentWith(documentId);
+    const classification = document.classification;
+
+    if (!classification?.isPlaced) return;
+
+    const spec = verification.profile.specFor(classification.type);
+
+    if (!dimensionsASpan(spec)) return;
+    if (document.spanMarkup !== null) return;
+
+    const shown = verification.sheetsOf(documentId).flatMap(page =>
+      page.image === null
+        ? []
+        : [
+            {
+              number: page.number,
+              image: page.image,
+              text: page.ocr?.text ?? RecognisedText.empty(),
+            },
+          ],
+    );
+    const pictured = new Set(
+      sheetsToPicture(
+        shown.map(sheet => ({
+          number: sheet.number.value,
+          text: sheet.text.value,
+        })),
+        spec.keySheets,
+        MAX_MARKUP_SHEETS,
+      ),
+    );
+    const asked = shown.filter(sheet => pictured.has(sheet.number.value));
+
+    if (asked.length === 0) return;
+
+    const startedAt = Date.now();
+    const geometry = await this.geometry.read({ sheets: asked, spec });
+
+    /*
+     * The unit the lengths are labelled with is the calculation's own decision
+     * and never a second one (ADR-0043). Where the calculation made none — a set
+     * that marks no axes states no span at all — the lengths are labelled «ед.»
+     * rather than assumed to be millimetres: a figure carrying a unit nobody
+     * established is what makes a wrong span look checked.
+     */
+    const stated = (key: string): string | null =>
+      document.fields.find(field => field.key.value === key)?.value.value ??
+      null;
+    const calculation = spanCalculationOf(
+      stated('span_dimensions') ?? '',
+      stated('built_up_area'),
+      stated('span_overall_dimensions'),
+    );
+    const unit = calculation?.unit ?? null;
+    const unitBasis = calculation?.unitBasis ?? null;
+
+    const drawn: SpanMarkupSheet[] = [];
+
+    for (const sheet of geometry) {
+      const source = asked.find(
+        one => one.number.value === sheet.pageNumber.value,
+      );
+
+      if (!source) continue;
+
+      const markup = sheetMarkupOf({
+        geometry: sheet,
+        documentType: classification.type.value,
+        unit,
+        unitBasis,
+      });
+
+      try {
+        const rendered = await this.markupRenderer.render({
+          sheet: (await this.storage.getObject(source.image.storageKey)).body,
+          markup,
+        });
+        const key = this.markupKey(packageId, documentId, sheet.pageNumber);
+
+        await this.storage.putObject({
+          key,
+          body: rendered,
+          contentType: ContentType.PNG,
+        });
+
+        drawn.push(
+          SpanMarkupSheet.of(
+            sheet.pageNumber,
+            PageImage.of(key, ContentType.PNG),
+            {
+              rooms: markup.rooms.length,
+              axes: markup.axes.length,
+            },
+          ),
+        );
+      } catch (error) {
+        // One sheet's picture, and not the paper's: the rest of the set draws.
+        this.logger.warn('A sheet could not be marked up', {
+          packageId: packageId.value,
+          documentId: documentId.value,
+          sheet: sheet.pageNumber.value,
+          error,
+        });
+      }
+    }
+
+    // Said before the early return, because "the sheets of a design set were
+    // asked about and nothing came back" is the interesting case: the span will
+    // be published with no picture behind it, and this is why.
+    this.logger.log('Span markup drawn', {
+      packageId: packageId.value,
+      documentId: documentId.value,
+      type: classification.type.value,
+      asked: asked.map(sheet => sheet.number.value),
+      drawn: drawn.map(sheet => ({
+        sheet: sheet.pageNumber.value,
+        rooms: sheet.rooms,
+        axes: sheet.axes,
+      })),
+      unit,
+      unitBasis,
+      durationMs: Date.now() - startedAt,
+    });
+
+    if (drawn.length === 0) return;
+
+    verification.recordSpanMarkup(
+      documentId,
+      SpanMarkup.of({
+        sheets: drawn,
+        unit,
+        unitBasis,
+        note: spanMarkupNoteOf({
+          marked: drawn.map(sheet => ({
+            rooms: sheet.rooms,
+            axes: sheet.axes,
+          })),
+          unmarked: asked.length - drawn.length,
+          unitEstablished: unit !== null,
+        }),
+      }),
+    );
+    await this.packages.save(verification);
+  }
+
+  /*
+   * Where a marked-up sheet is kept: under the case, the paper and the sheet, so
+   * that a key read off a log says which drawing it is a picture of. Padded, so a
+   * listing sorts the way the sheets read, and stable, so a second run overwrites
+   * the pictures the first one wrote instead of orphaning them — the same rule
+   * the rendered pages are keyed by.
+   */
+  private markupKey(
+    packageId: PackageId,
+    documentId: DocumentId,
+    page: PageNumber,
+  ): StorageKey {
+    return StorageKey.create(
+      `packages/${packageId.value}/span-markup/${documentId.value}/` +
+        `page_${String(page.value).padStart(3, '0')}.png`,
+    );
   }
 
   /*

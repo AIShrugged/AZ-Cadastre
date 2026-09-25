@@ -169,6 +169,15 @@ export const EnvironmentSchema = z
     CROSS_CHECKER_PROVIDER: z.enum(['mock', 'openrouter']).default('mock'),
     CROSS_CHECKER_MODEL: z.string().default('openai/gpt-4o'),
 
+    // Reads the geometry of a design set's sheets — room outlines, axes and the
+    // dimension chain — for the markup an inspector checks the span against
+    // (COMM-165). Its own model and not the extractor's: `EXTRACTOR_MODEL` is
+    // one setting for every type of paper, and `qwen2.5-vl-72b` does not read a
+    // dimension chain at all, while `gemini-2.5-pro` does (docs/MODELS.md). It
+    // wants a model that takes images and answers in coordinates.
+    GEOMETRY_PROVIDER: z.enum(['mock', 'openrouter']).default('mock'),
+    GEOMETRY_MODEL: z.string().default('google/gemini-2.5-pro'),
+
     // The archive register the property is looked up in (ADR-0009). Not a
     // model: `mock` is the stand-in built into the context, which holds three
     // records and needs no process, and `http` is whoever serves the register
@@ -320,6 +329,10 @@ export const EnvironmentSchema = z
       crossChecker: {
         provider: env.CROSS_CHECKER_PROVIDER,
         model: env.CROSS_CHECKER_MODEL,
+      },
+      geometry: {
+        provider: env.GEOMETRY_PROVIDER,
+        model: env.GEOMETRY_MODEL,
       },
       registry: {
         provider: env.REGISTRY_PROVIDER,

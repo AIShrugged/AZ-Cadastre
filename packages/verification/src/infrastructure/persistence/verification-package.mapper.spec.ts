@@ -89,6 +89,7 @@ function aDocumentRow(overrides: Partial<DocumentRow> = {}): DocumentRow {
     supersededById: null,
     supersededAt: null,
     archiveQrCheck: null,
+    spanMarkup: null,
     extractedFields: [
       aFieldRow({ name: 'first_name', value: 'ELCHIN', confidence: 0.92 }),
     ],
@@ -712,6 +713,76 @@ describe('VerificationPackageMapper', () => {
           position,
         })),
       });
+    });
+
+    /*
+     * The span markup is what an inspector checks the calculation against, and
+     * it is a picture: what survives the database is where each PNG is, which
+     * sheet it is of, and what is on it (COMM-165).
+     */
+    it('gives back the marked-up sheets, the unit and the note as they were written', () => {
+      const spanMarkup = {
+        unit: 'mm',
+        unitBasis: 'BuiltUpArea',
+        note: null,
+        sheets: [
+          {
+            pageNumber: 1,
+            imageStorageKey: 'packages/p/span-markup/d/page_001.png',
+            imageContentType: 'image/png',
+            rooms: 4,
+            axes: 5,
+          },
+        ],
+      };
+      const original = aPackageRow({
+        documents: [aDocumentRow({ type: 'sketch_project', spanMarkup })],
+      });
+
+      const [written] = VerificationPackageMapper.toRow(
+        VerificationPackageMapper.toDomain(original),
+      ).documents;
+
+      expect(written?.spanMarkup).toEqual({
+        ...spanMarkup,
+        sheets: spanMarkup.sheets.map((sheet, position) => ({
+          ...sheet,
+          position,
+        })),
+      });
+    });
+
+    // A unit this build's vocabulary does not name restores as "nothing
+    // decided", which is the state the picture is already labelled «ед.» in —
+    // rather than taking the whole package down on a word.
+    it('restores a unit it does not recognise as nothing decided', () => {
+      const original = aPackageRow({
+        documents: [
+          aDocumentRow({
+            type: 'sketch_project',
+            spanMarkup: {
+              unit: 'versts',
+              unitBasis: 'Divination',
+              note: null,
+              sheets: [
+                {
+                  pageNumber: 1,
+                  imageStorageKey: 'packages/p/span-markup/d/page_001.png',
+                  imageContentType: 'image/png',
+                  rooms: 1,
+                  axes: 0,
+                },
+              ],
+            },
+          }),
+        ],
+      });
+
+      const [document] = VerificationPackageMapper.toDomain(original).documents;
+
+      expect(document?.spanMarkup?.unit).toBeNull();
+      expect(document?.spanMarkup?.unitBasis).toBeNull();
+      expect(document?.spanMarkup?.sheets).toHaveLength(1);
     });
 
     /*

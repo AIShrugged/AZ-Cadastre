@@ -39,6 +39,14 @@ COPY packages ./packages
 
 RUN npm install -g pnpm
 
+# A font, because the image draws with one. The span markup writes the lengths
+# and the legend onto a copy of the drawing (COMM-165), and `node:26-alpine`
+# ships no font at all: without this the captions come out blank, which reads as
+# a picture with nothing on it rather than as a missing package. DejaVu carries
+# the Latin extended the Azerbaijani room names are printed in and the Cyrillic
+# the «ед.» label needs; the renderer names it first in its font stack.
+RUN apk add --no-cache font-dejavu fontconfig
+
 # --ignore-scripts: every install hook in this repo belongs to development, not
 # to the image. The root `prepare` runs husky, which `--prod` has just excluded
 # — the install died on `husky: not found` — and the context's `postinstall`

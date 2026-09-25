@@ -50,6 +50,7 @@ const doc = (over: Partial<DocumentDto> = {}): DocumentDto => ({
   attestation: null,
   fields: [],
   archiveQrCheck: null,
+  spanMarkup: null,
   supersededById: null,
   supersededAt: null,
   ...over,

@@ -46,12 +46,18 @@ import {
   RegistryOutcome,
   ReportStatus,
   SourceFileId,
+  SPAN_UNIT_BASES,
+  SPAN_UNITS,
+  SpanMarkup,
+  SpanMarkupSheet,
   StorageKey,
   Supersession,
   SupplyTarget,
   ValidationIssue,
   VerificationProfile,
   VerificationReport,
+  type SpanUnit,
+  type SpanUnitBasis,
 } from '../../domain/value-objects/index.js';
 
 import {
@@ -201,6 +207,24 @@ export type DocumentRow = {
   // What the National Archive Fund said about the paper, where it was asked
   // (ADR-0028).
   readonly archiveQrCheck: ArchiveQrCheckRow | null;
+  // The span working drawn onto the paper's sheets, where it is a design set a
+  // run has marked up (COMM-165).
+  readonly spanMarkup: SpanMarkupRow | null;
+};
+
+export type SpanMarkupRow = {
+  readonly unit: string | null;
+  readonly unitBasis: string | null;
+  readonly note: string | null;
+  readonly sheets: readonly SpanMarkupSheetRow[];
+};
+
+export type SpanMarkupSheetRow = {
+  readonly pageNumber: number;
+  readonly imageStorageKey: string;
+  readonly imageContentType: string;
+  readonly rooms: number;
+  readonly axes: number;
 };
 
 export type ArchiveQrCheckRow = {
@@ -385,6 +409,21 @@ export type DocumentWrite = {
   readonly supersededAt: Date | null;
   readonly fields: readonly FieldWrite[];
   readonly archiveQrCheck: ArchiveQrCheckWrite | null;
+  readonly spanMarkup: SpanMarkupWrite | null;
+};
+
+export type SpanMarkupWrite = {
+  readonly unit: string | null;
+  readonly unitBasis: string | null;
+  readonly note: string | null;
+  readonly sheets: readonly {
+    readonly pageNumber: number;
+    readonly imageStorageKey: string;
+    readonly imageContentType: string;
+    readonly rooms: number;
+    readonly axes: number;
+    readonly position: number;
+  }[];
 };
 
 export type ArchiveQrCheckWrite = {
@@ -527,6 +566,9 @@ export class VerificationPackageMapper {
         })),
         archiveQrCheck: VerificationPackageMapper.archiveQrCheckRow(
           document.archiveQrCheck,
+        ),
+        spanMarkup: VerificationPackageMapper.spanMarkupRow(
+          document.spanMarkup,
         ),
       })),
       crossChecks: aggregate.crossChecks.map(check => ({
@@ -893,7 +935,56 @@ export class VerificationPackageMapper {
             ),
           })
         : null,
+      spanMarkup: VerificationPackageMapper.spanMarkupToDomain(row.spanMarkup),
     });
+  }
+
+  /*
+   * The markup as the aggregate holds it. A row with no sheets is dropped rather
+   * than restored empty: the value object refuses one, and a row that cannot
+   * exist must not be able to make a package unopenable.
+   */
+  private static spanMarkupToDomain(row: SpanMarkupRow | null) {
+    if (!row || row.sheets.length === 0) return null;
+
+    return SpanMarkup.of({
+      sheets: row.sheets.map(sheet =>
+        SpanMarkupSheet.of(
+          PageNumber.of(sheet.pageNumber),
+          PageImage.of(
+            StorageKey.create(sheet.imageStorageKey),
+            ContentType.of(sheet.imageContentType),
+          ),
+          { rooms: sheet.rooms, axes: sheet.axes },
+        ),
+      ),
+      // Read back as they were written, which is the domain's own vocabulary:
+      // a value neither enumeration names is one this build does not know, and
+      // it restores as nothing decided rather than taking the package down.
+      unit: unitOrNone(row.unit),
+      unitBasis: unitBasisOrNone(row.unitBasis),
+      note: row.note,
+    });
+  }
+
+  private static spanMarkupRow(
+    markup: SpanMarkup | null,
+  ): SpanMarkupWrite | null {
+    if (!markup) return null;
+
+    return {
+      unit: markup.unit,
+      unitBasis: markup.unitBasis,
+      note: markup.note,
+      sheets: markup.sheets.map((sheet, position) => ({
+        pageNumber: sheet.pageNumber.value,
+        imageStorageKey: sheet.image.storageKey.value,
+        imageContentType: sheet.image.contentType.value,
+        rooms: sheet.rooms,
+        axes: sheet.axes,
+        position,
+      })),
+    };
   }
 
   private static archiveQrCheckRow(
@@ -1094,4 +1185,20 @@ export class VerificationPackageMapper {
 
     return column;
   }
+}
+
+/*
+ * A stored unit back as the domain's own, or nothing.
+ *
+ * A column this build's vocabulary does not name restores as "nothing decided",
+ * which is exactly the state the markup labels its lengths «ед.» in: the picture
+ * is already drawn, and a word nobody recognises must not make the package
+ * unopenable (the reason `Document.type` is a string too).
+ */
+function unitOrNone(stored: string | null): SpanUnit | null {
+  return SPAN_UNITS.find(unit => unit === stored) ?? null;
+}
+
+function unitBasisOrNone(stored: string | null): SpanUnitBasis | null {
+  return SPAN_UNIT_BASES.find(basis => basis === stored) ?? null;
 }

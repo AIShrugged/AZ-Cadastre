@@ -1,0 +1,67 @@
+// The span working drawn onto a design set's sheets (COMM-165): where each
+// marked-up PNG is kept, and what is on it.
+//
+// One per document and not one per package, for the reason an archive QR check
+// is: the pictures are of THIS paper's sheets. Kept on the document and not
+// beside the span calculation on purpose — the markup is worth the most exactly
+// when the calculation refused, and then there is no calculation for it to hang
+// on (ADR-0044).
+
+model SpanMarkup {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Cascade: the pictures are of this paper's sheets, and a paper that is gone
+  /// leaves them of nothing.
+  documentId String   @unique @db.Uuid
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  /// The unit the lengths on the pictures are printed in, and what decided it —
+  /// the span calculation's own decision and never a second one (ADR-0043).
+  /// Both null where nothing decided it, and then the lengths are labelled
+  /// «ед.» rather than assumed to be millimetres.
+  ///
+  /// Strings and not enums, for the reason `Document.type` is one: the domain
+  /// owns the vocabulary, and a unit added to it should not need a migration.
+  unit      String?
+  unitBasis String?
+
+  /// Why the markup is incomplete or empty, in the words of an audit. Null
+  /// where everything asked for is on the pictures.
+  note String?
+
+  sheets SpanMarkupSheet[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("span_markups")
+}
+
+/// One marked-up sheet. Never none: a document nothing could be drawn for
+/// carries no markup row at all.
+model SpanMarkupSheet {
+  id           String     @id @default(uuid()) @db.Uuid
+  spanMarkupId String     @db.Uuid
+  spanMarkup   SpanMarkup @relation(fields: [spanMarkupId], references: [id], onDelete: Cascade)
+
+  /// The sheet of the containing file, 1-based — the same number a Page row
+  /// carries, so the markup can be put beside the sheet it was drawn on.
+  pageNumber Int
+
+  /// Object-store key of the marked-up PNG, and the format it was written in.
+  /// The key and not a URL: a link that opens somebody's drawing is signed per
+  /// request and expires, so it is never stored (ADR-0029).
+  imageStorageKey  String
+  imageContentType String
+
+  /// How many room outlines and how many axes were drawn on this sheet. Zero
+  /// axes is the honest answer on a set that marks none (ADR-0044).
+  rooms Int
+  axes  Int
+
+  /// The order the contract publishes the sheets in.
+  position Int
+
+  @@index([spanMarkupId])
+  @@map("span_markup_sheets")
+}

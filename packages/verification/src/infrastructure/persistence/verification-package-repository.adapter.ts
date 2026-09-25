@@ -38,6 +38,7 @@ const WHOLE_AGGREGATE = {
     include: {
       extractedFields: { orderBy: { createdAt: 'asc' } },
       archiveQrCheck: { include: { fields: { orderBy: { position: 'asc' } } } },
+      spanMarkup: { include: { sheets: { orderBy: { position: 'asc' } } } },
     },
   },
   crossChecks: {
@@ -327,8 +328,45 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
     }
 
     await this.writeArchiveQrCheck(tx, stored.id, document.archiveQrCheck);
+    await this.writeSpanMarkup(tx, stored.id, document.spanMarkup);
 
     return stored.id;
+  }
+
+  /*
+   * One markup per paper, replaced whole on a re-run: half of a picture drawn
+   * off one reading beside half drawn off another is a picture of a reading
+   * nobody made. A document the aggregate holds no markup for has none on file
+   * either (COMM-165).
+   *
+   * The PNGs themselves are left where they are. They are written under the
+   * document's own key, so a second run overwrites the pictures the first one
+   * wrote rather than orphaning them — the same reason the rendered pages are
+   * keyed off their original.
+   */
+  private async writeSpanMarkup(
+    tx: Prisma.TransactionClient,
+    documentId: string,
+    markup: DocumentWrite['spanMarkup'],
+  ): Promise<void> {
+    if (!markup) {
+      await tx.spanMarkup.deleteMany({ where: { documentId } });
+      return;
+    }
+
+    const { sheets, ...drawn } = markup;
+    const stored = await tx.spanMarkup.upsert({
+      where: { documentId },
+      create: { documentId, ...drawn },
+      update: drawn,
+    });
+
+    await tx.spanMarkupSheet.deleteMany({
+      where: { spanMarkupId: stored.id },
+    });
+    await tx.spanMarkupSheet.createMany({
+      data: sheets.map(sheet => ({ ...sheet, spanMarkupId: stored.id })),
+    });
   }
 
   // One answer per paper, replaced whole on a re-run: half of an old comparison

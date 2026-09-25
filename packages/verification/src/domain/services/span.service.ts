@@ -1,3 +1,10 @@
+import {
+  SPAN_UNIT_BASES,
+  SPAN_UNITS,
+  type SpanUnit,
+  type SpanUnitBasis,
+} from '../value-objects/span-unit.vo.js';
+
 /*
  * The span of a house, worked out of the axis chains its floor plans dimension
  * — the acceptance contract's "calculating the span length" (ADR-0043).
@@ -35,15 +42,14 @@
 export const AXIS_CHAINS = ['Numbered', 'Lettered'] as const;
 export type AxisChain = (typeof AXIS_CHAINS)[number];
 
-// What a bare figure on the chains was read as.
-export const SPAN_UNITS = ['mm', 'cm', 'm'] as const;
-export type SpanUnit = (typeof SPAN_UNITS)[number];
-
-// Who decided that: a unit printed beside every figure, the built-up area the
-// footprint was held against, or the rule a drawing is dimensioned in
-// millimetres, where there was no area to hold it against.
-export const SPAN_UNIT_BASES = ['Printed', 'BuiltUpArea', 'Assumed'] as const;
-export type SpanUnitBasis = (typeof SPAN_UNIT_BASES)[number];
+/*
+ * What a bare figure on the chains was read as, and who decided it. Declared in
+ * the vocabulary rather than here, because the markup drawn onto the sheets
+ * labels its lengths with the same unit and must not name a second one
+ * (COMM-165). Re-exported so that the calculation still reads as one place.
+ */
+export { SPAN_UNIT_BASES, SPAN_UNITS };
+export type { SpanUnit, SpanUnitBasis };
 
 /*
  * Why a calculation states no span although entries were read off the value.

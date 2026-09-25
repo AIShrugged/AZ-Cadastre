@@ -15,6 +15,7 @@ export { RegistryCheckMade } from './registry-check-made.event.js';
 export { ReportCompiled } from './report-compiled.event.js';
 export { SourceFileSegmented } from './source-file-segmented.event.js';
 export { SourceFileSplitIntoPages } from './source-file-split-into-pages.event.js';
+export { SpanMarkupDrawn } from './span-markup-drawn.event.js';
 export { VerificationCompleted } from './verification-completed.event.js';
 export { VerificationFailed } from './verification-failed.event.js';
 export { VerificationStarted } from './verification-started.event.js';

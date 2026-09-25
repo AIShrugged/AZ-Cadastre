@@ -471,6 +471,24 @@ export class PackageQueriesAdapter extends PackageQueries {
                     editedAt: true,
                   },
                 },
+                // The span working drawn onto this paper's sheets, where
+                // it is a design set a run has marked up (COMM-165).
+                spanMarkup: {
+                  select: {
+                    unit: true,
+                    unitBasis: true,
+                    note: true,
+                    sheets: {
+                      orderBy: { position: 'asc' },
+                      select: {
+                        pageNumber: true,
+                        imageStorageKey: true,
+                        rooms: true,
+                        axes: true,
+                      },
+                    },
+                  },
+                },
                 // What the National Archive Fund said about the paper, where
                 // it was asked (ADR-0028).
                 archiveQrCheck: {
@@ -576,6 +594,30 @@ export class PackageQueriesAdapter extends PackageQueries {
             editedAt: field.editedAt,
           })),
           archiveQrCheck: document.archiveQrCheck,
+          /*
+           * The markup, with the links left unsigned — the use case signs them,
+           * which is where reaching object storage belongs, the same way a
+           * sheet's own link is minted there and not here.
+           *
+           * A stored markup with no sheets cannot be written and is published as
+           * none: the contract states at least one sheet, and a read surface
+           * must not be able to answer with a shape it forbids.
+           */
+          spanMarkup:
+            document.spanMarkup && document.spanMarkup.sheets.length > 0
+              ? {
+                  unit: document.spanMarkup.unit,
+                  unitBasis: document.spanMarkup.unitBasis,
+                  note: document.spanMarkup.note,
+                  sheets: document.spanMarkup.sheets.map(sheet => ({
+                    pageNumber: sheet.pageNumber,
+                    imageStorageKey: sheet.imageStorageKey,
+                    imageUrl: null,
+                    rooms: sheet.rooms,
+                    axes: sheet.axes,
+                  })),
+                }
+              : null,
           supersededById: document.supersededById,
           supersededAt: document.supersededAt,
         })),

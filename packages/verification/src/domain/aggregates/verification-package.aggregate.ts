@@ -24,6 +24,7 @@ import {
   ReportCompiled,
   SourceFileSegmented,
   SourceFileSplitIntoPages,
+  SpanMarkupDrawn,
   VerificationCompleted,
   VerificationFailed,
   VerificationStarted,
@@ -33,6 +34,7 @@ import {
   ArchiveSearchNotAskedException,
   ArchiveSearchNotSettledException,
   CrossCheckNotInProfileException,
+  DocumentDimensionsNoSpanException,
   DocumentNotClassifiedException,
   DocumentNotHeldAgainstTheArchiveException,
   DocumentNotInForceException,
@@ -59,6 +61,7 @@ import {
 } from '../exceptions/index.js';
 import {
   attestationOf,
+  dimensionsASpan,
   gapsIn,
   isCheckedByItsQrCode,
   looksLikeTheSameValue,
@@ -107,6 +110,7 @@ import {
   type RegistryCheckKey,
   type RegistryCheckSpec,
   type SourceFileId,
+  type SpanMarkup,
   type SupplyTarget,
 } from '../value-objects/index.js';
 
@@ -1369,6 +1373,35 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       null;
 
     return { type, qrReference: readHere('qr_code'), stated: statedHere };
+  }
+
+  /*
+   * The span working drawn onto one design set's sheets (COMM-165).
+   *
+   * Held to the type and not merely to the document being placed: a markup on a
+   * receipt would be a picture of nothing, and the stage that produces one asks
+   * the same question before it draws. Replaced whole on a re-run — the markup
+   * is evidence of one reading, and half of two is evidence of neither.
+   */
+  recordSpanMarkup(documentId: DocumentId, markup: SpanMarkup): void {
+    this.guardUnderWay();
+
+    const document = this.documentWith(documentId);
+    const classification = document.classification;
+
+    if (
+      classification === null ||
+      !classification.isPlaced ||
+      !dimensionsASpan(this.#profile.specFor(classification.type))
+    ) {
+      throw new DocumentDimensionsNoSpanException(
+        documentId.value,
+        classification?.type.value ?? null,
+      );
+    }
+
+    this.replaceDocument(document.withSpanMarkup(markup));
+    this.apply(new SpanMarkupDrawn(this.id, documentId, markup.sheets.length));
   }
 
   recordArchiveQrCheck(documentId: DocumentId, check: ArchiveQrCheck): void {

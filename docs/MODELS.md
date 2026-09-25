@@ -148,6 +148,52 @@ between a model that misses the one span there is and one that sometimes
 invents a span where there is none, and the second is catchable by checking the
 chain against the design's own totals.
 
+### Reading the geometry of a drawing (`GEOMETRY_MODEL`)
+
+The span markup (ADR-0047, COMM-165) asks a second question of the same sheets:
+not what the chain says but where the rooms, the axes and the dimension segments
+ARE, in coordinates normalised to the sheet. `GEOMETRY_PROVIDER` and
+`GEOMETRY_MODEL` choose who answers, apart from `EXTRACTOR_MODEL` — which is one
+setting for every type of paper, and the paper here is a drawing.
+
+**Default: `google/gemini-2.5-pro`.** Measured live, 2026-09-25, against the
+production adapter and the real renderer, 150 dpi, one sheet per call:
+
+| sheet                                            | axes                   | dimension chain                                                    | room outlines                                   |
+| ------------------------------------------------ | ---------------------- | ------------------------------------------------------------------ | ----------------------------------------------- |
+| PROJE44 p. 7, `1-ci mərtəbənin planı`            | **8/8** — 1, 2, 3, A…E | **6/6 exact** — `1—2 4000` … `C—B 5200`, and every line on its own | 6 rooms, named and placed right, outlines loose |
+| Vera Vladimirovna p. 16, `1-ci mərtəbənin planı` | **0 — correct**        | none — correct                                                     | 7 rooms, placed roughly, outlines loose         |
+
+Read this as: **lines it places well, polygons it does not.** Every axis and
+every dimension segment on the reference sheet landed on the drawing's own — the
+markup shows `C—B 5200 mm` between the axes the span is actually measured
+between, which is the whole claim the picture has to support. Room outlines are
+approximate: the names land in the right rooms, the rectangles around them are
+oversized or offset by a few per cent of the sheet, and one wall figure on the
+studio came back wrong (`7400` for a 5000 × 8000 room). Useful as orientation,
+not as measurement — and no figure on the picture feeds the calculation.
+
+ADR-0044's rule survives contact with the model: on the set that marks no axes it
+answered with none rather than numbering the gaps between rooms, which is the
+failure COMM-160 was decided on.
+
+Cost and latency are the argument against showing it more sheets: **$0.22 and
+116–204 s per sheet**, of which 18 000 of 21 500 completion tokens were
+reasoning. Six sheets of a design set is around $1.30 and several minutes.
+
+Two things the live run found that no stub would have. The model answers
+`"sheet"` as a **string**, and numbers it as the drawing's own title block does —
+page 7 of the reference set came back as `"5"`, because its title block reads
+`Vərəq 5`. Both dropped the entire answer before the fix; both are now covered by
+`geometry.adapter.spec.ts`. And coordinates improved sharply once the prompt said
+the frame is the **whole image** — border, title block and margin — rather than
+"the sheet": before that, Vera's outlines were drawn in the empty half of the
+sheet beside the plan.
+
+Still to measure: a second design set that marks axes (the reference set is the
+only one there is — `SPAN-LENGTH-FINDINGS.md` §10), and whether a cheaper model
+places lines as well.
+
 ## Checking a model before you use it
 
 Advertised support is not delivered support, and delivery varies by provider on

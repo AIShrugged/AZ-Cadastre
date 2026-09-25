@@ -13,6 +13,7 @@ import type {
   FieldValue,
   PageRange,
   SourceFileId,
+  SpanMarkup,
 } from '../value-objects/index.js';
 
 import { ExtractedField } from './extracted-field.entity.js';
@@ -33,6 +34,16 @@ export class Document {
     // reference printed on it. Null on every paper that is not a Decree 439
     // title, and on one the check has not been made for yet (ADR-0028).
     public readonly archiveQrCheck: ArchiveQrCheck | null,
+    /*
+     * The span working drawn onto this document's sheets, or null (COMM-165).
+     *
+     * On a design set once the markup stage has run, and null on every other
+     * paper: only the three types a span is read off have anything to draw.
+     * Kept on the document rather than beside the calculation because the
+     * picture is worth the most when the calculation refused — and then there is
+     * no calculation for it to hang on (ADR-0044).
+     */
+    public readonly spanMarkup: SpanMarkup | null,
   ) {
     this.#fields = [...fields];
   }
@@ -42,7 +53,7 @@ export class Document {
     sourceFileId: SourceFileId,
     pages: PageRange,
   ): Document {
-    return new Document(id, sourceFileId, pages, null, [], null, null);
+    return new Document(id, sourceFileId, pages, null, [], null, null, null);
   }
 
   static restore(state: {
@@ -53,6 +64,7 @@ export class Document {
     fields: readonly ExtractedField[];
     superseded?: Supersession | null;
     archiveQrCheck?: ArchiveQrCheck | null;
+    spanMarkup?: SpanMarkup | null;
   }): Document {
     return new Document(
       state.id,
@@ -62,6 +74,7 @@ export class Document {
       state.fields,
       state.superseded ?? null,
       state.archiveQrCheck ?? null,
+      state.spanMarkup ?? null,
     );
   }
 
@@ -330,7 +343,23 @@ export class Document {
       this.#fields,
       this.superseded,
       null,
+      this.spanMarkup,
     );
+  }
+
+  /*
+   * The same document with the span working drawn onto its sheets.
+   *
+   * Replaced whole on a re-run rather than added to: half of a picture drawn off
+   * one reading beside half drawn off another is a picture of a reading nobody
+   * made. The stage that calls this is the only thing that produces one.
+   */
+  withSpanMarkup(markup: SpanMarkup): Document {
+    if (!this.classification?.isPlaced) {
+      throw new DocumentNotClassifiedException(this.id.value);
+    }
+
+    return this.with({ spanMarkup: markup });
   }
 
   private with(changes: {
@@ -338,6 +367,7 @@ export class Document {
     fields?: readonly ExtractedField[];
     superseded?: Supersession;
     archiveQrCheck?: ArchiveQrCheck;
+    spanMarkup?: SpanMarkup;
   }): Document {
     return new Document(
       this.id,
@@ -347,6 +377,7 @@ export class Document {
       changes.fields ?? this.#fields,
       changes.superseded ?? this.superseded,
       changes.archiveQrCheck ?? this.archiveQrCheck,
+      changes.spanMarkup ?? this.spanMarkup,
     );
   }
 }

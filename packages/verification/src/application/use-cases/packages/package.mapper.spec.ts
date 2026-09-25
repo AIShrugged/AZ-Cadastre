@@ -7,6 +7,7 @@ import {
   PackagesOverviewResponseSchema,
   PackageStandingSchema,
   SpanCalculationDtoSchema,
+  SpanMarkupDtoSchema,
 } from '@cadastre/api-contracts/verification';
 
 import {
@@ -106,6 +107,7 @@ function aDocumentView(overrides: Partial<DocumentView> = {}): DocumentView {
       aFieldView({ name: 'first_name', value: 'ELCHIN', confidence: 0.92 }),
     ],
     archiveQrCheck: null,
+    spanMarkup: null,
     supersededById: null,
     supersededAt: null,
     ...overrides,
@@ -624,6 +626,153 @@ describe('toDetailDto', () => {
     ]);
     expect([...shape.unit.options]).toEqual([...SPAN_UNITS]);
     expect([...shape.unitBasis.options]).toEqual([...SPAN_UNIT_BASES]);
+  });
+
+  /*
+   * The span markup an inspector checks the calculation against (COMM-165).
+   *
+   * Published on the document and not beside the calculation, deliberately: the
+   * picture is worth the most exactly when the calculation refused, and then
+   * there is no calculation for it to hang on (ADR-0044).
+   */
+  describe('the span markup', () => {
+    const aMarkupView = (): NonNullable<DocumentView['spanMarkup']> => ({
+      sheets: [
+        {
+          pageNumber: 7,
+          imageStorageKey: 'packages/p/span-markup/d/page_007.png',
+          imageUrl: 'memory://page_007.png',
+          rooms: 4,
+          axes: 5,
+        },
+      ],
+      unit: 'mm',
+      unitBasis: 'BuiltUpArea',
+      note: null,
+    });
+
+    it('publishes the marked-up sheets with the sheet number and the signed link', () => {
+      const dto = toDetailDto(
+        aDetailView({
+          files: [
+            aFileView({
+              documents: [aDocumentView({ spanMarkup: aMarkupView() })],
+            }),
+          ],
+        }),
+      );
+
+      expect(dto.files[0]!.documents[0]!.spanMarkup).toEqual({
+        sheets: [
+          {
+            pageNumber: 7,
+            imageUrl: 'memory://page_007.png',
+            rooms: 4,
+            axes: 5,
+          },
+        ],
+        unit: 'mm',
+        unitBasis: 'BuiltUpArea',
+        note: null,
+      });
+      expect(
+        PackageDetailDtoSchema.safeParse(
+          toDetailDto(
+            aDetailView({
+              files: [
+                aFileView({
+                  documents: [aDocumentView({ spanMarkup: aMarkupView() })],
+                }),
+              ],
+            }),
+          ),
+        ).success,
+      ).toBe(true);
+    });
+
+    // The storage key is how the server finds the picture; publishing it would
+    // be publishing where somebody's drawing is kept (ADR-0029).
+    it('publishes the link and never the storage key', () => {
+      const dto = toDetailDto(
+        aDetailView({
+          files: [
+            aFileView({
+              documents: [aDocumentView({ spanMarkup: aMarkupView() })],
+            }),
+          ],
+        }),
+      );
+
+      expect(
+        JSON.stringify(dto.files[0]!.documents[0]!.spanMarkup),
+      ).not.toContain('span-markup/d/page_007.png');
+    });
+
+    it('is null on a paper no span is read off', () => {
+      const dto = toDetailDto(aDetailView());
+
+      expect(dto.files[0]!.documents[0]!.spanMarkup).toBeNull();
+    });
+
+    /*
+     * The contract states at least one sheet, so a mapper able to publish an
+     * empty list would be publishing a shape the schema refuses — and a client
+     * would show "markup available" over nothing.
+     */
+    it('is null rather than an empty list of sheets', () => {
+      const dto = toDetailDto(
+        aDetailView({
+          files: [
+            aFileView({
+              documents: [
+                aDocumentView({
+                  spanMarkup: { ...aMarkupView(), sheets: [] },
+                }),
+              ],
+            }),
+          ],
+        }),
+      );
+
+      expect(dto.files[0]!.documents[0]!.spanMarkup).toBeNull();
+    });
+
+    // Null in both fields is what says the lengths on the picture are labelled
+    // «ед.» rather than assumed to be millimetres (ADR-0043).
+    it('carries no unit where nothing established one', () => {
+      const dto = toDetailDto(
+        aDetailView({
+          files: [
+            aFileView({
+              documents: [
+                aDocumentView({
+                  spanMarkup: {
+                    ...aMarkupView(),
+                    unit: null,
+                    unitBasis: null,
+                    note: 'The unit of the printed figures was not established.',
+                  },
+                }),
+              ],
+            }),
+          ],
+        }),
+      );
+
+      expect(dto.files[0]!.documents[0]!.spanMarkup?.unit).toBeNull();
+      expect(dto.files[0]!.documents[0]!.spanMarkup?.unitBasis).toBeNull();
+    });
+
+    // The mapper casts the read model's strings to the contract's enums; this is
+    // the check that the two name the same members.
+    it('offers exactly the units and unit bases the span service produces', () => {
+      const shape = SpanMarkupDtoSchema.shape;
+
+      expect([...shape.unit.unwrap().options]).toEqual([...SPAN_UNITS]);
+      expect([...shape.unitBasis.unwrap().options]).toEqual([
+        ...SPAN_UNIT_BASES,
+      ]);
+    });
   });
 
   it('renders a package with no files as an empty list rather than leaving it out', () => {

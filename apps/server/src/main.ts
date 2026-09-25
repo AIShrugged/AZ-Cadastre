@@ -60,6 +60,7 @@ async function bootstrap(): Promise<void> {
       classifier: `${verification.classifier.provider}:${verification.classifier.model || '—'}`,
       extractor: `${verification.extractor.provider}:${verification.extractor.model || '—'}`,
       crossChecker: `${verification.crossChecker.provider}:${verification.crossChecker.model || '—'}`,
+      geometry: `${verification.geometry.provider}:${verification.geometry.model || '—'}`,
       registry: `${verification.registry.provider}:${verification.registry.provider === 'http' ? verification.registry.url : '—'}`,
     },
     // Named separately from the `registry` provider above, which is the

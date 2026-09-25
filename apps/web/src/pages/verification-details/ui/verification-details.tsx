@@ -63,6 +63,7 @@ import {
   ISSUE_KIND_KEY,
   isSuperseded,
   markupCounts,
+  markupNotes,
   markupSheets,
   markupUnitLine,
   OUTCOME_NOTE,
@@ -1233,6 +1234,8 @@ function SpanMarkup({ markup }: { markup: SpanMarkupDto | null }) {
   // no run has marked up yet — nothing is drawn for either (see `spanMarkupOf`).
   if (markup === null) return null;
 
+  const notes = markupNotes(t, markup);
+
   return (
     <section className='mt-4 border-t border-dashed border-rule pt-3'>
       <h4 className='flex items-baseline gap-1.5 text-[0.6875rem] font-medium tracking-[0.06em] text-muted-foreground uppercase'>
@@ -1294,11 +1297,25 @@ function SpanMarkup({ markup }: { markup: SpanMarkupDto | null }) {
       <p className='mt-2 text-[0.6875rem] leading-snug text-muted-foreground'>
         {markupUnitLine(t, markup)}
       </p>
-      {/* Why the markup is short of what was asked for used to be printed
-          here as the English sentence the run wrote (COMM-166). The contract
-          now carries `markup.notes` — a closed list of reasons with a sheet
-          count on the one that counts — and saying them in the reader's own
-          language is COMM-168's, which is why nothing is printed meanwhile. */}
+      {/* Why the markup is short of what was asked for. It used to be the
+          English sentence the run wrote, printed as it came (COMM-166); the
+          contract now carries a closed list of reasons and the screen says
+          them in the reader's own language (COMM-171). Nothing at all where
+          the run marked up everything it was given — and nothing where every
+          reason it sent is already on the block above, which is most of them
+          (see `markupNotes`). */}
+      {notes.length > 0 && (
+        <div className='mt-2'>
+          <p className='text-[0.6875rem] leading-snug font-medium text-muted-foreground'>
+            {t('span.markup.notes_title')}
+          </p>
+          <ul className='mt-0.5 flex list-disc flex-col gap-0.5 pl-4 text-[0.6875rem] leading-snug text-muted-foreground'>
+            {notes.map(note => (
+              <li key={note}>{note}</li>
+            ))}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }

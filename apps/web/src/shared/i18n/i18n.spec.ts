@@ -48,6 +48,57 @@ describe('dictionaries', () => {
 });
 
 /**
+ * Why a span markup is short of what was asked for (COMM-171).
+ *
+ * The reasons are a closed list on the contract and the screen composes their
+ * keys — `span.markup.note.${reason}` — so `keys-used.spec` cannot see them:
+ * it only checks keys a source file spells out. A reason with no word in a
+ * dictionary reaches the inspector as `span.markup.note.SheetsUnmarked`, which
+ * is the English-sentence bug (COMM-166) in a new spelling. The list is written
+ * out here rather than imported: it is the copy that has to be kept in step
+ * with the server's enum, and that is what a test is for.
+ */
+describe('every reason a markup is short', () => {
+  const locales = LOCALES.map(l => l.id);
+
+  const REASONS = [
+    'NoAxesOnSheets',
+    'NoRoomOutlines',
+    'UnitUnestablished',
+    'SheetsUnmarked',
+  ];
+
+  // The count on `SheetsUnmarked` is said three ways — a figure, one sheet, and
+  // no number at all where the run sent none — so all three need a word.
+  const KEYS = [
+    'span.markup.notes_title',
+    ...REASONS.map(reason => `span.markup.note.${reason}`),
+    'span.markup.note.SheetsUnmarked_one',
+    'span.markup.note.SheetsUnmarked_some',
+  ];
+
+  it.each(locales)('%s has a word for each of them', locale => {
+    const missing = KEYS.filter(key => !(key in DICTS[locale]));
+    expect(missing).toEqual([]);
+  });
+
+  // The inspector reads Russian; a Russian reason identical to the English one
+  // is the untranslated string this task exists to remove.
+  it('says the reasons in Russian and not in English', () => {
+    const untranslated = KEYS.filter(key => DICTS.ru[key] === DICTS.en[key]);
+    expect(untranslated).toEqual([]);
+  });
+
+  // The sentence the server used to write is gone from the contract, and the
+  // key that printed it went with the block that used it.
+  it('no longer carries the key that printed the run’s own sentence', () => {
+    expect(
+      locales.filter(locale => 'span.markup.note' in DICTS[locale]),
+    ).toEqual([]);
+  });
+});
+
+/**
  * The acceptance contract's own two drawings (COMM-78/COMM-79).
  *
  * The plan-scheme and the sketch design are read off item by item now, and a

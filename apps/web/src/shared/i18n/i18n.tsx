@@ -441,7 +441,30 @@ const en: Dict = {
   'span.markup.basis.Assumed':
     'assumed, with no built-up area to check against',
   'span.markup.no_image': 'Sheet {n}: the picture could not be linked',
-  'span.markup.note': 'Why the markup is short: {note}',
+  // ── Why the markup is short of what was asked for (COMM-171) ──────────────
+  // A closed list of reasons off the contract, said in the reader's own
+  // language. It used to be one English sentence the run wrote, and an English
+  // sentence reaches a Russian or Azerbaijani screen untranslated (COMM-166).
+  //
+  // Three of the four the block already states in its own words a line above —
+  // no axes on any sheet, no outlines read, no unit decided — and are not
+  // printed a second time. Their words are kept for the one case that is not a
+  // repetition: the sheets and the reasons disagreeing, where saying nothing
+  // would be the lie (see `markupNotes`).
+  'span.markup.notes_title': 'Why the markup is short',
+  'span.markup.note.NoAxesOnSheets':
+    'No sheet of the set carries circled axes — the set dimensions rooms only, and a span is not read off it by rule',
+  'span.markup.note.NoRoomOutlines': 'No room outlines were read on any sheet',
+  'span.markup.note.UnitUnestablished':
+    'The unit of the printed figures could not be established',
+  // Label and figure rather than "3 sheets": one string, three languages and no
+  // grammatical number to agree with, the same way every count on this block is
+  // written. One sheet is said as one sheet, and a count the run sent no number
+  // for is said without one.
+  'span.markup.note.SheetsUnmarked': 'Sheets that could not be marked up: {n}',
+  'span.markup.note.SheetsUnmarked_one': 'One sheet could not be marked up',
+  'span.markup.note.SheetsUnmarked_some':
+    'Some of the sheets could not be marked up',
   'provision.value.Ownership': 'Ownership',
   'provision.value.LeaseOrUse': 'Lease or use',
   'provision.value.Residential': 'Housing',
@@ -1822,7 +1845,16 @@ const ru: Dict = {
   'span.markup.basis.Assumed':
     'принято без проверки — площади застройки в проекте нет',
   'span.markup.no_image': 'Лист {n}: ссылку на картинку получить не удалось',
-  'span.markup.note': 'Почему разметка неполная: {note}',
+  'span.markup.notes_title': 'Почему разметка неполная',
+  'span.markup.note.NoAxesOnSheets':
+    'Осей в кружках нет ни на одном листе комплекта — комплект обмеряет только комнаты, и пролёт по правилу не вычисляется',
+  'span.markup.note.NoRoomOutlines':
+    'Контуров комнат не прочитано ни на одном листе',
+  'span.markup.note.UnitUnestablished':
+    'Единицу напечатанных цифр установить не удалось',
+  'span.markup.note.SheetsUnmarked': 'Не удалось разметить листов: {n}',
+  'span.markup.note.SheetsUnmarked_one': 'Один лист разметить не удалось',
+  'span.markup.note.SheetsUnmarked_some': 'Часть листов разметить не удалось',
   'provision.value.Ownership': 'Собственность',
   'provision.value.LeaseOrUse': 'Аренда или пользование',
   'provision.value.Residential': 'Жилищное строительство',
@@ -3129,7 +3161,16 @@ const az: Dict = {
     'yoxlanmadan qəbul edilib — layihədə tikinti sahəsi yoxdur',
   'span.markup.no_image':
     '{n} nömrəli vərəq: şəklin linkini almaq mümkün olmadı',
-  'span.markup.note': 'İşarələmə niyə natamamdır: {note}',
+  'span.markup.notes_title': 'İşarələmə niyə natamamdır',
+  'span.markup.note.NoAxesOnSheets':
+    'Dəstin heç bir vərəqində dairəyə alınmış ox yoxdur — dəst yalnız otaqları ölçür və qaydaya görə aşırım oxunmur',
+  'span.markup.note.NoRoomOutlines': 'Heç bir vərəqdə otaq konturu oxunmayıb',
+  'span.markup.note.UnitUnestablished':
+    'Çap olunmuş rəqəmlərin vahidini müəyyən etmək mümkün olmadı',
+  'span.markup.note.SheetsUnmarked': 'İşarələnə bilməyən vərəqlər: {n}',
+  'span.markup.note.SheetsUnmarked_one': 'Bir vərəqi işarələmək mümkün olmadı',
+  'span.markup.note.SheetsUnmarked_some':
+    'Vərəqlərin bir hissəsini işarələmək mümkün olmadı',
   'provision.value.Ownership': 'Mülkiyyət',
   'provision.value.LeaseOrUse': 'İcarə və ya istifadə',
   'provision.value.Residential': 'Yaşayış tikintisi',

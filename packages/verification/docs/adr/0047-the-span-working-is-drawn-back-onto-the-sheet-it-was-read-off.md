@@ -89,10 +89,18 @@ been without the stage.
 - An inspector opening a case can see the axes the span was measured between,
   drawn on the drawing, and can disagree with them. A refusal now comes with the
   evidence for it.
-- A second model call per design set, with a second model to pay for and to
-  measure. The pictures are rationed the way the extractor's are: the type's key
-  sheets first, six at most (`sheetsToPicture`), which is also what keeps the
-  markup evidence for what the extractor actually saw.
+- A second model call per design set, with a second model to pay for. Measured
+  live on 2026-09-25 at **$0.22 and 116–204 s per sheet** — six sheets of a set
+  is around $1.30 and several minutes. The pictures are rationed the way the
+  extractor's are: the type's key sheets first, six at most (`sheetsToPicture`),
+  which is also what keeps the markup evidence for what the extractor saw.
+- What the picture is good for is bounded by what the model is good at, and the
+  two are not the same. On the reference set it placed every axis and every
+  dimension segment on the drawing's own — `C—B 5200 mm` between the axes the
+  span is actually measured between — and placed room outlines only
+  approximately (`docs/MODELS.md`). That is the right way round: the span stands
+  on the axes, and the rooms are orientation. Nothing drawn feeds the
+  calculation, so a loose outline costs an inspector a glance and not a figure.
 - The pictures are somebody's drawings, so their links are signed per request and
   expire, like a sheet's own. The storage key is never published.
 - The image has to carry a font. `node:26-alpine` ships none, and a caption drawn

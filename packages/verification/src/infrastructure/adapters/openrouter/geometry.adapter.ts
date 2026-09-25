@@ -33,11 +33,22 @@ const GEOMETRY_TIMEOUT_MS = 240_000;
 
 const PointSchema = z.object({ x: z.number(), y: z.number() });
 
+/*
+ * The sheet the answer is about, coerced.
+ *
+ * Measured, not defensive: asked about sheet 7 of the reference set,
+ * `gemini-2.5-pro` answers `"sheet": "5"` — a string, and the number printed in
+ * the drawing's own title block rather than the one it was shown the sheet
+ * under. A schema holding out for a number drops the entry, and with it every
+ * room and axis on a sheet the model read correctly.
+ */
+const SheetNumberSchema = z.coerce.number();
+
 const AnswerSchema = z.object({
   sheets: z
     .array(
       z.object({
-        sheet: z.number(),
+        sheet: SheetNumberSchema,
         rooms: z
           .array(
             z.object({
@@ -159,25 +170,25 @@ export class OpenRouterGeometryAdapter extends SheetGeometryReader {
     });
 
     const raw = answerOf(this.model, completion).message?.content ?? '{}';
-    const shown = new Set(request.sheets.map(sheet => sheet.number.value));
-    const geometry = this.parse(raw).flatMap(answered => {
-      // A sheet the reader was not shown is a sheet it did not read. The
-      // coordinates would be drawn onto some other page of the file.
-      if (!shown.has(answered.sheet)) return [];
+    const answered = this.parse(raw);
+    const geometry = answered.flatMap(sheet => {
+      const of = this.sheetOf(sheet.sheet, request, answered.length);
+
+      if (of === null) return [];
 
       const read = sheetGeometryOf({
-        pageNumber: answered.sheet,
-        rooms: (answered.rooms ?? []).map(room => ({
+        pageNumber: of,
+        rooms: (sheet.rooms ?? []).map(room => ({
           label: room.label ?? null,
           outline: room.outline ?? [],
           walls: room.walls ?? [],
         })),
-        axes: (answered.axes ?? []).map(axis => ({
+        axes: (sheet.axes ?? []).map(axis => ({
           mark: axis.mark ?? null,
           from: axis.from ?? undefined,
           to: axis.to ?? undefined,
         })),
-        chains: (answered.chains ?? []).map(chain => ({
+        chains: (sheet.chains ?? []).map(chain => ({
           from: chain.from ?? null,
           to: chain.to ?? null,
           printed: chain.printed ?? null,
@@ -201,6 +212,46 @@ export class OpenRouterGeometryAdapter extends SheetGeometryReader {
     });
 
     return geometry;
+  }
+
+  /*
+   * Which sheet of the file an answer is about, or null where nothing can say.
+   *
+   * A number the reader was shown is taken at its word: drawing geometry onto a
+   * page it was not read off is the one failure that would be invisible and
+   * wrong at the same time.
+   *
+   * A number it was NOT shown is usually the sheet number printed in the
+   * drawing's own title block — the reference set's page 7 is "Vərəq 5" — and
+   * where exactly one sheet was asked about and exactly one answered, there is
+   * no other sheet it could be about. That case is taken, and said. Where
+   * several were asked about, it is dropped: a wrong attribution among many is
+   * a guess, and a guess here puts a room outline on somebody else's floor.
+   */
+  private sheetOf(
+    answered: number,
+    request: GeometryRequest,
+    answers: number,
+  ): number | null {
+    const shown = request.sheets.map(sheet => sheet.number.value);
+
+    if (shown.includes(answered)) return answered;
+
+    if (shown.length === 1 && answers === 1) {
+      this.logger.debug('The reader numbered the sheet as the drawing does', {
+        answered,
+        shown: shown[0],
+      });
+
+      return shown[0]!;
+    }
+
+    this.logger.warn('Geometry was answered for a sheet nobody was shown', {
+      answered,
+      shown,
+    });
+
+    return null;
   }
 
   private async evidenceParts(

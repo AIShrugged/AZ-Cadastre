@@ -27,6 +27,7 @@ import type {
   RegistryDocumentDto,
   ReportDto,
   SourceFileDto,
+  SpanMarkupDto,
   StatedValueDto,
 } from '@cadastre/api-contracts/verification';
 
@@ -420,11 +421,43 @@ function toDocumentDto(view: DocumentView): DocumentDto {
       editedAt: field.editedAt?.toISOString() ?? null,
     })),
     archiveQrCheck: toArchiveQrCheckDto(view.archiveQrCheck),
+    // The span working drawn onto this paper's sheets, where it is a design set
+    // a run has marked up (COMM-165).
+    spanMarkup: toSpanMarkupDto(view.spanMarkup),
     // History and not a paper the case rests on: a replaced document stays in
     // the package, and nothing the package states is worked out from it
     // (COMM-80).
     supersededById: view.supersededById,
     supersededAt: view.supersededAt?.toISOString() ?? null,
+  };
+}
+
+/*
+ * The markup as the contract publishes it: the sheets with their signed links,
+ * and the unit the lengths on them are printed in.
+ *
+ * A markup with no sheets is published as none. The contract states at least one
+ * — a document nothing could be drawn for carries no markup at all — and a
+ * mapper that could emit an empty list would be publishing a shape the schema
+ * refuses.
+ */
+function toSpanMarkupDto(
+  view: DocumentView['spanMarkup'],
+): SpanMarkupDto | null {
+  if (!view || view.sheets.length === 0) return null;
+
+  return {
+    sheets: view.sheets.map(sheet => ({
+      pageNumber: sheet.pageNumber,
+      imageUrl: sheet.imageUrl,
+      rooms: sheet.rooms,
+      axes: sheet.axes,
+    })),
+    // Only ever written through the domain's own enumerations, so a stored word
+    // is one the contract names.
+    unit: view.unit as SpanMarkupDto['unit'],
+    unitBasis: view.unitBasis as SpanMarkupDto['unitBasis'],
+    note: view.note,
   };
 }
 

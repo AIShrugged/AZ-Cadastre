@@ -73,6 +73,17 @@ export {
 } from './profile-suggestion.service.js';
 export { quotedIn } from './quotation-evidence.service.js';
 export {
+  dimensionsASpan,
+  sheetMarkupOf,
+  spanMarkupNoteOf,
+  type MarkupAxis,
+  type MarkupChain,
+  type MarkupCorner,
+  type MarkupRoom,
+  type MarkupWall,
+  type SheetMarkup,
+} from './span-markup.service.js';
+export {
   AXIS_CHAINS,
   SPAN_REFUSALS,
   SPAN_UNIT_BASES,

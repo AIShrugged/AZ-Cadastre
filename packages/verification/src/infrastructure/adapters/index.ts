@@ -13,6 +13,8 @@ import {
   OcrProvider,
   PdfSplitter,
   QrCodeReader,
+  SheetGeometryReader,
+  SpanMarkupRenderer,
 } from '../../application/ports/outbound/index.js';
 import {
   VERIFICATION_OPTIONS,
@@ -33,13 +35,16 @@ import {
   OpenRouterClassifierAdapter,
   OpenRouterCrossCheckerAdapter,
   OpenRouterFieldExtractorAdapter,
+  OpenRouterGeometryAdapter,
   OpenRouterOcrAdapter,
   OpenRouterSegmenterAdapter,
 } from './openrouter/index.js';
 import { PdfSplitterAdapter } from './pdf-splitter.adapter.js';
 import { QrCodeReaderAdapter } from './qr-code-reader.adapter.js';
+import { SheetGeometryReaderAdapter } from './sheet-geometry.adapter.js';
 import { SignedPdfDigitiser } from './signed-pdf.digitiser.js';
 import { SignedSheetReader } from './signed-sheet.reader.js';
+import { SpanMarkupRendererAdapter } from './span-markup.renderer.js';
 
 export { ArchiveRegistryAdapter } from './archive-registry.adapter.js';
 export { CrossCheckerAdapter } from './cross-checker.adapter.js';
@@ -55,18 +60,21 @@ export {
   OpenRouterClassifierAdapter,
   OpenRouterCrossCheckerAdapter,
   OpenRouterFieldExtractorAdapter,
+  OpenRouterGeometryAdapter,
   OpenRouterOcrAdapter,
   OpenRouterSegmenterAdapter,
 } from './openrouter/index.js';
 export { renderPdfPages } from './pdf-page-renderer.js';
 export { PdfSplitterAdapter } from './pdf-splitter.adapter.js';
 export { QrCodeReaderAdapter } from './qr-code-reader.adapter.js';
+export { SheetGeometryReaderAdapter } from './sheet-geometry.adapter.js';
+export { SpanMarkupRendererAdapter } from './span-markup.renderer.js';
 export { SignedPdfDigitiser } from './signed-pdf.digitiser.js';
 export { SignedSheetReader } from './signed-sheet.reader.js';
 export { readSignedSheet } from './signed-sheet.reading.js';
 
 /**
- * The five model-backed stages each answer to one port and are chosen per
+ * The model-backed stages each answer to one port and are chosen per
  * stage, not per deployment: a run can read with OpenRouter and cross-check
  * offline, which is how a stage is compared against its stand-in without
  * changing anything else.
@@ -127,6 +135,24 @@ export const VERIFICATION_ADAPTERS: Provider[] = [
       options.extractor.provider === 'openrouter'
         ? new OpenRouterFieldExtractorAdapter(options, storage, logger)
         : new FieldExtractorAdapter(),
+    inject: [VERIFICATION_OPTIONS, ObjectStorage, Logger],
+  },
+  /*
+   * Drawing the markup is arithmetic on a canvas and has no provider to choose:
+   * what is drawn is decided in `domain/services/span-markup.service.ts`, and
+   * there is nothing a model or an API key would buy (COMM-165).
+   */
+  { provide: SpanMarkupRenderer, useClass: SpanMarkupRendererAdapter },
+  {
+    provide: SheetGeometryReader,
+    useFactory: (
+      options: VerificationModuleOptions,
+      storage: ObjectStorage,
+      logger: Logger,
+    ): SheetGeometryReader =>
+      options.geometry.provider === 'openrouter'
+        ? new OpenRouterGeometryAdapter(options, storage, logger)
+        : new SheetGeometryReaderAdapter(),
     inject: [VERIFICATION_OPTIONS, ObjectStorage, Logger],
   },
   {

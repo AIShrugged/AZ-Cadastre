@@ -46,4 +46,13 @@ export {
   type SplitPage,
 } from './pdf-splitter.port.js';
 export { QrCodeReader } from './qr-code-reader.port.js';
+export {
+  SheetGeometryReader,
+  type GeometryRequest,
+  type GeometrySheet,
+} from './sheet-geometry-reader.port.js';
+export {
+  SpanMarkupRenderer,
+  type MarkupRenderRequest,
+} from './span-markup-renderer.port.js';
 export { VerificationPackageRepository } from './verification-package-repository.port.js';

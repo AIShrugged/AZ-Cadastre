@@ -309,6 +309,7 @@ export function testOptions(databaseUrl: string): VerificationModuleOptions {
     classifier: { provider: 'mock', model: '' },
     extractor: { provider: 'mock', model: '' },
     crossChecker: { provider: 'mock', model: '' },
+    geometry: { provider: 'mock', model: '' },
     // No register process in this set: the stand-in built into the context
     // answers unless a spec overrides the port with one of its own.
     registry: { provider: 'mock', url: '', timeoutMs: 1000 },

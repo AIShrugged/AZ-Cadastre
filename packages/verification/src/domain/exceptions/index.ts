@@ -4,6 +4,7 @@ export { ArchiveSearchNotSettledException } from './archive-search-not-settled.e
 export { CrossCheckMustCompareTwoDocumentsException } from './cross-check-must-compare-two-documents.exception.js';
 export { CrossCheckNotInProfileException } from './cross-check-not-in-profile.exception.js';
 export { DocumentAlreadyClassifiedException } from './document-already-classified.exception.js';
+export { DocumentDimensionsNoSpanException } from './document-dimensions-no-span.exception.js';
 export { DocumentNotClassifiedException } from './document-not-classified.exception.js';
 export { DocumentNotHeldAgainstTheArchiveException } from './document-not-held-against-the-archive.exception.js';
 export { DocumentNotInForceException } from './document-not-in-force.exception.js';
@@ -55,6 +56,7 @@ export { SourceFileMustHaveADocumentException } from './source-file-must-have-a-
 export { SourceFileMustHaveAPageException } from './source-file-must-have-a-page.exception.js';
 export { SourceFileNotInPackageException } from './source-file-not-in-package.exception.js';
 export { SourceFileNotSplitException } from './source-file-not-split.exception.js';
+export { SpanMarkupWithoutSheetsException } from './span-markup-without-sheets.exception.js';
 export { TitleDocumentRightConflictException } from './title-document-right-conflict.exception.js';
 export { UnclassifiableDocumentException } from './unclassifiable-document.exception.js';
 export { UnknownProfileException } from './unknown-profile.exception.js';

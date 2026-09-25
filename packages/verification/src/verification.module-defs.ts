@@ -55,6 +55,20 @@ export type VerificationModuleOptions = {
     provider: 'mock' | 'openrouter';
     model: string;
   };
+  /*
+   * Who reads the geometry of a drawing's sheets — the room outlines, the axes
+   * and the dimension chain — for the markup an inspector checks the span
+   * against (COMM-165).
+   *
+   * Its own model and not the extractor's, deliberately: `EXTRACTOR_MODEL` is
+   * one setting for every type of paper, and the model that reads a passport
+   * best does not read a dimension chain at all (docs/MODELS.md). `mock` draws
+   * a fixed demo plan, which is what makes the stage exercisable with no key.
+   */
+  geometry: {
+    provider: 'mock' | 'openrouter';
+    model: string;
+  };
   // The archive register the property is looked up in. `mock` answers from the
   // stand-in built into the context and needs no process; `http` calls whoever
   // serves the register contract — today `apps/registry-stub` (ADR-0009).

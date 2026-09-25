@@ -113,6 +113,13 @@ services:
       - CROSS_CHECKER_PROVIDER=openrouter
       - CROSS_CHECKER_MODEL=openai/gpt-4o
 
+      # The geometry of a design set's sheets, for the span markup an inspector
+      # checks the calculation against (COMM-165). Its own model, because the
+      # models differ sharply on drawings and EXTRACTOR_MODEL is one setting for
+      # every type of paper (docs/MODELS.md).
+      - GEOMETRY_PROVIDER=openrouter
+      - GEOMETRY_MODEL=google/gemini-2.5-pro
+
       # The archive register the property is looked up in (ADR-0009). `mock` is
       # the stand-in built into the context and needs no service; `http` is
       # whoever serves the register contract — here the `registry` service

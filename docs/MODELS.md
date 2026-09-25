@@ -148,6 +148,29 @@ between a model that misses the one span there is and one that sometimes
 invents a span where there is none, and the second is catchable by checking the
 chain against the design's own totals.
 
+### Reading the geometry of a drawing (`GEOMETRY_MODEL`)
+
+The span markup (ADR-0047, COMM-165) asks a second question of the same sheets:
+not what the chain says but where the rooms, the axes and the dimension segments
+ARE, in coordinates normalised to the sheet. `GEOMETRY_PROVIDER` and
+`GEOMETRY_MODEL` choose who answers, apart from `EXTRACTOR_MODEL` — which is one
+setting for every type of paper, and the paper here is a drawing.
+
+**Default: `google/gemini-2.5-pro`.** The table above is the evidence, read for
+this question rather than for the span: it is the only model measured here that
+reads a dimension chain off these drawings at all, and it reads the reference
+set's exactly. Its failure mode — inventing a chain on a set that marks no axes —
+is the reason it is not the extractor's default, and it costs less here: a wrong
+axis drawn on the sheet is a wrong axis an inspector can see, which is the whole
+point of the picture. The calculation is untouched either way; the markup stage
+cannot refuse a span.
+
+Not yet measured: how well any model answers in coordinates. That wants a run of
+`eval:span` extended to score geometry against sheets marked up by hand, and an
+`OPENROUTER_API_KEY`, which the session that wrote this did not have — the
+pictures in the pull request were drawn by the real renderer off geometry read
+off the sheets by hand. Whoever measures it first should add the numbers here.
+
 ## Checking a model before you use it
 
 Advertised support is not delivered support, and delivery varies by provider on

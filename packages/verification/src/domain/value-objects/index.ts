@@ -92,6 +92,23 @@ export {
 } from './registry-check.vo.js';
 export { RegistryOutcome } from './registry-outcome.vo.js';
 export { ReportStatus } from './report-status.vo.js';
+export {
+  sheetGeometryOf,
+  type ChainSegment,
+  type RoomOutline,
+  type RoomWall,
+  type SheetAxis,
+  type SheetGeometry,
+  type SheetPoint,
+} from './sheet-geometry.vo.js';
+export { SpanMarkup, SpanMarkupSheet } from './span-markup.vo.js';
+export {
+  SPAN_UNIT_BASES,
+  SPAN_UNITS,
+  UNIT_UNESTABLISHED,
+  type SpanUnit,
+  type SpanUnitBasis,
+} from './span-unit.vo.js';
 export { StorageKey } from './storage-key.vo.js';
 export { Supersession } from './supersession.vo.js';
 export { SupplyTarget } from './supply-target.vo.js';

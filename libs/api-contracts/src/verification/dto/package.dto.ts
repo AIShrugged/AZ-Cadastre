@@ -383,6 +383,46 @@ export const ArchiveQrCheckDtoSchema = z.object({
 });
 export type ArchiveQrCheckDto = z.infer<typeof ArchiveQrCheckDtoSchema>;
 
+/*
+ * One sheet of a drawing set with the span working drawn onto it (COMM-165).
+ *
+ * The marked-up copy is how an inspector sees where the figures in the span
+ * calculation came from: the room outlines, their walls lettered and
+ * dimensioned, and the axes the spans are measured between. It is published on
+ * the document and not on the calculation on purpose — the picture is worth the
+ * most exactly when the calculation refused, and a field that only exists
+ * beside an answer would be missing then.
+ */
+export const SpanMarkupSheetDtoSchema = z.object({
+  // The sheet of the containing file, 1-based — the same number `PageDto`
+  // carries, so a client can put the markup beside the sheet it was drawn on.
+  pageNumber: z.number().int().positive(),
+  // A short-lived link to the marked-up PNG. Null when it could not be signed.
+  imageUrl: z.string().nullable(),
+  // How many room outlines and how many axes were drawn on this sheet. Zero
+  // axes is the honest answer on a set that marks none, and it is what says the
+  // span was not refused for want of looking (ADR-0044).
+  rooms: z.number().int().nonnegative(),
+  axes: z.number().int().nonnegative(),
+});
+export type SpanMarkupSheetDto = z.infer<typeof SpanMarkupSheetDtoSchema>;
+
+export const SpanMarkupDtoSchema = z.object({
+  // Never empty: a document nothing could be drawn for carries no markup at
+  // all rather than an empty list of sheets.
+  sheets: z.array(SpanMarkupSheetDtoSchema).min(1),
+  // The unit the lengths on the picture are printed in, and what decided it —
+  // the same decision the calculation made (ADR-0043). Null in both fields when
+  // nothing decided it, and then the lengths on the picture are labelled «ед.»
+  // rather than assumed to be millimetres.
+  unit: z.enum(['mm', 'cm', 'm']).nullable(),
+  unitBasis: z.enum(['Printed', 'BuiltUpArea', 'Assumed']).nullable(),
+  // Why the markup is incomplete or empty, in the words of an audit. Null when
+  // everything that was asked for is on the picture.
+  note: z.string().nullable(),
+});
+export type SpanMarkupDto = z.infer<typeof SpanMarkupDtoSchema>;
+
 export const DocumentDtoSchema = z.object({
   id: z.string(),
   // The sheets of the containing file this document occupies, 1-based and
@@ -404,6 +444,14 @@ export const DocumentDtoSchema = z.object({
   // extract from it — and on no other type; null everywhere else, and null on a
   // disposal order the check has not been made for yet (ADR-0035).
   archiveQrCheck: ArchiveQrCheckDtoSchema.nullable(),
+  /*
+   * The span working drawn onto the sheets of this document (COMM-165).
+   *
+   * Non-empty only on the types of design documentation a span is read off —
+   * `sketch_project`, `approved_design` and `architectural_planning_section` —
+   * and null on every other type, and on a design set no run has marked up yet.
+   */
+  spanMarkup: SpanMarkupDtoSchema.nullable(),
   /*
    * The document that replaced this one, and when — null on a document in force,
    * which is nearly all of them (COMM-80).

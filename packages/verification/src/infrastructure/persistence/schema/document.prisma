@@ -66,6 +66,9 @@ model Document {
   /// What the National Archive Fund said about this paper, where it is a Decree
   /// 439 paper the check has been made for (ADR-0028).
   archiveQrCheck          ArchiveQrCheck?
+  /// The span working drawn onto this paper's sheets, where it is a design set a
+  /// run has marked up (COMM-165).
+  spanMarkup              SpanMarkup?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

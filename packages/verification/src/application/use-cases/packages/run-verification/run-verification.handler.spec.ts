@@ -13,6 +13,7 @@ import {
   type Document,
 } from '../../../../domain/entities/index.js';
 import { PackageNotStartableException } from '../../../../domain/exceptions/index.js';
+import type { SheetMarkup } from '../../../../domain/services/index.js';
 import {
   Classification,
   Confidence,
@@ -31,6 +32,7 @@ import {
   PageNumber,
   PageRange,
   RecognisedText,
+  sheetGeometryOf,
   SourceFileId,
   StorageKey,
   VerificationProfile,
@@ -43,15 +45,19 @@ import {
   FieldExtractor,
   IdGenerator,
   NationalArchivePort,
+  ObjectStorage,
   OcrProvider,
   PdfSplitter,
   QrCodeReader,
+  SheetGeometryReader,
+  SpanMarkupRenderer,
   VerificationPackageRepository,
   type ArchiveQrAnswer,
   type ClassificationRequest,
   type CrossCheckAnswer,
   type CrossCheckRequest,
   type ExtractionRequest,
+  type GeometryRequest,
   type PdfSplitRequest,
   type SegmentationRequest,
   type SplitPage,
@@ -367,6 +373,9 @@ function pipelineOver(
     crossChecker,
     registry,
     new RecordingArchive(),
+    new NoStorage(),
+    new NoGeometry(),
+    new NoCanvas(),
   );
 
   return {
@@ -374,6 +383,46 @@ function pipelineOver(
     packages,
     ocr,
   };
+}
+
+/*
+ * The three stand-ins the markup stage is given here (COMM-165).
+ *
+ * A reader that sees no geometry on any sheet is what three of the four designs
+ * in the reference set actually produce nothing for, and it is what these specs
+ * want: they are about the stages that read a package, and the markup stage
+ * stops at an empty answer without touching storage or a canvas. The other two
+ * throw, so that a stage reaching them from here is a failure and not a silent
+ * `undefined`.
+ */
+class NoGeometry extends SheetGeometryReader {
+  async read() {
+    return [];
+  }
+}
+
+class NoStorage extends ObjectStorage {
+  async presignUpload(): Promise<never> {
+    throw new Error('no storage in this spec');
+  }
+
+  async putObject(): Promise<never> {
+    throw new Error('no storage in this spec');
+  }
+
+  async presignDownload(): Promise<never> {
+    throw new Error('no storage in this spec');
+  }
+
+  async getObject(): Promise<never> {
+    throw new Error('no storage in this spec');
+  }
+}
+
+class NoCanvas extends SpanMarkupRenderer {
+  async render(): Promise<never> {
+    throw new Error('nothing is drawn in this spec');
+  }
 }
 
 async function storedPackage(
@@ -620,6 +669,9 @@ describe('RunVerificationHandler', () => {
       new RecordingCrossChecker(),
       new RecordingRegistry(),
       new RecordingArchive(),
+      new NoStorage(),
+      new NoGeometry(),
+      new NoCanvas(),
     );
 
     await handler.execute(new RunVerificationCommand(PACKAGE_ID));
@@ -749,6 +801,9 @@ describe('RunVerificationHandler', () => {
         new RecordingCrossChecker(),
         new RecordingRegistry(),
         new RecordingArchive(),
+        new NoStorage(),
+        new NoGeometry(),
+        new NoCanvas(),
       );
 
       await handler.execute(new RunVerificationCommand(PACKAGE_ID));
@@ -908,6 +963,9 @@ describe('RunVerificationHandler', () => {
         crossChecker,
         new RecordingRegistry(),
         new RecordingArchive(),
+        new NoStorage(),
+        new NoGeometry(),
+        new NoCanvas(),
       );
 
       await handler.execute(new RunVerificationCommand(PACKAGE_ID));
@@ -1383,5 +1441,235 @@ describe('a run over a package an operator has corrected', () => {
         .documentWith(document.id)
         .fields.find(field => field.key.value === 'first_name')?.value.value,
     ).toBe('Rübabə');
+  });
+  /*
+   * The span working drawn back onto the sheets it was read off (COMM-165).
+   *
+   * What the stage owns is the wiring: which sheets are asked about, what the
+   * unit on the picture is, where the PNG is put and what the package then says
+   * about it. What is drawn is `sheetMarkupOf`'s, and how it is drawn is the
+   * renderer's; both have their own specs.
+   */
+});
+
+describe('drawing the span working onto a design set', () => {
+  const A_ROOM = {
+    outline: [
+      { x: 0.2, y: 0.2 },
+      { x: 0.6, y: 0.2 },
+      { x: 0.6, y: 0.5 },
+      { x: 0.2, y: 0.5 },
+    ],
+    walls: [{ from: 0, to: 1, printed: '4000' }],
+  };
+
+  class ClassifierSaying extends DocumentClassifier {
+    constructor(private readonly type: string) {
+      super();
+    }
+
+    override async classify(): Promise<Classification> {
+      return Classification.of(
+        DocumentType.create(this.type),
+        Confidence.of(0.9),
+      );
+    }
+  }
+
+  class ExtractorSaying extends FieldExtractor {
+    constructor(private readonly values: Record<string, string>) {
+      super();
+    }
+
+    override async extract(): Promise<readonly ExtractedField[]> {
+      return Object.entries(this.values).map(([key, value]) =>
+        ExtractedField.of(
+          FieldKey.create(key),
+          FieldValue.create(value),
+          Confidence.of(0.8),
+          PageNumber.first(),
+        ),
+      );
+    }
+  }
+
+  class GeometryWithAxes extends SheetGeometryReader {
+    readonly asked: number[][] = [];
+
+    constructor(private readonly axes: readonly string[]) {
+      super();
+    }
+
+    override async read(request: GeometryRequest) {
+      this.asked.push(request.sheets.map(sheet => sheet.number.value));
+
+      return request.sheets.flatMap(sheet => {
+        const geometry = sheetGeometryOf({
+          pageNumber: sheet.number.value,
+          rooms: [A_ROOM],
+          axes: this.axes.map((mark, index) => ({
+            mark,
+            from: { x: 0.1, y: 0.2 + index / 10 },
+            to: { x: 0.9, y: 0.2 + index / 10 },
+          })),
+        });
+
+        return geometry ? [geometry] : [];
+      });
+    }
+  }
+
+  class RecordingStorage extends ObjectStorage {
+    readonly written: string[] = [];
+
+    async presignUpload(): Promise<never> {
+      throw new Error('nothing is uploaded in this spec');
+    }
+
+    async putObject(request: { key: StorageKey }): Promise<void> {
+      this.written.push(request.key.value);
+    }
+
+    async presignDownload(key: StorageKey) {
+      return { url: `memory://${key.value}`, expiresIn: 900 };
+    }
+
+    async getObject() {
+      return {
+        body: new Uint8Array([1, 2, 3]),
+        contentType: ContentType.PNG,
+      };
+    }
+  }
+
+  class RecordingCanvas extends SpanMarkupRenderer {
+    readonly drawn: SheetMarkup[] = [];
+
+    async render(request: { markup: SheetMarkup }): Promise<Uint8Array> {
+      this.drawn.push(request.markup);
+
+      return new Uint8Array([9, 9, 9]);
+    }
+  }
+
+  function markupPipeline(options: {
+    type: string;
+    axes: readonly string[];
+    values?: Record<string, string>;
+  }) {
+    const packages = new InMemoryPackages(
+      aPackageOf(aFile('eskiz.pdf', ContentType.PDF)),
+    );
+    const geometry = new GeometryWithAxes(options.axes);
+    const storage = new RecordingStorage();
+    const canvas = new RecordingCanvas();
+    const handler = new RunVerificationHandler(
+      new SilentLogger(),
+      packages,
+      new SequentialIds(),
+      new RenderingSplitter(2),
+      new RecordingOcr(),
+      new NoQrCodes(),
+      new SegmenterCuttingAt(),
+      new ClassifierSaying(options.type),
+      new ExtractorSaying(options.values ?? {}),
+      new RecordingCrossChecker(),
+      new RecordingRegistry(),
+      new RecordingArchive(),
+      storage,
+      geometry,
+      canvas,
+    );
+
+    return {
+      run: () => handler.execute(new RunVerificationCommand(PACKAGE_ID)),
+      packages,
+      geometry,
+      storage,
+      canvas,
+    };
+  }
+
+  it('draws the sheets of a design set and keeps where each picture went', async () => {
+    const { run, packages, storage } = markupPipeline({
+      type: 'sketch_project',
+      axes: ['1', '2', 'A', 'B'],
+      values: {
+        span_dimensions: '1—2 4000; A—B 5200',
+        span_overall_dimensions: '1—2 4000; A—B 5200',
+        built_up_area: '20.8 m²',
+      },
+    });
+
+    await run();
+
+    const [document] = await documentsAfter(packages);
+    const markup = document?.spanMarkup;
+
+    expect(markup?.sheets.map(sheet => sheet.pageNumber.value)).toEqual([1, 2]);
+    expect(markup?.sheets[0]?.rooms).toBe(1);
+    expect(markup?.sheets[0]?.axes).toBe(4);
+    expect(storage.written).toEqual(
+      markup?.sheets.map(sheet => sheet.image.storageKey.value),
+    );
+    expect(storage.written[0]).toContain(`packages/${PACKAGE_ID}/span-markup/`);
+  });
+
+  // The unit is the calculation's own decision, so that the figures on the
+  // picture and the figure in the parameter are in the same unit (ADR-0043).
+  it('labels the lengths in the unit the span calculation decided', async () => {
+    const { run, packages } = markupPipeline({
+      type: 'sketch_project',
+      axes: ['1', '2', 'A', 'B'],
+      values: {
+        span_dimensions: '1—2 4000; A—B 5200',
+        span_overall_dimensions: '1—2 4000; A—B 5200',
+        built_up_area: '20.8 m²',
+      },
+    });
+
+    await run();
+
+    const [document] = await documentsAfter(packages);
+
+    expect(document?.spanMarkup?.unit).toBe('mm');
+    expect(document?.spanMarkup?.unitBasis).toBe('BuiltUpArea');
+  });
+
+  /*
+   * Three of the four designs in the reference set mark no axes at all
+   * (ADR-0044). The rooms are still drawn and the axes are honestly none:
+   * that is exactly what an inspector needs in order to agree that no span was
+   * established, and the note says so in words.
+   */
+  it('draws the rooms and no axes on a set that marks none, and says why', async () => {
+    const { run, packages } = markupPipeline({
+      type: 'sketch_project',
+      axes: [],
+    });
+
+    await run();
+
+    const [document] = await documentsAfter(packages);
+    const markup = document?.spanMarkup;
+
+    expect(markup?.sheets.every(sheet => sheet.axes === 0)).toBe(true);
+    expect(markup?.sheets.every(sheet => sheet.rooms === 1)).toBe(true);
+    expect(markup?.unit).toBeNull();
+    expect(markup?.note).toContain('No circled axis marks were read');
+  });
+
+  it('asks nothing about a paper no span is read off', async () => {
+    const { run, packages, geometry } = markupPipeline({
+      type: 'identity_card',
+      axes: ['1', '2'],
+    });
+
+    await run();
+
+    const [document] = await documentsAfter(packages);
+
+    expect(geometry.asked).toEqual([]);
+    expect(document?.spanMarkup).toBeNull();
   });
 });

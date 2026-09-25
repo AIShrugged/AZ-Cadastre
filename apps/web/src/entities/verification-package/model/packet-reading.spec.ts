@@ -41,6 +41,9 @@ const document = (id: string, fields: DocumentDto['fields']): DocumentDto => ({
   // In force: this module picks between readings, and a replaced scan is not a
   // reading the package stands on.
   archiveQrCheck: null,
+  // Nor the span working drawn onto a design set's sheets: this module picks
+  // between readings of a field, and a picture is not a reading (COMM-165).
+  spanMarkup: null,
   supersededById: null,
   supersededAt: null,
 });

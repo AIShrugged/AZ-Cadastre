@@ -51,6 +51,11 @@ export class GetPackageHandler implements IQueryHandler<
   // check the finding. The links are signed here — per request, and expiring —
   // rather than stored: a URL that opens a scan of somebody's identity card has
   // no business outliving the page that showed it.
+  //
+  // The marked-up sheets of a design set are signed the same way and for the
+  // same reason: the span working drawn onto the drawing is what says where the
+  // figures came from, and it is no less a picture of somebody's papers
+  // (COMM-165).
   private async withSheetLinks(
     files: PackageDetailView['files'],
   ): Promise<PackageDetailView['files']> {
@@ -63,8 +68,32 @@ export class GetPackageHandler implements IQueryHandler<
             imageUrl: await this.link(page.imageStorageKey),
           })),
         ),
+        documents: await Promise.all(
+          file.documents.map(async document => ({
+            ...document,
+            spanMarkup: await this.withMarkupLinks(document.spanMarkup),
+          })),
+        ),
       })),
     );
+  }
+
+  private async withMarkupLinks(
+    markup: PackageDetailView['files'][number]['documents'][number]['spanMarkup'],
+  ): Promise<
+    PackageDetailView['files'][number]['documents'][number]['spanMarkup']
+  > {
+    if (!markup) return null;
+
+    return {
+      ...markup,
+      sheets: await Promise.all(
+        markup.sheets.map(async sheet => ({
+          ...sheet,
+          imageUrl: await this.link(sheet.imageStorageKey),
+        })),
+      ),
+    };
   }
 
   private async link(key: string): Promise<string | null> {

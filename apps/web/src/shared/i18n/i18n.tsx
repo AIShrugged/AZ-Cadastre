@@ -417,6 +417,31 @@ const en: Dict = {
     'Not calculated: nothing decides what the figures are in — no unit is printed beside them and the design states no built-up area to check them against',
   'span.refused.Implausible':
     'Not calculated: the result is not a length a span has (under 1.5 m or over 30 m) — the figures, or the unit they were read in, are not what they were taken for',
+  // ── The same working, drawn onto the sheets (COMM-165) ─────────────────────
+  // Captioned as the machine's construction and never as the sheet itself. The
+  // axes and the chains on the picture are read off the paper and are accurate;
+  // the room outlines are placed roughly and one printed length on the sample
+  // came out wrong. None of it is a measurement, and none of its figures reach
+  // the calculation — an inspector reading it as an as-built survey would be
+  // taking a debug drawing for evidence.
+  'span.markup.title': 'The working, drawn on the sheet',
+  'span.markup.subtitle':
+    'The pipeline’s own drawing over the scan — not the sheet, and not a survey',
+  'span.markup.caveat':
+    'Drawn by the pipeline over the scan, to show where the span was read from — not the submitted sheet and not a survey. The axes and the chains are read off the paper; the room outlines are placed roughly, and no figure on the picture is used in the calculation.',
+  'span.markup.open': 'Sheet {n}, marked up — opens full size',
+  'span.markup.rooms': 'Room outlines: {n}',
+  'span.markup.axes': 'Axes: {n}',
+  'span.markup.axes_none': 'No axes marked on this sheet',
+  'span.markup.unit': 'Lengths labelled in {unit}',
+  'span.markup.unit_unknown':
+    'Nothing decided the unit, so the lengths are labelled “ед.”',
+  'span.markup.basis.Printed': 'as printed beside them',
+  'span.markup.basis.BuiltUpArea': 'from the built-up area the design states',
+  'span.markup.basis.Assumed':
+    'assumed, with no built-up area to check against',
+  'span.markup.no_image': 'Sheet {n}: the picture could not be linked',
+  'span.markup.note': 'Why the markup is short: {note}',
   'provision.value.Ownership': 'Ownership',
   'provision.value.LeaseOrUse': 'Lease or use',
   'provision.value.Residential': 'Housing',
@@ -1779,6 +1804,25 @@ const ru: Dict = {
     'Не рассчитана: нечем определить единицу измерения — рядом с размерами она не напечатана, а площади застройки для проверки в проекте нет',
   'span.refused.Implausible':
     'Не рассчитана: результат не является длиной пролёта (меньше 1,5 м или больше 30 м) — размеры или единица измерения прочитаны неверно',
+  // ── Тот же расчёт, нанесённый на листы (COMM-165) ──────────────────────────
+  'span.markup.title': 'Построение, нанесённое на лист',
+  'span.markup.subtitle':
+    'Рисунок пайплайна поверх скана — не сам лист и не обмер',
+  'span.markup.caveat':
+    'Нарисовано пайплайном поверх скана, чтобы показать, откуда взят пролёт, — это не сам лист и не обмер. Оси и цепочки прочитаны с чертежа; контуры комнат нанесены приблизительно, и ни одна цифра с картинки в расчёт не идёт.',
+  'span.markup.open': 'Лист {n}, размеченный — открыть полным размером',
+  'span.markup.rooms': 'Контуров комнат: {n}',
+  'span.markup.axes': 'Осей: {n}',
+  'span.markup.axes_none': 'Осей на этом листе не размечено',
+  'span.markup.unit': 'Длины подписаны в {unit}',
+  'span.markup.unit_unknown':
+    'Единицу определить не удалось, длины подписаны «ед.»',
+  'span.markup.basis.Printed': 'как указано рядом с ними на чертеже',
+  'span.markup.basis.BuiltUpArea': 'по площади застройки, указанной в проекте',
+  'span.markup.basis.Assumed':
+    'принято без проверки — площади застройки в проекте нет',
+  'span.markup.no_image': 'Лист {n}: ссылку на картинку получить не удалось',
+  'span.markup.note': 'Почему разметка неполная: {note}',
   'provision.value.Ownership': 'Собственность',
   'provision.value.LeaseOrUse': 'Аренда или пользование',
   'provision.value.Residential': 'Жилищное строительство',
@@ -3066,6 +3110,26 @@ const az: Dict = {
     'Hesablanmayıb: ölçü vahidini müəyyən edən heç nə yoxdur — ölçülərin yanında vahid yazılmayıb, layihədə isə yoxlamaq üçün tikinti sahəsi göstərilməyib',
   'span.refused.Implausible':
     'Hesablanmayıb: nəticə aşırım uzunluğu deyil (1,5 m-dən az və ya 30 m-dən çox) — ölçülər və ya onların vahidi düzgün oxunmayıb',
+  // ── Həmin hesablama, vərəqlərin üzərinə çəkilmiş (COMM-165) ────────────────
+  'span.markup.title': 'Vərəqə çəkilmiş qurma',
+  'span.markup.subtitle':
+    'Pipeline-ın skan üzərindəki öz rəsmi — nə vərəqin özü, nə də ölçmə',
+  'span.markup.caveat':
+    'Aşırımın haradan götürüldüyünü göstərmək üçün skanın üzərinə pipeline tərəfindən çəkilib — bu, nə vərəqin özüdür, nə də ölçmə. Oxlar və zəncirlər çertyojdan oxunub; otaq konturları təxmini yerləşdirilib və şəkildəki heç bir rəqəm hesablamaya daxil olmur.',
+  'span.markup.open': '{n} nömrəli vərəq, işarələnmiş — tam ölçüdə açılır',
+  'span.markup.rooms': 'Otaq konturları: {n}',
+  'span.markup.axes': 'Oxlar: {n}',
+  'span.markup.axes_none': 'Bu vərəqdə ox işarələnməyib',
+  'span.markup.unit': 'Uzunluqlar {unit} ilə yazılıb',
+  'span.markup.unit_unknown':
+    'Vahidi müəyyən etmək mümkün olmadı, uzunluqlar «ед.» kimi yazılıb',
+  'span.markup.basis.Printed': 'çertyojda yanlarında göstərildiyi kimi',
+  'span.markup.basis.BuiltUpArea': 'layihədə göstərilən tikinti sahəsinə görə',
+  'span.markup.basis.Assumed':
+    'yoxlanmadan qəbul edilib — layihədə tikinti sahəsi yoxdur',
+  'span.markup.no_image':
+    '{n} nömrəli vərəq: şəklin linkini almaq mümkün olmadı',
+  'span.markup.note': 'İşarələmə niyə natamamdır: {note}',
   'provision.value.Ownership': 'Mülkiyyət',
   'provision.value.LeaseOrUse': 'İcarə və ya istifadə',
   'provision.value.Residential': 'Yaşayış tikintisi',

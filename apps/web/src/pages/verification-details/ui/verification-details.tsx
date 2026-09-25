@@ -26,6 +26,7 @@ import {
   FileTextIcon,
   HistoryIcon,
   ImageIcon,
+  ImageOffIcon,
   ListChecksIcon,
   MinusIcon,
   PlusIcon,
@@ -61,6 +62,9 @@ import {
   isScored,
   ISSUE_KIND_KEY,
   isSuperseded,
+  markupCounts,
+  markupSheets,
+  markupUnitLine,
   OUTCOME_NOTE,
   OutcomeMark,
   profileName,
@@ -85,6 +89,7 @@ import {
   SIGNATURE_TONE,
   signatureRows,
   signatureStanding,
+  spanMarkupOf,
   spanParameter,
   spanPhrase,
   spanWithinLimit,
@@ -160,6 +165,7 @@ import type {
   ReportDto,
   SourceFileDto,
   SpanCalculationDto,
+  SpanMarkupDto,
   StatedValueDto,
 } from '@cadastre/api-contracts/verification';
 
@@ -1207,6 +1213,99 @@ function Sheets({ doc, file }: { doc: DocumentDto; file: SourceFileDto }) {
   );
 }
 
+// ─── The same sheets, with the machine's own working drawn on them ───────────
+// The run marks its span construction over the scan — room outlines, walls with
+// the lengths it read, the axes it numbered — so an inspector can see where the
+// figure in the span panel came from instead of taking it on trust (COMM-165).
+//
+// It rides in the sheet column, under the sheets, because that is what it is
+// about. It is drawn apart from them — a dashed rule down every edge of it, a
+// caption naming whose drawing it is — because the one thing it must never be
+// mistaken for is the paper that was submitted. The axes and the chains on the
+// picture are read off that paper and are accurate; the room outlines are
+// placed roughly, one printed length on the sample came out wrong, and no
+// figure on the picture reaches the calculation. A debug drawing read as an
+// as-built survey would be worse than no drawing at all.
+function SpanMarkup({ markup }: { markup: SpanMarkupDto | null }) {
+  const { t } = useI18n();
+
+  // Null on every paper that is not design documentation, and on a design set
+  // no run has marked up yet — nothing is drawn for either (see `spanMarkupOf`).
+  if (markup === null) return null;
+
+  return (
+    <section className='mt-4 border-t border-dashed border-rule pt-3'>
+      <h4 className='flex items-baseline gap-1.5 text-[0.6875rem] font-medium tracking-[0.06em] text-muted-foreground uppercase'>
+        <ImageIcon aria-hidden className='size-3 shrink-0 translate-y-0.5' />
+        <span className='min-w-0'>{t('span.markup.title')}</span>
+        <InfoHint label={t('span.markup.title')} className='-my-1 size-5'>
+          {t('span.markup.caveat')}
+        </InfoHint>
+      </h4>
+      {/* Said on the block and not only behind the ⓘ: what this picture is
+          has to reach a reader who never opens a tooltip. */}
+      <p className='mt-1 text-[0.6875rem] leading-snug text-muted-foreground italic'>
+        {t('span.markup.subtitle')}
+      </p>
+      <ul className='mt-2 flex flex-col gap-2.5'>
+        {markupSheets(markup).map(sheet => (
+          <li key={sheet.pageNumber}>
+            {sheet.imageUrl === null ? (
+              // The short-lived link could not be signed. Stated as a state
+              // rather than left as a broken frame: a torn picture says the
+              // markup failed, when it was only the link that did.
+              <p className='flex items-baseline gap-1.5 rounded-md border border-dashed border-rule px-1.5 py-1 text-[0.6875rem] leading-snug text-muted-foreground'>
+                <ImageOffIcon
+                  aria-hidden
+                  className='size-3 shrink-0 translate-y-0.5'
+                />
+                <span className='min-w-0'>
+                  {t('span.markup.no_image', { n: sheet.pageNumber })}
+                </span>
+              </p>
+            ) : (
+              <a
+                href={sheet.imageUrl}
+                target='_blank'
+                rel='noreferrer'
+                title={t('span.markup.open', { n: sheet.pageNumber })}
+                className='group block overflow-hidden rounded-md border border-dashed border-rule transition-colors hover:border-primary focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none'
+              >
+                {/* Contained and not cropped: the markup is a whole-sheet
+                    drawing, and the head of the sheet is the one part of it
+                    that carries none of the working. */}
+                <img
+                  src={sheet.imageUrl}
+                  alt={t('span.markup.open', { n: sheet.pageNumber })}
+                  loading='lazy'
+                  className='h-24 w-full bg-background object-contain'
+                />
+                <span className='block border-t border-dashed border-rule px-1 py-0.5 text-center text-[0.625rem] tabular-nums text-muted-foreground group-hover:text-foreground'>
+                  {t('detail.page_single', { n: sheet.pageNumber })}
+                </span>
+              </a>
+            )}
+            <p className='mt-1 text-[0.6875rem] leading-snug text-muted-foreground'>
+              {markupCounts(t, sheet)}
+            </p>
+          </li>
+        ))}
+      </ul>
+      <p className='mt-2 text-[0.6875rem] leading-snug text-muted-foreground'>
+        {markupUnitLine(t, markup)}
+      </p>
+      {/* Why the markup is short of what was asked for. Written by the run in
+          the words of an audit, and shown as it stands — there is no list of
+          reasons to translate it against. */}
+      {markup.note !== null && (
+        <p className='mt-1.5 text-[0.6875rem] leading-snug text-incomplete-ink'>
+          {t('span.markup.note', { note: markup.note })}
+        </p>
+      )}
+    </section>
+  );
+}
+
 // ─── The seal and the hand that signed ───────────────────────────────────────
 // Drawn on every placed document and in every state, which is the whole point:
 // before this the surface only ever spoke about a mark when one the profile
@@ -1979,7 +2078,11 @@ function DocumentEntry({
         )}
       </div>
 
-      <Sheets doc={doc} file={file} />
+      {/* The paper, and under it the machine's own drawing over the paper. */}
+      <div className='min-w-0'>
+        <Sheets doc={doc} file={file} />
+        <SpanMarkup markup={spanMarkupOf(doc)} />
+      </div>
     </article>
   );
 }

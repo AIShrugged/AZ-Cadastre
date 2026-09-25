@@ -72,6 +72,7 @@ const MOCK_VALUES: Record<string, string> = {
   datum_level: '±0.000 — birinci mərtəbənin döşəmə səviyyəsi (mütləq 12,40 m)',
   building_height: '9,4 m',
   span_dimensions: 'A—B 6,00 m; B—C 5,40 m; 1—2 4,80 m; 2—3 4,80 m',
+  span_overall_dimensions: 'A—C 11,40 m; 1—3 9,60 m',
   project_scale: '1:100',
   approval_date: '18.12.2025',
 

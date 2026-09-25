@@ -324,6 +324,7 @@ function aProvisionView(): NonNullable<PackageDetailView['provision']> {
           unit: 'mm',
           unitBasis: 'BuiltUpArea',
           setAside: ['A—C 7600'],
+          refusedFor: null,
         },
       },
     ],

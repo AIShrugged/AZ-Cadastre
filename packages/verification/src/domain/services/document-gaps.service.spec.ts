@@ -213,7 +213,7 @@ describe('gapsIn', () => {
       aDocumentStating('sketch_project', {
         storeys: '2',
         building_height: '7,4 m',
-        span_dimensions: 'A—B 4,20 m',
+        span_dimensions: 'A—B 4,20 m; 1—2 3,60 m',
       }),
       aDocument('disposal_order'),
     ];

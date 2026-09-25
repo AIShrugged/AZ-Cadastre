@@ -582,11 +582,22 @@ a wrong one, and is left undecided or placed under the wrong one of 8.0.10.1 and
 `span_dimensions` row and among the figures of the case, which is where an
 inspector sees it.
 
-**What to do.** Correct the `span_dimensions` row by hand (ADR-0033); the span is
-worked out again from the corrected chain. The fix is to check the chain against
-the design's own figures before believing it — the pairs of a chain add up to
-its overall dimension, and the two overall dimensions multiply to about the
-built-up area, which is what gemini's invented chain fails — and send a reading
-that does not add up to the inspector as doubtful. With that in place gemini's
-failure mode is caught and its strength kept. Measure any change with the eval
-before it lands, and add a second set that marks axes to `eval/span/cases.json`.
+**What was fixed on 2026-09-25 (COMM-160, ADR-0046).** The chain is now checked
+against the design's own figures before it is believed: both directions or
+nothing, each chain adds up to the overall dimension printed along it (asked for
+as `span_overall_dimensions`), the two chains multiply to about the built-up
+area, the unit was decided by something, and the answer is a length a span has
+(1.5–30 m). A check that fails establishes no span: the working stays on screen
+with the reason, and the case goes to an inspector. This closes the hole a
+production case fell through — `Determined 8.0.10.2` on a 0.545 m span read off
+a plan that marks no axes.
+
+**What is left.** The reader still has to read the chain right on the one kind of
+set that has one: the checks catch a wrong chain, they do not produce a right
+one. `google/gemini-2.5-pro` reads the sample exactly and invents chains on sets
+without axes — its invented chain on Vera multiplies to 45 m² against a stated
+112 and is now refused — so it is worth re-measuring as the design reader, which
+needs a per-type model or a stage of its own. Correct the `span_dimensions` row
+by hand meanwhile (ADR-0033); the span is worked out again from the corrected
+chain, and held to the same checks. Measure any change with the eval before it
+lands, and add a second set that marks axes to `eval/span/cases.json`.

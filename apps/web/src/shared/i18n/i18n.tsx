@@ -406,6 +406,17 @@ const en: Dict = {
     'A span is the distance between the centre axes of adjacent load-bearing structures (UPCC 3.0.48): not the size of a room and not the width of the building. The longest span of each direction is taken, and the longer of the two is held against 6 m.',
   'span.not_calculated':
     'Not calculated: no sketch design states the axis spacings',
+  // Why a chain that was read states no span after all (COMM-160).
+  'span.refused.OneChain':
+    'Not calculated: only one direction of axes was read. A building is framed in both, so the chain was not read whole and its unit cannot be checked — the plans need looking at',
+  'span.refused.ChainUnlikeOverall':
+    'Not calculated: the spacings do not add up to the overall dimension of their own chain — one of the two was read off the wrong dimension line',
+  'span.refused.FootprintUnlikeArea':
+    'Not calculated: the axis chains multiplied are not the built-up area the design states, in any unit — the chain as read is not this building',
+  'span.refused.UnitUnchecked':
+    'Not calculated: nothing decides what the figures are in — no unit is printed beside them and the design states no built-up area to check them against',
+  'span.refused.Implausible':
+    'Not calculated: the result is not a length a span has (under 1.5 m or over 30 m) — the figures, or the unit they were read in, are not what they were taken for',
   'provision.value.Ownership': 'Ownership',
   'provision.value.LeaseOrUse': 'Lease or use',
   'provision.value.Residential': 'Housing',
@@ -742,6 +753,7 @@ const en: Dict = {
   'field.building_volume': 'Building volume',
   'field.datum_level': '±0.000 datum',
   'field.span_dimensions': 'Span dimensions',
+  'field.span_overall_dimensions': 'Overall axis dimensions',
   'field.project_scale': 'Drawing scale',
   // ── Archive register import (ADR-0011) ─────────────────────────────────────
   'reg.import.action': 'Load register file',
@@ -1756,6 +1768,17 @@ const ru: Dict = {
     'Пролёт — расстояние между центральными осями соседних несущих конструкций (ГСК 3.0.48): не размер комнаты и не общая ширина здания. Берётся наибольший пролёт по каждому направлению, и больший из двух сравнивается с 6 м.',
   'span.not_calculated':
     'Не рассчитана: нет эскизного проекта с размерами между осями',
+  // Почему прочитанная цепочка всё-таки не даёт пролёта (COMM-160).
+  'span.refused.OneChain':
+    'Не рассчитана: прочитано только одно направление осей. Здание имеет оси в обоих, значит цепочка прочитана не целиком и единицу измерения проверить нечем — нужно посмотреть планы',
+  'span.refused.ChainUnlikeOverall':
+    'Не рассчитана: сумма расстояний не сходится с общим размером своей же цепочки — одно из двух прочитано не с той размерной линии',
+  'span.refused.FootprintUnlikeArea':
+    'Не рассчитана: произведение осевых цепочек ни в одной единице не сходится с площадью застройки проекта — прочитанная цепочка не про это здание',
+  'span.refused.UnitUnchecked':
+    'Не рассчитана: нечем определить единицу измерения — рядом с размерами она не напечатана, а площади застройки для проверки в проекте нет',
+  'span.refused.Implausible':
+    'Не рассчитана: результат не является длиной пролёта (меньше 1,5 м или больше 30 м) — размеры или единица измерения прочитаны неверно',
   'provision.value.Ownership': 'Собственность',
   'provision.value.LeaseOrUse': 'Аренда или пользование',
   'provision.value.Residential': 'Жилищное строительство',
@@ -2055,6 +2078,7 @@ const ru: Dict = {
   'field.building_volume': 'Строительный объём',
   'field.datum_level': 'Отметка ±0.000',
   'field.span_dimensions': 'Размеры пролётов',
+  'field.span_overall_dimensions': 'Общие размеры по осям',
   'field.project_scale': 'Масштаб чертежей',
   // ── Загрузка реестра (ADR-0011) ────────────────────────────────────────────
   'reg.import.action': 'Загрузить файл реестра',
@@ -3031,6 +3055,17 @@ const az: Dict = {
     'Aşırım — yanaşı yükdaşıyan konstruksiyaların mərkəzi oxları arasındakı məsafədir (ŞTM 3.0.48): nə otağın ölçüsü, nə də binanın ümumi eni. Hər istiqamətdə ən böyük aşırım götürülür və ikisindən böyüyü 6 metrlə müqayisə edilir.',
   'span.not_calculated':
     'Hesablanmayıb: ox aralıqlarını göstərən eskiz layihə yoxdur',
+  // Oxunmuş zəncirin niyə aşırım vermədiyi (COMM-160).
+  'span.refused.OneChain':
+    'Hesablanmayıb: oxların yalnız bir istiqaməti oxunub. Bina hər iki istiqamətdə oxlanır, deməli zəncir tam oxunmayıb və ölçü vahidini yoxlamağa heç nə yoxdur — planlara baxmaq lazımdır',
+  'span.refused.ChainUnlikeOverall':
+    'Hesablanmayıb: aralıqların cəmi öz zəncirinin ümumi ölçüsü ilə uyğun gəlmir — ikisindən biri səhv ölçü xəttindən oxunub',
+  'span.refused.FootprintUnlikeArea':
+    'Hesablanmayıb: ox zəncirlərinin hasili heç bir vahiddə layihədəki tikinti sahəsinə uyğun gəlmir — oxunan zəncir bu binaya aid deyil',
+  'span.refused.UnitUnchecked':
+    'Hesablanmayıb: ölçü vahidini müəyyən edən heç nə yoxdur — ölçülərin yanında vahid yazılmayıb, layihədə isə yoxlamaq üçün tikinti sahəsi göstərilməyib',
+  'span.refused.Implausible':
+    'Hesablanmayıb: nəticə aşırım uzunluğu deyil (1,5 m-dən az və ya 30 m-dən çox) — ölçülər və ya onların vahidi düzgün oxunmayıb',
   'provision.value.Ownership': 'Mülkiyyət',
   'provision.value.LeaseOrUse': 'İcarə və ya istifadə',
   'provision.value.Residential': 'Yaşayış tikintisi',
@@ -3331,6 +3366,7 @@ const az: Dict = {
   'field.building_volume': 'Tikinti həcmi',
   'field.datum_level': '±0.000 səviyyəsi',
   'field.span_dimensions': 'Aşırım ölçüləri',
+  'field.span_overall_dimensions': 'Oxlar üzrə ümumi ölçülər',
   'field.project_scale': 'Cizgilərin miqyası',
   // ── Reyestrin yüklənməsi (ADR-0011) ────────────────────────────────────────
   'reg.import.action': 'Reyestr faylını yüklə',

@@ -342,7 +342,12 @@ function figure<T>(
  * The span, calculated out of the axis chains the design dimensions and held
  * against the built-up area the same design states (ADR-0043). The area is
  * taken off the paper the chains were read off and no other: the unit of a
- * figure is the unit of the drawing it is printed on.
+ * figure is the unit of the drawing it is printed on, and so is the overall
+ * dimension of each chain that the spacings are added up against.
+ *
+ * A calculation the checks refused establishes no figure: `longest` is null,
+ * the parameter stays open and the case goes to an inspector with the chain as
+ * read and the reason beside it (COMM-160).
  */
 function spanOf(
   spec: ProvisionsSpec,
@@ -355,11 +360,16 @@ function spanOf(
     return { value: null, reading: read.reading };
   }
 
-  const area =
-    placed
-      .find(one => one.document.documentId === from.documentId)
-      ?.document.readings.find(one => one.key === BUILT_UP_AREA)?.value ?? null;
-  const calculation = spanCalculationOf(read.value, area);
+  const design = placed.find(
+    one => one.document.documentId === from.documentId,
+  )?.document;
+  const stated = (key: string) =>
+    design?.readings.find(one => one.key === key)?.value ?? null;
+  const calculation = spanCalculationOf(
+    read.value,
+    stated(BUILT_UP_AREA),
+    stated(SPAN_OVERALL),
+  );
 
   return {
     value: calculation?.longest ?? null,
@@ -370,6 +380,11 @@ function spanOf(
 // The line of the technical and economic indicators the footprint of the axis
 // chains is held against.
 const BUILT_UP_AREA = 'built_up_area';
+
+// The overall dimension of each chain, which the spacings of that chain are
+// added up against (COMM-160). Read off the same paper, for the reason the
+// area is.
+const SPAN_OVERALL = 'span_overall_dimensions';
 
 function titleStandingOf(
   spec: ProvisionsSpec,

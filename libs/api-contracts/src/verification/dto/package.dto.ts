@@ -631,8 +631,10 @@ const AxisSpanDtoSchema = z.object({
  * two is what the table holds against six metres.
  */
 export const SpanCalculationDtoSchema = z.object({
-  // Metres: the figure the table was decided on.
-  longest: z.number(),
+  // Metres: the figure the table was decided on. Null where a check refused the
+  // reading — `refusedFor` says which — and then the table was decided on
+  // nothing: the working below is stated so that what was refused can be seen.
+  longest: z.number().nullable(),
   // One per chain the plan dimensions — the numbered axes and the lettered —
   // each with every span in axis order. Never empty: a value that names no two
   // axes states no span, and the parameter carries no calculation.
@@ -653,6 +655,21 @@ export const SpanCalculationDtoSchema = z.object({
   // Entries that were not spans — a room or an overall dimension, which cross
   // an axis — as printed.
   setAside: z.array(z.string()),
+  /*
+   * The check the reading failed, or null where it passed every one: only one
+   * direction of axes read, a chain that does not add up to its own overall
+   * dimension, chains that are not the built-up area the design states, a unit
+   * nothing could decide, or a length no span has (COMM-160).
+   */
+  refusedFor: z
+    .enum([
+      'OneChain',
+      'ChainUnlikeOverall',
+      'FootprintUnlikeArea',
+      'UnitUnchecked',
+      'Implausible',
+    ])
+    .nullable(),
 });
 export type SpanCalculationDto = z.infer<typeof SpanCalculationDtoSchema>;
 

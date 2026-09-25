@@ -149,6 +149,7 @@ function score(expected, answer) {
   const span = spanCalculationOf(
     answer.spanDimensions ?? '',
     answer.builtUpArea ?? null,
+    answer.spanOverall ?? null,
   )?.longest;
   const spanRight =
     expected.span === null
@@ -266,6 +267,7 @@ async function measure(one) {
       fields.find(one => one.key.value === key)?.value.value ?? null;
     const answer = {
       spanDimensions: field('span_dimensions'),
+      spanOverall: field('span_overall_dimensions'),
       builtUpArea: field('built_up_area'),
       pictured: storage.reads.map(key => Number(/p(\d+)\.png$/u.exec(key)[1])),
       error,
@@ -298,6 +300,7 @@ for (const one of chosen) {
         (a.error ? `  ERROR ${a.error}` : ''),
     );
     say(`      span_dimensions: ${a.spanDimensions ?? 'null'}`);
+    say(`      span_overall:    ${a.spanOverall ?? 'null'}`);
     say(`      built_up_area:   ${a.builtUpArea ?? 'null'}`);
   }
   say();

@@ -350,8 +350,8 @@ export type ParameterView = {
 };
 
 export type SpanCalculationView = {
-  // Metres.
-  longest: number;
+  // Metres; null where a check refused the reading.
+  longest: number | null;
   chains: readonly {
     // One of the domain's `AXIS_CHAINS`.
     chain: string;
@@ -362,6 +362,8 @@ export type SpanCalculationView = {
   unit: string;
   unitBasis: string;
   setAside: readonly string[];
+  // One of the domain's `SPAN_REFUSALS`, or null where nothing refused it.
+  refusedFor: string | null;
 };
 
 export type RuleEvaluationView = {

@@ -44,6 +44,7 @@ const SAMPLE: SpanCalculationDto = {
   unit: 'mm',
   unitBasis: 'BuiltUpArea',
   setAside: ['A—C 7600'],
+  refusedFor: null,
 };
 
 function aProvision(over: Partial<CaseProvisionDto> = {}): CaseProvisionDto {
@@ -91,6 +92,19 @@ function aProvision(over: Partial<CaseProvisionDto> = {}): CaseProvisionDto {
 describe('the span, as the server calculated it', () => {
   it('names the axes the longest span lies between', () => {
     expect(spanPhrase(t, SAMPLE, 'en-GB')).toBe('span.value(m=5.2,axes=B—C)');
+  });
+
+  // A chain the checks refused states its reason where the figure would have
+  // been: an inspector shown "0.5 m" does not know it was not believed
+  // (COMM-160).
+  it('says why nothing was calculated where a check refused the chain', () => {
+    expect(
+      spanPhrase(
+        t,
+        { ...SAMPLE, longest: null, refusedFor: 'OneChain' },
+        'en-GB',
+      ),
+    ).toBe('span.refused.OneChain');
   });
 
   it('writes the lengths in the reader’s decimal separator, each span unbroken', () => {

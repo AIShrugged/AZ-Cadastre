@@ -607,9 +607,31 @@ const SPAN_NOTE =
   'printed beside it; never convert. Leave out the overall dimension of the ' +
   'building, the outer chain that includes the walls, and the sizes of ' +
   'rooms: a figure between two axes with another axis between them is not ' +
-  'an entry. Many sets dimension rooms and mark no axes at all; where no ' +
+  'an entry. Axes are marked in BOTH directions or the plan has none: a ' +
+  'numbered chain with no lettered one beside it means you are reading ' +
+  'something else. A circled mark at each end of a cutting line — "1-1", ' +
+  '"2-2", "A-A" — is the label of a section drawing and not an axis, and ' +
+  'neither is a mark that stands alone with no dimension chain running ' +
+  'along it. Many sets dimension rooms and mark no axes at all; where no ' +
   'plan carries circled axis marks, the answer is null — never room sizes ' +
   'and never axes you number yourself.';
+
+/*
+ * The other half of the self-check the chain is held to (COMM-160): the spans
+ * of a chain add up to the overall dimension of that chain, and a chain read
+ * off the wrong dimension line does not. Asked as a field of its own, because
+ * the overall dimension is precisely what must not be inside `span_dimensions`.
+ */
+const SPAN_OVERALL_NOTE =
+  'the overall dimension of each axis chain — the total from the first axis ' +
+  'to the last, printed on the outermost dimension line of that direction — ' +
+  'as the two end axes and the figure, in the shape "1—3 8400; A—E 14400": ' +
+  'the shape only, never these figures. This is the figure `span_dimensions` ' +
+  'must leave out, asked here so that the spacings can be added up against ' +
+  'it. Copy it exactly as printed, in the same unit as the spacings and with ' +
+  'a unit only where one is printed beside it. Where the plans mark no axes, ' +
+  'or print no overall dimension along them, the answer is null — never the ' +
+  'sum you work out yourself and never the size of a room.';
 
 /*
  * The sheets of a design a reader has to be shown: the plans the axis chains
@@ -756,6 +778,7 @@ const APPROVED_DESIGN_FIELDS: Fields = [
   ['building_height', 'Building height', HEIGHT_NOTE],
   BUILT_UP_AREA_FIELD,
   ['span_dimensions', 'Span dimensions', SPAN_NOTE],
+  ['span_overall_dimensions', 'Overall axis dimensions', SPAN_OVERALL_NOTE],
 ];
 
 const ACCEPTANCE_ACT_FIELDS: Fields = [
@@ -829,6 +852,7 @@ const PLANNING_SECTION_FIELDS: Fields = [
   ['building_height', 'Building height', HEIGHT_NOTE],
   BUILT_UP_AREA_FIELD,
   ['span_dimensions', 'Span dimensions', SPAN_NOTE],
+  ['span_overall_dimensions', 'Overall axis dimensions', SPAN_OVERALL_NOTE],
 ];
 
 const NOTICE_FIELDS: Fields = [
@@ -1144,6 +1168,11 @@ export class VerificationProfile {
               'several heights are marked, this is the one meant.',
           ],
           ['span_dimensions', 'Span dimensions', SPAN_NOTE],
+          [
+            'span_overall_dimensions',
+            'Overall axis dimensions',
+            SPAN_OVERALL_NOTE,
+          ],
           ['project_scale', 'Scale of the drawings'],
           ['approval_date', 'Approval date'],
         ],

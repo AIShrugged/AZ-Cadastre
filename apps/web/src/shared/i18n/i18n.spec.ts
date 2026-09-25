@@ -97,6 +97,7 @@ describe('every field the two contract drawings are read for', () => {
     'datum_level',
     'building_height',
     'span_dimensions',
+    'span_overall_dimensions',
     'project_scale',
     'approval_date',
   ];

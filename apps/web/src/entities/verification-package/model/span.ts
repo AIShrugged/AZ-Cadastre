@@ -57,12 +57,23 @@ export function axesOf(span: { from: string; to: string }): string {
   return `${span.from}—${span.to}`;
 }
 
-/** The longest span of all, in one phrase: "5.2 m, axes B—C". */
+/**
+ * The longest span of all, in one phrase: "5.2 m, axes B—C" — or, where a check
+ * refused the chain that was read, why nothing was calculated off it (COMM-160).
+ * A refused reading is stated in the same place the figure would have been: the
+ * one thing an inspector must not be shown is a figure that was not believed.
+ */
 export function spanPhrase(
   t: Translate,
   calculation: SpanCalculationDto,
   locale: string,
 ): string {
+  if (calculation.longest === null) {
+    return calculation.refusedFor
+      ? t(`span.refused.${calculation.refusedFor}`)
+      : t('span.not_calculated');
+  }
+
   const longest = calculation.chains
     .map(chain => chain.longest)
     .reduce((best, span) => (span.length > best.length ? span : best));

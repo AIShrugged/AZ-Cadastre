@@ -50,7 +50,7 @@ function aDesign(): ReadDocument {
   return aDocument('sketch_project', {
     storeys: '2',
     building_height: '7,4 m',
-    span_dimensions: 'A—B 4,20 m; B—C 3,60 m',
+    span_dimensions: 'A—B 4,20 m; B—C 3,60 m; 1—2 4,00 m; 2—3 3,80 m',
   });
 }
 
@@ -314,6 +314,53 @@ describe('provisionOf', () => {
       );
 
       expect(span).toMatchObject({ source: null, calculation: null });
+    });
+
+    /*
+     * COMM-160. A case on production was decided `Determined 8.0.10.2` on a
+     * 0.545 m span: the reader was shown a plan that marks no axes and
+     * numbered the gaps between the rooms itself. A chain the checks refuse
+     * establishes nothing — the figure is left open, the chain as read stays
+     * on the reading with the reason beside it, and the case goes to an
+     * inspector rather than under a provision.
+     */
+    it('establishes no span where the chain does not pass its checks', () => {
+      const design = aDocument('sketch_project', {
+        storeys: '1',
+        building_height: '4,5 m',
+        built_up_area: '10.8 x 16.1 = 174.48 m²',
+        span_dimensions: '1—2 360; 2—3 540; 3—4 375; 4—5 440; 5—6 545; 6—7 130',
+      });
+      const answer = provisionOf(TABLE, [design, aPlan(), anActOf(2014)]);
+      const span = answer.readings.find(one => one.parameter === 'span');
+
+      expect(answer.parameters.span).toBeNull();
+      expect(span?.calculation).toMatchObject({
+        longest: null,
+        refusedFor: 'OneChain',
+      });
+      expect(span?.stated).toContain('5—6 545');
+      expect(answer.decision.outcome).not.toBe('Determined');
+    });
+
+    // The overall dimension of each chain is read off the paper the chains were
+    // read off, for the reason the built-up area is.
+    it('adds the spacings up against the overall dimensions the same design states', () => {
+      const overall = (stated: string) =>
+        provisionOf(TABLE, [
+          aDocument('sketch_project', {
+            storeys: '2',
+            building_height: '6,20 m',
+            built_up_area: '130.2 m²',
+            span_dimensions:
+              '1—2 4000; 2—3 4400; A—B 2400; B—C 5200; C—D 2800; D—E 4000',
+            span_overall_dimensions: stated,
+          }),
+          aPlan(),
+        ]).parameters.span;
+
+      expect(overall('1—3 8400; A—E 14400')).toBeCloseTo(5.2, 9);
+      expect(overall('1—3 8400; A—E 21000')).toBeNull();
     });
   });
 

@@ -1942,7 +1942,7 @@ describe('VerificationPackage', () => {
       {
         storeys: '2',
         building_height: '7,4 m',
-        span_dimensions: 'A—B 4,20 m; B—C 3,60 m',
+        span_dimensions: 'A—B 4,20 m; B—C 3,60 m; 1—2 4,00 m; 2—3 3,80 m',
       },
     ];
     // A lease-or-use title under items 1.4 and 2.7 (ADR-0030).

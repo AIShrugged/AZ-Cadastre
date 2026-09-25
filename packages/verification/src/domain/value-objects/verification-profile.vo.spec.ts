@@ -405,6 +405,10 @@ describe('VerificationProfile', () => {
         'datum_level',
         'building_height',
         'span_dimensions',
+        // Not an item of the contract's own list: the overall dimension of
+        // each chain, asked for so that the spacings can be added up against
+        // it before a span is believed (COMM-160).
+        'span_overall_dimensions',
         'project_scale',
         'approval_date',
       ];

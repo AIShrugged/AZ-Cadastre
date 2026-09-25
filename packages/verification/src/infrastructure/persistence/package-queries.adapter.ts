@@ -678,6 +678,7 @@ export class PackageQueriesAdapter extends PackageQueries {
               unit: reading.calculation.unit,
               unitBasis: reading.calculation.unitBasis,
               setAside: [...reading.calculation.setAside],
+              refusedFor: reading.calculation.refusedFor,
             }
           : null,
       })),

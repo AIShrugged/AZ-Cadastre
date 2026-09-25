@@ -229,6 +229,8 @@ function toProvisionDto(view: ProvisionView): CaseProvisionDto {
             unitBasis: parameter.calculation
               .unitBasis as SpanCalculation['unitBasis'],
             setAside: [...parameter.calculation.setAside],
+            refusedFor: parameter.calculation
+              .refusedFor as SpanCalculation['refusedFor'],
           }
         : null,
     })),

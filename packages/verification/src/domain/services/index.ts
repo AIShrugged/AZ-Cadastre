@@ -74,6 +74,7 @@ export {
 export { quotedIn } from './quotation-evidence.service.js';
 export {
   AXIS_CHAINS,
+  SPAN_REFUSALS,
   SPAN_UNIT_BASES,
   SPAN_UNITS,
   spanCalculationOf,
@@ -81,6 +82,7 @@ export {
   type AxisSpan,
   type ChainSpans,
   type SpanCalculation,
+  type SpanRefusal,
   type SpanUnit,
   type SpanUnitBasis,
 } from './span.service.js';

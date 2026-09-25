@@ -284,6 +284,13 @@ export function SpanWorking({
         )}
       </summary>
       <div className='mt-1 flex flex-col gap-0.5 pl-4'>
+        {/* What the chain was refused for, first: everything under it is the
+            working of a figure that was not believed (COMM-160). */}
+        {calculation.refusedFor && (
+          <p className='text-incomplete-ink'>
+            {t(`span.refused.${calculation.refusedFor}`)}
+          </p>
+        )}
         {calculation.chains.map(chain => (
           <p key={chain.chain} className='tabular-nums'>
             {t(`span.chain.${chain.chain}`)}: {chainLine(chain, locale)}

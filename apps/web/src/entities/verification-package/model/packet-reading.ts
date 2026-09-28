@@ -6,8 +6,9 @@
  * came from and how well it was read (`FieldDto`). What it does **not**
  * publish is which of them names the case: there is no "applicant" on the wire,
  * only `applicant_name` on one document type and `owner_name` on another. So
- * this module names the candidates it looks for, in the order it prefers them,
- * and that list is the one judgement here.
+ * this module names the candidates it looks for, and then puts in the line the
+ * one of them that was read surest — the order it lists them in settles a tie
+ * and nothing more.
  *
  * It is written as candidates and not as one name for a reason: which document
  * types a package carries is the profile's, and two profiles spell the same
@@ -42,11 +43,14 @@ export const PACKET_LINE_KEY: Record<PacketLine, string> = {
 };
 
 /**
- * The field names each line may be read off, best first.
+ * The field names each line may be read off, in the order that settles a tie.
  *
  * `applicant_name` before `owner_name`: the person applying and the person of
  * record are the same on most submissions and not on all, and the packet is the
- * applicant's.
+ * applicant's. That preference only decides between readings of equal
+ * confidence — a surer reading wins it, whichever name it came under, because
+ * the same person spelled at 99 % and at 60 % is one fact read twice, and the
+ * worse read of the two is not the one to show.
  */
 const CANDIDATES: Record<PacketLine, readonly string[]> = {
   applicant: ['applicant_name', 'owner_name', 'payer_name'],
@@ -115,17 +119,25 @@ export function readPacket(detail: PackageDetailDto): readonly PacketReading[] {
   }
 
   return PACKET_LINES.map(line => {
+    let picked: { field: FieldDto; documentId: string; name: string } | null =
+      null;
     for (const name of CANDIDATES[line]) {
       const hit = found.get(name);
-      if (hit !== undefined) {
-        return {
-          line,
-          field: hit.field,
-          documentId: hit.documentId,
-          fieldName: name,
-        };
+      if (hit === undefined) continue;
+      // The surest reading of the line wins, whichever candidate carried it.
+      // Strictly greater, so an equally sure reading leaves the candidate found
+      // first in place and the order of `CANDIDATES` settles the tie.
+      if (picked === null || hit.field.confidence > picked.field.confidence) {
+        picked = { field: hit.field, documentId: hit.documentId, name };
       }
     }
-    return { line, field: null, documentId: null, fieldName: null };
+    return picked === null
+      ? { line, field: null, documentId: null, fieldName: null }
+      : {
+          line,
+          field: picked.field,
+          documentId: picked.documentId,
+          fieldName: picked.name,
+        };
   });
 }

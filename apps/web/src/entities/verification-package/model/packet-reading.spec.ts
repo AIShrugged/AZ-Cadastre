@@ -110,23 +110,70 @@ describe('what the packet turned out to say', () => {
     expect(address?.documentId).toBe('d2');
   });
 
-  // Two profiles spell the same reading differently; the preferred name wins
-  // where both are present, and the fallback answers where it is not.
-  it('prefers the applicant over the owner, and falls back to the owner', () => {
-    const both = readPacket(
-      detail([
-        document('d1', [
-          field('owner_name', 'OF RECORD', 0.99),
-          field('applicant_name', 'APPLYING', 0.6),
-        ]),
-      ]),
-    );
-    expect(both[0]?.field?.value).toBe('APPLYING');
-
+  // Two profiles spell the same reading differently; where neither is present
+  // the line is unread, and where only one is, it answers.
+  it('falls back to the owner when nothing applied under the applicant', () => {
     const owner = readPacket(
       detail([document('d1', [field('owner_name', 'OF RECORD', 0.99)])]),
     );
     expect(owner[0]?.field?.value).toBe('OF RECORD');
+    expect(owner[0]?.fieldName).toBe('owner_name');
+  });
+
+  // The case this rule exists for: one person, read twice. The application was
+  // read at 60 % and the plan sheet at 99 %, and the header used to show the
+  // worse of the two because `applicant_name` is listed first.
+  it('takes the surer reading from a later candidate', () => {
+    const readings = readPacket(
+      detail([
+        document('d1', [field('applicant_name', 'Agaev Kocheli', 0.6)]),
+        document('d2', [field('owner_name', 'Ağayev Köçəri', 0.99)]),
+      ]),
+    );
+    expect(readings[0]?.field?.value).toBe('Ağayev Köçəri');
+    // Where the value came from, so "open the sheet" opens the sheet it is on.
+    expect(readings[0]?.fieldName).toBe('owner_name');
+    expect(readings[0]?.documentId).toBe('d2');
+  });
+
+  // The parcel's candidates are several too, and answer to the same rule.
+  it('takes the surer reading on the parcel line as well', () => {
+    const readings = readPacket(
+      detail([
+        document('d1', [field('cadastral_number', 'AZ-CAD-1024-311', 0.55)]),
+        document('d2', [field('inventory_no', 'INV-88-42', 0.97)]),
+      ]),
+    );
+    const parcel = readings.find(r => r.line === 'parcel');
+    expect(parcel?.field?.value).toBe('INV-88-42');
+    expect(parcel?.fieldName).toBe('inventory_no');
+    expect(parcel?.documentId).toBe('d2');
+  });
+
+  // Nothing to choose between on confidence, so the order says which reading
+  // names the case: the packet is the applicant's.
+  it('prefers the applicant when both were read equally well', () => {
+    const readings = readPacket(
+      detail([
+        document('d1', [
+          field('owner_name', 'OF RECORD', 0.99),
+          field('applicant_name', 'APPLYING', 0.99),
+        ]),
+      ]),
+    );
+    expect(readings[0]?.field?.value).toBe('APPLYING');
+    expect(readings[0]?.fieldName).toBe('applicant_name');
+  });
+
+  // A line no candidate answered to stays absent, however many were tried.
+  it('leaves the line unread when no candidate answered', () => {
+    const readings = readPacket(
+      detail([document('d1', [field('property_address', 'Bakı ş.', 0.95)])]),
+    );
+    const applicant = readings.find(r => r.line === 'applicant');
+    expect(applicant?.field).toBeNull();
+    expect(applicant?.fieldName).toBeNull();
+    expect(applicant?.documentId).toBeNull();
   });
 
   it('asks for a glance only at a reading it is unsure of', () => {

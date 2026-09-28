@@ -22,12 +22,24 @@ export const CaseParameterSchema = z.enum([
 ]);
 export type CaseParameter = z.infer<typeof CaseParameterSchema>;
 
-// Where a figure came from: a line of a paper, the counter, or the kind of title
-// document the package carries — a state act confers ownership whatever it says.
+// Where a figure came from: a line of a paper, the counter, the kind of title
+// document the package carries — a state act confers ownership whatever it says
+// — or an operator, who overrules all three.
 export const ParameterSourceSchema = z.enum([
   'ReadOffDocument',
   'DeclaredAtIntake',
   'TitleDocumentType',
+  /*
+   * Set by an operator over what the papers were read to say (COMM-193). The
+   * case is then decided on their figure and on nothing else: an override is a
+   * person taking responsibility for it, the same as a corrected field.
+   *
+   * What the engine made of the papers is not lost — it is published beside the
+   * override in `read`, so a card can say "read X, operator set Y" and offer to
+   * put it back. Reverting is clearing the override, never writing the old
+   * figure back over it.
+   */
+  'StatedByOperator',
 ]);
 export type ParameterSource = z.infer<typeof ParameterSourceSchema>;
 

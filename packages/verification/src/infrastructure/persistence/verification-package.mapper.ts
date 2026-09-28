@@ -13,6 +13,7 @@ import {
   ArchiveQrFieldCheck,
   ArchiveQrSignature,
   ArchiveSearchApproval,
+  CASE_PARAMETERS,
   CheckedValue,
   Classification,
   Confidence,
@@ -51,12 +52,14 @@ import {
   SPAN_UNITS,
   SpanMarkup,
   SpanMarkupSheet,
+  StatedCaseParameter,
   StorageKey,
   Supersession,
   SupplyTarget,
   ValidationIssue,
   VerificationProfile,
   VerificationReport,
+  type CaseParameterKey,
   type SpanMarkupNoteReason,
   type SpanUnit,
   type SpanUnitBasis,
@@ -66,6 +69,7 @@ import {
   ArchiveHolding as ArchiveHoldingColumn,
   ArchiveQrCheckStatus as ArchiveQrCheckStatusColumn,
   ArchiveQrFieldVerdict as ArchiveQrFieldVerdictColumn,
+  CaseParameter as CaseParameterColumn,
   CrossCheckVerdict as CrossCheckVerdictColumn,
   FieldOrigin as FieldOriginColumn,
   IssueKind as IssueKindColumn,
@@ -93,7 +97,17 @@ export type PackageRow = {
   // Only the one in force, if there is one: an approval a later run spent is
   // kept for the record and decides nothing (ADR-0016).
   readonly archiveSearchApprovals: readonly ArchiveSearchApprovalRow[];
+  // The figures of the Article 8 table an operator set by hand, at most one row
+  // per figure (COMM-193).
+  readonly caseParameterOverrides: readonly CaseParameterOverrideRow[];
   readonly report: ReportRow | null;
+};
+
+export type CaseParameterOverrideRow = {
+  readonly parameter: string;
+  readonly value: string;
+  readonly editedByAccountId: string;
+  readonly editedAt: Date;
 };
 
 export type ArchiveSearchApprovalRow = {
@@ -302,7 +316,17 @@ export type PackageWrite = {
   // The approval in force, or none — which is what tells the repository to
   // write one down, or to mark the one on file spent (ADR-0016).
   readonly archiveSearchApproval: ArchiveSearchApprovalWrite | null;
+  // Every override in force, whole: the repository writes exactly these and
+  // deletes the rest, so a cleared figure leaves no row behind (COMM-193).
+  readonly caseParameters: readonly CaseParameterOverrideWrite[];
   readonly report: ReportWrite | null;
+};
+
+export type CaseParameterOverrideWrite = {
+  readonly parameter: CaseParameterColumn;
+  readonly value: string;
+  readonly editedByAccountId: string;
+  readonly editedAt: Date;
 };
 
 export type ArchiveSearchApprovalWrite = {
@@ -516,6 +540,9 @@ export class VerificationPackageMapper {
       archiveSearchApproval: VerificationPackageMapper.approvalToDomain(
         row.archiveSearchApprovals[0],
       ),
+      statedParameters: row.caseParameterOverrides.map(override =>
+        VerificationPackageMapper.overrideToDomain(override),
+      ),
       report: row.report
         ? VerificationPackageMapper.reportToDomain(row.report)
         : null,
@@ -530,6 +557,12 @@ export class VerificationPackageMapper {
       ownerAccountId: aggregate.owner?.value ?? null,
       declaredLegalBasis: aggregate.declared.legalBasis?.value ?? null,
       declaredBuiltYear: aggregate.declared.builtYear,
+      caseParameters: aggregate.statedParameters.map(stated => ({
+        parameter: VerificationPackageMapper.parameterColumn(stated.parameter),
+        value: stated.stored,
+        editedByAccountId: stated.by.value,
+        editedAt: stated.at,
+      })),
       sourceFiles: aggregate.files.map(file => ({
         id: file.id.value,
         originalFilename: file.filename.value,
@@ -680,6 +713,49 @@ export class VerificationPackageMapper {
         ),
       ),
     });
+  }
+
+  /*
+   * A figure an operator set, back off its row (COMM-193).
+   *
+   * The stored text is put through the same understanding a fresh statement is:
+   * the value object is the one place that knows a `storeys` is a positive
+   * whole number and a `landRight` one of two words, and a figure that no
+   * longer passes it must not go on deciding a case quietly.
+   */
+  private static overrideToDomain(
+    row: CaseParameterOverrideRow,
+  ): StatedCaseParameter {
+    return StatedCaseParameter.restore({
+      parameter: VerificationPackageMapper.parameterOf(row.parameter),
+      value: row.value,
+      by: EditorAccountId.of(row.editedByAccountId),
+      at: row.editedAt,
+    });
+  }
+
+  private static parameterOf(column: string): CaseParameterKey {
+    const parameter = CASE_PARAMETERS.find(candidate => candidate === column);
+
+    if (!parameter) {
+      throw new RangeError(`No case parameter named ${column}`);
+    }
+
+    return parameter;
+  }
+
+  private static parameterColumn(
+    parameter: CaseParameterKey,
+  ): CaseParameterColumn {
+    const column = Object.values(CaseParameterColumn).find(
+      candidate => candidate === parameter,
+    );
+
+    if (!column) {
+      throw new RangeError(`No case parameter column for ${parameter}`);
+    }
+
+    return column;
   }
 
   // A check whose document a later run removed is dropped rather than guessed

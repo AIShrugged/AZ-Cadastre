@@ -10,6 +10,7 @@ import {
   ArchiveQrCheckMade,
   ArchiveSearchApprovalSpent,
   ArchiveSearchApproved,
+  CaseParametersStated,
   CrossCheckMade,
   DocumentClassified,
   DocumentFieldsEdited,
@@ -71,10 +72,12 @@ import {
   type DocumentAttestation,
   type DocumentGap,
   type ReadDocument,
+  type StatedParameter,
 } from '../services/index.js';
 import {
   ApprovedCheck,
   ArchiveSearchApproval,
+  CASE_PARAMETERS,
   CheckedValue,
   Confidence,
   DeclaredAtIntake,
@@ -86,6 +89,7 @@ import {
   PackageId,
   PackageStanding,
   PackageStatus,
+  StatedCaseParameter,
   ValidationIssue,
   VerificationProfile,
   VerificationReport,
@@ -93,6 +97,7 @@ import {
   type ApprovalSummary,
   type ArchiveQrCheck,
   type ArchiveQrField,
+  type CaseParameterKey,
   type Classification,
   type CrossCheck,
   type CrossCheckKey,
@@ -142,6 +147,19 @@ export type FieldEdit = {
   readonly value: FieldValue | null;
 };
 
+/**
+ * One of the six figures of the Article 8 table as an operator states it, or
+ * clears it (COMM-193).
+ *
+ * `null` puts the figure back to what the papers say — the revert, and the only
+ * way back: an override is believed absolutely while it is in force, so nothing
+ * the engine reads can displace it.
+ */
+export type CaseParameterStatement = {
+  readonly parameter: CaseParameterKey;
+  readonly value: number | string | null;
+};
+
 export type VerificationPackageState = {
   readonly id: PackageId;
   readonly version: number;
@@ -162,6 +180,10 @@ export type VerificationPackageState = {
   // interest to the aggregate: only an approval in force decides anything
   // (ADR-0016).
   readonly archiveSearchApproval: ArchiveSearchApproval | null;
+  // What an operator has set of the six figures the Article 8 table decides on,
+  // at most one entry per figure and empty on every package nobody has
+  // corrected (COMM-193).
+  readonly statedParameters: readonly StatedCaseParameter[];
   readonly report: VerificationReport | null;
 };
 
@@ -175,6 +197,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
   #crossChecks: CrossCheck[];
   #registryChecks: RegistryCheck[];
   #archiveSearchApproval: ArchiveSearchApproval | null;
+  #statedParameters: StatedCaseParameter[];
   #report: VerificationReport | null;
 
   private constructor(state: VerificationPackageState) {
@@ -188,6 +211,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     this.#crossChecks = [...state.crossChecks];
     this.#registryChecks = [...state.registryChecks];
     this.#archiveSearchApproval = state.archiveSearchApproval;
+    this.#statedParameters = [...state.statedParameters];
     this.#report = state.report;
   }
 
@@ -224,6 +248,7 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
       crossChecks: [],
       registryChecks: [],
       archiveSearchApproval: null,
+      statedParameters: [],
       report: null,
     });
 
@@ -360,9 +385,18 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
    * rules (COMM-80).
    */
   get gaps(): readonly DocumentGap[] {
-    return gapsIn(this.#profile, this.#documents.map(asRead), {
-      legalBasis: this.#declared.legalBasis?.value ?? null,
-    });
+    return gapsIn(
+      this.#profile,
+      this.#documents.map(asRead),
+      { legalBasis: this.#declared.legalBasis?.value ?? null },
+      this.statedForTheTable,
+    );
+  }
+
+  // What an operator has set of the six figures, newest statement per figure
+  // and at most one each (COMM-193).
+  get statedParameters(): readonly StatedCaseParameter[] {
+    return this.#statedParameters;
   }
 
   get crossChecks(): readonly CrossCheck[] {
@@ -930,6 +964,122 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     this.apply(new DocumentFieldsEdited(this.id, documentId, changed.length));
 
     return true;
+  }
+
+  /**
+   * An operator states, by hand, one or more of the six figures the Article 8
+   * decision table reads a case on (COMM-193).
+   *
+   * Not something a field edit can do. A parameter may have no reading at all,
+   * the right over the land comes from the *kind* of title document rather than
+   * a line of one, and the span is calculated out of the axis chains — so there
+   * is no single field to correct that would set them. What is stored is the
+   * figure and never the provision it selects: the parameter is an input, and a
+   * stored conclusion is a second copy that can disagree with what it was drawn
+   * from (ADR-0014).
+   *
+   * A `null` value clears the override and puts the figure back to what the
+   * papers say. It is the revert, and it is the only way back: while an
+   * override is in force it is believed absolutely, so nothing the engine reads
+   * displaces it.
+   *
+   * What a statement discards, and what it deliberately does not. Nothing the
+   * papers say has changed, so every cross-document check, every registry
+   * answer and every archive question stands exactly as it was — none of them
+   * weighs a case parameter. What has changed is which provision the case falls
+   * under, and with it which papers the package is short of, so the report goes
+   * and the package re-opens to be compiled afresh. That is the same road a
+   * correction takes (ADR-0033), on a narrower blast radius.
+   *
+   * Answers whether anything actually changed. A statement whose every entry
+   * already holds — the same figure stated again, or a clear of a figure nobody
+   * has set — is a no-op: nothing is discarded, no run starts, and the package
+   * comes back as it was. An operator pressing save twice must not re-open a
+   * package that has been re-verified since the first press.
+   */
+  stateCaseParameters(
+    statements: readonly CaseParameterStatement[],
+    by: EditorAccountId,
+    at: Date = new Date(),
+  ): boolean {
+    // The same test a correction and a file arriving are put to, and the same
+    // question: a run is reading this package, so anything written into it now
+    // would be read by half a pipeline (ADR-0013).
+    if (!this.#status.takesMoreFiles) {
+      throw new PackageNotTakingFilesException(
+        this.id.value,
+        this.#status.value,
+      );
+    }
+
+    const changed = statements.filter(statement => !this.restates(statement));
+
+    if (changed.length === 0) return false;
+
+    // Held to what each parameter can take before anything is written: a figure
+    // the table could never be decided on would otherwise decide this case.
+    const stated = changed.flatMap(statement =>
+      statement.value === null
+        ? []
+        : [
+            StatedCaseParameter.of({
+              parameter: statement.parameter,
+              value: statement.value,
+              by,
+              at,
+            }),
+          ],
+    );
+
+    // Kept in the table's own column order, so what is stored, published and
+    // read back does not depend on the order an operator filled the form in.
+    this.#statedParameters = CASE_PARAMETERS.flatMap(parameter => {
+      const set = stated.find(one => one.parameter === parameter);
+
+      if (set) return [set];
+      if (changed.some(statement => statement.parameter === parameter)) {
+        return [];
+      }
+
+      return this.#statedParameters.filter(
+        held => held.parameter === parameter,
+      );
+    });
+
+    // The report and nothing else: it is the one thing the package holds that
+    // was compiled on the provision these figures select.
+    this.#report = null;
+    this.#status = PackageStatus.PENDING;
+    this.apply(new CaseParametersStated(this.id, changed.length));
+
+    return true;
+  }
+
+  /*
+   * Whether one entry of a statement is the figure the package already stands
+   * on — a save that would change nothing.
+   *
+   * Clearing a figure nobody set changes nothing. Stating the figure already
+   * stated changes nothing, whatever text it arrives as: "12.0" over a stored
+   * `12` is the operator stating the height they have already stated, and the
+   * second save of that form is exactly the case this exists for.
+   *
+   * A value that is no figure at all is never a restatement: it has to reach
+   * the guard that refuses it, rather than being quietly swallowed as a no-op.
+   */
+  private restates(statement: CaseParameterStatement): boolean {
+    const held = this.#statedParameters.find(
+      stated => stated.parameter === statement.parameter,
+    );
+
+    if (statement.value === null) return held === undefined;
+    if (!held) return false;
+
+    try {
+      return held.statesTheSameAs(statement.value);
+    } catch {
+      return false;
+    }
   }
 
   /*
@@ -1703,8 +1853,24 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
     const provisions = this.#profile.provisions;
 
     return provisions
-      ? provisionOf(provisions, this.#documents.map(asRead))
+      ? provisionOf(
+          provisions,
+          this.#documents.map(asRead),
+          this.statedForTheTable,
+        )
       : null;
+  }
+
+  // The overrides as the table takes them: flat data, for the reason the
+  // documents are flat there — the read side answers the same question off rows
+  // without loading this aggregate.
+  private get statedForTheTable(): readonly StatedParameter[] {
+    return this.#statedParameters.map(stated => ({
+      parameter: stated.parameter,
+      value: stated.value,
+      accountId: stated.by.value,
+      at: stated.at,
+    }));
   }
 
   /*

@@ -1,6 +1,7 @@
 export { ArchiveQrCheckMade } from './archive-qr-check-made.event.js';
 export { ArchiveSearchApprovalSpent } from './archive-search-approval-spent.event.js';
 export { ArchiveSearchApproved } from './archive-search-approved.event.js';
+export { CaseParametersStated } from './case-parameters-stated.event.js';
 export { CrossCheckMade } from './cross-check-made.event.js';
 export { DocumentClassified } from './document-classified.event.js';
 export { DocumentFieldsEdited } from './document-fields-edited.event.js';

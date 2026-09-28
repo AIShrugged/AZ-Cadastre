@@ -50,6 +50,7 @@ import type {
   RegistryCheckView,
   ReportView,
   SourceFileView,
+  SpanCalculationView,
   StatedValueView,
 } from '../../read-models/index.js';
 
@@ -206,6 +207,27 @@ function toProvisionDto(view: ProvisionView): CaseProvisionDto {
     CaseProvisionDto['provisions'][number]['titleRight']
   >;
 
+  // Written once: an overridden figure publishes both the operator's figure and
+  // the engine's reading underneath it, and a second copy of this mapping is a
+  // second place the two can drift apart (COMM-193).
+  const calculationOf = (
+    calculation: SpanCalculationView | null,
+  ): SpanCalculation | null =>
+    calculation
+      ? {
+          longest: calculation.longest,
+          chains: calculation.chains.map(chain => ({
+            chain: chain.chain as AxisChain,
+            spans: chain.spans.map(span => ({ ...span })),
+            longest: { ...chain.longest },
+          })),
+          unit: calculation.unit as SpanCalculation['unit'],
+          unitBasis: calculation.unitBasis as SpanCalculation['unitBasis'],
+          setAside: [...calculation.setAside],
+          refusedFor: calculation.refusedFor as SpanCalculation['refusedFor'],
+        }
+      : null;
+
   return {
     key: view.key,
     outcome: view.outcome as CaseProvisionDto['outcome'],
@@ -219,20 +241,25 @@ function toProvisionDto(view: ProvisionView): CaseProvisionDto {
         parameter.source as CaseProvisionDto['parameters'][number]['source'],
       stated: parameter.stated,
       from: parameter.from ? { ...parameter.from } : null,
-      calculation: parameter.calculation
+      calculation: calculationOf(parameter.calculation),
+      // Who set the figure by hand, and what the engine made of the papers
+      // underneath it — published beside the figure so a card can show both and
+      // offer to put the engine's back (COMM-193). The instant goes out
+      // ISO-8601, like every other the API publishes.
+      overriddenBy: parameter.overriddenBy
         ? {
-            longest: parameter.calculation.longest,
-            chains: parameter.calculation.chains.map(chain => ({
-              chain: chain.chain as AxisChain,
-              spans: chain.spans.map(span => ({ ...span })),
-              longest: { ...chain.longest },
-            })),
-            unit: parameter.calculation.unit as SpanCalculation['unit'],
-            unitBasis: parameter.calculation
-              .unitBasis as SpanCalculation['unitBasis'],
-            setAside: [...parameter.calculation.setAside],
-            refusedFor: parameter.calculation
-              .refusedFor as SpanCalculation['refusedFor'],
+            accountId: parameter.overriddenBy.accountId,
+            at: parameter.overriddenBy.at.toISOString(),
+          }
+        : null,
+      read: parameter.read
+        ? {
+            value: parameter.read.value,
+            source: parameter.read
+              .source as CaseProvisionDto['parameters'][number]['source'],
+            stated: parameter.read.stated,
+            from: parameter.read.from ? { ...parameter.read.from } : null,
+            calculation: calculationOf(parameter.read.calculation),
           }
         : null,
     })),

@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { ARTICLE_8_PROVISIONS } from '../value-objects/article-8-provisions.table.js';
-import { ProvisionsSpec } from '../value-objects/provision.vo.js';
+import {
+  ProvisionsSpec,
+  type CaseParameterKey,
+} from '../value-objects/provision.vo.js';
 
 import { provisionOf } from './case-provision.service.js';
 import type { ReadDocument } from './document-gaps.service.js';
@@ -110,6 +113,8 @@ describe('provisionOf', () => {
         stated: null,
         from: null,
         calculation: null,
+        overriddenBy: null,
+        read: null,
       });
     });
 
@@ -701,6 +706,158 @@ describe('provisionOf', () => {
 
     it('lists no standing for a paper that is no title', () => {
       expect(provisionOf(TABLE, [aDesign()]).titleDocuments).toEqual([]);
+    });
+  });
+
+  /*
+   * A figure of the table set by an operator, over what the papers were read to
+   * say (COMM-193).
+   *
+   * An override is believed absolutely: the provision, the requirement standing
+   * and every condition reason are worked out on it exactly as they would be on
+   * a reading. What the engine made of the papers is kept beside it and never
+   * thrown away, so a card can show both and offer to put the engine's back.
+   */
+  describe('a figure the operator stated', () => {
+    const OPERATOR = 'operator-account';
+    const AT = new Date('2026-09-28T09:00:00.000Z');
+
+    const stating = (parameter: CaseParameterKey, value: number | string) => [
+      { parameter, value, accountId: OPERATOR, at: AT },
+    ];
+
+    // Two storeys of 7.4 m with 4.2 m spans on residential land, built 2014:
+    // the notification procedure, and only the storeys stand between it and the
+    // fallback row.
+    const notified = () => [anActOf(2014), aDesign(), aPlan()];
+
+    const readingOf = (
+      answer: ReturnType<typeof provisionOf>,
+      parameter: CaseParameterKey,
+    ) => answer.readings.find(reading => reading.parameter === parameter);
+
+    it('decides the provision, where the papers decided another', () => {
+      expect(provisionOf(TABLE, notified()).decision).toMatchObject({
+        outcome: 'Determined',
+        provision: { provision: '8.0.10.2' },
+      });
+
+      expect(
+        provisionOf(TABLE, notified(), stating('storeys', 5)).decision,
+      ).toMatchObject({
+        outcome: 'Determined',
+        provision: { provision: '8.0.10.1' },
+      });
+    });
+
+    it('is what every condition of every row is held against', () => {
+      const answer = provisionOf(TABLE, notified(), stating('storeys', 5));
+      const notification = answer.decision.evaluations.find(
+        evaluation => evaluation.rule.provision === '8.0.10.2',
+      );
+
+      expect(answer.parameters.storeys).toBe(5);
+      expect(
+        notification?.conditions.find(
+          condition => condition.parameter === 'storeys',
+        )?.holds,
+      ).toBe(false);
+      expect(notification?.excluded).toBe(true);
+    });
+
+    it('says it was the operator and keeps what the engine read beside it', () => {
+      const reading = readingOf(
+        provisionOf(TABLE, notified(), stating('storeys', 5)),
+        'storeys',
+      );
+
+      expect(reading).toMatchObject({
+        source: 'StatedByOperator',
+        stated: '5',
+        // Printed on no sheet and worked out of no chain: what an override has
+        // instead of a paper trail is its editor and the moment.
+        from: null,
+        overriddenBy: { accountId: OPERATOR, at: AT },
+      });
+      expect(reading?.read).toMatchObject({
+        value: 2,
+        source: 'ReadOffDocument',
+        stated: '2',
+        from: { documentType: 'sketch_project', fieldKey: 'storeys' },
+      });
+    });
+
+    /*
+     * The case an override exists for and a field edit cannot answer: a figure
+     * no paper states at all. The engine's side is published as the nothing it
+     * was, so the card can say so rather than implying a reading it never made.
+     */
+    it('settles a figure nothing in the package states', () => {
+      const undated = [aDesign(), aPlan()];
+
+      expect(provisionOf(TABLE, undated).decision.outcome).toBe('Ambiguous');
+
+      const answer = provisionOf(TABLE, undated, stating('builtYear', 2014));
+      expect(answer.decision).toMatchObject({
+        outcome: 'Determined',
+        provision: { provision: '8.0.10.2' },
+      });
+      expect(readingOf(answer, 'builtYear')?.read).toMatchObject({
+        value: null,
+        source: null,
+        stated: null,
+        from: null,
+      });
+    });
+
+    // A figure the operator has not stated is untouched: an override decides
+    // its own parameter and nothing else.
+    it('leaves every figure it does not name to the papers', () => {
+      const answer = provisionOf(TABLE, notified(), stating('storeys', 5));
+
+      expect(answer.parameters.height).toBe(7.4);
+      expect(readingOf(answer, 'height')?.source).toBe('ReadOffDocument');
+      expect(readingOf(answer, 'height')?.overriddenBy).toBeNull();
+      expect(readingOf(answer, 'height')?.read).toBeNull();
+    });
+
+    // Clearing is the absence of a statement, so the answer is the one the
+    // papers always gave — the revert, checked as the same answer and not as a
+    // similar one.
+    it('gives the papers back their figure when nothing is stated', () => {
+      const papers = notified();
+
+      expect(provisionOf(TABLE, papers, [])).toEqual(
+        provisionOf(TABLE, papers),
+      );
+    });
+
+    /*
+     * The right over the land is the one figure a paper can word against the
+     * class of the title the case stands on, and the mismatch is reported
+     * (ADR-0030). An operator stating the right has settled that question, so
+     * the wording no longer holds the case to provisions it has left.
+     */
+    it('settles the right the papers word against the title they carry', () => {
+      const papers = [
+        aDesign(),
+        aDocument('operation_permit', { permit_date: '20.04.2010' }),
+        aDocument('disposal_order', { issue_date: '15.04.1999' }),
+        // The plan words ownership; the order the case stands on confers lease
+        // or use, and the mismatch is what is reported.
+        aDocument('land_plot_plan', {
+          land_category: 'Fərdi yaşayış tikintisi üçün torpaq',
+          right_type: 'Mülkiyyət hüququ',
+        }),
+      ];
+
+      expect(
+        provisionOf(TABLE, papers).titleDocuments[0]?.wrongClassFor,
+      ).toEqual(['8.0.9.1.2']);
+      expect(
+        provisionOf(TABLE, papers, stating('landRight', 'LeaseOrUse'))
+          .titleDocuments[0]?.wrongClassFor,
+      ).toEqual([]);
     });
   });
 });

@@ -60,6 +60,8 @@ const parameter = (
     confidence,
   },
   calculation: null,
+  overriddenBy: null,
+  read: null,
   ...over,
 });
 

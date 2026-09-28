@@ -96,6 +96,14 @@ describe('with no session at all', () => {
         ),
     ],
     [
+      'POST /packages/:id/case-parameters',
+      (api: RestClient) =>
+        api.packages.stateCaseParametersRaw(
+          '00000000-0000-4000-8000-000000000000',
+          { parameters: [{ parameter: 'storeys', value: 2 }] },
+        ),
+    ],
+    [
       'POST /addresses/lookup',
       (api: RestClient) =>
         api.addresses.lookupRaw({
@@ -233,6 +241,21 @@ describe('an applicant', () => {
         '00000000-0000-4000-8000-000000000001',
         { fields: [{ name: 'document_no', value: 'AZE1234567' }] },
       ),
+    ).rejects.toMatchObject({ status: 403, body: { code: 'FORBIDDEN' } });
+  });
+
+  /*
+   * Stating a case parameter is the office's own act for the reason a
+   * correction is: the route and not the case is what is refused, so it is 403
+   * and never 404, even on a package they filed themselves (COMM-193).
+   */
+  it('is refused a case parameter with 403, even on their own package', async () => {
+    const mine = await submit(applicant);
+
+    await expect(
+      applicant.packages.stateCaseParameters(mine.id, {
+        parameters: [{ parameter: 'storeys', value: 2 }],
+      }),
     ).rejects.toMatchObject({ status: 403, body: { code: 'FORBIDDEN' } });
   });
 

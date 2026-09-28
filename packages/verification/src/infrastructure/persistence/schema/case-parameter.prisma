@@ -1,0 +1,53 @@
+// One of the six figures the Article 8 decision table reads a case on, as an
+// operator set it (COMM-193).
+//
+// The figure and never the provision it selects. A parameter is an input to the
+// table, and the table is read on every read and stored nowhere (ADR-0014): a
+// stored conclusion is a second copy that can disagree with what it was drawn
+// from. What is here is the one thing the papers cannot supply — a correction
+// nobody could make by editing a field, because a parameter may have no reading
+// at all, the right over the land comes from the kind of title document rather
+// than a line of one, and the span is calculated out of the axis chains.
+//
+// A row per figure an operator has set, and none for the five-or-fewer they
+// have not: the absence of a row is the figure standing as the papers were read
+// to say. Clearing an override deletes the row rather than writing a null,
+// because "the operator set nothing" and "the operator set nothing on purpose"
+// are the same statement about the case.
+//
+// `editedByAccountId` is a plain column and not a foreign key, exactly as it is
+// on a corrected field: the account row lives in another context's database, so
+// there is nothing in this one to point at (ADR-0029).
+
+/// The six figures, in the order the acceptance contract prints its columns.
+enum CaseParameter {
+  builtYear
+  storeys
+  height
+  span
+  landRight
+  purpose
+}
+
+model CaseParameterOverride {
+  id        String              @id @default(uuid()) @db.Uuid
+  packageId String              @db.Uuid
+  package   VerificationPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  parameter CaseParameter
+
+  /// What the operator stated, as text. One column and not five: the six are
+  /// two counts, two measurements in metres and two words, and a column per
+  /// shape would be five columns null on nearly every row. The domain holds
+  /// each to what its parameter can take on the way in and on the way out.
+  value String
+
+  /// Who set it and when (ADR-0033).
+  editedByAccountId String   @db.Uuid
+  editedAt          DateTime @default(now())
+
+  /// One override per figure per package: two rows for one figure would make
+  /// the case depend on which of them was read last.
+  @@unique([packageId, parameter])
+  @@map("case_parameter_overrides")
+}

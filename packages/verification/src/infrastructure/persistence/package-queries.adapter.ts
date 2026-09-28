@@ -12,6 +12,7 @@ import type {
   DocumentAttestationView,
   DocumentGapView,
   FieldView,
+  FigureReadingView,
   FindingCountView,
   FindingsOverviewView,
   FindingTallyView,
@@ -21,6 +22,7 @@ import type {
   ProvisionView,
   RegistryCheckView,
   ReportView,
+  SpanCalculationView,
   StatedValueView,
   TallyView,
 } from '../../application/read-models/index.js';
@@ -30,11 +32,16 @@ import {
   provisionOf,
   type CaseProvision,
   type DocumentGap,
+  type FigureReading,
   type MarkExpectations,
   type ReadDocument,
+  type SpanCalculation,
+  type StatedParameter,
 } from '../../domain/services/index.js';
 import {
+  CASE_PARAMETERS,
   DocumentType,
+  EditorAccountId,
   FieldOrigin,
   IssueKind,
   PackageStanding,
@@ -42,6 +49,7 @@ import {
   ParticularsSpec,
   RegistryOutcome,
   ReportStatus,
+  StatedCaseParameter,
   VerificationProfile,
   type FieldRef,
   type OwnerAccountId,
@@ -421,6 +429,18 @@ export class PackageQueriesAdapter extends PackageQueries {
         crossChecks: CROSS_CHECK_COLUMNS,
         registryChecks: REGISTRY_CHECK_COLUMNS,
         archiveSearchApprovals: APPROVAL_COLUMNS,
+        // The figures an operator set by hand: the table is decided on them
+        // where they exist, and so are the gaps the package publishes
+        // (COMM-193).
+        caseParameterOverrides: {
+          orderBy: { parameter: 'asc' },
+          select: {
+            parameter: true,
+            value: true,
+            editedByAccountId: true,
+            editedAt: true,
+          },
+        },
         sourceFiles: {
           orderBy: { createdAt: 'asc' },
           select: {
@@ -528,18 +548,28 @@ export class PackageQueriesAdapter extends PackageQueries {
     if (!row) return null;
 
     const documents = PackageQueriesAdapter.readDocumentsOf(row.sourceFiles);
+    const stated = PackageQueriesAdapter.statedParametersOf(
+      row.caseParameterOverrides,
+    );
 
     return {
       ...PackageQueriesAdapter.toSummary(row),
       // The engine's own rule, run over the rows this query already holds: what
       // the supply operation accepts is exactly what is published here, so the
       // read side must not answer it a second way (COMM-80).
-      gaps: PackageQueriesAdapter.gapsOf(row.profileKey, documents, {
-        legalBasis: row.declaredLegalBasis,
-      }),
+      gaps: PackageQueriesAdapter.gapsOf(
+        row.profileKey,
+        documents,
+        { legalBasis: row.declaredLegalBasis },
+        stated,
+      ),
       // The service the report was compiled with, over the same readings
       // (ADR-0025).
-      provision: PackageQueriesAdapter.provisionFor(row.profileKey, documents),
+      provision: PackageQueriesAdapter.provisionFor(
+        row.profileKey,
+        documents,
+        stated,
+      ),
       report: PackageQueriesAdapter.toReport(row.report),
       crossChecks: row.crossChecks.map(check =>
         PackageQueriesAdapter.toCrossCheck(check),
@@ -644,6 +674,7 @@ export class PackageQueriesAdapter extends PackageQueries {
     profileKey: string,
     documents: readonly ReadDocument[],
     declared: { readonly legalBasis: string | null },
+    stated: readonly StatedParameter[],
   ): readonly DocumentGapView[] {
     const profile = VerificationProfile.all.find(
       candidate => candidate.key === profileKey,
@@ -651,7 +682,7 @@ export class PackageQueriesAdapter extends PackageQueries {
 
     if (!profile) return [];
 
-    return gapsIn(profile, documents, declared).map(
+    return gapsIn(profile, documents, declared, stated).map(
       (gap: DocumentGap): DocumentGapView => ({
         reason: gap.reason,
         expectedType: gap.expectedType.value,
@@ -672,6 +703,7 @@ export class PackageQueriesAdapter extends PackageQueries {
   private static provisionFor(
     profileKey: string,
     documents: readonly ReadDocument[],
+    stated: readonly StatedParameter[],
   ): ProvisionView | null {
     const provisions = VerificationProfile.all.find(
       candidate => candidate.key === profileKey,
@@ -680,8 +712,62 @@ export class PackageQueriesAdapter extends PackageQueries {
     if (!provisions) return null;
 
     return PackageQueriesAdapter.toProvisionView(
-      provisionOf(provisions, documents),
+      provisionOf(provisions, documents, stated),
     );
+  }
+
+  /*
+   * The overrides as the table takes them, off the rows this query already
+   * holds — the same flat shape the aggregate hands the same service, because
+   * it is the same service and one rule with two implementations is two rules
+   * (COMM-193).
+   *
+   * The stored text goes through the value object and not through a parse of
+   * this file's own: what a `storeys` is and what a `landRight` may say is the
+   * domain's to know, and the figure the table is decided on here has to be the
+   * very figure the aggregate decided it on — a `builtYear` published as the
+   * string "2014" would be a different answer from the write side's 2014.
+   *
+   * A row the domain no longer understands — a parameter the enumeration has
+   * dropped, a figure a moved window no longer admits — is left out rather than
+   * thrown on, for the reason an unrecognised finding kind is counted: the
+   * register is a read surface, and one stored row nobody recognises must not
+   * make a package unopenable. The case then reads as the papers state it,
+   * which is what it read as before anybody corrected it.
+   */
+  private static statedParametersOf(
+    overrides: readonly {
+      readonly parameter: string;
+      readonly value: string;
+      readonly editedByAccountId: string;
+      readonly editedAt: Date;
+    }[],
+  ): readonly StatedParameter[] {
+    return overrides.flatMap(override => {
+      const parameter = CASE_PARAMETERS.find(
+        candidate => candidate === override.parameter,
+      );
+
+      if (!parameter) return [];
+
+      try {
+        return [
+          {
+            parameter,
+            value: StatedCaseParameter.restore({
+              parameter,
+              value: override.value,
+              by: EditorAccountId.of(override.editedByAccountId),
+              at: override.editedAt,
+            }).value,
+            accountId: override.editedByAccountId,
+            at: override.editedAt,
+          },
+        ];
+      } catch {
+        return [];
+      }
+    });
   }
 
   private static toProvisionView(answer: CaseProvision): ProvisionView {
@@ -703,27 +789,18 @@ export class PackageQueriesAdapter extends PackageQueries {
         value: answer.parameters[reading.parameter],
         source: reading.source,
         stated: reading.stated,
-        from: reading.from
+        from: figureReadingOf(reading.from),
+        calculation: spanCalculationOf(reading.calculation),
+        overriddenBy: reading.overriddenBy ? { ...reading.overriddenBy } : null,
+        // What the engine made of the papers, kept beside an override so the
+        // card can show both and offer to put the engine's back (COMM-193).
+        read: reading.read
           ? {
-              documentId: reading.from.documentId,
-              documentType: reading.from.documentType,
-              fieldName: reading.from.fieldKey,
-              pageNumber: reading.from.pageNumber,
-              confidence: reading.from.confidence,
-            }
-          : null,
-        calculation: reading.calculation
-          ? {
-              longest: reading.calculation.longest,
-              chains: reading.calculation.chains.map(chain => ({
-                chain: chain.chain,
-                spans: chain.spans.map(span => ({ ...span })),
-                longest: { ...chain.longest },
-              })),
-              unit: reading.calculation.unit,
-              unitBasis: reading.calculation.unitBasis,
-              setAside: [...reading.calculation.setAside],
-              refusedFor: reading.calculation.refusedFor,
+              value: reading.read.value,
+              source: reading.read.source,
+              stated: reading.read.stated,
+              from: figureReadingOf(reading.read.from),
+              calculation: spanCalculationOf(reading.read.calculation),
             }
           : null,
       })),
@@ -1567,4 +1644,38 @@ export class PackageQueriesAdapter extends PackageQueries {
 
     return known ? !known.isInformational : true;
   }
+}
+
+// The two shapes a figure and the engine's reading of it share, in strings.
+// Written once, because an overridden figure publishes both and a second copy
+// of either mapping is a second place they can drift apart (COMM-193).
+function figureReadingOf(from: FigureReading | null): FigureReadingView | null {
+  return from
+    ? {
+        documentId: from.documentId,
+        documentType: from.documentType,
+        fieldName: from.fieldKey,
+        pageNumber: from.pageNumber,
+        confidence: from.confidence,
+      }
+    : null;
+}
+
+function spanCalculationOf(
+  calculation: SpanCalculation | null,
+): SpanCalculationView | null {
+  return calculation
+    ? {
+        longest: calculation.longest,
+        chains: calculation.chains.map(chain => ({
+          chain: chain.chain,
+          spans: chain.spans.map(span => ({ ...span })),
+          longest: { ...chain.longest },
+        })),
+        unit: calculation.unit,
+        unitBasis: calculation.unitBasis,
+        setAside: [...calculation.setAside],
+        refusedFor: calculation.refusedFor,
+      }
+    : null;
 }

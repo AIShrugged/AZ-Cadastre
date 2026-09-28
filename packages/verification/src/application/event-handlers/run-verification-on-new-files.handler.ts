@@ -4,6 +4,7 @@ import { CommandBus, EventsHandler, type IEventHandler } from '@nestjs/cqrs';
 import { Logger } from '@cadastre/logger';
 
 import {
+  CaseParametersStated,
   DocumentFieldsEdited,
   DocumentSupplied,
   FilesAdded,
@@ -11,12 +12,24 @@ import {
 } from '../../domain/events/index.js';
 import { RunVerificationCommand } from '../use-cases/index.js';
 
-/** The four ways a package comes to need reading again. */
+/** The five ways a package comes to need reading again. */
 type Reopened =
-  PackageSubmitted | FilesAdded | DocumentSupplied | DocumentFieldsEdited;
+  | PackageSubmitted
+  | FilesAdded
+  | DocumentSupplied
+  | DocumentFieldsEdited
+  | CaseParametersStated;
+
+// The two that re-open a package without anything arriving: a correction and a
+// figure of the Article 8 table stated by hand.
+const bringsNoFiles = (
+  event: Reopened,
+): event is DocumentFieldsEdited | CaseParametersStated =>
+  event instanceof DocumentFieldsEdited ||
+  event instanceof CaseParametersStated;
 
 /**
- * All four events, because the answer to all four is the same one: this package
+ * All five events, because the answer to all five is the same one: this package
  * has re-opened, so read it. A package that re-opens has already discarded
  * everything worked out across it, and the run re-reads nothing it read before
  * — every stage skips what is already done (ADR-0013).
@@ -32,12 +45,19 @@ type Reopened =
  * radius and the same road: the correction may be a side of any cross-document
  * check, and deciding here which checks it could reach would be a second copy
  * of a rule the aggregate already applied when it discarded them (COMM-122).
+ *
+ * A figure of the Article 8 table an operator set is the narrowest of the five
+ * and takes the same road for the same reason: nothing the papers say has
+ * changed, but which provision the case falls under has, and the report is
+ * compiled against that provision's papers. Compiling it afresh is what this
+ * run does (COMM-193).
  */
 @EventsHandler(
   PackageSubmitted,
   FilesAdded,
   DocumentSupplied,
   DocumentFieldsEdited,
+  CaseParametersStated,
 )
 export class RunVerificationOnNewFilesHandler implements IEventHandler<Reopened> {
   private readonly logger: Logger;
@@ -57,11 +77,16 @@ export class RunVerificationOnNewFilesHandler implements IEventHandler<Reopened>
     this.logger.log('A package re-opened — starting verification', {
       packageId: event.packageId.value,
       because: event.type,
-      // How much arrived, in the unit the event counts in: files for the three
-      // that bring files, corrected keys for the one that brings none. Said as
-      // two fields rather than one number whose meaning depends on `because`.
-      files: event instanceof DocumentFieldsEdited ? 0 : event.fileCount,
+      /*
+       * How much arrived, in the unit the event counts in: files for the three
+       * that bring files, corrected keys and stated figures for the two that
+       * bring none. Said as three fields rather than one number whose meaning
+       * depends on `because`.
+       */
+      files: bringsNoFiles(event) ? 0 : event.fileCount,
       fields: event instanceof DocumentFieldsEdited ? event.fieldCount : 0,
+      parameters:
+        event instanceof CaseParametersStated ? event.parameterCount : 0,
     });
 
     // The pipeline outlives the request that brought the change, so nothing

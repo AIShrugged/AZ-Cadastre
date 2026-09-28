@@ -502,10 +502,10 @@ const en: Dict = {
   'provision.rule.8.0.9.1.1':
     'Built before 2013, up to 12 m, land on lease or use',
   'provision.rule.8.0.9.1.2':
-    'Built before 2013, up to 12 m, land owned and designated for housing',
+    'Built before 2013, up to 12 m, the plot held in ownership and designated for housing',
   'provision.rule.8.0.9.2': 'Built before 2013, taller than 12 m',
   'provision.rule.8.0.10.2':
-    'Built from 2013 under notification: up to 3 storeys, 12 m and 6 m spans, land for housing',
+    'Built from 2013 under notification: up to 3 storeys, up to 12 m tall, spans up to 6 m, the plot designated for housing',
   'provision.rule.8.0.10.1':
     'Built from 2013 outside the notification procedure, by permit',
   'detail.clean': 'No issues.',
@@ -735,7 +735,13 @@ const en: Dict = {
   'provision.req.not_asked': 'Not needed',
   'provision.others': 'Ruled out: {n}',
   'provision.rule.depends': 'Depends on: {list}',
-  'provision.rule.fails': 'Ruled out by: {list}',
+  'provision.cond.reason': '{label}: {required} required, package has {actual}',
+  'provision.cond.at_most': 'up to {max}',
+  'provision.cond.less_than': 'less than {max}',
+  'provision.cond.at_least': 'from {min}',
+  'provision.cond.more_than': 'more than {min}',
+  'provision.cond.and': '{from} and {to}',
+  'provision.cond.any': 'any value',
   'gap.more': 'Other suitable documents: {n}',
   'detail.sheets_more': 'Show {n} more pages',
   'detail.sheets_fewer': 'Show fewer',
@@ -1898,10 +1904,10 @@ const ru: Dict = {
   'provision.rule.8.0.9.1.1':
     'Построено до 2013 г., высота до 12 м, участок в аренде или пользовании',
   'provision.rule.8.0.9.1.2':
-    'Построено до 2013 г., высота до 12 м, участок в собственности под жилищное строительство',
+    'Построено до 2013 г., высота до 12 м, участок в собственности и предназначен для жилищного строительства',
   'provision.rule.8.0.9.2': 'Построено до 2013 г., высота более 12 м',
   'provision.rule.8.0.10.2':
-    'Построено с 2013 г. в уведомительном порядке: до 3 этажей, 12 м, пролёты до 6 м, участок под жильё',
+    'Построено с 2013 г. в уведомительном порядке: до 3 этажей, высота до 12 м, пролёты до 6 м, участок предназначен для жилищного строительства',
   'provision.rule.8.0.10.1':
     'Построено с 2013 г. вне уведомительного порядка, по разрешению',
   'detail.clean': 'Замечаний нет.',
@@ -2094,7 +2100,13 @@ const ru: Dict = {
   'provision.req.not_asked': 'Не нужен',
   'provision.others': 'Исключены: {n}',
   'provision.rule.depends': 'Зависит от: {list}',
-  'provision.rule.fails': 'Не подходит по: {list}',
+  'provision.cond.reason': '{label}: требуется {required}, в пакете — {actual}',
+  'provision.cond.at_most': 'не более {max}',
+  'provision.cond.less_than': 'менее {max}',
+  'provision.cond.at_least': 'от {min}',
+  'provision.cond.more_than': 'более {min}',
+  'provision.cond.and': '{from} и {to}',
+  'provision.cond.any': 'любое значение',
   'gap.more': 'Другие подходящие документы: {n}',
   'detail.sheets_more': 'Ещё страниц: {n}',
   'detail.sheets_fewer': 'Свернуть',
@@ -3216,12 +3228,12 @@ const az: Dict = {
   'provision.rule.open': 'Müəyyən edilməyib',
   'provision.pending': 'Sənədlər oxunandan sonra müəyyən ediləcək',
   'provision.rule.8.0.9.1.1':
-    '2013-cü ilədək tikilib, hündürlük 12 m-dək, torpaq icarədə və ya istifadədə',
+    '2013-cü ilədək tikilib, hündürlük 12 m-dək, torpaq sahəsi icarədə və ya istifadədədir',
   'provision.rule.8.0.9.1.2':
-    '2013-cü ilədək tikilib, hündürlük 12 m-dək, torpaq mülkiyyətdə və yaşayış tikintisi üçündür',
+    '2013-cü ilədək tikilib, hündürlük 12 m-dək, torpaq sahəsi mülkiyyətdədir və yaşayış tikintisi üçün nəzərdə tutulub',
   'provision.rule.8.0.9.2': '2013-cü ilədək tikilib, hündürlük 12 m-dən çox',
   'provision.rule.8.0.10.2':
-    '2013-cü ildən məlumatlandırma qaydasında: 3 mərtəbəyədək, 12 m və 6 m-dək aşırım, yaşayış üçün torpaq',
+    '2013-cü ildən məlumatlandırma qaydasında tikilib: 3 mərtəbəyədək, hündürlük 12 m-dək, aşırım 6 m-dək, torpaq sahəsi yaşayış tikintisi üçün nəzərdə tutulub',
   'provision.rule.8.0.10.1':
     '2013-cü ildən məlumatlandırma qaydasından kənar, icazə ilə',
   'detail.clean': 'Qüsur yoxdur.',
@@ -3415,7 +3427,14 @@ const az: Dict = {
   'provision.req.not_asked': 'Lazım deyil',
   'provision.others': 'İstisna edilib: {n}',
   'provision.rule.depends': 'Asılıdır: {list}',
-  'provision.rule.fails': 'Uyğun gəlmir: {list}',
+  'provision.cond.reason':
+    '{label}: {required} tələb olunur, paketdə — {actual}',
+  'provision.cond.at_most': '{max}-dək',
+  'provision.cond.less_than': '{max}-dən az',
+  'provision.cond.at_least': '{min}-dən başlayaraq',
+  'provision.cond.more_than': '{min}-dən çox',
+  'provision.cond.and': '{from} və {to}',
+  'provision.cond.any': 'istənilən qiymət',
   'gap.more': 'Digər uyğun sənədlər: {n}',
   'detail.sheets_more': 'Daha {n} səhifə',
   'detail.sheets_fewer': 'Qısalt',

@@ -68,7 +68,19 @@ function aProvision(over: Partial<CaseProvisionDto> = {}): CaseProvisionDto {
       {
         provision: '8.0.9.2',
         description: '',
-        conditions: [{ parameter: 'height', holds: true }],
+        conditions: [
+          {
+            parameter: 'height',
+            holds: true,
+            expected: {
+              kind: 'Range',
+              min: null,
+              minInclusive: false,
+              max: 12,
+              maxInclusive: true,
+            },
+          },
+        ],
         excluded: false,
         holds: false,
       },
@@ -76,8 +88,28 @@ function aProvision(over: Partial<CaseProvisionDto> = {}): CaseProvisionDto {
         provision: '8.0.10.2',
         description: '',
         conditions: [
-          { parameter: 'builtYear', holds: null },
-          { parameter: 'span', holds: true },
+          {
+            parameter: 'builtYear',
+            holds: null,
+            expected: {
+              kind: 'Range',
+              min: 2013,
+              minInclusive: true,
+              max: null,
+              maxInclusive: false,
+            },
+          },
+          {
+            parameter: 'span',
+            holds: true,
+            expected: {
+              kind: 'Range',
+              min: null,
+              minInclusive: true,
+              max: 6,
+              maxInclusive: true,
+            },
+          },
         ],
         excluded: false,
         holds: false,
@@ -131,7 +163,19 @@ describe('the span, as the server calculated it', () => {
             {
               provision: '8.0.10.2',
               description: '',
-              conditions: [{ parameter: 'span', holds: null }],
+              conditions: [
+                {
+                  parameter: 'span',
+                  holds: null,
+                  expected: {
+                    kind: 'Range',
+                    min: null,
+                    minInclusive: true,
+                    max: 6,
+                    maxInclusive: true,
+                  },
+                },
+              ],
               excluded: false,
               holds: false,
             },

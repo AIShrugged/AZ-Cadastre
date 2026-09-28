@@ -242,6 +242,13 @@ function toProvisionDto(view: ProvisionView): CaseProvisionDto {
       conditions: rule.conditions.map(condition => ({
         parameter: condition.parameter as Parameter,
         holds: condition.holds,
+        expected:
+          condition.expected.kind === 'OneOf'
+            ? {
+                kind: condition.expected.kind,
+                values: [...condition.expected.values],
+              }
+            : { ...condition.expected },
       })),
       excluded: rule.excluded,
       holds: rule.holds,

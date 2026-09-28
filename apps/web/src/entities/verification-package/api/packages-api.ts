@@ -20,6 +20,7 @@ import {
   EditDocumentFieldsResponseSchema,
   GetPackageResponseSchema,
   ListPackagesResponseSchema,
+  StateCaseParametersResponseSchema,
   SupplyDocumentResponseSchema,
   type AddFilesRequest,
   type AddFilesResponse,
@@ -31,6 +32,8 @@ import {
   type EditDocumentFieldsResponse,
   type GetPackageResponse,
   type ListPackagesRequestInput,
+  type StateCaseParametersRequest,
+  type StateCaseParametersResponse,
   type SupplyDocumentRequest,
   type SupplyDocumentResponse,
 } from '@cadastre/api-contracts/verification';
@@ -181,6 +184,41 @@ export const packagesApi = api.injectEndpoints({
       invalidatesTags: ['Package'],
     }),
     /*
+     * What an operator states the six figures of the Article 8 table are, where
+     * the papers were read wrongly or say nothing at all (COMM-193).
+     *
+     * Beside `editDocumentFields` because it is the same kind of write and
+     * carries the same consequence: one call for the whole form and never one
+     * per figure, since the save re-opens the package and verifies it afresh —
+     * six calls would be six runs, five of them reading a form the operator was
+     * still in the middle of.
+     *
+     * It is not a correction, though, and that is why it is a second endpoint:
+     * a figure may have no line of any paper behind it, the right over the land
+     * comes from the kind of title document rather than a field of one, and the
+     * span is worked out of the axis chains. None of those can be reached by
+     * correcting a field.
+     *
+     * It answers with the package as it now stands, and only the bare tag is
+     * named — the caller writes the answer straight into the detail cache
+     * (`useKeepPackage`), so naming `{ Package, id }` here would send this
+     * screen round a refetch it has already been given the answer to. The
+     * register's rows are stale all the same: the package is back in the queue.
+     */
+    stateCaseParameters: build.mutation<
+      StateCaseParametersResponse,
+      { id: string; body: StateCaseParametersRequest }
+    >({
+      query: ({ id, body }) => ({
+        url: `/packages/${id}/case-parameters`,
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (response: unknown) =>
+        StateCaseParametersResponseSchema.parse(response),
+      invalidatesTags: ['Package'],
+    }),
+    /*
      * The one write on this resource a person makes rather than the engine:
      * their sign-off on what the archive register answered about the
      * submission, and the conclusion they drew from it (ADR-0016).
@@ -215,6 +253,7 @@ export const {
   useCreatePackageMutation,
   useAddFilesMutation,
   useEditDocumentFieldsMutation,
+  useStateCaseParametersMutation,
   useSupplyDocumentMutation,
   useApproveArchiveSearchMutation,
 } = packagesApi;

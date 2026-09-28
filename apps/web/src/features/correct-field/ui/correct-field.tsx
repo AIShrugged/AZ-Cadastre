@@ -28,7 +28,9 @@ import { ReadingFigure } from '@/entities/verification-package';
 import { translateOr, useI18n } from '@/shared/i18n';
 import { cn } from '@/shared/lib/cn';
 import { Button } from '@/shared/ui/button';
+import { EditPencil } from '@/shared/ui/edit-pencil';
 import { Input } from '@/shared/ui/input';
+import { SaveBar } from '@/shared/ui/save-bar';
 import type { FieldDto } from '@cadastre/api-contracts/verification';
 
 import {
@@ -63,17 +65,11 @@ export function CorrectButton({
   const { t } = useI18n();
 
   return (
-    <button
-      type='button'
+    <EditPencil
+      label={t('correct.field_action', { field: fieldLabel(t, field.name) })}
       onClick={() => corrections.type(field.name, field.value)}
-      title={t('correct.field_action', { field: fieldLabel(t, field.name) })}
-      aria-label={t('correct.field_action', {
-        field: fieldLabel(t, field.name),
-      })}
-      className='-my-0.5 ml-1.5 inline-flex size-5 shrink-0 translate-y-0.5 items-center justify-center rounded-sm text-muted-foreground/0 transition-colors group-hover/row:text-muted-foreground hover:bg-foreground/5 hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
-    >
-      <PencilLineIcon aria-hidden className='size-3.5' />
-    </button>
+      className='ml-1.5'
+    />
   );
 }
 
@@ -172,25 +168,6 @@ export function CorrectionBox({
   );
 }
 
-/**
- * The mark a row carries while what it shows is the operator's and not yet the
- * register's.
- *
- * It is the answer to the one thing a correction screen must never get wrong: a
- * row must never look saved before it is. So the mark is on every touched row
- * until the save comes back, and a save that is refused leaves it exactly where
- * it was.
- */
-export function UnsavedMark() {
-  const { t } = useI18n();
-
-  return (
-    <span className='inline-flex rounded-sm bg-issues/14 px-1.5 py-0.5 text-[0.625rem] font-medium leading-none text-issues-ink'>
-      {t('correct.unsaved')}
-    </span>
-  );
-}
-
 /** A row for a key the profile declares and nothing was read for, opened by
  *  hand. It is a row of the card like any other until it is saved. */
 export function AddValue({
@@ -250,14 +227,7 @@ export function AddValue({
   );
 }
 
-/**
- * What one save would do, said before it is made, with the two ways out of it.
- *
- * The consequence is not a warning dialog. An operator who corrects a field is
- * doing the right thing and must not be talked out of it; they only have to
- * know what happens next, which is one line above the button they are about to
- * press.
- */
+/** What one save of this document's corrections would do, on the shared bar. */
 export function CorrectionBar({ corrections }: { corrections: Corrections }) {
   const { t } = useI18n();
   const n = corrections.pending.length;
@@ -265,39 +235,18 @@ export function CorrectionBar({ corrections }: { corrections: Corrections }) {
   if (n === 0) return null;
 
   return (
-    <div className='mt-4 rounded-lg border border-rule bg-muted/40 px-3 py-3'>
-      <p className='text-[0.8125rem] font-medium text-foreground'>
-        {t('correct.pending', { n })}
-      </p>
-      <p className='mt-1 max-w-[70ch] text-[0.75rem] leading-relaxed text-muted-foreground'>
-        {t('correct.consequence')}
-      </p>
-      <div className='mt-3 flex flex-wrap items-center gap-2'>
-        <Button
-          size='sm'
-          onClick={corrections.save}
-          disabled={corrections.saving || corrections.overlong}
-          aria-disabled={corrections.saving || corrections.overlong}
-        >
-          <PencilLineIcon />
-          {corrections.saving ? t('correct.saving') : t('correct.save')}
-        </Button>
-        <Button
-          variant='ghost'
-          size='sm'
-          onClick={corrections.discard}
-          disabled={corrections.saving}
-          className='text-muted-foreground'
-        >
-          {t('correct.discard')}
-        </Button>
-        {corrections.overlong && (
-          <span className='text-[0.75rem] text-failed-ink'>
-            {t('correct.too_long_bar')}
-          </span>
-        )}
-      </div>
-    </div>
+    <SaveBar
+      count={t('correct.pending', { n })}
+      consequence={t('correct.consequence')}
+      save={corrections.save}
+      saveLabel={corrections.saving ? t('correct.saving') : t('correct.save')}
+      discard={corrections.discard}
+      discardLabel={t('correct.discard')}
+      saving={corrections.saving}
+      blocked={corrections.overlong}
+      warning={corrections.overlong ? t('correct.too_long_bar') : null}
+      icon={<PencilLineIcon />}
+    />
   );
 }
 

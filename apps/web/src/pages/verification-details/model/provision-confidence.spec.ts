@@ -172,6 +172,36 @@ describe('isDoubtful', () => {
   it('still marks a figure whose document this read no longer carries', () => {
     expect(isDoubtful(parameter('storeys', 0.5), [])).toBe(true);
   });
+
+  it('marks nothing on a figure an operator stated, however badly it was read', () => {
+    // An override is a person taking responsibility for the figure, exactly as a
+    // corrected field is (COMM-193) — so the mark goes out by itself: the figure
+    // is printed on no sheet, `from` is null, and there is nothing left to doubt.
+    // The reading that was displaced keeps its own confidence in `read`, and it
+    // is not what the case is decided on any more.
+    const overridden = parameter('storeys', null, {
+      value: 4,
+      source: 'StatedByOperator',
+      stated: '4',
+      from: null,
+      overriddenBy: { accountId: 'acc-1', at: '2026-09-28T10:00:00.000Z' },
+      read: {
+        value: 2,
+        source: 'ReadOffDocument',
+        stated: '2',
+        from: {
+          documentId: 'doc-1',
+          documentType: 'sketch_design',
+          fieldName: 'storeys',
+          pageNumber: 1,
+          confidence: 0.3,
+        },
+        calculation: null,
+      },
+    });
+
+    expect(isDoubtful(overridden, [doc()])).toBe(false);
+  });
 });
 
 describe('doubtfulParameters', () => {
@@ -210,6 +240,24 @@ describe('restsOnUnconfirmed', () => {
 
   it('stays quiet where every decisive figure was read well', () => {
     const case_ = provision([parameter('height', 0.97)], ['height']);
+
+    expect(restsOnUnconfirmed(case_, [doc({ fields: [] })])).toBe(false);
+  });
+
+  it('stays quiet where the operator has stated the figure the rule turns on', () => {
+    // Stating a figure settles the question the warning asks, so the head of the
+    // panel stops saying the sentence rests on an unchecked reading.
+    const case_ = provision(
+      [
+        parameter('height', 0.3, {
+          value: 14,
+          source: 'StatedByOperator',
+          from: null,
+          overriddenBy: { accountId: 'acc-1', at: '2026-09-28T10:00:00.000Z' },
+        }),
+      ],
+      ['height'],
+    );
 
     expect(restsOnUnconfirmed(case_, [doc({ fields: [] })])).toBe(false);
   });

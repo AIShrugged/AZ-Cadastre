@@ -63,6 +63,23 @@ export function parameterPhrase(
     : translateOr(t, `provision.value.${parameter.value}`, parameter.value);
 }
 
+/**
+ * What the engine itself established for a figure, *as* a figure — so the one
+ * phrase function words it and the cell can never word a reading two ways.
+ *
+ * Null where no operator has stated this figure, which is where there is nothing
+ * underneath it to show. Where there is, `read.value` may still be null: a
+ * parameter no paper ever stated is precisely the cell an override exists for, so
+ * the phrase has to come out "not established" rather than assume a figure was
+ * displaced (COMM-193).
+ */
+export function asRead(parameter: CaseParameterDto): CaseParameterDto | null {
+  const read = parameter.read;
+  if (read === null) return null;
+
+  return { ...parameter, ...read, overriddenBy: null, read: null };
+}
+
 /** What the rule asks of one figure, in words. */
 export function expectationPhrase(
   t: Translate,

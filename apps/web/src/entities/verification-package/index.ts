@@ -8,7 +8,8 @@
  * count, which of a document's fields are its own reading and what the card
  * has to do to state nineteen of them, what the package will take a document
  * for and which of its papers a later arrival has pushed out of force, the live
- * package API, and the entity's read-only UI marks.
+ * package API — reads, the two corrections a person makes and the six figures
+ * they may state — and the entity's read-only UI marks.
  */
 export type { ProfileDto } from './model/profile';
 export { documentsExpected, profileName, requiredTypes } from './model/profile';
@@ -291,6 +292,7 @@ export {
   useCreatePackageMutation,
   useAddFilesMutation,
   useEditDocumentFieldsMutation,
+  useStateCaseParametersMutation,
   useSupplyDocumentMutation,
   useApproveArchiveSearchMutation,
 } from './api/packages-api';

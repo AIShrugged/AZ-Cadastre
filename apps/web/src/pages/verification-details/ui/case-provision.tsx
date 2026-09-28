@@ -4,10 +4,18 @@
  * the package for, the titles to the land and the dates they are held to
  * (ADR-0025).
  *
- * Everything here is the server's answer, drawn as it arrived. The decision
- * table is the customer's acceptance contract and the decision stays with the
- * inspector: the panel says what the engine concluded and on what, so a figure
- * read wrongly is a figure the inspector can see and open.
+ * Everything here is the server's answer, drawn as it arrived — with one write
+ * on it: the six figures take a statement, because a figure read wrongly, or
+ * never read at all, is what puts the case under the wrong provision. The
+ * decision table is the customer's acceptance contract and the decision stays
+ * with the inspector: the panel says what the engine concluded and on what, so
+ * a figure read wrongly is a figure the inspector can see, open and set.
+ *
+ * **The panel owns the cell and `state-case-parameter` owns the write.** The
+ * cell already carries the figure, its source, the sheet jump and the span
+ * working; the feature carries the draft, the box and the save, and the reading
+ * an operator has overruled is printed back here because it is the same kind of
+ * statement about the case as everything else on the card (COMM-194).
  *
  * **One table for what the provisions ask for.** It was a list per provision
  * and then a decision table naming the same provisions again, then a card per
@@ -21,6 +29,7 @@ import {
   ChevronRightIcon,
   CircleHelpIcon,
   MinusIcon,
+  UserPenIcon,
 } from 'lucide-react';
 
 import {
@@ -36,20 +45,34 @@ import {
   unitLine,
   type ProfileDto,
 } from '@/entities/verification-package';
+import {
+  FigureBox,
+  NoStatementsNote,
+  RevertFigure,
+  StateFigureButton,
+  StatementBar,
+  useStatements,
+  whyNotStatable,
+  type NoStatement,
+  type Statements,
+} from '@/features/state-case-parameter';
 import { formatDate, translateOr, useI18n } from '@/shared/i18n';
 import { cn } from '@/shared/lib/cn';
 import type { Jump } from '@/shared/lib/jump';
 import { InfoHint } from '@/shared/ui/info-hint';
+import { UnsavedMark } from '@/shared/ui/unsaved-mark';
 import type {
   CaseParameterDto,
   CaseProvisionDto,
   DocumentDto,
+  PackageDetailDto,
   ProvisionRequirementDto,
   SpanCalculationDto,
   TitleDocumentStandingDto,
 } from '@cadastre/api-contracts/verification';
 
 import {
+  asRead,
   conditionReasons,
   parameterPhrase,
   undecidedNames,
@@ -135,11 +158,15 @@ function SubHeading({ children, hint }: { children: string; hint?: string }) {
 }
 
 export function CaseProvisionPanel({
+  pkg,
   provision,
   profile,
   documents,
   onJump,
 }: {
+  /** The submission the case is of — its id and its state, which is what says
+   *  whether the six figures take a statement right now (COMM-194). */
+  pkg: PackageDetailDto;
   provision: CaseProvisionDto;
   /** Null while the profiles load; the sources of the papers are then left
    *  unsaid rather than guessed. */
@@ -152,6 +179,10 @@ export function CaseProvisionPanel({
 }) {
   const { t } = useI18n();
   const unconfirmed = restsOnUnconfirmed(provision, documents);
+  // The draft lives here and not in `Parameters`, so it survives the table
+  // re-rendering off a poll that arrived while the operator was typing.
+  const statements = useStatements(pkg.id, provision.parameters);
+  const refusal = whyNotStatable(pkg);
 
   return (
     <section id='provision' className='scroll-mt-16'>
@@ -184,7 +215,13 @@ export function CaseProvisionPanel({
           {t('provision.unconfirmed')}
         </p>
       )}
-      <Parameters provision={provision} documents={documents} onJump={onJump} />
+      <Parameters
+        provision={provision}
+        documents={documents}
+        onJump={onJump}
+        statements={refusal === null ? statements : null}
+        refusal={refusal}
+      />
 
       <Options provision={provision} profile={profile} />
 
@@ -201,56 +238,154 @@ function Parameters({
   provision,
   documents,
   onJump,
+  statements,
+  refusal,
 }: {
   provision: CaseProvisionDto;
   documents: readonly DocumentDto[];
   onJump: Jump;
+  /** How the operator's statements are being held, or null where the package
+   *  takes none right now — the pencils are then absent and `refusal` says why. */
+  statements: Statements | null;
+  refusal: NoStatement | null;
 }) {
   const { t } = useI18n();
   const parameters = provision.parameters;
 
   return (
     <div className='mt-6'>
-      <SubHeading>{t('provision.parameters')}</SubHeading>
+      <SubHeading
+        hint={statements ? t('provision.parameters_editable') : undefined}
+      >
+        {t('provision.parameters')}
+      </SubHeading>
       {/* A grid of six rather than six full-width rows: each figure is a word
           or two, and a row the width of the page put its value half a screen
           away from its name. */}
       <dl className='mt-2.5 grid gap-px overflow-hidden rounded-lg border border-rule bg-rule sm:grid-cols-2 lg:grid-cols-3'>
-        {parameters.map(parameter => (
-          <div
-            key={parameter.parameter}
-            className='flex min-w-0 flex-col gap-0.5 bg-card px-3.5 py-2.5'
-          >
-            <dt className='text-[0.75rem] leading-snug text-muted-foreground'>
-              {translateOr(
-                t,
-                `provision.param.${parameter.parameter}`,
-                parameter.parameter,
+        {parameters.map(parameter => {
+          const open = statements?.opened(parameter.parameter) ?? false;
+          const unsaved =
+            open && (statements?.changed(parameter.parameter) ?? false);
+          // What the engine made of the papers, where an operator has overruled
+          // it. Null on every figure nobody has stated, which is every figure on
+          // a package no operator has touched.
+          const read = asRead(parameter);
+
+          return (
+            <div
+              key={parameter.parameter}
+              className='group/row flex min-w-0 flex-col gap-0.5 bg-card px-3.5 py-2.5'
+            >
+              <dt className='text-[0.75rem] leading-snug text-muted-foreground'>
+                {translateOr(
+                  t,
+                  `provision.param.${parameter.parameter}`,
+                  parameter.parameter,
+                )}
+              </dt>
+              {open && statements ? (
+                <dd className='mt-1 flex flex-col items-start gap-1.5'>
+                  <FigureBox
+                    parameter={parameter.parameter}
+                    figure={parameter}
+                    statements={statements}
+                  />
+                  {/* A cell must never look decided on a figure that has not
+                      been saved — the mark stays until the answer comes back,
+                      and a refused save leaves it exactly where it was. */}
+                  {unsaved && <UnsavedMark />}
+                </dd>
+              ) : (
+                <dd className='flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[0.875rem] leading-snug text-foreground'>
+                  <ParameterValue parameter={parameter} />
+                  {isDoubtful(parameter, documents) && (
+                    <DoubtfulReading parameter={parameter} onJump={onJump} />
+                  )}
+                  {statements && (
+                    <StateFigureButton
+                      parameter={parameter.parameter}
+                      figure={parameter}
+                      statements={statements}
+                    />
+                  )}
+                </dd>
               )}
-            </dt>
-            <dd className='flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[0.875rem] leading-snug text-foreground'>
-              <ParameterValue parameter={parameter} />
-              {isDoubtful(parameter, documents) && (
-                <DoubtfulReading parameter={parameter} onJump={onJump} />
+              {parameter.calculation && (
+                <dd className='text-[0.75rem] leading-snug text-muted-foreground'>
+                  <SpanWorking
+                    calculation={parameter.calculation}
+                    withinLimit={spanWithinLimit(provision)}
+                  />
+                </dd>
               )}
-            </dd>
-            {parameter.calculation && (
-              <dd className='text-[0.75rem] leading-snug text-muted-foreground'>
-                <SpanWorking
-                  calculation={parameter.calculation}
-                  withinLimit={spanWithinLimit(provision)}
+              {parameter.source !== null && (
+                <dd className='text-[0.75rem] leading-snug text-muted-foreground'>
+                  <ParameterSource parameter={parameter} onJump={onJump} />
+                </dd>
+              )}
+              {read && (
+                <ReadUnderneath
+                  read={read}
+                  parameter={parameter.parameter}
+                  statements={open ? null : statements}
+                  onJump={onJump}
                 />
-              </dd>
-            )}
-            {parameter.source !== null && (
-              <dd className='text-[0.75rem] leading-snug text-muted-foreground'>
-                <ParameterSource parameter={parameter} onJump={onJump} />
-              </dd>
-            )}
-          </div>
-        ))}
+              )}
+            </div>
+          );
+        })}
       </dl>
+      {statements && <StatementBar statements={statements} />}
+      {refusal && <NoStatementsNote reason={refusal} />}
     </div>
+  );
+}
+
+/**
+ * What the engine established, kept under the figure the operator overruled it
+ * with, and the offer to put it back.
+ *
+ * It is never a blank: a figure no paper ever stated comes out "not established"
+ * in the same words the table prints for it elsewhere, and that is the case an
+ * override exists for. The reading keeps its own source link and its own span
+ * working, so the sheet the engine read is still one click away — an operator who
+ * set a figure by hand is exactly the reader who may want to check it again.
+ */
+function ReadUnderneath({
+  read,
+  parameter,
+  statements,
+  onJump,
+}: {
+  read: CaseParameterDto;
+  parameter: CaseParameterDto['parameter'];
+  /** Null while this cell's box is open: the box's own empty state is the revert
+   *  there, and two ways to do one thing in one cell is one too many. */
+  statements: Statements | null;
+  onJump: Jump;
+}) {
+  const { t, locale } = useI18n();
+
+  return (
+    <dd className='mt-0.5 flex flex-col gap-0.5 border-t border-rule/60 pt-1 text-[0.75rem] leading-snug text-muted-foreground'>
+      <span>
+        {t('provision.read_was', { value: parameterPhrase(t, read, locale) })}
+      </span>
+      {read.source !== null && (
+        <span>
+          <ParameterSource parameter={read} onJump={onJump} />
+        </span>
+      )}
+      {read.calculation && (
+        <SpanWorking calculation={read.calculation} withinLimit={null} />
+      )}
+      {/* Last, and not beside the reading: the offer is what to do about all of
+          it, and a control in the middle of a citation is read as part of it. */}
+      {statements && (
+        <RevertFigure parameter={parameter} statements={statements} />
+      )}
+    </dd>
   );
 }
 
@@ -406,10 +541,34 @@ function ParameterSource({
   parameter: CaseParameterDto;
   onJump: Jump;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const from = parameter.from;
 
   if (parameter.source === null) return null;
+  /* A figure an operator set is printed on no sheet, so it has no link to give
+     and no document to name — what it has is the person and the moment, which is
+     what `overriddenBy` carries (COMM-193). It is set in the same mark a
+     corrected field carries on the register below, because it is the same act:
+     the day it was stated is the whole of what this client can say about who
+     did, since resolving an account id to a person belongs to the context that
+     owns accounts (ADR-0033). */
+  if (parameter.source === 'StatedByOperator') {
+    const statedOn = parameter.overriddenBy
+      ? formatDate(parameter.overriddenBy.at, locale)
+      : '';
+
+    return (
+      <span
+        title={t('provision.stated_why')}
+        className='inline-flex items-center gap-1 rounded-sm bg-accent-2-tint px-1.5 py-0.5 text-[0.625rem] font-medium leading-none text-accent-2-ink'
+      >
+        <UserPenIcon aria-hidden className='size-2.5 shrink-0' />
+        {statedOn
+          ? t('provision.stated_on', { date: statedOn })
+          : t('provision.stated')}
+      </span>
+    );
+  }
   if (parameter.source === 'DeclaredAtIntake' || from === null) {
     return <>{t('provision.from.DeclaredAtIntake')}</>;
   }

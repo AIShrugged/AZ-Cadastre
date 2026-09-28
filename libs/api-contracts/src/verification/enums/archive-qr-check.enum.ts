@@ -12,6 +12,12 @@ export const ArchiveQrCheckStatusSchema = z.enum([
   // Answered, and at least one line differs, the signature on the sheet did not
   // verify, or the issuing body was not competent to issue a paper of that kind.
   'Differs',
+  // Answered, its signature on the served file verifies, and not one of the
+  // eight lines was held against its copy: the sheet is vouched for and what it
+  // says was never compared (ADR-0048). An absence of evidence about the paper,
+  // told to the inspector and never held against the package — and never
+  // `Confirmed`, which claims the copy bears the paper out.
+  'SignatureOnly',
   // The issuer was asked and returned nothing under the reference — or returned
   // a record stating nothing the paper could be held to. An absence of evidence,
   // told to the inspector and not held against the package.

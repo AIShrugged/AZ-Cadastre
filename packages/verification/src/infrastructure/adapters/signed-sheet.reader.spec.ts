@@ -78,6 +78,9 @@ function theSheet(pages: readonly string[] = HUMBETOV_ARCHIVE_SHEET): {
       })),
       how: 'TextLayer',
       pages: pages.length,
+      // The bytes a second reading would need. This reader never looks at them
+      // (ADR-0048).
+      file: new Uint8Array(),
     },
   };
 }

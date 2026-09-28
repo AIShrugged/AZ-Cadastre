@@ -1,6 +1,6 @@
 /**
- * The archive's five answers about one paper that prints a QR code, drawn as
- * the shared outcome pill (`shared/ui/outcome-mark`).
+ * The archive's answers about one paper that prints a QR code, drawn as the
+ * shared outcome pill (`shared/ui/outcome-mark`).
  *
  * The pill is shared with the register's own verdicts because a reader should
  * not have to learn two visual grammars for "this was held against a source
@@ -41,7 +41,10 @@ import {
  * decoded off the paper to ask with. `IssuerNotConnected` is a plug, because
  * what is missing is at the far end: the code was read and there is nobody here
  * to ask (ADR-0034). `IssuerUnreachable` is a cloud struck through, because
- * there the far end exists and did not answer (ADR-0037).
+ * there the far end exists and did not answer (ADR-0037). A `SignatureOnly` is
+ * a pen, because a signature is genuinely all that was checked: the archive
+ * answered and signed the file it served, and not one line of the paper was
+ * held against its copy (ADR-0048).
  */
 export const QR_STATUS_ICON: Record<
   ArchiveQrCheckStatus,
@@ -53,17 +56,23 @@ export const QR_STATUS_ICON: Record<
   NoQrCode: ScanLineIcon,
   IssuerNotConnected: PlugZapIcon,
   IssuerUnreachable: CloudOffIcon,
+  SignatureOnly: PenLineIcon,
 };
 
 /**
  * The whole check in a pill, read off the answer and not off its status alone.
  *
- * A `Confirmed` whose every line the archive left blank confirmed nothing, and
- * the pill is the one part of the block a folded case shows — so it is the last
+ * A check whose every line the archive left blank confirmed nothing, and the
+ * pill is the one part of the block a folded case shows — so it is the last
  * place that may keep saying «подтверждает» over an empty comparison
  * (COMM-150). Its own mark and its own word: a pen, because the signature is
  * genuinely all that was checked, in the silent tone, because an answer with
  * nothing in it is not a pass.
+ *
+ * Read off the answer and not off the status alone even now that the engine has
+ * a status of its own for it (ADR-0048): a report written before that migration
+ * ran carries `Confirmed` over eight uncompared lines, and this surface is where
+ * a reader would otherwise read it as a pass.
  */
 export function ArchiveQrStatusMark({ check }: { check: ArchiveQrCheckDto }) {
   const { t } = useI18n();

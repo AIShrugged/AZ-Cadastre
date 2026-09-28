@@ -173,20 +173,34 @@ export function archiveQrCheckOf(question: {
 
   /*
    * An answer that holds nothing this paper can be held against is not a
-   * confirmation of it (ADR-0034).
+   * confirmation of it (ADR-0034), and a signature is not the missing hold
+   * (ADR-0048).
    *
-   * `found` would otherwise read eight lines nobody compared as "nothing
-   * disagrees" and answer `Confirmed` — the paper confirmed by an entry that
-   * says nothing about it, which is the one verdict this check must never
-   * produce. From the caller's side that is the same thing as an empty
-   * shelf, so it is told the same way.
+   * Two different claims, and for a year this line ran them together. Whether
+   * the copy bears the paper out is decided by the lines; whether the archive
+   * vouches for the file it served is decided by the signature. The signature
+   * verifies on every answer the archive gives, so `|| signature !== null`
+   * silently made every answer a confirmation: eight lines nobody compared read
+   * as "nothing disagrees", and the report headed itself "the archive's copy
+   * bears this paper out" over a comparison that was never made. The customer
+   * read it as written — the signature says the file is unaltered, and says
+   * nothing about what is written on it — and they were right (COMM-199).
+   *
+   * So the signature no longer confirms anything about the contents. What it
+   * still decides is whether there is an answer to publish at all: with it, the
+   * check is `SignatureOnly` and shows its panel and its eight uncompared lines;
+   * without it, nothing came back that this paper can be held against, and from
+   * the caller's side that is the same thing as an empty shelf, so it is told
+   * the same way.
    */
-  const evidence =
+  const anythingToPublish =
     fields.some(
       field => field.verdict === 'Match' || field.verdict === 'Mismatch',
     ) || archived.signature !== null;
 
-  if (!evidence) return ArchiveQrCheck.notFound(reference, question.checkedAt);
+  if (!anythingToPublish) {
+    return ArchiveQrCheck.notFound(reference, question.checkedAt);
+  }
 
   return ArchiveQrCheck.found({
     qrReference: reference,

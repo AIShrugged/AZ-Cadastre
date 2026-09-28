@@ -8,11 +8,12 @@
 // for the reason a registry check is — a paper the archive bore out is what the
 // inspector does not have to look up.
 
-/// What came of it. `NotFound` and `NoQrCode` are absences of evidence and never
-/// a fault in the package.
+/// What came of it. `NotFound`, `NoQrCode` and `SignatureOnly` are absences of
+/// evidence and never a fault in the package.
 enum ArchiveQrCheckStatus {
   Confirmed // found, every line both sides state agrees, the signature verified, and the issuer was competent
   Differs // found, and a line differs, the signature did not verify, or the issuer had no competence
+  SignatureOnly // found and signed, and not one line was held against the copy (ADR-0048)
   NotFound // the archive holds nothing under the reference
   NoQrCode // no QR code was decoded off the paper, so nothing was asked
   IssuerNotConnected // a code was decoded and whoever issued it is not connected to this system (ADR-0034)

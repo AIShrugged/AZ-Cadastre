@@ -5041,6 +5041,16 @@ describe('VerificationPackage corrected by hand', () => {
     };
   }
 
+  /*
+   * An answer that confirms the paper — which means one that compared a line of
+   * it (ADR-0048).
+   *
+   * The number, and the other seven silent. A `found` whose eight lines were all
+   * `NotStated` used to come out `Confirmed` too, which is what made it a
+   * convenient fixture; it comes out `SignatureOnly` now, because a check that
+   * compared nothing confirms nothing, and these specs are about a confirmation
+   * surviving a correction on another paper.
+   */
   function anArchiveAnswer(): ArchiveQrCheck {
     return ArchiveQrCheck.found({
       qrReference: QR,
@@ -5049,9 +5059,9 @@ describe('VerificationPackage corrected by hand', () => {
       fields: ARCHIVE_QR_FIELDS.map(name =>
         ArchiveQrFieldCheck.of({
           name,
-          documentValue: null,
-          archiveValue: null,
-          verdict: 'NotStated',
+          documentValue: name === 'document_no' ? '1471' : null,
+          archiveValue: name === 'document_no' ? '1471' : null,
+          verdict: name === 'document_no' ? 'Match' : 'NotStated',
         }),
       ),
     });

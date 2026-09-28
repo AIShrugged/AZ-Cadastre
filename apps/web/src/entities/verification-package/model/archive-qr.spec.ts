@@ -579,6 +579,35 @@ describe('a confirmation with nothing in it', () => {
   });
 
   /*
+   * The engine says it itself now (ADR-0048, COMM-199).
+   *
+   * This surface has answered for the empty confirmation alone since COMM-150 —
+   * a presentational patch over a domain that still said `Confirmed`, so
+   * everything that is not this screen went on reading a confirmation of the
+   * paper: the wire, the findings against the package, the stored row. The block
+   * keeps its own words for the state and now takes them off the status.
+   */
+  it('takes the engine at its word where the engine has one', () => {
+    const only = check('SignatureOnly', {
+      signature: signed(),
+      fields: NAMES.map(name =>
+        name === 'issuing_authority'
+          ? line(name, 'NotCompared', 'Icra Hakimiyyati', null)
+          : line(name, 'NotStated', 'stated', null),
+      ),
+    });
+
+    expect(qrConfirmsNoLine(only)).toBe(true);
+    expect(qrStatusKey(only)).toBe('detail.qr.confirmed_no_line');
+    expect(qrStatusNote(only)).toBe('detail.qr.confirmed_no_line_note');
+    expect(qrStatusTone(only)).toBe('silent');
+    // The eight lines are still drawn, which is what tells this from a `NotFound`
+    // — the archive did answer, and the reader can see what it did not say.
+    expect(qrDrawsTable(only)).toBe(true);
+    expect(signatureStanding(only)).toBe('verified');
+  });
+
+  /*
    * Only `Confirmed`. `Differs` with no compared line is a finding of another
    * kind — the signature did not verify, or the issuing body had no such power
    * — and its word and its fault's colour are already the right ones. The four
@@ -926,6 +955,46 @@ describe('which archive the block speaks for', () => {
       });
 
       expect(bare).toEqual([]);
+    },
+  );
+});
+
+/**
+ * A heading may not claim more than the table under it shows (COMM-199).
+ *
+ * The empty confirmation was the loudest case of this. The quieter one is on
+ * every paper the archive's electronic document service answers about:
+ * `confirmed_note` ends "and the body that issued the paper could issue one of
+ * this kind", and the line beside the table says «судить о его полномочиях не по
+ * чему» — the service states no issuing body, so competence was never judged at
+ * all (ADR-0040). Two sentences of one block, one saying the power was there and
+ * the other saying nobody looked.
+ */
+describe('the sentence beside a standing nobody judged', () => {
+  const confirmed = (competent: boolean | null) =>
+    check('Confirmed', {
+      fields: [line('document_no', 'Match', '1471', '1471')],
+      issuingAuthorityCompetent: competent,
+    });
+
+  it('drops the claim about competence where competence was not judged', () => {
+    expect(competence(confirmed(null))).toBe('unknown');
+    expect(qrStatusNote(confirmed(null))).toBe(
+      'detail.qr.confirmed_note_competence_unknown',
+    );
+  });
+
+  it('keeps the full sentence where the body was judged competent', () => {
+    expect(qrStatusNote(confirmed(true))).toBe(QR_STATUS_NOTE.Confirmed);
+  });
+
+  it.each(LOCALES.map(l => l.id))(
+    '%s has the sentence, and it claims no power',
+    locale => {
+      const word = DICTS[locale]['detail.qr.confirmed_note_competence_unknown'];
+
+      expect(word).toBeTruthy();
+      expect(word).not.toBe(DICTS[locale][QR_STATUS_NOTE.Confirmed]);
     },
   );
 });

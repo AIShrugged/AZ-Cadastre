@@ -165,6 +165,53 @@ describe('SignedPdfDigitiser', () => {
   });
 
   /*
+   * The same file read a second way, for the file whose text layer is there and
+   * says nothing (ADR-0048, COMM-199).
+   *
+   * A searchable scan carries a layer some other tool's OCR left in it, and a
+   * shredded layer is as long as a good one — so `textLayerOf` takes it, the
+   * reader finds none of the eight lines on it, and the report says the archive's
+   * copy prints nothing. The caller asks for this only then, and the bytes are
+   * already in hand: the archive is not asked twice for a link that expires.
+   */
+  it('reads the pages of a file it has already parsed, without fetching it again', async () => {
+    vi.stubGlobal('fetch', serving(aPdfOf(PRINTED)));
+    const { digitiser, ocr, storage } = aDigitiser();
+
+    const parsed = await digitiser.digitise(LINK, 1000);
+    const fetched = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls
+      .length;
+    const again = await digitiser.readAgainByOcr(LINK, readingOf(parsed));
+
+    expect(readingOf(parsed).how).toBe('TextLayer');
+    expect(readingOf(again).how).toBe('Ocr');
+    expect(readingOf(again).text).toContain('Imzalayan');
+    expect(ocr.asked).toHaveLength(1);
+    // Under the same key the first reading would have used, so one copy's pages
+    // stay in one folder.
+    expect(storage.written[0]?.key.value).toMatch(
+      /^national-archive\/[\da-f]{32}\/document\.pdf\/pages\//u,
+    );
+    expect(
+      (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.length,
+    ).toBe(fetched);
+  });
+
+  // And it fails the way the first reading fails: with a word, never an
+  // exception, so the stage keeps the answer it already has.
+  it('names the failure when the pages cannot be read either', async () => {
+    vi.stubGlobal('fetch', serving(aPdfOf(PRINTED)));
+    const { digitiser, ocr } = aDigitiser();
+    const parsed = await digitiser.digitise(LINK, 1000);
+
+    ocr.refuse();
+
+    expect(await digitiser.readAgainByOcr(LINK, readingOf(parsed))).toEqual({
+      unread: 'OcrRefused',
+    });
+  });
+
+  /*
    * The pages of the archive's own copy are kept under a digest of the link and
    * never under the package: the same certified copy reached by two packages is
    * one file, and a key naming the package would put the archive's paper in the

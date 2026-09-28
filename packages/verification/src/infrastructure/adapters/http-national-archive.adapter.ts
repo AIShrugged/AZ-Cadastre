@@ -8,7 +8,10 @@ import {
   type ArchivedSignature,
   type ArchiveQrAnswer,
 } from '../../application/ports/outbound/index.js';
-import type { ArchiveQrField } from '../../domain/value-objects/index.js';
+import {
+  ARCHIVE_QR_FIELDS,
+  type ArchiveQrField,
+} from '../../domain/value-objects/index.js';
 import type { VerificationModuleOptions } from '../../verification.module-defs.js';
 import {
   RegistryRefusedException,
@@ -281,9 +284,7 @@ export class HttpNationalArchiveAdapter extends NationalArchivePort {
         `Answered by the National Archive Fund's electronic document service ` +
         `at ${base}` +
         (copy.sheet
-          ? `, and its signed copy read ${
-              copy.sheet.how === 'TextLayer' ? 'from its text' : 'by OCR'
-            }.`
+          ? `, and its signed copy read ${howItWasRead(copy)}.`
           : `. Its signed copy could not be read (${copy.unread ?? 'Failed'}), ` +
             'so nothing it states was compared.'),
     };
@@ -303,6 +304,9 @@ export class HttpNationalArchiveAdapter extends NationalArchivePort {
     readonly sheet: DigitisedPdf | null;
     readonly lines: ArchiveSheetLines | null;
     readonly unread: string | null;
+    // Whether the text layer was read first and answered nothing, so the pages
+    // were rendered and read again (ADR-0048). For the audit line.
+    readonly reread?: boolean;
   }> {
     const nothing = { sheet: null, lines: null } as const;
 
@@ -339,9 +343,84 @@ export class HttpNationalArchiveAdapter extends NationalArchivePort {
 
     const read = await this.sheetReader.read(digitised.read);
 
-    return 'unread' in read
-      ? { sheet: digitised.read, lines: null, unread: read.unread }
-      : { sheet: digitised.read, lines: read.lines, unread: null };
+    if ('unread' in read) {
+      return { sheet: digitised.read, lines: null, unread: read.unread };
+    }
+
+    /*
+     * A text layer that was there and answered nothing is not a copy that
+     * states nothing (ADR-0048).
+     *
+     * The layer of a searchable scan is somebody else's OCR left inside the
+     * file, and where it is shredded — spaces inside words, diacritics dropped,
+     * numbers broken apart — the reader comes back with none of the eight lines
+     * off a page whose picture is perfectly legible. `textLayerOf` decides by
+     * length alone and cannot see that; the reading can, and this is the first
+     * moment anybody knows.
+     *
+     * Only when the layer gave nothing at all, and only kept if the second
+     * reading gives something. An OCR pass over a file the layer read exactly is
+     * a worse reading of the same sheet, and a worse reading is what accuses a
+     * valid paper of disagreeing with the archive (ADR-0038) — so the good
+     * reading is never thrown away for it.
+     */
+    if (
+      digitised.read.how === 'TextLayer' &&
+      !statesAnything(read.lines) &&
+      this.signedPdf
+    ) {
+      const better = await this.readAgainByOcr(
+        contentUrl,
+        digitised.read,
+        this.sheetReader,
+      );
+
+      if (better) return better;
+    }
+
+    return { sheet: digitised.read, lines: read.lines, unread: null };
+  }
+
+  /*
+   * The same copy read by OCR and read again, where that turns out to state
+   * something (ADR-0048).
+   *
+   * Null wherever it does not — the pages would not render, the provider
+   * refused, or it read them and the reader still found none of the eight. Each
+   * of those leaves the first reading standing: the answer the check publishes is
+   * then exactly the one it published before this existed, and the log carries
+   * the reason the second attempt failed.
+   */
+  private async readAgainByOcr(
+    contentUrl: string,
+    layer: DigitisedPdf,
+    reader: SignedSheetReader,
+  ): Promise<{
+    readonly sheet: DigitisedPdf;
+    readonly lines: ArchiveSheetLines;
+    readonly unread: null;
+    readonly reread: true;
+  } | null> {
+    this.logger.warn(
+      "The archive's signed copy stated nothing from its text layer, reading " +
+        'its pages instead',
+      { pages: layer.pages, characters: layer.text.length },
+    );
+
+    const recognised = await this.signedPdf?.readAgainByOcr(contentUrl, layer);
+
+    if (!recognised || 'unread' in recognised) return null;
+
+    const read = await reader.read(recognised.read);
+
+    if ('unread' in read || !statesAnything(read.lines)) return null;
+
+    return {
+      sheet: recognised.read,
+      lines: read.lines,
+      unread: null,
+      reread: true,
+    };
   }
 
   private async answer(url: string, caseId: string): Promise<Response> {
@@ -447,6 +526,24 @@ function merged(
       sheet.certificateValidity ?? metadata?.certificateValidity ?? null,
     valid,
   };
+}
+
+// Whether the copy turned out to print any of the eight lines at all. The one
+// fact that tells a file this system failed to read from a copy that genuinely
+// states none of them (ADR-0048).
+function statesAnything(lines: ArchiveSheetLines): boolean {
+  return ARCHIVE_QR_FIELDS.some(field => lines[field] !== null);
+}
+
+// How the copy was read, for the audit line: its own text, its pages, or its
+// pages after its text answered nothing (ADR-0048).
+function howItWasRead(copy: {
+  readonly sheet: DigitisedPdf | null;
+  readonly reread?: boolean;
+}): string {
+  if (copy.reread) return 'by OCR, after its text layer stated nothing';
+
+  return copy.sheet?.how === 'TextLayer' ? 'from its text' : 'by OCR';
 }
 
 // A refusal's body can be a whole error page; the report shows what it says,

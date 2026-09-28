@@ -35,11 +35,31 @@ const CASE_ID =
 // What the copy was given to arrive in, from the last run of `anArchive`.
 const budgets: { copy: number | null } = { copy: null };
 
+/*
+ * How many times the last `anArchive` was asked to read the pages of its copy
+ * after its text layer stated nothing (ADR-0048).
+ *
+ * Counted rather than asserted on a mock, because the point of the rule is that
+ * it costs an OCR pass only on a file that already failed: a spec whose text
+ * layer answered has to be able to say that nothing was rendered.
+ */
+const rereads: { ocr: number } = { ocr: 0 };
+
 function anArchive(
   reading?: string | null,
   lines: Partial<Record<ArchiveQrField, string | null>> = {},
+  /*
+   * What a second reading of the same file by OCR would come to: the text it
+   * recognises and the lines the reader then finds on it. Absent where the
+   * provider would refuse.
+   */
+  byOcr?: {
+    text?: string;
+    lines?: Partial<Record<ArchiveQrField, string | null>>;
+  } | null,
 ): HttpNationalArchiveAdapter {
   budgets.copy = null;
+  rereads.ocr = 0;
 
   const digitiser =
     reading === undefined
@@ -62,17 +82,52 @@ function anArchive(
                     ],
                     how: 'TextLayer' as const,
                     pages: 1,
+                    file: new Uint8Array([1, 2, 3]),
                   },
                 }
           ),
+          readAgainByOcr: async () => {
+            rereads.ocr += 1;
+
+            if (byOcr === undefined || byOcr === null) {
+              return { unread: 'OcrRefused' };
+            }
+
+            const text = byOcr.text ?? reading ?? '';
+
+            return {
+              read: {
+                text,
+                sheets: [
+                  {
+                    number: PageNumber.first(),
+                    image: null,
+                    text: RecognisedText.of(text),
+                    read: Confidence.of(0.8),
+                  },
+                ],
+                how: 'Ocr' as const,
+                pages: 1,
+                file: new Uint8Array([1, 2, 3]),
+              },
+            };
+          },
         } as unknown as SignedPdfDigitiser);
 
+  // The first reading is the text layer's, the second — where the adapter asks
+  // for one — is the OCR pass's (ADR-0048).
+  let readings = 0;
   const sheetReader = {
-    read: async () => ({
-      lines: Object.fromEntries(
-        ARCHIVE_QR_FIELDS.map(field => [field, lines[field] ?? null]),
-      ),
-    }),
+    read: async () => {
+      readings += 1;
+      const answered = readings === 1 ? lines : (byOcr?.lines ?? {});
+
+      return {
+        lines: Object.fromEntries(
+          ARCHIVE_QR_FIELDS.map(field => [field, answered[field] ?? null]),
+        ),
+      };
+    },
   } as unknown as SignedSheetReader;
 
   return new HttpNationalArchiveAdapter(
@@ -306,6 +361,117 @@ describe('HttpNationalArchiveAdapter', () => {
     await anArchive(SIGNED_COPY).lookupByQr(LINK);
 
     expect(budgets.copy).toBe(2000);
+  });
+
+  /*
+   * A text layer that answered nothing is asked again through the renderer and
+   * the OCR provider (ADR-0048, COMM-199).
+   *
+   * The file this is about is a searchable scan: a picture of the page with an
+   * invisible layer of somebody else's OCR under it. `textLayerOf` decides
+   * whether a layer is worth reading by its length, and a bad layer is as long
+   * as a good one — so the reader was handed shredded text, came back with none
+   * of the eight lines, and the report said the archive's copy prints nothing.
+   * Whether a layer was any good is knowable only from what was read off it, and
+   * this is the first moment anybody knows.
+   */
+  it("reads the copy's pages where its text layer stated nothing", async () => {
+    vi.stubGlobal(
+      'fetch',
+      answering(200, {
+        signatureValidity: true,
+        contentUrl: 'https://content-veams.milliarxiv.gov.az/f1d14ab4.PDF',
+      }),
+    );
+
+    const answer = await anArchive(
+      SIGNED_COPY,
+      {},
+      {
+        lines: { document_no: '100', plot_area: '0,06 ha' },
+      },
+    ).lookupByQr(LINK);
+
+    expect(rereads.ocr).toBe(1);
+    expect(answer.outcome).toBe('Found');
+    if (answer.outcome !== 'Found') return;
+    expect(answer.document.documentNo).toBe('100');
+    expect(answer.document.plotArea).toBe('0,06 ha');
+    expect(answer.document.copyUnread).toBeNull();
+    // The audit line says which reading answered, because the two are worth
+    // different amounts and a reader of the log cannot tell them apart.
+    expect(answer.note).toContain('after its text layer stated nothing');
+  });
+
+  /*
+   * And never for a layer that answered. An OCR pass over a born-digital file is
+   * a worse reading of a sheet already read exactly, and a worse reading is what
+   * accuses a valid paper of disagreeing with the archive (ADR-0038).
+   */
+  it('does not read the pages of a copy its text layer answered from', async () => {
+    vi.stubGlobal(
+      'fetch',
+      answering(200, {
+        signatureValidity: true,
+        contentUrl: 'https://content-veams.milliarxiv.gov.az/f1d14ab4.PDF',
+      }),
+    );
+
+    const answer = await anArchive(
+      SIGNED_COPY,
+      { document_no: '1471' },
+      { lines: { document_no: '147l' } },
+    ).lookupByQr(LINK);
+
+    expect(rereads.ocr).toBe(0);
+    expect(answer.outcome).toBe('Found');
+    if (answer.outcome !== 'Found') return;
+    expect(answer.document.documentNo).toBe('1471');
+    expect(answer.note).toContain('read from its text');
+  });
+
+  /*
+   * A second reading that fails leaves the first standing: the answer is then
+   * exactly the one this adapter gave before the re-reading existed, and the
+   * failure is in the log rather than in the report.
+   */
+  it('keeps the reading it has where the pages state nothing either', async () => {
+    vi.stubGlobal(
+      'fetch',
+      answering(200, {
+        signatureValidity: true,
+        contentUrl: 'https://content-veams.milliarxiv.gov.az/f1d14ab4.PDF',
+      }),
+    );
+
+    const answer = await anArchive(SIGNED_COPY, {}, { lines: {} }).lookupByQr(
+      LINK,
+    );
+
+    expect(rereads.ocr).toBe(1);
+    expect(answer.outcome).toBe('Found');
+    if (answer.outcome !== 'Found') return;
+    expect(answer.document.documentNo).toBeNull();
+    expect(answer.document.copyUnread).toBeNull();
+    expect(answer.note).toContain('read from its text');
+  });
+
+  // The same where the provider refuses the pages outright.
+  it('keeps the reading it has where the pages could not be read', async () => {
+    vi.stubGlobal(
+      'fetch',
+      answering(200, {
+        signatureValidity: true,
+        contentUrl: 'https://content-veams.milliarxiv.gov.az/f1d14ab4.PDF',
+      }),
+    );
+
+    const answer = await anArchive(SIGNED_COPY, {}, null).lookupByQr(LINK);
+
+    expect(rereads.ocr).toBe(1);
+    expect(answer.outcome).toBe('Found');
+    if (answer.outcome !== 'Found') return;
+    expect(answer.document.copyUnread).toBeNull();
   });
 
   /*

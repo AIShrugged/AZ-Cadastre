@@ -634,6 +634,10 @@ const en: Dict = {
   'detail.qr.no_code': 'No QR code read',
   'detail.qr.confirmed_note':
     'The National Archive found its copy, every line held against it agrees, and the body that issued the paper could issue one of this kind.',
+  // Said instead wherever competence was never judged, so the heading does not
+  // claim what the line beside the table says nobody established (COMM-199).
+  'detail.qr.confirmed_note_competence_unknown':
+    'The National Archive found its copy and every line held against it agrees. Whether the issuing body could issue a paper of this kind was not judged — see the line below the table.',
   'detail.qr.differs_note':
     'The National Archive found its copy, and it does not bear the paper out: the lines marked below differ, or the issuing body had no power to issue a paper of this kind.',
   'detail.qr.not_found_note':
@@ -2025,6 +2029,8 @@ const ru: Dict = {
   'detail.qr.no_code': 'QR-код не прочитан',
   'detail.qr.confirmed_note':
     'Национальный архив нашёл свою копию, все сверенные строки совпали, а выдавший орган имел право выдавать такой документ.',
+  'detail.qr.confirmed_note_competence_unknown':
+    'Национальный архив нашёл свою копию, все сверенные строки совпали. Право выдавшего органа выдавать такой документ не проверялось — об этом строка под таблицей.',
   'detail.qr.differs_note':
     'Национальный архив нашёл свою копию, и она документ не подтверждает: отмеченные ниже строки расходятся либо выдавший орган не имел права выдавать такой документ.',
   'detail.qr.not_found_note':
@@ -3351,6 +3357,8 @@ const az: Dict = {
   'detail.qr.no_code': 'QR kod oxunmadı',
   'detail.qr.confirmed_note':
     'Milli Arxiv öz nüsxəsini tapdı, yoxlanan bütün sətirlər uyğun gəldi və sənədi verən orqanın belə sənəd vermək səlahiyyəti var idi.',
+  'detail.qr.confirmed_note_competence_unknown':
+    'Milli Arxiv öz nüsxəsini tapdı və yoxlanan bütün sətirlər uyğun gəldi. Sənədi verən orqanın belə sənəd vermək səlahiyyətinin olub-olmaması yoxlanmadı — cədvəlin altındaki sətirə baxın.',
   'detail.qr.differs_note':
     'Milli Arxiv öz nüsxəsini tapdı və o, sənədi təsdiqləmir: aşağıda işarələnmiş sətirlər fərqlənir və ya verən orqanın belə sənəd vermək səlahiyyəti olmayıb.',
   'detail.qr.not_found_note':

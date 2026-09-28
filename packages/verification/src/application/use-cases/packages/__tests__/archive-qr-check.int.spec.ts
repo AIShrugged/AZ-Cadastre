@@ -24,9 +24,10 @@ import { GetPackageQuery } from '../get-package/index.js';
 import { toDetailDto } from '../package.mapper.js';
 
 /*
- * The one paper whose QR code is resolved, on every provider left at `mock`:
- * the extract from the disposal order, held against the National Archive Fund
- * by the code printed on it and confirmed (ADR-0028, narrowed by ADR-0035).
+ * The two papers whose QR code is resolved, on every provider left at `mock`:
+ * the extract from the disposal order and the archival certificate, each held
+ * against the National Archive Fund by the code printed on it and confirmed
+ * (ADR-0028, narrowed by ADR-0035, widened again by ADR-0049).
  *
  * Here rather than in a unit test because the answer has to survive the whole
  * path — the stage saves it on the document, `complete()` loads the package
@@ -46,6 +47,11 @@ const ORDER_QR =
 const RUSADZE_QR =
   'https://qr.esd.milliarxiv.gov.az/info/' +
   'ZJvhzrotBTaKufxeEAVCshnMir5G0fjuTBO%2FsM8MvnHWubgPkFzZVz2M9%2F5D7xEU';
+// And the one the offline archive holds the demo's archival certificate under —
+// DEMO_ARCHIVE_CERTIFICATE_QR in the same file (ADR-0049).
+const CERTIFICATE_QR =
+  'https://qr.esd.milliarxiv.gov.az/info/' +
+  'T4mHc7ePwXsQ9nZ1kR5bV8yL2dJ6uG3aF%2FW0oB7rN4tS1gM%2BhK9xC5vY8zD3q';
 
 /*
  * An archive that cannot be reached, as the HTTP adapter reports one: an
@@ -178,7 +184,8 @@ describe('the disposal order, held against the National Archive by its QR code',
     );
   });
 
-  // Only the disposal order is held against the archive by its QR code.
+  // Only the disposal order and the archival certificate are held against the
+  // archive by their QR code.
   it('asks nothing of the archive about the application', () => {
     const application = detail.files
       .flatMap(file => file.documents)
@@ -189,15 +196,188 @@ describe('the disposal order, held against the National Archive by its QR code',
 });
 
 /*
+ * The archival certificate, held against the archive by its own code
+ * (ADR-0049, COMM-198).
+ *
+ * The second paper of the two, and the whole of what the customer asked for:
+ * «В документе "Архивная справка" так же может быть QR-код для сверки с нац
+ * архивом. Если он есть — то тоже сверять». Two certificates in the envelope,
+ * because the answer has to be right both ways round: the one that prints a code
+ * is compared line by line, and the one that does not says so on a line of its
+ * own instead of going silent.
+ */
+describe('the archival certificate, held against the National Archive by its QR code', () => {
+  let module: TestingModule;
+  let detail: PackageDetailDto;
+  let withACode: DocumentDto | undefined;
+  let withoutOne: DocumentDto | undefined;
+
+  beforeAll(async () => {
+    ({ module } = await startContext(inject('databaseUrl'), {
+      ocr: new DemoOcrFor('arxiv'),
+      // Keyed on `arayisi`, so the second certificate — filed under the Russian
+      // word for the same paper — prints no code at all.
+      codes: new SheetsPrinting({ 'arxiv-arayisi': CERTIFICATE_QR }),
+      splitter: new FixedPageSplitter(1),
+    }));
+
+    const commands = module.get(CommandBus);
+    const queries = module.get(QueryBus);
+
+    const id = await commands.execute(
+      new CreatePackageCommand('cadastre', [
+        {
+          originalFilename: 'arxiv-arayisi.pdf',
+          contentType: 'application/pdf',
+          storageKey: 'uploads/aliyev-arxiv/arxiv-arayisi.pdf',
+        },
+        {
+          originalFilename: 'arxiv-spravka.pdf',
+          contentType: 'application/pdf',
+          storageKey: 'uploads/aliyev-arxiv/arxiv-spravka.pdf',
+        },
+      ]),
+    );
+    await waitForTerminalStatus(queries, id);
+    detail = toDetailDto(
+      await queries.execute(new GetPackageQuery(id.value, null)),
+    );
+
+    const certificateIn = (filename: string) =>
+      detail.files
+        .find(file => file.originalFilename === filename)
+        ?.documents.find(document => document.type === 'archive_certificate');
+
+    withACode = certificateIn('arxiv-arayisi.pdf');
+    withoutOne = certificateIn('arxiv-spravka.pdf');
+  });
+
+  afterAll(async () => {
+    await module?.close();
+  });
+
+  it('reads both sheets as the archival certificates they are', () => {
+    expect(detail.status).toBe('Completed');
+    expect(withACode).toBeDefined();
+    expect(withoutOne).toBeDefined();
+  });
+
+  /*
+   * Competence is unjudged and that is not a fault: the Decree's table settles
+   * eleven types and says nothing about an archival certificate, so there is no
+   * rule to apply (ADR-0034).
+   */
+  it('confirms the certificate against the archive', () => {
+    expect(withACode?.archiveQrCheck).toMatchObject({
+      status: 'Confirmed',
+      qrReference: CERTIFICATE_QR,
+      issuingAuthorityCompetent: null,
+    });
+    expect(DocumentDtoSchema.safeParse(withACode).success).toBe(true);
+  });
+
+  /*
+   * The five lines an archival certificate prints, each agreeing with the
+   * archive's own wording of it. The other three are `NotStated` on both sides:
+   * a certificate reports what is on record about the plot and states neither
+   * its area, nor an item of the Decree, nor a reference into a fond — exactly
+   * as a disposal order is silent on the three it does not print.
+   */
+  it('agrees with the archive on every line both sides state', () => {
+    expect(
+      withACode?.archiveQrCheck?.fields.map(field => [
+        field.name,
+        field.verdict,
+      ]),
+    ).toEqual([
+      ['document_no', 'Match'],
+      ['issue_date', 'Match'],
+      ['issuing_authority', 'Match'],
+      ['holder_name', 'Match'],
+      ['property_address', 'Match'],
+      ['plot_area', 'NotStated'],
+      ['decree_item', 'NotStated'],
+      ['archive_reference', 'NotStated'],
+    ]);
+  });
+
+  /*
+   * The certificate prints its number as `certificate_no` and the person as
+   * `owner_name`, and the archive words the same two lines `document_no` and
+   * `holder_name`: one line off one sheet under two vocabularies, which is what
+   * `ALSO_PRINTED_AS` is for (ADR-0049).
+   */
+  it('carries both sides of each line, as each side states it', () => {
+    const lines = withACode?.archiveQrCheck?.fields ?? [];
+
+    expect(lines.find(field => field.name === 'document_no')).toEqual({
+      name: 'document_no',
+      documentValue: 'ARX-2025-0417',
+      archiveValue: 'ARX-2025-0417',
+      verdict: 'Match',
+    });
+    expect(lines.find(field => field.name === 'holder_name')).toMatchObject({
+      documentValue: 'ELÇİN ƏLİYEV',
+      verdict: 'Match',
+    });
+  });
+
+  // Not `null`, which the detail page reads as "this check does not apply to
+  // this paper" — the silence COMM-198 is about (ADR-0031).
+  it('gives the certificate with no code a check saying so', () => {
+    expect(withoutOne?.archiveQrCheck).toMatchObject({
+      status: 'NoQrCode',
+      qrReference: null,
+      fields: [],
+    });
+
+    const [unconfirmed] = (detail.report?.issues ?? []).filter(
+      issue =>
+        issue.kind === 'RegistryUnconfirmed' &&
+        issue.documentId === withoutOne?.id,
+    );
+
+    expect(unconfirmed?.message).toContain('no QR code was decoded');
+  });
+
+  /*
+   * And no package-wide line, because a paper of a checked type did print a
+   * code: the absence is told once, by the paper it is about (ADR-0032).
+   */
+  it('says nothing over the package about a step it did not skip', () => {
+    expect(
+      (detail.report?.issues ?? []).filter(
+        issue => issue.kind === 'QrCodeUnavailable',
+      ),
+    ).toEqual([]);
+  });
+
+  /*
+   * The certificate is sourced from the National Archive, so before ADR-0049 its
+   * line said the archive was not connected. It was asked; that line goes
+   * (ADR-0035's own reasoning, applied to the second paper).
+   */
+  it('no longer says the system confirming it is not connected', () => {
+    expect(
+      (detail.report?.issues ?? []).filter(
+        issue =>
+          issue.kind === 'IntegrationNotConnected' &&
+          issue.documentId === withACode?.id,
+      ),
+    ).toEqual([]);
+  });
+});
+
+/*
  * The reversal ADR-0035 is: two papers that print a code, neither of which is
  * the disposal order, and neither of which gets a QR line any more.
  *
  * The register extract's code is the register's own — ADR-0034 gave it a line
  * saying e-emlak is not connected, and the customer's answer is that the
  * extract is not checked by QR code at all. The 1998 homestead allotment
- * decision's code is the archive's, and it is not the paper the customer wants
- * checked either. Both fall back to what they said before their codes were
- * resolved.
+ * decision's code is the archive's, and it is not one of the two papers the
+ * customer wants checked either (ADR-0049). Both fall back to what they said
+ * before their codes were resolved.
  */
 describe('the papers whose codes are no longer resolved', () => {
   const EMLAK =
@@ -286,8 +466,9 @@ describe('the papers whose codes are no longer resolved', () => {
   });
 
   /*
-   * And the package-level line names the one type whose code would have been
-   * resolved, which this envelope does not carry at all (ADR-0032, ADR-0035).
+   * And the package-level line names the types whose code would have been
+   * resolved, neither of which this envelope carries at all (ADR-0032,
+   * ADR-0049).
    */
   it('says the package carries no paper whose code it resolves', () => {
     const [skipped] = (detail.report?.issues ?? []).filter(

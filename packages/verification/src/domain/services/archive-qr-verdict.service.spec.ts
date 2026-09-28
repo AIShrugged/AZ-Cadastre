@@ -545,31 +545,30 @@ describe('which papers are held against the National Archive by their QR code', 
   });
 
   /*
-   * The extract from the disposal order, and nothing else (ADR-0035).
+   * The extract from the disposal order and the archival certificate, and
+   * nothing else (ADR-0049).
    *
-   * ADR-0034 resolved the code on any paper that printed one; the customer
-   * wants one paper checked, and this is the assertion that says which.
+   * ADR-0034 resolved the code on any paper that printed one and ADR-0035 cut
+   * that to one paper; the customer's answer is two — both codes lead into the
+   * archive's own service — and this is the assertion that says which two.
    */
-  it('resolves the disposal order and no other type', () => {
+  it('resolves the disposal order and the archive certificate, and no other type', () => {
     const resolved = profile.specs
       .filter(spec => isCheckedByItsQrCode(spec))
       .map(spec => spec.type.value);
 
-    expect(resolved).toEqual(['disposal_order']);
+    expect(resolved).toEqual(['disposal_order', 'archive_certificate']);
   });
 
   /*
-   * The papers ADR-0034 had widened the check to, each of which printed a code
-   * and each of which is now back to what it said before its code was resolved
-   * — a register extract and a plan of the plot state nothing about the
-   * archive, and an archive certificate is `IntegrationNotConnected` again.
+   * The papers ADR-0034 had widened the check to and ADR-0035 took it back off,
+   * each of which prints a code and neither of which the archive issued: a
+   * register extract's code is e-emlak's and the plan of the plot's is the
+   * register's too, so both are back to what they said before their codes were
+   * resolved.
    */
-  it('resolves neither the archive certificate, the register extract nor the plan', () => {
-    for (const type of [
-      'archive_certificate',
-      'state_register_extract',
-      'land_plot_plan',
-    ]) {
+  it('resolves neither the register extract nor the plan', () => {
+    for (const type of ['state_register_extract', 'land_plot_plan']) {
       const spec = profile.specFor(DocumentType.create(type));
 
       expect(spec.schema.declares(FieldKey.create('qr_code'))).toBe(true);
@@ -578,9 +577,25 @@ describe('which papers are held against the National Archive by their QR code', 
   });
 
   /*
-   * Still true of the certificate, and it is no longer the same question as
-   * the one above: what a Decree 439 comparison is *about* is one thing, and
-   * which paper has its code resolved is another (ADR-0035).
+   * A type whose schema stopped printing a code would be asked with nothing, so
+   * the schema is asked as well as the type (ADR-0049).
+   */
+  it('resolves the certificate because its own schema declares the code', () => {
+    const certificate = profile.specFor(
+      DocumentType.create('archive_certificate'),
+    );
+
+    expect(certificate.schema.declares(FieldKey.create('qr_code'))).toBe(true);
+    expect(isCheckedByItsQrCode(certificate)).toBe(true);
+  });
+
+  /*
+   * Still true of the certificate, and it is not the same question as the one
+   * above: what a Decree 439 comparison is *about* is one thing, and which
+   * paper has its code resolved is another (ADR-0035, ADR-0049). The
+   * certificate declares five of the eight lines, so the offline extractor
+   * never reads it as a paper with all eight on it — and the three it does not
+   * print reach the inspector as `NotStated`, which is what they are.
    */
   it('holds the archive certificate against no eight lines', () => {
     const certificate = profile.specFor(

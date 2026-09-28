@@ -121,17 +121,23 @@ import {
 
 /*
  * The keys a paper may print one of the archive's eight lines under, besides
- * the line's own name (ADR-0035).
+ * the line's own name (ADR-0035, ADR-0049).
  *
  * The lines are worded as the National Archive Fund words a Decree 439 paper.
- * A disposal order — the one type still held against it — words two of them its
- * own way, and this is where the two vocabularies meet: it is a reading of the
- * same line off the same sheet, not a value carried over from another paper,
- * which `archiveQrQuestionOf` must never admit (ADR-0023).
+ * Both types whose code is resolved word two of them their own way — a disposal
+ * order prints its number as `order_no` and names an `applicant_name`, an
+ * archive certificate prints a `certificate_no` and an `owner_name` — and this
+ * is where the vocabularies meet: it is a reading of the same line off the same
+ * sheet, not a value carried over from another paper, which
+ * `archiveQrQuestionOf` must never admit (ADR-0023).
+ *
+ * One list per line and not one per type, because a key is only ever read off
+ * the paper being asked about: a type that does not declare `certificate_no`
+ * has nothing under it to find.
  */
 const ALSO_PRINTED_AS: Partial<Record<ArchiveQrField, readonly string[]>> = {
-  document_no: ['order_no'],
-  holder_name: ['applicant_name'],
+  document_no: ['order_no', 'certificate_no'],
+  holder_name: ['applicant_name', 'owner_name'],
 };
 
 /**
@@ -1508,12 +1514,12 @@ export class VerificationPackage extends AggregateRoot<PackageId> {
 
     /*
      * A line of the comparison, read off this paper under whichever key this
-     * paper prints it as (ADR-0035).
+     * paper prints it as (ADR-0035, ADR-0049).
      *
-     * The eight lines are the archive's words for a Decree 439 paper, and the
-     * disposal order — the one type still held against the archive — declares
-     * two of them under names of its own: its document number is `order_no` and
-     * the person it names is the `applicant_name`. Without this they would come
+     * The eight lines are the archive's words for a Decree 439 paper, and both
+     * types whose code is resolved declare two of them under names of their own
+     * — `order_no` and `applicant_name` on a disposal order, `certificate_no`
+     * and `owner_name` on an archive certificate. Without this they would come
      * back null and the line would read `NotStated` against a value the archive
      * plainly stated, which is silence reported as agreement.
      */

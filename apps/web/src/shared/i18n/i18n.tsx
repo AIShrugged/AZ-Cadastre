@@ -357,7 +357,8 @@ const en: Dict = {
   'detail.f.provision_none_sub': 'No provision covers this case',
   'detail.f.not_connected_sub': 'Not confirmed: state system not connected',
   'detail.f.qr_unavailable_sub':
-    'No disposal order of the package prints a QR code — the step was skipped',
+    'No paper of the package that prints a QR code carries one — the step ' +
+    'was skipped',
   'detail.f.missing_any_sub': 'Any one of these is enough',
   'common.or': 'or',
   'doctype.approved_design': 'Approved design',
@@ -1781,7 +1782,8 @@ const ru: Dict = {
   'detail.f.provision_none_sub': 'Ни один пункт не подходит',
   'detail.f.not_connected_sub': 'Не подтверждено: госсистема не подключена',
   'detail.f.qr_unavailable_sub':
-    'Ни в одной выписке распоряжения пакета нет QR-кода — шаг пропущен',
+    'Ни на одном документе пакета, который печатает QR-код, его нет — шаг ' +
+    'пропущен',
   'detail.f.missing_any_sub': 'Достаточно любого из них',
   'common.or': 'или',
   'doctype.approved_design': 'Утверждённый проект',
@@ -3108,7 +3110,8 @@ const az: Dict = {
   'detail.f.provision_none_sub': 'Heç bir bənd uyğun gəlmir',
   'detail.f.not_connected_sub': 'Təsdiqlənməyib: dövlət sistemi qoşulmayıb',
   'detail.f.qr_unavailable_sub':
-    'Paketin heç bir sərəncamdan çıxarışında QR kod yoxdur — addım buraxıldı',
+    'Paketdə QR kod çap edən sənədlərin heç birində kod yoxdur — addım ' +
+    'buraxıldı',
   'detail.f.missing_any_sub': 'Bunlardan hər hansı biri kifayətdir',
   'common.or': 'və ya',
   'doctype.approved_design': 'Təsdiq edilmiş layihə',

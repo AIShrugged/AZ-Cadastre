@@ -138,7 +138,28 @@ const DECREE_439_VALUES: Record<string, string> = {
 };
 
 /*
- * No `qr_code` in either table, although both kinds of paper print one.
+ * The one line the archival certificate words differently from the shared
+ * table (ADR-0049).
+ *
+ * A certificate is issued by the archive that keeps the book, not by the
+ * executive authority whose act the book records, and the demo's own sheet
+ * prints exactly that — `Verən orqan: Bakı Şəhər Dövlət Arxivi` in
+ * ocr-provider.adapter.ts. Since the certificate's code is resolved, this line
+ * is compared against the offline archive's entry for it, so the three
+ * stand-ins have to word it the same way: HELD in national-archive.adapter.ts.
+ * Everything else the certificate prints — its number, its date, the address
+ * and the owner — the shared table already states, and states as the archive
+ * holds it.
+ */
+const ARCHIVE_CERTIFICATE_TYPE = 'archive_certificate';
+
+const ARCHIVE_CERTIFICATE_VALUES: Record<string, string> = {
+  issuing_authority: 'Bakı Şəhər Dövlət Arxivi',
+};
+
+/*
+ * No `qr_code` in any of the tables, although all three kinds of paper print
+ * one.
  *
  * A QR code is not a field a reader returns any more: it is decoded off the
  * sheet, and the aggregate puts it on the paper whatever the extractor said
@@ -170,7 +191,9 @@ export class FieldExtractorAdapter extends FieldExtractor {
 
     const values = isHeldAgainstTheArchiveByQr(request.spec)
       ? { ...MOCK_VALUES, ...DECREE_439_VALUES }
-      : MOCK_VALUES;
+      : request.spec.type.value === ARCHIVE_CERTIFICATE_TYPE
+        ? { ...MOCK_VALUES, ...ARCHIVE_CERTIFICATE_VALUES }
+        : MOCK_VALUES;
 
     return request.spec.schema.specs.flatMap(spec => {
       const value = values[spec.key.value];

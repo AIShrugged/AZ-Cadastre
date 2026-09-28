@@ -4592,8 +4592,9 @@ describe('VerificationPackage supplied with a document', () => {
      * its QR code decoded off the sheet — or the paper of another type where
      * one is named.
      *
-     * The disposal order is the one paper this check answers for since
-     * ADR-0035, and it prints its document number as `order_no`.
+     * The disposal order and the archival certificate are the two papers this
+     * check answers for (ADR-0049), and the order prints its document number as
+     * `order_no`.
      */
     function aTitle(type = 'disposal_order') {
       const built = aSegmentedPackage(1, { codes: [QR] });
@@ -4601,12 +4602,20 @@ describe('VerificationPackage supplied with a document', () => {
       built.verification.classify(built.document.id, aClassification(type));
       built.verification.recordExtractedFields(
         built.document.id,
+        // Each paper under the keys its own schema declares: a reading of a key
+        // a type does not print is refused, which is what keeps a value from one
+        // paper off another (ADR-0023).
         type === 'identity_card'
           ? [aReading('first_name', 'ELÇİN')]
-          : [
-              aReading('order_no', '1471'),
-              aReading('issue_date', '29.10.1998'),
-            ],
+          : type === 'archive_certificate'
+            ? [
+                aReading('certificate_no', 'ARX-2025-0417'),
+                aReading('issue_date', '12.02.2021'),
+              ]
+            : [
+                aReading('order_no', '1471'),
+                aReading('issue_date', '29.10.1998'),
+              ],
       );
       built.verification.commit();
 
@@ -4832,6 +4841,67 @@ describe('VerificationPackage supplied with a document', () => {
       // same line is `document_no` (ADR-0035).
       expect(question.stated('document_no')).toBe('1471');
       expect(question.stated('holder_name')).toBeNull();
+    });
+
+    /*
+     * The certificate's own vocabulary, and the reason `ALSO_PRINTED_AS` holds a
+     * list per line rather than a table per type (ADR-0049).
+     *
+     * The archive words the number `document_no` and the person `holder_name`;
+     * an archival certificate prints them as `certificate_no` and `owner_name`.
+     * Without the aliases both lines come back null and the report says
+     * `NotStated` against a value the archive plainly named — silence reported
+     * as agreement, which is the bug this test exists for (COMM-198).
+     */
+    it('reads the certificate number and the owner as the archive words them', () => {
+      const built = aSegmentedPackage(1, { codes: [QR] });
+
+      built.verification.classify(
+        built.document.id,
+        aClassification('archive_certificate'),
+      );
+      built.verification.recordExtractedFields(built.document.id, [
+        aReading('certificate_no', 'ARX-2025-0417'),
+        aReading('owner_name', 'ELÇİN ƏLİYEV'),
+        aReading('issue_date', '12.02.2021'),
+      ]);
+      built.verification.commit();
+
+      const question = built.verification.archiveQrQuestionOf(
+        built.document.id,
+      );
+
+      expect(question.type.value).toBe('archive_certificate');
+      expect(question.qrReference).toBe(QR);
+      expect(question.stated('document_no')).toBe('ARX-2025-0417');
+      expect(question.stated('holder_name')).toBe('ELÇİN ƏLİYEV');
+      expect(question.stated('issue_date')).toBe('12.02.2021');
+      /*
+       * The three lines an archival certificate does not print at all. They are
+       * `NotStated` on both sides — the same as they are for a disposal order —
+       * and never a disagreement about a line nobody stated.
+       */
+      expect(question.stated('plot_area')).toBeNull();
+      expect(question.stated('decree_item')).toBeNull();
+      expect(question.stated('archive_reference')).toBeNull();
+    });
+
+    // The second paper whose code is resolved, and the whole of what COMM-198
+    // adds: the certificate is asked about and the answer is kept on it, where
+    // before ADR-0049 it got no check at all.
+    it('waits on a placed archive certificate and keeps the answer on it', () => {
+      const { verification, document } = aTitle('archive_certificate');
+
+      expect(verification.awaitingArchiveQrCheck.map(one => one.id)).toEqual([
+        document.id,
+      ]);
+
+      verification.recordArchiveQrCheck(document.id, found());
+
+      expect(
+        verification.documentWith(document.id).archiveQrCheck?.status,
+      ).toBe('Confirmed');
+      expect(verification.awaitingArchiveQrCheck).toEqual([]);
     });
 
     it('keeps the answer on the document and says it was made', () => {

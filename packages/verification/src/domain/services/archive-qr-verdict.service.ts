@@ -15,34 +15,43 @@ import {
 import { looksLikeTheSameValue } from './value-agreement.service.js';
 
 /*
- * The one paper this system resolves a QR code for: the order of the executive
- * authority allotting the parcel, or the extract from it a package actually
- * carries (ADR-0035).
+ * The papers this system resolves a QR code for (ADR-0049).
+ *
+ * The order of the executive authority allotting the parcel — or the extract
+ * from it a package actually carries — and the archive's own certificate about
+ * the plot. Two sheets, one service: both codes lead into the National Archive
+ * Fund's electronic document service, which is the whole reason the second one
+ * costs nothing but this line (ADR-0035).
  */
-export const QR_CHECKED_TYPE = 'disposal_order';
+export const QR_CHECKED_TYPES: readonly string[] = [
+  'disposal_order',
+  'archive_certificate',
+];
 
 /*
- * Whether a paper of this type has its QR code resolved (ADR-0035, narrowing
- * ADR-0034).
+ * Whether a paper of this type has its QR code resolved (ADR-0049, widening
+ * ADR-0035).
  *
- * The disposal order and nothing else. ADR-0034 widened this to every type
- * whose schema declares `qr_code` — thirteen of them — on the reasoning that a
- * sheet with a code on its face deserved a line about that code. What the
- * customer wants checked is one paper: the extract from the disposal order,
- * resolved at the National Archive Fund and nowhere else. A register extract's
- * code is issued by the register, and answering about it here told an inspector
- * that a second system exists rather than anything about the sheet in hand.
+ * Two types and no more. ADR-0034 resolved the code on every type whose schema
+ * declares `qr_code` — thirteen of them — on the reasoning that a sheet with a
+ * code on its face deserved a line about that code; ADR-0035 cut that to the
+ * disposal order, because a register extract's code is issued by the register
+ * and answering about it here told an inspector that a second system exists
+ * rather than anything about the sheet in hand. The archive certificate is the
+ * one paper that narrowing took too much: its code is the archive's own, it
+ * resolves in the same service, and the customer asks for it checked the same
+ * way (COMM-173).
  *
- * Every other type falls back to what it said before its code was resolved: a
- * paper this system sources from outside the package and cannot ask about is
- * `IntegrationNotConnected` again, which is where ADR-0034 found it.
+ * Every other type still falls back to what it said before its code was
+ * resolved: a paper this system sources from outside the package and cannot ask
+ * about is `IntegrationNotConnected` again, which is where ADR-0034 found it.
  *
- * The schema is still asked, so a profile that stops printing `qr_code` on its
- * disposal order stops asking about one rather than asking with nothing.
+ * The schema is still asked, so a profile that stops printing `qr_code` on one
+ * of these stops asking about one rather than asking with nothing.
  */
 export function isCheckedByItsQrCode(spec: DocumentTypeSpec): boolean {
   return (
-    spec.type.value === QR_CHECKED_TYPE &&
+    QR_CHECKED_TYPES.includes(spec.type.value) &&
     spec.schema.declares(FieldKey.create('qr_code'))
   );
 }
@@ -53,11 +62,14 @@ export function isCheckedByItsQrCode(spec: DocumentTypeSpec): boolean {
  * copy is held against, and its issuing body's competence is something the
  * Decree settles (ADR-0028).
  *
- * No longer a narrowing of `isCheckedByItsQrCode`, which since ADR-0035 answers
- * for one paper the archive is not the source of. This says what kind of paper
- * a Decree 439 comparison is *about*, and the offline extractor is the only
- * thing that still asks it — it is how a stand-in run produces a sheet with all
- * eight lines on it.
+ * Not a narrowing of `isCheckedByItsQrCode` and not a widening of it either:
+ * since ADR-0035 the two questions have nothing to do with each other. That one
+ * answers which papers have their code resolved — a disposal order, which the
+ * archive is not the source of, and an archive certificate, which declares five
+ * of these eight lines and so is not held against all of them (ADR-0049). This
+ * says what kind of paper a Decree 439 comparison is *about*, and the offline
+ * extractor is the only thing that still asks it — it is how a stand-in run
+ * produces a sheet with all eight lines on it.
  */
 export function isHeldAgainstTheArchiveByQr(spec: DocumentTypeSpec): boolean {
   return (

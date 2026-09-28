@@ -6,9 +6,7 @@
  * came from and how well it was read (`FieldDto`). What it does **not**
  * publish is which of them names the case: there is no "applicant" on the wire,
  * only `applicant_name` on one document type and `owner_name` on another. So
- * this module names the candidates it looks for, and then puts in the line the
- * one of them that was read surest — the order it lists them in settles a tie
- * and nothing more.
+ * this module names the candidates it looks for and picks one of them per line.
  *
  * It is written as candidates and not as one name for a reason: which document
  * types a package carries is the profile's, and two profiles spell the same
@@ -43,19 +41,39 @@ export const PACKET_LINE_KEY: Record<PacketLine, string> = {
 };
 
 /**
- * The field names each line may be read off, in the order that settles a tie.
+ * What each line may be read off: a line is a list of **facts** it would
+ * accept, and each fact is the list of field names that same fact is written
+ * under. The two levels do not answer to the same rule, and that is the whole
+ * point of there being two.
  *
- * `applicant_name` before `owner_name`: the person applying and the person of
- * record are the same on most submissions and not on all, and the packet is the
- * applicant's. That preference only decides between readings of equal
- * confidence — a surer reading wins it, whichever name it came under, because
- * the same person spelled at 99 % and at 60 % is one fact read twice, and the
- * worse read of the two is not the one to show.
+ * **Within a fact, confidence decides** and the order settles a tie. Names in
+ * one group are one thing read twice, so the surer reading of them is simply
+ * the better reading and the worse one is not what to put in front of a person.
+ * `applicant_name` and `owner_name` are that: the person applying and the
+ * person of record are the same on most submissions, spelled off two different
+ * sheets, so the same person at 99 % and at 60 % is one fact read twice. First
+ * listed wins an exact tie, because the packet is the applicant's.
+ *
+ * **Between facts, the order decides and confidence does not.** A later group
+ * answers only when every earlier one went unread. These are different things,
+ * not different readings, and a surer reading of the wrong thing is still the
+ * wrong thing: `certificate_no` read at 96 % does not become the parcel's
+ * cadastral number because `cadastral_number` was only read at 89 %. The line
+ * asks "the cadastral number; failing that, at least the certificate number",
+ * and a confidence comparison across that boundary would answer a question
+ * nobody asked. The same holds for `payer_name`, which is a fourth party often
+ * enough — a relative or a representative pays — that reading it surely says
+ * nothing about who is applying.
+ *
+ * So: do not flatten these groups back into one list. Two names belong in one
+ * group only when a person would call them the same fact.
  */
-const CANDIDATES: Record<PacketLine, readonly string[]> = {
-  applicant: ['applicant_name', 'owner_name', 'payer_name'],
-  address: ['property_address'],
-  parcel: ['cadastral_number', 'certificate_no', 'inventory_no'],
+const CANDIDATES: Record<PacketLine, readonly (readonly string[])[]> = {
+  applicant: [['applicant_name', 'owner_name'], ['payer_name']],
+  // One name, so nothing to choose between: the single group is the shape,
+  // not a claim that no second spelling of the address could ever join it.
+  address: [['property_address']],
+  parcel: [['cadastral_number'], ['certificate_no'], ['inventory_no']],
 };
 
 /**
@@ -121,15 +139,20 @@ export function readPacket(detail: PackageDetailDto): readonly PacketReading[] {
   return PACKET_LINES.map(line => {
     let picked: { field: FieldDto; documentId: string; name: string } | null =
       null;
-    for (const name of CANDIDATES[line]) {
-      const hit = found.get(name);
-      if (hit === undefined) continue;
-      // The surest reading of the line wins, whichever candidate carried it.
-      // Strictly greater, so an equally sure reading leaves the candidate found
-      // first in place and the order of `CANDIDATES` settles the tie.
-      if (picked === null || hit.field.confidence > picked.field.confidence) {
-        picked = { field: hit.field, documentId: hit.documentId, name };
+    // Facts in order: the first one the packet yielded answers the line, and a
+    // later fact never outbids an earlier one however surely it was read.
+    for (const fact of CANDIDATES[line]) {
+      for (const name of fact) {
+        const hit = found.get(name);
+        if (hit === undefined) continue;
+        // Within the fact, the surest reading wins whichever name carried it.
+        // Strictly greater, so an equally sure reading leaves the name listed
+        // first in place and the order of the group settles the tie.
+        if (picked === null || hit.field.confidence > picked.field.confidence) {
+          picked = { field: hit.field, documentId: hit.documentId, name };
+        }
       }
+      if (picked !== null) break;
     }
     return picked === null
       ? { line, field: null, documentId: null, fieldName: null }

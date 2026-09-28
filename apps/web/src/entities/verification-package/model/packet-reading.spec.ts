@@ -122,7 +122,8 @@ describe('what the packet turned out to say', () => {
 
   // The case this rule exists for: one person, read twice. The application was
   // read at 60 % and the plan sheet at 99 %, and the header used to show the
-  // worse of the two because `applicant_name` is listed first.
+  // worse of the two because `applicant_name` is listed first. These two are
+  // one fact, so confidence — not the order — decides between them.
   it('takes the surer reading from a later candidate', () => {
     const readings = readPacket(
       detail([
@@ -136,18 +137,66 @@ describe('what the packet turned out to say', () => {
     expect(readings[0]?.documentId).toBe('d2');
   });
 
-  // The parcel's candidates are several too, and answer to the same rule.
-  it('takes the surer reading on the parcel line as well', () => {
+  // The parcel's candidates are three different identifiers, not three
+  // readings of one. A certificate number read surely is not the cadastral
+  // number, so the worse-read cadastral number still answers the line.
+  it('keeps the cadastral number over a surer certificate number', () => {
     const readings = readPacket(
       detail([
-        document('d1', [field('cadastral_number', 'AZ-CAD-1024-311', 0.55)]),
-        document('d2', [field('inventory_no', 'INV-88-42', 0.97)]),
+        document('d1', [field('cadastral_number', 'AZ-CAD-1024-311', 0.89)]),
+        document('d2', [field('certificate_no', 'SPR-2024-771', 0.96)]),
       ]),
     );
     const parcel = readings.find(r => r.line === 'parcel');
-    expect(parcel?.field?.value).toBe('INV-88-42');
-    expect(parcel?.fieldName).toBe('inventory_no');
-    expect(parcel?.documentId).toBe('d2');
+    expect(parcel?.field?.value).toBe('AZ-CAD-1024-311');
+    expect(parcel?.fieldName).toBe('cadastral_number');
+    expect(parcel?.documentId).toBe('d1');
+  });
+
+  // The order is a chain of fallbacks: the certificate number answers when the
+  // cadastral number went unread, and only then.
+  it('falls back down the parcel identifiers in order', () => {
+    const readings = readPacket(
+      detail([
+        document('d1', [field('inventory_no', 'INV-88-42', 0.97)]),
+        document('d2', [field('certificate_no', 'SPR-2024-771', 0.41)]),
+      ]),
+    );
+    const parcel = readings.find(r => r.line === 'parcel');
+    expect(parcel?.field?.value).toBe('SPR-2024-771');
+    expect(parcel?.fieldName).toBe('certificate_no');
+  });
+
+  // The person who paid is a fourth party often enough — a relative, a
+  // representative — that a sure reading of them says nothing about who is
+  // applying. So they answer the line only when nobody else did.
+  it('ignores a surely read payer while an applicant was read at all', () => {
+    const readings = readPacket(
+      detail([
+        document('d1', [field('applicant_name', 'Agaev Kocheli', 0.6)]),
+        document('d2', [field('payer_name', 'PAID FOR HIM', 0.99)]),
+      ]),
+    );
+    expect(readings[0]?.field?.value).toBe('Agaev Kocheli');
+    expect(readings[0]?.fieldName).toBe('applicant_name');
+  });
+
+  it('ignores a surely read payer while an owner was read at all', () => {
+    const readings = readPacket(
+      detail([
+        document('d1', [field('owner_name', 'OF RECORD', 0.6)]),
+        document('d2', [field('payer_name', 'PAID FOR HIM', 0.99)]),
+      ]),
+    );
+    expect(readings[0]?.fieldName).toBe('owner_name');
+  });
+
+  it('lets the payer name the line when nobody else was read', () => {
+    const readings = readPacket(
+      detail([document('d1', [field('payer_name', 'PAID FOR HIM', 0.72)])]),
+    );
+    expect(readings[0]?.field?.value).toBe('PAID FOR HIM');
+    expect(readings[0]?.fieldName).toBe('payer_name');
   });
 
   // Nothing to choose between on confidence, so the order says which reading

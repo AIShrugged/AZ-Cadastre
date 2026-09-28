@@ -368,6 +368,10 @@ const en: Dict = {
   'source.NationalArchive': 'National Archive',
   'panel.provision': 'Article 8 provision',
   'provision.lead': 'The provision decides which documents are needed.',
+  'provision.unconfirmed':
+    'The provision rests on a figure read with low confidence — confirm the marked figures before it is settled.',
+  'provision.confirm_figure':
+    'Read with low confidence — open the line it was read off to confirm or correct it',
   'provision.determined': 'Falls under provision {provision}: {rule}',
   'provision.ambiguous': 'Provision not settled — missing: {params}',
   'provision.undetermined': 'No Article 8 provision fits',
@@ -1778,6 +1782,10 @@ const ru: Dict = {
   'source.NationalArchive': 'Национальный архив',
   'panel.provision': 'Пункт статьи 8',
   'provision.lead': 'От пункта зависит, какие документы нужны.',
+  'provision.unconfirmed':
+    'Пункт опирается на показатель, прочитанный с низкой уверенностью — подтвердите отмеченные значения.',
+  'provision.confirm_figure':
+    'Прочитано с низкой уверенностью — откройте строку, с которой прочитано, чтобы подтвердить или исправить',
   'provision.determined': 'Применяется пункт {provision}: {rule}',
   'provision.ambiguous': 'Пункт не определён — нет данных: {params}',
   'provision.undetermined': 'Ни один пункт статьи 8 не подходит',
@@ -3093,6 +3101,10 @@ const az: Dict = {
   'source.NationalArchive': 'Milli Arxiv',
   'panel.provision': 'Maddə 8 üzrə bənd',
   'provision.lead': 'Hansı sənədlərin lazım olduğu bənddən asılıdır.',
+  'provision.unconfirmed':
+    'Bənd aşağı etibarlılıqla oxunmuş göstəriciyə əsaslanır — işarələnmiş göstəriciləri təsdiqləyin.',
+  'provision.confirm_figure':
+    'Aşağı etibarlılıqla oxunub — təsdiqləmək və ya düzəltmək üçün oxunduğu sətri açın',
   'provision.determined': '{provision} bəndi tətbiq olunur: {rule}',
   'provision.ambiguous': 'Bənd müəyyən edilməyib — yoxdur: {params}',
   'provision.undetermined': 'Maddə 8-in heç bir bəndi uyğun deyil',

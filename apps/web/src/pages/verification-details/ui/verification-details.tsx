@@ -4531,6 +4531,7 @@ export function VerificationDetails() {
                   <CaseProvisionPanel
                     provision={pkg.provision}
                     profile={profile}
+                    documents={documents}
                     onJump={jump}
                   />
                 ) : (

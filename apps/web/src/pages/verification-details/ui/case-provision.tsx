@@ -28,6 +28,10 @@ import {
   fieldAnchor,
   provisionName,
   provisionSummary,
+  READING_INK,
+  READING_TINT,
+  ReadingFigure,
+  readReading,
   spanPhrase,
   spanWithinLimit,
   unitLine,
@@ -40,10 +44,13 @@ import { InfoHint } from '@/shared/ui/info-hint';
 import type {
   CaseParameterDto,
   CaseProvisionDto,
+  DocumentDto,
   ProvisionRequirementDto,
   SpanCalculationDto,
   TitleDocumentStandingDto,
 } from '@cadastre/api-contracts/verification';
+
+import { isDoubtful, restsOnUnconfirmed } from '../model/provision-confidence';
 
 type Translate = (
   key: string,
@@ -126,15 +133,21 @@ function SubHeading({ children, hint }: { children: string; hint?: string }) {
 export function CaseProvisionPanel({
   provision,
   profile,
+  documents,
   onJump,
 }: {
   provision: CaseProvisionDto;
   /** Null while the profiles load; the sources of the papers are then left
    *  unsaid rather than guessed. */
   profile: ProfileDto | null;
+  /** Every document of the package, so a figure's own line can be looked up:
+   *  the origin on that line is what says the operator has already restated
+   *  the figure (`model/provision-confidence`). */
+  documents: readonly DocumentDto[];
   onJump: Jump;
 }) {
   const { t } = useI18n();
+  const unconfirmed = restsOnUnconfirmed(provision, documents);
 
   return (
     <section id='provision' className='scroll-mt-16'>
@@ -153,7 +166,21 @@ export function CaseProvisionPanel({
           {t('provision.lead')}
         </InfoHint>
       </div>
-      <Parameters provision={provision} onJump={onJump} />
+      {/* What the summary above cannot say: the sentence is the engine's
+          answer, and this is how much of it is still resting on a reading
+          nobody has checked. Said once at the head, because it is about the
+          provision; which figures they are is said beside the figures. */}
+      {unconfirmed && (
+        <p
+          className={cn(
+            'mt-1.5 text-[0.8125rem] leading-snug',
+            READING_INK.low,
+          )}
+        >
+          {t('provision.unconfirmed')}
+        </p>
+      )}
+      <Parameters provision={provision} documents={documents} onJump={onJump} />
 
       <Options provision={provision} profile={profile} />
 
@@ -168,9 +195,11 @@ export function CaseProvisionPanel({
 
 function Parameters({
   provision,
+  documents,
   onJump,
 }: {
   provision: CaseProvisionDto;
+  documents: readonly DocumentDto[];
   onJump: Jump;
 }) {
   const { t } = useI18n();
@@ -195,8 +224,11 @@ function Parameters({
                 parameter.parameter,
               )}
             </dt>
-            <dd className='text-[0.875rem] leading-snug text-foreground'>
+            <dd className='flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[0.875rem] leading-snug text-foreground'>
               <ParameterValue parameter={parameter} />
+              {isDoubtful(parameter, documents) && (
+                <DoubtfulReading parameter={parameter} onJump={onJump} />
+              )}
             </dd>
             {parameter.calculation && (
               <dd className='text-[0.75rem] leading-snug text-muted-foreground'>
@@ -247,6 +279,73 @@ function ParameterValue({ parameter }: { parameter: CaseParameterDto }) {
     <span className='tabular-nums'>{parameter.value}</span>
   ) : (
     <>{translateOr(t, `provision.value.${parameter.value}`, parameter.value)}</>
+  );
+}
+
+/**
+ * A figure the case was decided on that was read below the engine's floor, as
+ * the chip beside it.
+ *
+ * The reading vocabulary the case card and the attention rail already use —
+ * `ReadingFigure` on the customer's three-band scale — and not a mark of its
+ * own: an inspector who has learned what a 50% in that ink means on the rail
+ * should not have to learn a second thing here. The figure itself is always
+ * printed, because that is what a reader checks the floor against and what
+ * survives a grayscale print.
+ *
+ * It is a link and not a badge. A doubtful figure is something the operator has
+ * to settle, and the place to settle it is the line it was read off, where the
+ * `correct-field` control already sits — so the mark carries the reader there
+ * rather than telling them to go and find it.
+ */
+function DoubtfulReading({
+  parameter,
+  onJump,
+}: {
+  parameter: CaseParameterDto;
+  onJump: Jump;
+}) {
+  const { t } = useI18n();
+  const from = parameter.from;
+  if (from === null) return null;
+
+  const anchor = from.fieldName
+    ? fieldAnchor(from.documentId, from.fieldName)
+    : `#doc-${from.documentId}`;
+  const label = t('provision.confirm_figure');
+  // The wash follows the figure's own band and never a fixed one. Below the
+  // floor a reading is `fair` or `low` and never `sure`, so the chip is always
+  // the warning it is meant to be — and a 79% printed in the fair ink on a low
+  // wash would be the screen disagreeing with itself about one reading, which
+  // is the one thing `model/reading-scale` exists to prevent.
+  const band =
+    from.confidence === null ? 'low' : readReading(from.confidence).band;
+
+  return (
+    <a
+      href={anchor}
+      onClick={onJump(from.documentId, anchor)}
+      title={label}
+      className={cn(
+        'inline-flex shrink-0 items-baseline gap-1 rounded-full px-1.5 py-0.5 text-[0.6875rem] underline-offset-2 hover:underline',
+        READING_TINT[band],
+        READING_INK[band],
+      )}
+    >
+      {/* Nobody scored this reading, so there is no figure to band: the word
+          says the number is absent rather than the scale colouring a percentage
+          it was never given (`detail.unscored_why`). It is doubtful all the
+          same — an unscored reading is exactly one to check. */}
+      {from.confidence === null ? (
+        <span className='font-semibold'>{t('detail.unscored')}</span>
+      ) : (
+        <ReadingFigure
+          confidence={from.confidence}
+          className='text-[0.6875rem]'
+        />
+      )}
+      <span className='sr-only'>{label}</span>
+    </a>
   );
 }
 

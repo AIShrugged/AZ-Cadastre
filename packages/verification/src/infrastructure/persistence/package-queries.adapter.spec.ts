@@ -255,6 +255,7 @@ function aDetailRow(
     ...aRow([], { profileKey }),
     crossChecks: [],
     archiveSearchApprovals: [],
+    caseParameterOverrides: [],
     sourceFiles: [
       {
         id: FILE_ID,

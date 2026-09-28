@@ -62,6 +62,8 @@ function aProvision(over: Partial<CaseProvisionDto> = {}): CaseProvisionDto {
         stated: '1—2 4000',
         from: null,
         calculation: SAMPLE,
+        overriddenBy: null,
+        read: null,
       },
     ],
     rules: [

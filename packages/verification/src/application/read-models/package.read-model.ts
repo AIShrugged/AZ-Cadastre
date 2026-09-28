@@ -375,15 +375,32 @@ export type ParameterView = {
   source: string | null;
   // The words the figure was read out of, or the declared year.
   stated: string | null;
-  from: {
-    documentId: string;
-    documentType: string;
-    fieldName: string | null;
-    pageNumber: number | null;
-    confidence: number | null;
-  } | null;
+  from: FigureReadingView | null;
   // How the span was worked out of the axis chains (ADR-0043); null for every
   // other figure, and for a span nothing stated.
+  calculation: SpanCalculationView | null;
+  // Who set the figure by hand and when, or null where nobody has. Set exactly
+  // where `source` is `StatedByOperator` (COMM-193).
+  overriddenBy: { accountId: string; at: Date } | null;
+  // What the engine itself established off the papers, kept beside an override
+  // and null without one — so a reader can be shown both and put the engine's
+  // back.
+  read: EngineReadingView | null;
+};
+
+export type FigureReadingView = {
+  documentId: string;
+  documentType: string;
+  fieldName: string | null;
+  pageNumber: number | null;
+  confidence: number | null;
+};
+
+export type EngineReadingView = {
+  value: number | string | null;
+  source: string | null;
+  stated: string | null;
+  from: FigureReadingView | null;
   calculation: SpanCalculationView | null;
 };
 

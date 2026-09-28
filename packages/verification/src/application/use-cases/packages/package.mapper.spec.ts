@@ -279,6 +279,8 @@ function aProvisionView(): NonNullable<PackageDetailView['provision']> {
         stated: '2014',
         from: null,
         calculation: null,
+        overriddenBy: null,
+        read: null,
       },
       {
         parameter: 'purpose',
@@ -293,6 +295,8 @@ function aProvisionView(): NonNullable<PackageDetailView['provision']> {
           confidence: 0.91,
         },
         calculation: null,
+        overriddenBy: null,
+        read: null,
       },
       {
         parameter: 'span',
@@ -331,6 +335,8 @@ function aProvisionView(): NonNullable<PackageDetailView['provision']> {
           setAside: ['A—C 7600'],
           refusedFor: null,
         },
+        overriddenBy: null,
+        read: null,
       },
     ],
     rules: [

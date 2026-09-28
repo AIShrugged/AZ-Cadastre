@@ -117,6 +117,10 @@ export {
   type SpanUnit,
   type SpanUnitBasis,
 } from './span-unit.vo.js';
+export {
+  StatedCaseParameter,
+  type CaseParameterValue,
+} from './stated-case-parameter.vo.js';
 export { StorageKey } from './storage-key.vo.js';
 export { Supersession } from './supersession.vo.js';
 export { SupplyTarget } from './supply-target.vo.js';

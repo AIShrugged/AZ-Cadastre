@@ -39,6 +39,7 @@ import {
   PresignResponseSchema,
   ProfileDtoSchema,
   ProfileSuggestionDtoSchema,
+  StateCaseParametersRequestSchema,
   SuggestProfileRequestSchema,
   SupplyDocumentRequestSchema,
   type AddFilesRequest,
@@ -55,6 +56,7 @@ import {
   type PresignResponse,
   type ProfileDto,
   type ProfileSuggestionDto,
+  type StateCaseParametersRequest,
   type SuggestProfileRequestInput,
   type SupplyDocumentRequest,
 } from '@cadastre/api-contracts/verification';
@@ -384,6 +386,33 @@ export class RestClient {
         'POST',
         `/api/packages/${encodeURIComponent(id)}` +
           `/documents/${encodeURIComponent(documentId)}/fields`,
+        z.unknown(),
+        body,
+      ),
+
+    /**
+     * What an operator states the six figures of the Article 8 table are, saved
+     * together and answered with the whole submission (COMM-193).
+     */
+    stateCaseParameters: (
+      id: string,
+      request: StateCaseParametersRequest,
+    ): Promise<ApiResponse<PackageDetailDto>> =>
+      this.request(
+        'POST',
+        `/api/packages/${encodeURIComponent(id)}/case-parameters`,
+        PackageDetailDtoSchema,
+        StateCaseParametersRequestSchema.parse(request),
+      ),
+
+    /** Deliberately unvalidated, for the specs that check the API's own refusals. */
+    stateCaseParametersRaw: (
+      id: string,
+      body: unknown,
+    ): Promise<ApiResponse<unknown>> =>
+      this.request(
+        'POST',
+        `/api/packages/${encodeURIComponent(id)}/case-parameters`,
         z.unknown(),
         body,
       ),

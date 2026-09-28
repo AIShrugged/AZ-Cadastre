@@ -130,6 +130,7 @@ function aPackageRow(overrides: Partial<PackageRow> = {}): PackageRow {
     crossChecks: [],
     registryChecks: [],
     archiveSearchApprovals: [],
+    caseParameterOverrides: [],
     report: null,
     ...overrides,
   };
@@ -917,6 +918,7 @@ describe('VerificationPackageMapper', () => {
         crossChecks: [],
         registryChecks: [],
         archiveSearchApproval: null,
+        statedParameters: [],
         report: null,
         documents: [
           document.classifiedAs(
@@ -955,6 +957,7 @@ describe('VerificationPackageMapper', () => {
         documents: [],
         crossChecks: [],
         registryChecks: [],
+        statedParameters: [],
         archiveSearchApproval: ArchiveSearchApproval.of({
           summary: ApprovalSummary.create('the record agrees'),
           comment: ApprovalComment.from('folder 14 re-checked'),

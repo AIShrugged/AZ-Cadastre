@@ -17,6 +17,7 @@ import {
   EditDocumentFieldsRequestSchema,
   ListPackagesRequestSchema,
   PackagesOverviewRequestSchema,
+  StateCaseParametersRequestSchema,
   SupplyDocumentRequestSchema,
   type AddFilesRequest,
   type ApproveArchiveSearchRequest,
@@ -28,6 +29,7 @@ import {
   type PackageDto,
   type PackagesOverviewRequest,
   type PackagesOverviewResponse,
+  type StateCaseParametersRequest,
   type SupplyDocumentRequest,
 } from '@cadastre/api-contracts/verification';
 
@@ -179,6 +181,24 @@ export class PackagesController {
       body,
       account.id,
     );
+  }
+
+  /*
+   * What an operator states the six figures of the Article 8 table are
+   * (COMM-193). The office's own route, guarded exactly as a correction is, and
+   * the editor is the session's account and never the body's — a caller must
+   * not be able to state a figure in somebody else's name (ADR-0029).
+   */
+  @Post(':id/case-parameters')
+  @RequiresRole('operator')
+  @HttpCode(HttpStatus.OK)
+  async stateCaseParameters(
+    @Param('id') id: string,
+    @Body({ schema: StateCaseParametersRequestSchema })
+    body: StateCaseParametersRequest,
+    @CurrentAccount() account: AccountDto,
+  ): Promise<PackageDetailDto> {
+    return this.verification.packages.stateCaseParameters(id, body, account.id);
   }
 
   /*

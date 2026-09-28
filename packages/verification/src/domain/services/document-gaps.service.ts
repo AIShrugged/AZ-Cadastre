@@ -2,7 +2,7 @@ import { Confidence } from '../value-objects/confidence.vo.js';
 import { DocumentType } from '../value-objects/document-type.vo.js';
 import { VerificationProfile } from '../value-objects/verification-profile.vo.js';
 
-import { provisionOf } from './case-provision.service.js';
+import { provisionOf, type StatedParameter } from './case-provision.service.js';
 
 /**
  * Why a package will take a document it already has files for.
@@ -102,6 +102,9 @@ export function gapsIn(
   // What the office declared at intake: the ground names the title an operator
   // is asked for. The declared year dates nothing (ADR-0026).
   declared: DeclaredForGaps = { legalBasis: null },
+  // What an operator set by hand: the provision decides which papers are owed,
+  // so an override decides what the package is offered uploads for (COMM-193).
+  stated: readonly StatedParameter[] = [],
 ): readonly DocumentGap[] {
   const inForce = documents.filter(document => !document.superseded);
   const placed = inForce.flatMap(document => {
@@ -115,7 +118,7 @@ export function gapsIn(
     ...profile.requiredTypes
       .filter(required => !placed.some(({ type }) => type.equals(required)))
       .map(expectedType => gap('MissingDocument', expectedType)),
-    ...shortOfProvision(profile, documents, declared, placed),
+    ...shortOfProvision(profile, documents, declared, placed, stated),
   ]);
 
   const unusable = placed
@@ -204,12 +207,13 @@ function shortOfProvision(
   documents: readonly ReadDocument[],
   declared: DeclaredForGaps,
   placed: readonly { readonly type: DocumentType }[],
+  stated: readonly StatedParameter[],
 ): readonly DocumentGap[] {
   const provisions = profile.provisions;
 
   if (!provisions) return [];
 
-  const answer = provisionOf(provisions, documents);
+  const answer = provisionOf(provisions, documents, stated);
   const decided =
     answer.decision.outcome === 'Determined' ? answer.decision.provision : null;
 

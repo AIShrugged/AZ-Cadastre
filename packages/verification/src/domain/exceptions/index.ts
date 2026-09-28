@@ -19,6 +19,7 @@ export { FileTooLargeException } from './file-too-large.exception.js';
 export { InvalidApprovalCommentException } from './invalid-approval-comment.exception.js';
 export { InvalidApprovalSummaryException } from './invalid-approval-summary.exception.js';
 export { InvalidArchiveQrCheckException } from './invalid-archive-qr-check.exception.js';
+export { InvalidCaseParameterException } from './invalid-case-parameter.exception.js';
 export { InvalidConfidenceException } from './invalid-confidence.exception.js';
 export { InvalidCrossCheckKeyException } from './invalid-cross-check-key.exception.js';
 export { InvalidCrossCheckVerdictException } from './invalid-cross-check-verdict.exception.js';

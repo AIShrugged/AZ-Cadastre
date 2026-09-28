@@ -34,6 +34,7 @@ import {
   DocumentTypeNotInProfileException,
   DuplicateStorageKeyException,
   FieldNotInSchemaException,
+  InvalidCaseParameterException,
   InvalidSupplyTargetException,
   LegalBasisNotInProfileException,
   NoSuchDocumentGapException,
@@ -524,6 +525,7 @@ describe('VerificationPackage', () => {
         crossChecks: [],
         registryChecks: [],
         archiveSearchApproval: null,
+        statedParameters: [],
         report: null,
       });
 
@@ -546,6 +548,7 @@ describe('VerificationPackage', () => {
         crossChecks: [],
         registryChecks: [],
         archiveSearchApproval: null,
+        statedParameters: [],
         report: null,
       });
 
@@ -568,6 +571,7 @@ describe('VerificationPackage', () => {
         crossChecks: [],
         registryChecks: [],
         archiveSearchApproval: null,
+        statedParameters: [],
         report: null,
       });
 
@@ -1832,6 +1836,7 @@ describe('VerificationPackage', () => {
         crossChecks: verification.crossChecks,
         registryChecks: verification.registryChecks,
         archiveSearchApproval: null,
+        statedParameters: [],
         report: null,
       });
       stripped.complete();
@@ -1859,6 +1864,7 @@ describe('VerificationPackage', () => {
         crossChecks: verification.crossChecks,
         registryChecks: verification.registryChecks,
         archiveSearchApproval: null,
+        statedParameters: [],
         report: verification.report,
       });
       reread.recordRecognition(file.id, page.id, anOcrResult());
@@ -2682,6 +2688,7 @@ describe('VerificationPackage', () => {
         crossChecks: verification.crossChecks,
         registryChecks: verification.registryChecks,
         archiveSearchApproval: null,
+        statedParameters: [],
         report: verification.report,
       });
       reread.recordCrossCheck(aVerdict(reread, CrossCheckVerdict.MATCH));
@@ -5647,6 +5654,252 @@ describe('VerificationPackage corrected by hand', () => {
         fieldOn(built.verification, built.plan, 'property_address')?.value
           .value,
       ).toBe(ON_THE_PLAN);
+      expect(built.verification.report).not.toBeNull();
+      expect(built.verification.getUncommittedEvents()).toEqual([]);
+    });
+  });
+});
+
+/*
+ * The six figures the Article 8 decision table reads a case on, stated by an
+ * operator rather than read off a paper (COMM-193).
+ *
+ * What is under test here is the aggregate's half: what it takes, what it
+ * refuses, what a statement discards and — just as much the point — what it
+ * leaves standing. That the case is then *decided* on the operator's figure is
+ * `case-provision.service.spec.ts`.
+ */
+describe('VerificationPackage with case parameters stated by hand', () => {
+  const OPERATOR = EditorAccountId.of('0190a1b2-c3d4-7e5f-8a9b-0000000000bb');
+
+  /*
+   * A settled package with a design in it, so the table has something of its
+   * own to be overruled: two storeys read off the sketch project.
+   */
+  function aSettledSubmission() {
+    const built = aSegmentedPackage();
+
+    built.verification.classify(
+      built.document.id,
+      aClassification('sketch_project'),
+    );
+    built.verification.recordExtractedFields(built.document.id, [
+      ExtractedField.of(
+        FieldKey.create('storeys'),
+        FieldValue.create('2'),
+        Confidence.of(0.93),
+        PageNumber.first(),
+      ),
+    ]);
+    built.verification.complete();
+    built.verification.commit();
+
+    return built;
+  }
+
+  const storeysOf = (verification: VerificationPackage) =>
+    verification.provision?.parameters.storeys;
+
+  it('takes the operator’s figure over what the papers were read to say', () => {
+    const { verification } = aSettledSubmission();
+
+    expect(storeysOf(verification)).toBe(2);
+    expect(
+      verification.stateCaseParameters(
+        [{ parameter: 'storeys', value: 5 }],
+        OPERATOR,
+      ),
+    ).toBe(true);
+    expect(storeysOf(verification)).toBe(5);
+  });
+
+  it('records who set it and when, and keeps it in the table’s column order', () => {
+    const { verification } = aSettledSubmission();
+
+    verification.stateCaseParameters(
+      [
+        { parameter: 'purpose', value: 'Residential' },
+        { parameter: 'storeys', value: 5 },
+      ],
+      OPERATOR,
+    );
+
+    expect(
+      verification.statedParameters.map(stated => stated.parameter),
+    ).toEqual(['storeys', 'purpose']);
+    expect(verification.statedParameters[0]?.by.equals(OPERATOR)).toBe(true);
+    expect(verification.statedParameters[0]?.at).toBeInstanceOf(Date);
+  });
+
+  // The revert, and the only way back: while an override stands, nothing the
+  // engine reads displaces it.
+  it('gives the figure back to the papers when it is cleared', () => {
+    const { verification } = aSettledSubmission();
+
+    verification.stateCaseParameters(
+      [{ parameter: 'storeys', value: 5 }],
+      OPERATOR,
+    );
+    verification.commit();
+
+    expect(
+      verification.stateCaseParameters(
+        [{ parameter: 'storeys', value: null }],
+        OPERATOR,
+      ),
+    ).toBe(true);
+    expect(verification.statedParameters).toEqual([]);
+    expect(storeysOf(verification)).toBe(2);
+  });
+
+  /*
+   * The same road a correction takes, on the narrowest blast radius of the
+   * five: nothing the papers say has changed, so every check across them
+   * stands — but the report was compiled against the provision these figures
+   * select, so it goes and the package re-opens (ADR-0033).
+   */
+  it('re-opens the package and drops the report it was compiled against', () => {
+    const { verification } = aSettledSubmission();
+
+    verification.stateCaseParameters(
+      [{ parameter: 'storeys', value: 5 }],
+      OPERATOR,
+    );
+
+    expect(verification.status).toBe(PackageStatus.PENDING);
+    expect(verification.report).toBeNull();
+    expect(typesOf(verification)).toContain(
+      'verification.CaseParametersStated',
+    );
+  });
+
+  it('leaves what the papers state exactly as it was', () => {
+    const built = aSettledSubmission();
+
+    built.verification.stateCaseParameters(
+      [{ parameter: 'storeys', value: 5 }],
+      OPERATOR,
+    );
+
+    const field = built.verification
+      .documentWith(built.document.id)
+      .fields.find(one => one.key.value === 'storeys');
+    expect(field?.value.value).toBe('2');
+    expect(field?.origin).toBe(FieldOrigin.READ_ON_THIS_DOCUMENT);
+  });
+
+  describe('and the statement changes nothing', () => {
+    function stated() {
+      const built = aSettledSubmission();
+      built.verification.stateCaseParameters(
+        [{ parameter: 'storeys', value: 5 }],
+        OPERATOR,
+      );
+      built.verification.commit();
+
+      return built;
+    }
+
+    it('answers that nothing changed', () => {
+      const { verification } = stated();
+
+      expect(
+        verification.stateCaseParameters(
+          [{ parameter: 'storeys', value: 5 }],
+          OPERATOR,
+        ),
+      ).toBe(false);
+    });
+
+    it('announces nothing, so no run starts', () => {
+      const { verification } = stated();
+
+      verification.stateCaseParameters(
+        [{ parameter: 'storeys', value: 5 }],
+        OPERATOR,
+      );
+
+      expect(verification.getUncommittedEvents()).toEqual([]);
+      expect(verification.statedParameters.map(one => one.value)).toEqual([5]);
+    });
+
+    // "12.0" over a stored 12 is the operator stating the height they have
+    // already stated: the figures are compared, never the text.
+    it('reads the same figure written another way as the same figure', () => {
+      const { verification } = aSettledSubmission();
+
+      verification.stateCaseParameters(
+        [{ parameter: 'height', value: 12 }],
+        OPERATOR,
+      );
+      verification.commit();
+
+      expect(
+        verification.stateCaseParameters(
+          [{ parameter: 'height', value: '12.0' }],
+          OPERATOR,
+        ),
+      ).toBe(false);
+    });
+
+    it('leaves a figure nobody set alone when it is cleared again', () => {
+      const { verification } = aSettledSubmission();
+
+      expect(
+        verification.stateCaseParameters(
+          [{ parameter: 'storeys', value: null }],
+          OPERATOR,
+        ),
+      ).toBe(false);
+    });
+  });
+
+  describe('and the statement cannot be taken', () => {
+    // The same state test a correction and a file arriving are put to, and the
+    // same reason: the run reads the package it started with (ADR-0013).
+    it('refuses while a run is reading the package', () => {
+      const { verification } = aSegmentedPackage();
+
+      expect(() =>
+        verification.stateCaseParameters(
+          [{ parameter: 'storeys', value: 5 }],
+          OPERATOR,
+        ),
+      ).toThrow(PackageNotTakingFilesException);
+    });
+
+    it.each([
+      ['a year outside the window a paper can be dated in', 'builtYear', 999],
+      ['a year that is not whole', 'builtYear', 1999.5],
+      ['a count of no storeys', 'storeys', 0],
+      ['a fraction of a storey', 'storeys', 2.5],
+      ['a height of nought metres', 'height', 0],
+      ['a negative span', 'span', -4],
+      ['a right nothing classes', 'landRight', 'Freehold'],
+      ['a purpose nothing classes', 'purpose', 'Industrial'],
+    ] as const)('refuses %s', (_case, parameter, value) => {
+      const { verification } = aSettledSubmission();
+
+      expect(() =>
+        verification.stateCaseParameters([{ parameter, value }], OPERATOR),
+      ).toThrow(InvalidCaseParameterException);
+    });
+
+    // A refusal must leave the package exactly as it was, and never as one
+    // that discarded its report over a statement it declined.
+    it('changes nothing at all when one entry is no figure', () => {
+      const built = aSettledSubmission();
+
+      expect(() =>
+        built.verification.stateCaseParameters(
+          [
+            { parameter: 'storeys', value: 5 },
+            { parameter: 'height', value: 0 },
+          ],
+          OPERATOR,
+        ),
+      ).toThrow(InvalidCaseParameterException);
+      expect(built.verification.statedParameters).toEqual([]);
       expect(built.verification.report).not.toBeNull();
       expect(built.verification.getUncommittedEvents()).toEqual([]);
     });

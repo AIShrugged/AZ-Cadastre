@@ -752,6 +752,18 @@ export const SpanCalculationDtoSchema = z.object({
 });
 export type SpanCalculationDto = z.infer<typeof SpanCalculationDtoSchema>;
 
+// The document, line and sheet a figure is believed from. One schema, because
+// an overridden figure publishes both what the operator set and what the engine
+// read, and the two are believed from the same kind of place.
+export const FigureReadingDtoSchema = z.object({
+  documentId: z.string(),
+  documentType: z.string(),
+  fieldName: z.string().nullable(),
+  pageNumber: z.number().int().positive().nullable(),
+  confidence: z.number().nullable(),
+});
+export type FigureReadingDto = z.infer<typeof FigureReadingDtoSchema>;
+
 export const CaseParameterDtoSchema = z.object({
   parameter: CaseParameterSchema,
   // What the table was decided on: a number for builtYear, storeys, height (m)
@@ -765,21 +777,47 @@ export const CaseParameterDtoSchema = z.object({
   // "2 mərtəbə" on a height line is a reading refused, not a reading missing.
   stated: z.string().nullable(),
   // The document, line and sheet the figure is believed from. Null for a figure
-  // declared at intake; `fieldName` is null for a figure decided by the kind of
-  // title document rather than by a line of it.
-  from: z
-    .object({
-      documentId: z.string(),
-      documentType: z.string(),
-      fieldName: z.string().nullable(),
-      pageNumber: z.number().int().positive().nullable(),
-      confidence: z.number().nullable(),
-    })
-    .nullable(),
+  // declared at intake and for one an operator set, which is printed on no
+  // sheet; `fieldName` is null for a figure decided by the kind of title
+  // document rather than by a line of it.
+  from: FigureReadingDtoSchema.nullable(),
   // How the span was worked out of the axis chains the design dimensions, for
   // `span` only and null for the other five (ADR-0043). Null too where nothing
   // stated a span, or where what was stated carried no length.
   calculation: SpanCalculationDtoSchema.nullable(),
+  // Who set the figure by hand and when, or null where nobody has — which is
+  // every figure on a package no operator has corrected (COMM-193). Set exactly
+  // where `source` is `StatedByOperator`, and the two say the same thing: the
+  // audit is here and the fact that the case was decided on it is there.
+  overriddenBy: z
+    .object({
+      // The id and not a name, exactly as on a corrected field: accounts are
+      // another context's, and resolving one to a person is that context's
+      // question.
+      accountId: z.string(),
+      // ISO-8601, like every other instant the API publishes.
+      at: z.string(),
+    })
+    .nullable(),
+  /*
+   * What the engine itself established off the papers, kept beside an override
+   * and null without one — so a card can show "read X, operator set Y" and
+   * offer to put it back (COMM-193).
+   *
+   * The same five facts the figure above carries, with the value the table
+   * would have been decided on had nobody corrected it. Its own `value` is null
+   * on a figure no paper stated, which is the case an override exists for: a
+   * parameter with no reading at all cannot be set by correcting a field.
+   */
+  read: z
+    .object({
+      value: z.union([z.number(), z.string()]).nullable(),
+      source: ParameterSourceSchema.nullable(),
+      stated: z.string().nullable(),
+      from: FigureReadingDtoSchema.nullable(),
+      calculation: SpanCalculationDtoSchema.nullable(),
+    })
+    .nullable(),
 });
 export type CaseParameterDto = z.infer<typeof CaseParameterDtoSchema>;
 

@@ -68,6 +68,10 @@ model VerificationPackage {
   /// and a run that asks the register again ends it (ADR-0016).
   archiveSearchApprovals ArchiveSearchApproval[]
 
+  /// The figures of the Article 8 table an operator set by hand, at most one
+  /// row per figure and none on a package nobody has corrected (COMM-193).
+  caseParameterOverrides CaseParameterOverride[]
+
   /// When the submission was accepted, which is the one column a summary of a
   /// period is narrowed by — for its own tally and, across a join, for the
   /// reports, the findings and the register's answers alike. Without it every

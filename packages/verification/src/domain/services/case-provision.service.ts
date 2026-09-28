@@ -41,6 +41,15 @@ export const PARAMETER_SOURCES = [
   // Decided by the kind of title document the package carries, not by anything
   // printed on it: a state act is an ownership document whatever its lines say.
   'TitleDocumentType',
+  /*
+   * Set by an operator, over whatever the papers were read to say. The case is
+   * then decided on the operator's figure and on nothing else — a correction is
+   * a person taking responsibility for a figure, the same as a corrected field
+   * (ADR-0033). What the engine made of the papers is kept beside it and
+   * published, never thrown away: the card shows both, and reverting is the
+   * operator clearing the override.
+   */
+  'StatedByOperator',
 ] as const;
 export type ParameterSource = (typeof PARAMETER_SOURCES)[number];
 
@@ -71,6 +80,44 @@ export type ParameterReading = {
   // rather than read: the span is calculated from the axis chains (ADR-0043).
   // Null for every other figure.
   readonly calculation: SpanCalculation | null;
+  // Who set the figure by hand and when, or null where nobody has: the six are
+  // read off the papers until an operator says otherwise.
+  readonly overriddenBy: StatedBy | null;
+  // What the engine itself established, kept beside an override and null
+  // without one. Never discarded: an inspector has to be able to see "read X,
+  // operator set Y" and put it back.
+  readonly read: EngineReading | null;
+};
+
+// The operator behind an override, as a reader is shown them.
+export type StatedBy = {
+  readonly accountId: string;
+  readonly at: Date;
+};
+
+// A figure as the engine established it off the papers, with the value it came
+// to: the same five facts a reading carries, and the value the table would have
+// been decided on had nobody corrected it.
+export type EngineReading = {
+  readonly value: number | string | null;
+  readonly source: ParameterSource | null;
+  readonly stated: string | null;
+  readonly from: FigureReading | null;
+  readonly calculation: SpanCalculation | null;
+};
+
+/**
+ * One of the six figures as an operator set it (COMM-193).
+ *
+ * Flat data and not the value object, for the reason `ReadDocument` is flat:
+ * the read side answers the same question off rows without loading the
+ * aggregate, and one rule with two implementations is two rules.
+ */
+export type StatedParameter = {
+  readonly parameter: CaseParameterKey;
+  readonly value: number | string;
+  readonly accountId: string;
+  readonly at: Date;
 };
 
 export type RequirementStanding = {
@@ -143,6 +190,17 @@ type Placed = {
 export function provisionOf(
   spec: ProvisionsSpec,
   documents: readonly ReadDocument[],
+  /*
+   * What an operator set by hand, over what the papers were read to say
+   * (COMM-193). Defaulted, because a package nobody has corrected is the
+   * ordinary one and every caller that has nothing to say about overrides —
+   * a fixture, a spec about the table — states the case it always stated.
+   *
+   * At most one entry per parameter reaches here; the aggregate holds one
+   * override per figure, and a second entry naming the same figure would make
+   * the case depend on which of them was applied last.
+   */
+  stated: readonly StatedParameter[] = [],
 ): CaseProvision {
   const placed: readonly Placed[] = documents.flatMap(document => {
     if (document.superseded || document.type === null) return [];
@@ -153,13 +211,23 @@ export function provisionOf(
   });
 
   // Off the papers alone, in the table's order, and never off what the office
-  // declared at intake (ADR-0026).
-  const builtYear = figure('builtYear', spec.builtIn, placed, yearIn);
-  const storeys = figure('storeys', spec.storeys, placed, storeysIn);
-  const height = figure('height', spec.height, placed, heightInMetres);
-  const span = spanOf(spec, placed);
-  const landRight = rightOf(spec, placed);
-  const purpose = figure('purpose', spec.purpose, placed, landPurposeIn);
+  // declared at intake (ADR-0026) — and then, where an operator has stated the
+  // figure, off what they stated and nothing else.
+  const overridden = asStated(stated);
+  const builtYear = overridden(
+    figure('builtYear', spec.builtIn, placed, yearIn),
+  );
+  const storeys = overridden(
+    figure('storeys', spec.storeys, placed, storeysIn),
+  );
+  const height = overridden(
+    figure('height', spec.height, placed, heightInMetres),
+  );
+  const span = overridden(spanOf(spec, placed));
+  const landRight = overridden(rightOf(spec, placed));
+  const purpose = overridden(
+    figure('purpose', spec.purpose, placed, landPurposeIn),
+  );
 
   const parameters: CaseParameters = {
     builtYear: builtYear.value,
@@ -172,7 +240,17 @@ export function provisionOf(
 
   const decision = spec.decide(parameters);
   const types = placed.map(one => one.type);
-  const worded = figure('landRight', spec.landRight, placed, landRightIn).value;
+  /*
+   * The right an extract or a plan words, which may differ from the one the
+   * title's class confers and is reported as a mismatch (ADR-0030). Dropped
+   * where an operator has stated the right: they have settled the question the
+   * mismatch asks, and holding the papers to a wording they have overruled
+   * would go on reporting a case against provisions it no longer falls under.
+   */
+  const worded =
+    landRight.reading.source === 'StatedByOperator'
+      ? null
+      : figure('landRight', spec.landRight, placed, landRightIn).value;
   const heldTo = [
     ...provisionsOf(decision),
     ...(worded !== null && worded !== parameters.landRight
@@ -235,6 +313,53 @@ type Established<T> = {
 };
 
 /*
+ * The operator's figure laid over the engine's, parameter by parameter.
+ *
+ * Believed absolutely where there is one: the value becomes theirs, the source
+ * says so, and the provision, the requirement standing and every condition
+ * reason are then worked out on it exactly as they would be on a reading. What
+ * the engine made of the papers is not thrown away — it moves into `read`, so
+ * the card can say "read X, operator set Y" and offer to put it back (COMM-193).
+ *
+ * The cast is the one place the flat statement meets the figure's own type, and
+ * it is safe by construction: a statement was held to what its parameter can
+ * take before it was ever stored (`StatedCaseParameter`), and nothing else can
+ * reach this list.
+ */
+function asStated(
+  stated: readonly StatedParameter[],
+): <T extends number | string>(established: Established<T>) => Established<T> {
+  return <T extends number | string>(established: Established<T>) => {
+    const parameter = established.reading.parameter;
+    const override = stated.find(one => one.parameter === parameter);
+
+    if (!override) return established;
+
+    return {
+      value: override.value as T,
+      reading: {
+        parameter,
+        source: 'StatedByOperator',
+        stated: String(override.value),
+        // An override is printed on no sheet and worked out of no chain: the
+        // paper trail it has is the editor and the moment, which is what
+        // `overriddenBy` carries.
+        from: null,
+        calculation: null,
+        overriddenBy: { accountId: override.accountId, at: override.at },
+        read: {
+          value: established.value,
+          source: established.reading.source,
+          stated: established.reading.stated,
+          from: established.reading.from,
+          calculation: established.reading.calculation,
+        },
+      },
+    };
+  };
+}
+
+/*
  * The right over the land. The class of title document decides it where the
  * package carries one — "Ownership: register extract, state act, 8.0.5
  * documents. Lease/use: 1.1, 1.4, 1.6, 2.2, 2.3, 2.4, 2.5, 2.5-1, 2.7, 2.8,
@@ -274,6 +399,8 @@ function rightOf(
       source: 'TitleDocumentType',
       stated: [...rights].join(', '),
       calculation: null,
+      overriddenBy: null,
+      read: null,
       from: {
         documentId: first.document.documentId,
         documentType: first.type.value,
@@ -321,6 +448,8 @@ function figure<T>(
             confidence: reading.confidence,
           },
           calculation: null,
+          overriddenBy: null,
+          read: null,
         },
       };
     }
@@ -334,6 +463,8 @@ function figure<T>(
       stated: null,
       from: null,
       calculation: null,
+      overriddenBy: null,
+      read: null,
     },
   };
 }

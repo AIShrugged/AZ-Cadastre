@@ -30,6 +30,14 @@ export {
   type EditDocumentFieldsResponse,
 } from './edit-document-fields.dto.js';
 export {
+  CaseParameterStatementSchema,
+  StateCaseParametersRequestSchema,
+  StateCaseParametersResponseSchema,
+  type CaseParameterStatement,
+  type StateCaseParametersRequest,
+  type StateCaseParametersResponse,
+} from './state-case-parameters.dto.js';
+export {
   GetPackageResponseSchema,
   type GetPackageResponse,
 } from './get-package.dto.js';
@@ -76,6 +84,7 @@ export {
   DocumentMarkDtoSchema,
   FieldDtoSchema,
   FieldSourceDtoSchema,
+  FigureReadingDtoSchema,
   IssueDtoSchema,
   OcrDtoSchema,
   PackageDetailDtoSchema,
@@ -114,6 +123,7 @@ export {
   type DocumentMarkDto,
   type FieldDto,
   type FieldSourceDto,
+  type FigureReadingDto,
   type IssueDto,
   type OcrDto,
   type PackageDetailDto,

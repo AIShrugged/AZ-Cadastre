@@ -14,6 +14,7 @@ import type {
   PackageScope,
   PackagesOverviewRequest,
   PackagesOverviewResponse,
+  StateCaseParametersRequest,
   SupplyDocumentRequest,
 } from '@cadastre/api-contracts/verification';
 
@@ -26,6 +27,7 @@ import {
   GetPackagesOverviewQuery,
   GetPackageSummaryQuery,
   ListPackagesQuery,
+  StateCaseParametersCommand,
   SupplyDocumentCommand,
 } from '../use-cases/index.js';
 import {
@@ -147,6 +149,28 @@ export class PackagesService implements PackagesApi {
         request.fields,
         editedByAccountId,
       ),
+    );
+
+    return this.findOne(packageId.value, null);
+  }
+
+  /*
+   * The whole package again, for the reason a correction answers with it: the
+   * figure shows on the submission the caller was already looking at, and the
+   * provision it selects is worked out on the way out rather than stored.
+   *
+   * The read is unscoped, and `null` is not the caller's own account: only the
+   * office may state a case parameter, so the call that gets here is never an
+   * applicant's and scoping the read to an account would be scoping it to
+   * nobody (ADR-0029).
+   */
+  async stateCaseParameters(
+    id: string,
+    request: StateCaseParametersRequest,
+    editedByAccountId: string,
+  ): Promise<PackageDetailDto> {
+    const packageId = await this.commands.execute(
+      new StateCaseParametersCommand(id, request.parameters, editedByAccountId),
     );
 
     return this.findOne(packageId.value, null);

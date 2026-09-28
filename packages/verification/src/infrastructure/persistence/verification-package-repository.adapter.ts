@@ -14,6 +14,7 @@ import { isStoredId } from './stored-id.js';
 import {
   VerificationPackageMapper,
   type ArchiveSearchApprovalWrite,
+  type CaseParameterOverrideWrite,
   type CrossCheckWrite,
   type DocumentWrite,
   type PackageWrite,
@@ -63,6 +64,9 @@ const WHOLE_AGGREGATE = {
     where: { supersededAt: null },
     include: { checks: { orderBy: { position: 'asc' } } },
   },
+  // Every figure an operator has set. At most six rows, and none on a package
+  // nobody has corrected (COMM-193).
+  caseParameterOverrides: { orderBy: { parameter: 'asc' } },
   report: { include: { issues: { orderBy: { createdAt: 'asc' } } } },
 } as const satisfies Prisma.VerificationPackageInclude;
 
@@ -133,6 +137,8 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
         row.archiveSearchApproval,
       );
 
+      await this.writeCaseParameters(tx, row.id, row.caseParameters);
+
       await this.writeReport(tx, row.id, row.report);
 
       // What the aggregate no longer holds is no longer in the package. Adding
@@ -156,6 +162,41 @@ export class VerificationPackageRepositoryAdapter extends VerificationPackageRep
     // After the write has landed, never before: an event names something that
     // has already happened.
     await this.events.dispatch(verificationPackage);
+  }
+
+  /*
+   * The figures an operator has set, as they now stand (COMM-193).
+   *
+   * Upserted by package and figure, and everything else deleted in the same
+   * transaction: clearing an override is the absence of a row, so a write that
+   * only added would leave a cleared figure going on deciding the case. The
+   * unique index on the pair is what makes the upsert the whole of it.
+   */
+  private async writeCaseParameters(
+    tx: Prisma.TransactionClient,
+    packageId: string,
+    overrides: readonly CaseParameterOverrideWrite[],
+  ): Promise<void> {
+    for (const override of overrides) {
+      await tx.caseParameterOverride.upsert({
+        where: {
+          packageId_parameter: { packageId, parameter: override.parameter },
+        },
+        create: { packageId, ...override },
+        update: {
+          value: override.value,
+          editedByAccountId: override.editedByAccountId,
+          editedAt: override.editedAt,
+        },
+      });
+    }
+
+    await tx.caseParameterOverride.deleteMany({
+      where: {
+        packageId,
+        parameter: { notIn: overrides.map(override => override.parameter) },
+      },
+    });
   }
 
   private async insert(

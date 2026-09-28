@@ -48,6 +48,8 @@ const parameter = (
   stated: null,
   from: null,
   calculation: null,
+  overriddenBy: null,
+  read: null,
   ...over,
 });
 

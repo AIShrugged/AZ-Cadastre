@@ -10,6 +10,7 @@ import type {
   PackageScope,
   PackagesOverviewRequest,
   PackagesOverviewResponse,
+  StateCaseParametersRequest,
   SupplyDocumentRequest,
 } from '../dto/index.js';
 
@@ -207,6 +208,34 @@ export interface PackagesApi {
     id: string,
     documentId: string,
     request: EditDocumentFieldsRequest,
+    editedByAccountId: string,
+  ): Promise<PackageDetailDto>;
+
+  /**
+   * What an operator states the six figures of the Article 8 decision table are
+   * (COMM-193), answered with the whole submission for the reason a correction
+   * is.
+   *
+   * The figure is stored and the provision it selects is not: the table is read
+   * on every read, off the papers where nobody has corrected them and off this
+   * where somebody has (ADR-0014). `value: null` clears an override and puts
+   * the figure back to what the papers say.
+   *
+   * Refuses with `PACKAGE_NOT_FOUND` where the package is not there, and with
+   * `PACKAGE_NOT_TAKING_FILES` while a run is under way — the same state test
+   * `addFiles` and a correction are put to. A figure the parameter cannot take
+   * is a 400 from the schema in front of the handler.
+   *
+   * The office's own: an applicant gets a 403, for the reason a correction does
+   * — the route and not the case is none of their business (ADR-0029).
+   *
+   * `editedByAccountId` is the edge's to supply and never the body's, exactly
+   * as it is on a correction: it is read off the session, so a caller cannot
+   * state a figure under somebody else's name.
+   */
+  stateCaseParameters(
+    id: string,
+    request: StateCaseParametersRequest,
     editedByAccountId: string,
   ): Promise<PackageDetailDto>;
 }

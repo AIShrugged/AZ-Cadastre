@@ -32,7 +32,6 @@ import {
   READING_TINT,
   ReadingFigure,
   readReading,
-  spanPhrase,
   spanWithinLimit,
   unitLine,
   type ProfileDto,
@@ -50,6 +49,11 @@ import type {
   TitleDocumentStandingDto,
 } from '@cadastre/api-contracts/verification';
 
+import {
+  conditionReasons,
+  parameterPhrase,
+  undecidedNames,
+} from '../model/condition-reason';
 import { isDoubtful, restsOnUnconfirmed } from '../model/provision-confidence';
 
 type Translate = (
@@ -250,35 +254,23 @@ function Parameters({
   );
 }
 
+/** The words are `parameterPhrase`'s and only the ink is this table's: the
+ *  reason a provision was ruled out names the same figure a few rows down, and
+ *  the two must not word one reading differently. */
 function ParameterValue({ parameter }: { parameter: CaseParameterDto }) {
   const { t, locale } = useI18n();
+  const phrase = parameterPhrase(t, parameter, locale);
 
+  // A reading refused is not a reading missing: the words that could not be
+  // understood are shown, so the inspector knows which sheet to open.
   if (parameter.value === null) {
-    // A reading refused is not a reading missing: the words that could not be
-    // understood are shown, so the inspector knows which sheet to open.
-    return (
-      <span className='text-incomplete-ink'>
-        {parameter.stated === null
-          ? t('provision.not_established')
-          : t('provision.stated_refused', { stated: parameter.stated })}
-      </span>
-    );
+    return <span className='text-incomplete-ink'>{phrase}</span>;
   }
 
-  // The span says which two axes it lies between: a bare "5.2" is a figure the
-  // inspector cannot find on the plan (ADR-0043).
-  if (parameter.calculation) {
-    return (
-      <span className='tabular-nums'>
-        {spanPhrase(t, parameter.calculation, locale)}
-      </span>
-    );
-  }
-
-  return typeof parameter.value === 'number' ? (
-    <span className='tabular-nums'>{parameter.value}</span>
+  return parameter.calculation || typeof parameter.value === 'number' ? (
+    <span className='tabular-nums'>{phrase}</span>
   ) : (
-    <>{translateOr(t, `provision.value.${parameter.value}`, parameter.value)}</>
+    <>{phrase}</>
   );
 }
 
@@ -479,7 +471,7 @@ function Options({
   provision: CaseProvisionDto;
   profile: ProfileDto | null;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   // The provisions still in play: the one that applies, or every candidate
   // while it is open. The rest were ruled out and fold away below the table.
   // With nothing in play every rule is a column, so the table is never empty.
@@ -540,27 +532,32 @@ function Options({
     }
   }
 
+  /*
+   * What a provision is and how this package stands against it: the rule in
+   * words, then a line per condition it failed — the figure, what the rule
+   * required and what the package established — and the figures still to be
+   * found, which are a different thing and said differently.
+   *
+   * It named the failing figures and stopped there ("Ruled out by: right to
+   * the land"), which is the gap the fold below had too: knowing *which* figure
+   * decided it is not knowing *what about it*.
+   */
   const conditionOf = (rule: ProvisionRule) => {
-    const decisive = rule.conditions
-      .filter(condition => condition.holds !== true)
-      .map(condition =>
-        translateOr(
-          t,
-          `provision.param.${condition.parameter}`,
-          condition.parameter,
-        ),
-      );
+    const reasons = conditionReasons(t, rule, provision.parameters, locale);
+    const pending = undecidedNames(t, rule);
     return (
       <>
         <span>
           {translateOr(t, `provision.rule.${rule.provision}`, rule.description)}
         </span>
-        {decisive.length > 0 && (
+        {reasons.map(reason => (
+          <span key={reason} className='text-incomplete-ink'>
+            {reason}
+          </span>
+        ))}
+        {pending.length > 0 && (
           <span className='opacity-80'>
-            {t(
-              rule.excluded ? 'provision.rule.fails' : 'provision.rule.depends',
-              { list: decisive.join(', ') },
-            )}
+            {t('provision.rule.depends', { list: pending.join(', ') })}
           </span>
         )}
       </>
@@ -694,17 +691,46 @@ function Options({
                 <span className='w-16 shrink-0 font-medium tabular-nums text-foreground'>
                   {rule.provision}
                 </span>
-                <span className='min-w-0'>
-                  {translateOr(
-                    t,
-                    `provision.rule.${rule.provision}`,
-                    rule.description,
-                  )}
-                </span>
+                <ReasonedRule rule={rule} parameters={provision.parameters} />
               </li>
             ))}
           </ul>
         </details>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A ruled-out provision in the fold: what it is, and under it the condition
+ * that ruled it out — "Right to the land: ownership required, package has lease
+ * or use" — one line per failing condition.
+ *
+ * The reason is the whole point of opening the fold. Without it the reader has
+ * the rule's own prose and their own guess as to which half of it the package
+ * missed, and on 8.0.9.1.2 that guess is wrong as often as right: the figure
+ * that decided it came off the *kind* of the title document and not off the
+ * words of a page (ADR-0030).
+ */
+function ReasonedRule({
+  rule,
+  parameters,
+}: {
+  rule: ProvisionRule;
+  parameters: readonly CaseParameterDto[];
+}) {
+  const { t, locale } = useI18n();
+  const reasons = conditionReasons(t, rule, parameters, locale);
+
+  return (
+    <div className='min-w-0'>
+      {translateOr(t, `provision.rule.${rule.provision}`, rule.description)}
+      {reasons.length > 0 && (
+        <ul className='mt-0.5 flex flex-col gap-0.5 text-incomplete-ink'>
+          {reasons.map(reason => (
+            <li key={reason}>{reason}</li>
+          ))}
+        </ul>
       )}
     </div>
   );

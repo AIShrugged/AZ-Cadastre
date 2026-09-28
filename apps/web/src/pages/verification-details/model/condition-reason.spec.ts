@@ -15,6 +15,7 @@ import type {
 } from '@cadastre/api-contracts/verification';
 
 import {
+  asRead,
   conditionReasons,
   expectationPhrase,
   parameterPhrase,
@@ -174,6 +175,97 @@ describe('the figure as the package established it', () => {
         'en',
       ),
     ).toBe('Read as “2 mərtəbə”, not understood');
+  });
+
+  it('words the operator’s figure the same way it words a reading', () => {
+    // An override is what the case is decided on, so the table, the ruled-out
+    // reason and the report all print it — and they print it through this one
+    // function, so they cannot word one figure two ways (COMM-193).
+    expect(
+      parameterPhrase(
+        t,
+        parameter('landRight', {
+          value: 'Ownership',
+          source: 'StatedByOperator',
+          stated: 'Ownership',
+          overriddenBy: { accountId: 'acc-1', at: '2026-09-28T10:00:00.000Z' },
+          read: {
+            value: 'LeaseOrUse',
+            source: 'TitleDocumentType',
+            stated: null,
+            from: null,
+            calculation: null,
+          },
+        }),
+        'en',
+      ),
+    ).toBe('Ownership');
+  });
+});
+
+describe('what the engine read, under a figure the operator stated', () => {
+  const override = (read: CaseParameterDto['read']): CaseParameterDto =>
+    parameter('height', {
+      value: 14,
+      source: 'StatedByOperator',
+      stated: '14',
+      overriddenBy: { accountId: 'acc-1', at: '2026-09-28T10:00:00.000Z' },
+      read,
+    });
+
+  it('is nothing at all where no operator has stated the figure', () => {
+    expect(asRead(parameter('height', { value: 12 }))).toBeNull();
+  });
+
+  it('words the displaced reading as the figure it was', () => {
+    const read = asRead(
+      override({
+        value: 12,
+        source: 'ReadOffDocument',
+        stated: '12',
+        from: null,
+        calculation: null,
+      }),
+    );
+
+    expect(read).not.toBeNull();
+    expect(parameterPhrase(t, read as CaseParameterDto, 'en')).toBe('12');
+    expect((read as CaseParameterDto).source).toBe('ReadOffDocument');
+  });
+
+  it('says a figure no paper stated was never established, rather than inventing one', () => {
+    // The cell this whole feature exists for: a parameter with no reading at all
+    // cannot be set by correcting a field, and the line under the operator's
+    // figure must not imply a previous one (COMM-193).
+    const read = asRead(
+      override({
+        value: null,
+        source: null,
+        stated: null,
+        from: null,
+        calculation: null,
+      }),
+    );
+
+    expect(parameterPhrase(t, read as CaseParameterDto, 'en')).toBe(
+      'Not established',
+    );
+  });
+
+  it('keeps a refused reading refused under the operator’s figure', () => {
+    const read = asRead(
+      override({
+        value: null,
+        source: 'ReadOffDocument',
+        stated: '2 mərtəbə',
+        from: null,
+        calculation: null,
+      }),
+    );
+
+    expect(parameterPhrase(t, read as CaseParameterDto, 'en')).toBe(
+      'Read as “2 mərtəbə”, not understood',
+    );
   });
 });
 

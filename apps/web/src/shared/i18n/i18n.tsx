@@ -475,6 +475,13 @@ const en: Dict = {
   'provision.value.Other': 'Other',
   'provision.not_established': 'Not established',
   'provision.stated_refused': 'Read as “{stated}”, not understood',
+  'provision.parameters_editable':
+    'Each of the six can be set by hand. A figure an operator sets is what the case is decided on, and what the engine read is kept beside it.',
+  'provision.read_was': 'The engine established: {value}',
+  'provision.stated': 'Set by the operator',
+  'provision.stated_on': 'Set by the operator, {date}',
+  'provision.stated_why':
+    'An operator set this figure over what the papers were read to say. The case is decided on theirs.',
   'provision.from.ReadOffDocument': 'From {document}',
   'provision.from.DeclaredAtIntake': 'Declared at intake',
   'provision.from.TitleDocumentType': 'By the kind of title: {document}',
@@ -1027,6 +1034,35 @@ const en: Dict = {
   'correct.failed': 'The corrections could not be saved — try again',
   'correct.running':
     'Checking in progress — values can be corrected when it finishes.',
+  // ── The case's own six figures, set by hand (COMM-194) ─────────────────────
+  'parameter.edit_action': 'Set “{figure}”',
+  'parameter.close': 'Close the box and leave the figure as it is',
+  'parameter.choose': 'Not set by hand',
+  'parameter.revert_choice': 'Put back what the papers say',
+  'parameter.revert': 'Put back what the engine read',
+  'parameter.reverts':
+    'Empty — the figure goes back to what the papers were read to say.',
+  'parameter.states_nothing':
+    'An empty box states nothing; the figure stays as it is.',
+  'parameter.was': 'the case is decided on “{value}”',
+  'parameter.was_unestablished': 'nothing had established this figure before',
+  'parameter.hint.year': 'A four-digit year',
+  'parameter.hint.count': 'Whole storeys above ground',
+  'parameter.hint.metres': 'Metres — 12 or 12.5',
+  'parameter.hint.choice': 'Choose one',
+  'parameter.bad.not_a_number': 'Not a number.',
+  'parameter.bad.not_whole': 'A whole number — nothing after the point.',
+  'parameter.bad.not_positive': 'Greater than nought.',
+  'parameter.bad.year_window': 'A year between {from} and {to}.',
+  'parameter.bad.not_a_choice': 'Not one of the answers this figure takes.',
+  'parameter.pending': 'Figures to save: {n}',
+  'parameter.not_ready': 'Not a figure the table can take: {figures}.',
+  'parameter.saved': 'Figures saved — the package is being verified again',
+  'parameter.failed': 'The figures could not be saved — try again',
+  'parameter.running':
+    'Checking in progress — the figures can be set when it finishes.',
+  'parameter.reopened':
+    'The package has just re-opened. The figures can be set again once the verification this started has finished.',
   'error.DOCUMENT_NOT_CLASSIFIED':
     'This document has no type yet — its values can be corrected once it is classified',
   'error.UNCLASSIFIABLE_DOCUMENT':
@@ -1875,6 +1911,13 @@ const ru: Dict = {
   'provision.value.Other': 'Иное',
   'provision.not_established': 'Не установлено',
   'provision.stated_refused': 'Прочитано «{stated}» — не распознано',
+  'provision.parameters_editable':
+    'Любой из шести показателей можно указать вручную. Дело решается по значению, которое указал оператор, а прочитанное машиной остаётся рядом.',
+  'provision.read_was': 'Машина установила: {value}',
+  'provision.stated': 'Указано оператором',
+  'provision.stated_on': 'Указано оператором, {date}',
+  'provision.stated_why':
+    'Оператор указал этот показатель вместо прочитанного в документах. Дело решается по его значению.',
   'provision.from.ReadOffDocument': 'Из документа: {document}',
   'provision.from.DeclaredAtIntake': 'Заявлено при приёме',
   'provision.from.TitleDocumentType': 'По виду документа на землю: {document}',
@@ -2378,6 +2421,35 @@ const ru: Dict = {
   'correct.failed': 'Не удалось сохранить исправления — попробуйте ещё раз',
   'correct.running':
     'Идёт проверка — значения можно исправить, когда она закончится.',
+  // ── Шесть показателей дела, указанные вручную (COMM-194) ───────────────────
+  'parameter.edit_action': 'Указать «{figure}»',
+  'parameter.close': 'Закрыть поле и оставить показатель как есть',
+  'parameter.choose': 'Вручную не указано',
+  'parameter.revert_choice': 'Вернуть то, что в документах',
+  'parameter.revert': 'Вернуть прочитанное машиной',
+  'parameter.reverts':
+    'Пусто — показатель вернётся к прочитанному в документах.',
+  'parameter.states_nothing':
+    'Пустое поле ничего не указывает; показатель останется как есть.',
+  'parameter.was': 'дело решается по значению «{value}»',
+  'parameter.was_unestablished': 'раньше этот показатель не был установлен',
+  'parameter.hint.year': 'Год из четырёх цифр',
+  'parameter.hint.count': 'Целое число надземных этажей',
+  'parameter.hint.metres': 'Метры — 12 или 12,5',
+  'parameter.hint.choice': 'Выберите значение',
+  'parameter.bad.not_a_number': 'Это не число.',
+  'parameter.bad.not_whole': 'Целое число — без дробной части.',
+  'parameter.bad.not_positive': 'Больше нуля.',
+  'parameter.bad.year_window': 'Год от {from} до {to}.',
+  'parameter.bad.not_a_choice': 'Такого значения этот показатель не принимает.',
+  'parameter.pending': 'Показателей к сохранению: {n}',
+  'parameter.not_ready': 'Таблица не примет такое значение: {figures}.',
+  'parameter.saved': 'Показатели сохранены — пакет проверяется заново',
+  'parameter.failed': 'Не удалось сохранить показатели — попробуйте ещё раз',
+  'parameter.running':
+    'Идёт проверка — показатели можно указать, когда она закончится.',
+  'parameter.reopened':
+    'Пакет только что открыт заново. Показатели можно указать снова после проверки, которую это запустило.',
   'error.DOCUMENT_NOT_CLASSIFIED':
     'У документа ещё нет типа — значения можно исправить после классификации',
   'error.UNCLASSIFIABLE_DOCUMENT':
@@ -3201,6 +3273,13 @@ const az: Dict = {
   'provision.value.Other': 'Digər',
   'provision.not_established': 'Müəyyən edilməyib',
   'provision.stated_refused': '«{stated}» oxundu, anlaşılmadı',
+  'provision.parameters_editable':
+    'Altı göstəricinin hər birini əl ilə göstərmək olar. İş operatorun göstərdiyi rəqəm ilə həll olunur, maşının oxuduğu isə onun yanında saxlanılır.',
+  'provision.read_was': 'Maşının müəyyən etdiyi: {value}',
+  'provision.stated': 'Operator göstərib',
+  'provision.stated_on': 'Operator göstərib, {date}',
+  'provision.stated_why':
+    'Operator bu göstəricini sənədlərdən oxunanın əvəzinə göstərib. İş onun rəqəmi ilə həll olunur.',
   'provision.from.ReadOffDocument': 'Sənəddən: {document}',
   'provision.from.DeclaredAtIntake': 'Qəbul zamanı bildirilib',
   'provision.from.TitleDocumentType':
@@ -3705,6 +3784,34 @@ const az: Dict = {
   'correct.failed': 'Düzəlişlər saxlanılmadı — yenidən cəhd edin',
   'correct.running':
     'Yoxlama gedir — dəyərləri yoxlama bitəndən sonra düzəltmək olar.',
+  // ── İşin altı göstəricisi, əl ilə göstərilir (COMM-194) ────────────────────
+  'parameter.edit_action': '«{figure}» göstəricisini göstər',
+  'parameter.close': 'Sahəni bağla və göstəricini olduğu kimi saxla',
+  'parameter.choose': 'Əl ilə göstərilməyib',
+  'parameter.revert_choice': 'Sənədlərdə yazılanı qaytar',
+  'parameter.revert': 'Maşının oxuduğunu qaytar',
+  'parameter.reverts': 'Boş — göstərici sənədlərdə oxunana qayıdacaq.',
+  'parameter.states_nothing':
+    'Boş sahə heç nə göstərmir; göstərici olduğu kimi qalır.',
+  'parameter.was': 'iş «{value}» dəyəri ilə həll olunur',
+  'parameter.was_unestablished': 'bu göstərici əvvəl müəyyən edilməyib',
+  'parameter.hint.year': 'Dörd rəqəmli il',
+  'parameter.hint.count': 'Yerüstü mərtəbələrin tam sayı',
+  'parameter.hint.metres': 'Metr — 12 və ya 12,5',
+  'parameter.hint.choice': 'Birini seçin',
+  'parameter.bad.not_a_number': 'Bu rəqəm deyil.',
+  'parameter.bad.not_whole': 'Tam rəqəm — onluq hissəsi olmadan.',
+  'parameter.bad.not_positive': 'Sıfırdan böyük.',
+  'parameter.bad.year_window': '{from}–{to} aralığında il.',
+  'parameter.bad.not_a_choice': 'Bu göstərici belə bir dəyər qəbul etmir.',
+  'parameter.pending': 'Saxlanılacaq göstəricilər: {n}',
+  'parameter.not_ready': 'Cədvəl belə dəyəri qəbul etmir: {figures}.',
+  'parameter.saved': 'Göstəricilər saxlanıldı — paket yenidən yoxlanılır',
+  'parameter.failed': 'Göstəricilər saxlanılmadı — yenidən cəhd edin',
+  'parameter.running':
+    'Yoxlama gedir — göstəriciləri yoxlama bitəndən sonra göstərmək olar.',
+  'parameter.reopened':
+    'Paket yenicə yenidən açılıb. Göstəriciləri bunun başlatdığı yoxlama bitəndən sonra yenidən göstərmək olar.',
   'error.DOCUMENT_NOT_CLASSIFIED':
     'Sənədin hələ tipi yoxdur — dəyərlər təsnifatdan sonra düzəldilə bilər',
   'error.UNCLASSIFIABLE_DOCUMENT':

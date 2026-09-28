@@ -116,7 +116,6 @@ import {
   CorrectionBar,
   CorrectionBox,
   NoCorrectionsNote,
-  UnsavedMark,
   useCorrections,
   whyNotCorrectable,
   type Corrections,
@@ -145,6 +144,7 @@ import {
 } from '@/shared/ui/sheet';
 import { Skeleton } from '@/shared/ui/skeleton';
 import { SurfaceBody, SurfacePage } from '@/shared/ui/surface';
+import { UnsavedMark } from '@/shared/ui/unsaved-mark';
 import { CONFIDENCE_FLOOR } from '@cadastre/api-contracts/verification';
 import type {
   ArchiveQrCheckDto,
@@ -4529,6 +4529,7 @@ export function VerificationDetails() {
               >
                 {pkg.provision ? (
                   <CaseProvisionPanel
+                    pkg={pkg}
                     provision={pkg.provision}
                     profile={profile}
                     documents={documents}

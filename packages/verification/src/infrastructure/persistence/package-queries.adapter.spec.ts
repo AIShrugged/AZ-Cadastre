@@ -420,11 +420,11 @@ describe('PackageQueriesAdapter', () => {
   });
 
   /*
-   * What the row calls the case. Nothing is stored: the register walks the
-   * profile's ordering over the values the pipeline already extracted, which is
-   * the same walk the aggregate makes for a registry check's subject. What is
-   * under test is that walk — which paper answers, which value wins when
-   * several could, and what a row says when none does.
+   * What the row calls the case. Nothing is stored: the register looks at every
+   * place the profile says a particular is printed and carries the surest of
+   * the readings, with the profile's ordering breaking a tie. What is under
+   * test is that walk — which paper answers, which value wins when several
+   * could, and what a row says when none does.
    */
   describe('what the row calls the case', () => {
     it('names the case off the papers, with the confidence each value was read at', async () => {
@@ -455,12 +455,12 @@ describe('PackageQueriesAdapter', () => {
     });
 
     /*
-     * The profile believes the surveyed drawing over the form filled in by
-     * hand, and the register obeys it rather than taking whichever value the
-     * database handed over first — which is the whole reason the ordering is
-     * declared (ADR-0010).
+     * Read equally surely off both papers, the profile decides: it believes the
+     * surveyed drawing over the form filled in by hand, and the register obeys
+     * it rather than taking whichever value the database handed over first —
+     * which is what the ordering is still for (ADR-0010).
      */
-    it('believes the paper the profile believes, not the row the database offered first', async () => {
+    it('believes the paper the profile believes when two readings are equally sure', async () => {
       const [summary] = await summariesOf([
         aRow([], {
           documents: [
@@ -502,8 +502,9 @@ describe('PackageQueriesAdapter', () => {
     });
 
     // Two papers of one type is a duplicate the report already states; the row
-    // still has to say one name, and it says the first the package took in.
-    it('takes the first of two documents answering to one type', async () => {
+    // still has to say one name, and read equally surely it says the first the
+    // package took in.
+    it('takes the first of two equally sure documents answering to one type', async () => {
       const [summary] = await summariesOf([
         aRow([], {
           documents: [
@@ -514,6 +515,92 @@ describe('PackageQueriesAdapter', () => {
       ]);
 
       expect(summary?.applicantName?.value).toBe('ELÇİN ƏLİYEV');
+    });
+
+    /*
+     * The case this rule was written for. One person, three papers: the
+     * application's name line came back transliterated into Cyrillic at 0.60,
+     * the plan-scheme read the same person at 0.99, the archive's certificate
+     * at 0.96. The profile names the application first, and the register used
+     * to print its reading — so one applicant stood in the list as two people,
+     * and neither spelling found the other (COMM-188).
+     */
+    it('carries the surest reading even off a paper the profile names later', async () => {
+      const [summary] = await summariesOf([
+        aRow([], {
+          documents: [
+            aDocument(
+              'application',
+              { applicant_name: 'Агаев Кочели Низам оглу' },
+              0.6,
+            ),
+            aDocument(
+              'archive_certificate',
+              { owner_name: 'Ağayev Köçəri Nizam oglu' },
+              0.96,
+            ),
+            aDocument(
+              'land_plot_plan',
+              { owner_name: 'Ağayev Köçəri Nizam oğlu' },
+              0.99,
+            ),
+          ],
+        }),
+      ]);
+
+      expect(summary?.applicantName).toEqual({
+        value: 'Ağayev Köçəri Nizam oğlu',
+        confidence: 0.99,
+      });
+    });
+
+    // Equally sure of both, the register falls back to the paper the profile
+    // believes — the ordering is the tie-breaker and nothing more.
+    it('lets the profile order decide between readings of equal confidence', async () => {
+      const [summary] = await summariesOf([
+        aRow([], {
+          documents: [
+            aDocument(
+              'application',
+              { property_address: 'Xetan uue, Burome 98. 5-862 saha' },
+              0.87,
+            ),
+            aDocument(
+              'land_plot_plan',
+              { property_address: 'Bakı ş., Nəsimi r., Azadlıq pr. 12' },
+              0.87,
+            ),
+          ],
+        }),
+      ]);
+
+      expect(summary?.propertyAddress).toEqual({
+        value: 'Bakı ş., Nəsimi r., Azadlıq pr. 12',
+        confidence: 0.87,
+      });
+    });
+
+    // A replaced scan is history however surely it was read: a superseded sheet
+    // cannot win the particular back (COMM-80).
+    it('ignores a surer reading off a scan that has been replaced', async () => {
+      const superseded = {
+        ...aDocument('land_plot_plan', { owner_name: 'RÜBABƏ ƏLİYEVA' }, 0.99),
+        supersededAt: new Date('2026-01-01T00:00:00.000Z'),
+      };
+
+      const [summary] = await summariesOf([
+        aRow([], {
+          documents: [
+            aDocument('application', { applicant_name: 'ELÇİN ƏLİYEV' }, 0.61),
+            superseded,
+          ],
+        }),
+      ]);
+
+      expect(summary?.applicantName).toEqual({
+        value: 'ELÇİN ƏLİYEV',
+        confidence: 0.61,
+      });
     });
 
     it('says nothing about a package whose papers have not been read yet', async () => {

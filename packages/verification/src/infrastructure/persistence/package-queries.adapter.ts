@@ -1387,9 +1387,11 @@ export class PackageQueriesAdapter extends PackageQueries {
    * What this submission is called: the applicant, the address and the parcel,
    * read off the values the pipeline already extracted.
    *
-   * The profile decides all of it — which field of which document type each is
-   * believed from, and in what order — so the register asks it rather than
-   * holding an opinion of its own. Reading the profile off the row's own
+   * The profile decides which fields of which document types each may be read
+   * from; of those the register takes the surest reading, falling back to the
+   * profile's order only when two are equally sure — so the register asks the
+   * profile rather than holding an opinion of its own. Reading the profile off
+   * the row's own
    * `profileKey` is what keeps a page of submissions under two profiles
    * answering by each one's rule instead of by the majority's.
    *
@@ -1404,7 +1406,7 @@ export class PackageQueriesAdapter extends PackageQueries {
   } {
     const spec = PackageQueriesAdapter.particularsSpecFor(row.profileKey);
     const stated = (references: readonly FieldRef[]): StatedValueView | null =>
-      PackageQueriesAdapter.firstStated(row, references);
+      PackageQueriesAdapter.mostConfidentStated(row, references);
 
     return {
       applicantName: stated(spec.applicantName),
@@ -1490,19 +1492,31 @@ export class PackageQueriesAdapter extends PackageQueries {
   }
 
   /**
-   * The first of an ordered list of places a value is printed that this package
-   * actually states — the same walk the aggregate makes for a registry check's
-   * subject, over the rows rather than over the loaded documents.
+   * The best-read of the places a value is printed that this package actually
+   * states — every reference the profile names for the particular, and of them
+   * the reading the pipeline was most sure of.
    *
-   * The ordering is the profile's: an address is printed on several of the
-   * papers and they are not equally trustworthy (ADR-0010). Where two documents
-   * answer to one type, the first the package took in answers, which is why the
-   * documents are read in a fixed order.
+   * The profile's ordering says which paper is believed when the papers
+   * disagree about a fact (ADR-0010); it never said which of two readings of
+   * the same fact is the better transcription, and taking the first stated made
+   * it answer that too. One submission's applicant came back as «Агаев Кочели
+   * Низам оглу» at 0.60 off the application, while the plan-scheme had read the
+   * same person as «Ağayev Köçəri Nizam oğlu» at 0.99 — and the register showed
+   * the worse of the two, which is one person appearing in the list as two
+   * (COMM-188).
+   *
+   * So: the highest confidence wins, and the profile's ordering is the
+   * tie-breaker — equally sure readings fall back to the paper the profile
+   * believes, and within one type to the first document the package took in.
+   * Superseded scans are not read at all, and a particular no paper states is
+   * null rather than an empty string.
    */
-  private static firstStated(
+  private static mostConfidentStated(
     row: SummaryRow,
     references: readonly FieldRef[],
   ): StatedValueView | null {
+    let best: StatedValueView | null = null;
+
     for (const reference of references) {
       for (const document of row.documents) {
         if (document.supersededAt !== null) continue;
@@ -1512,13 +1526,17 @@ export class PackageQueriesAdapter extends PackageQueries {
           candidate => candidate.name === reference.key.value,
         );
 
-        if (field) {
-          return { value: field.value, confidence: field.confidence };
+        if (!field) continue;
+
+        // Strictly greater: an equal reading leaves the one already found
+        // standing, which is what makes the profile's order the tie-breaker.
+        if (best === null || field.confidence > best.confidence) {
+          best = { value: field.value, confidence: field.confidence };
         }
       }
     }
 
-    return null;
+    return best;
   }
 
   /**

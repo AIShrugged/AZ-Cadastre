@@ -8,15 +8,23 @@ import {
   startContext,
   waitForTerminalStatus,
 } from '../../../../../test/context-harness.js';
+import { ExtractedField } from '../../../../domain/entities/index.js';
 import type { PackageId } from '../../../../domain/value-objects/index.js';
 import {
+  Confidence,
+  FieldValue,
   IssueKind,
   PackageStanding,
   PackageStatus,
+  PageNumber,
   RegistryOutcome,
   ReportStatus,
 } from '../../../../domain/value-objects/index.js';
 import { PackageNotFoundException } from '../../../exceptions/index.js';
+import {
+  FieldExtractor,
+  type ExtractionRequest,
+} from '../../../ports/outbound/index.js';
 import type { PackageListPage } from '../../../ports/outbound/index.js';
 import type {
   PackageDetailView,
@@ -696,5 +704,132 @@ describe('PackageQueriesAdapter', () => {
         new GetPackageSummaryQuery('00000000-0000-4000-8000-000000000000'),
       ),
     ).rejects.toThrow(PackageNotFoundException);
+  });
+});
+
+/*
+ * The reading the register prints when the same fact was read off several
+ * papers, through a real database and the whole read side.
+ *
+ * Here and not only in a unit test because the register selects its own rows:
+ * the confidences it compares are columns on a join, and a walk that picked the
+ * first row the database handed back would still pass against a hand-built row
+ * (ADR-0014).
+ */
+class PapersReadUnequallyWell extends FieldExtractor {
+  override async extract(
+    request: ExtractionRequest,
+  ): Promise<readonly ExtractedField[]> {
+    const of = (
+      key: string,
+      value: string,
+      confidence: number,
+    ): ExtractedField =>
+      ExtractedField.of(
+        request.spec.schema.specs.find(spec => spec.key.value === key)!.key,
+        FieldValue.create(value),
+        Confidence.of(confidence),
+        PageNumber.first(),
+      );
+
+    // The application is what the profile names first for the applicant, and
+    // the paper the name was read worst off: a Cyrillic transliteration the
+    // pipeline was barely sure of. The address on it was read as surely as the
+    // plan's, which is the tie the profile's order settles.
+    if (request.spec.type.value === 'application') {
+      return [
+        of('applicant_name', 'Агаев Кочели Низам оглу', 0.6),
+        of('property_address', 'Xetan uue, Burome 98. 5-862 saha', 0.88),
+      ];
+    }
+
+    if (request.spec.type.value === 'archive_certificate') {
+      return [of('owner_name', 'Ağayev Köçəri Nizam oglu', 0.96)];
+    }
+
+    // The surveyed drawing, where the same person came back in the alphabet the
+    // office writes them in — and the surest reading of the three.
+    if (request.spec.type.value === 'land_plot_plan') {
+      return [
+        of('owner_name', 'Ağayev Köçəri Nizam oğlu', 0.99),
+        of('property_address', 'Bakı ş., Nəsimi r., Azadlıq pr. 12', 0.88),
+      ];
+    }
+
+    return [];
+  }
+}
+
+describe('what the register calls a case its papers read unequally well', () => {
+  let module: TestingModule;
+  let summary: PackageSummaryView;
+  let id: PackageId;
+
+  beforeAll(async () => {
+    ({ module } = await startContext(inject('databaseUrl'), {
+      extractor: new PapersReadUnequallyWell(),
+    }));
+
+    const commands = module.get(CommandBus);
+    const queries = module.get(QueryBus);
+
+    id = await commands.execute(
+      new CreatePackageCommand('cadastre', [
+        {
+          originalFilename: 'erize-qeydiyyat.pdf',
+          contentType: 'application/pdf',
+          storageKey: 'uploads/unequal/erize-qeydiyyat.pdf',
+        },
+        {
+          originalFilename: 'arxiv-arayisi.pdf',
+          contentType: 'application/pdf',
+          storageKey: 'uploads/unequal/arxiv-arayisi.pdf',
+        },
+        {
+          originalFilename: 'plan-sxem.pdf',
+          contentType: 'application/pdf',
+          storageKey: 'uploads/unequal/plan-sxem.pdf',
+        },
+      ]),
+    );
+    await waitForTerminalStatus(queries, id);
+    summary = await queries.execute(new GetPackageSummaryQuery(id.value));
+  });
+
+  afterAll(async () => {
+    await module?.close();
+  });
+
+  /*
+   * One person read three times: «Агаев Кочели Низам оглу» at 0.60 off the
+   * application, and «Ağayev Köçəri Nizam oğlu» at 0.99 off the plan-scheme.
+   * The profile names the application first, and the register used to carry its
+   * reading — so a single applicant stood in the list as two people, in two
+   * alphabets, and neither spelling found the other (COMM-188).
+   */
+  it('carries the surest reading of the applicant, not the paper the profile names first', () => {
+    // act / assert
+    expect(summary.applicantName).toEqual({
+      value: 'Ağayev Köçəri Nizam oğlu',
+      confidence: 0.99,
+    });
+  });
+
+  // Read equally surely off both papers, the ordering does what it is still for
+  // (ADR-0010): the surveyed drawing is believed over the form filled in by
+  // hand.
+  it('falls back to the profile order between readings of equal confidence', () => {
+    // act / assert
+    expect(summary.propertyAddress).toEqual({
+      value: 'Bakı ş., Nəsimi r., Azadlıq pr. 12',
+      confidence: 0.88,
+    });
+  });
+
+  // No paper of this package states the parcel, and the row says so rather than
+  // printing a blank.
+  it('says nothing of a particular no paper states', () => {
+    // act / assert
+    expect(summary.cadastralNumber).toBeNull();
   });
 });

@@ -138,11 +138,14 @@ type RegistryCheckDeclaration = {
  * what a submission is, and the first row it disagreed with the package on
  * would be a row nobody could explain.
  *
- * Each is [document type key, field key] in the order the papers are believed,
- * read the same way a registry check's subject is: the first of them this
- * package actually states is the one the row carries. Nothing is composed and
- * nothing is joined — the value is one field as the pipeline read it, or there
- * is none.
+ * Each is [document type key, field key] in the order the papers are believed.
+ * Unlike a registry check's subject, the list is not walked for the first the
+ * package states: every one of them is looked at and the surest reading is what
+ * the row carries, because a name is not a claim two papers can disagree over —
+ * it is one fact two papers transcribed, and the worse transcription of it is
+ * simply worse. The order decides only between readings the pipeline was
+ * equally sure of (COMM-188). Nothing is composed and nothing is joined — the
+ * value is one field as the pipeline read it, or there is none.
  */
 export type ParticularsDeclaration = {
   readonly applicantName: readonly (readonly [string, string])[];
@@ -310,10 +313,12 @@ export class RegistryCheckSpec {
 /**
  * The three values a submission is named by, as the engine reads them.
  *
- * Ordered lists and not single references, for the reason a registry check's
- * subject is one: an address is printed on several of the papers and they are
- * not equally trustworthy, and a case whose plan-scheme has not been read yet
- * is still a case somebody has to find in a list.
+ * Lists and not single references, for the reason a registry check's subject is
+ * one: a value is printed on several of the papers, and a case whose
+ * plan-scheme has not been read yet is still a case somebody has to find in a
+ * list. What is read off them is the surest of the readings, not the first —
+ * the order the papers are believed in breaks a tie between equally sure
+ * readings and decides nothing else (COMM-188).
  */
 export class ParticularsSpec {
   readonly #applicantName: readonly FieldRef[];

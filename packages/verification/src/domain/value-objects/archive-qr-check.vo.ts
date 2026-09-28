@@ -23,6 +23,25 @@ export type ArchiveQrField = (typeof ARCHIVE_QR_FIELDS)[number];
 export const ARCHIVE_QR_STATUSES = [
   'Confirmed',
   'Differs',
+  /*
+   * The archive answered, its signature on the file verifies, and not one line
+   * of the paper was held against its copy (ADR-0048).
+   *
+   * Told apart from `Confirmed` because it is a different claim about a
+   * different thing. A verified signature says the file is as the National
+   * Archive Fund released it — a fact about the sheet. It says nothing about
+   * what the sheet says, and until now a check with a signature and eight
+   * uncompared lines came out `Confirmed`: the report headed itself "the
+   * archive's copy bears this paper out" over a comparison nobody made. The
+   * customer read it exactly as written and asked which lines had been checked.
+   * None had (COMM-199).
+   *
+   * Not `NotFound` either, which is the fonds holding nothing under the
+   * reference: here the archive answered, served its copy and signed it, and
+   * the signature panel is worth showing. What is missing is the comparison,
+   * and a later run makes it again (`worthAskingAgain`).
+   */
+  'SignatureOnly',
   'NotFound',
   'NoQrCode',
   // A code was decoded and the service that issued it is not connected to this
@@ -220,8 +239,8 @@ export class ArchiveQrCheck {
     public readonly issuingAuthorityCompetent: boolean | null,
     public readonly fields: readonly ArchiveQrFieldCheck[],
     // What the issuer said about the sheet. Null on every status but
-    // `Confirmed` and `Differs`, and on those two only where the service that
-    // answered verifies signatures at all (ADR-0034).
+    // `Confirmed`, `Differs` and `SignatureOnly`, and on those only where the
+    // service that answered verifies signatures at all (ADR-0034).
     public readonly signature: ArchiveQrSignature | null,
     // Whoever issued the code, where the reference names them — the host of the
     // link, as a person would read it off the paper. Carried on
@@ -310,6 +329,13 @@ export class ArchiveQrCheck {
    * The archive found the paper. `Confirmed` only when every line that both
    * sides state agrees and the body was competent: a matching name on an act
    * its issuer had no power to make is an act that confirms nothing.
+   *
+   * And only when a line was held against the copy at all (ADR-0048). A check
+   * that compared nothing has established nothing about what the paper says,
+   * whatever else came back with the answer, so it is `SignatureOnly` — the
+   * sheet vouched for and its contents unexamined. Derived here and not handed
+   * in, which is what makes a row written before this contract read the new way
+   * the moment it is restored.
    */
   static found(state: {
     qrReference: string;
@@ -331,9 +357,20 @@ export class ArchiveQrCheck {
       state.issuingAuthorityCompetent === false ||
       state.fields.some(field => field.differs) ||
       signature?.valid === false;
+    /*
+     * Whether anything at all was held against the archive's copy.
+     *
+     * `Differs` outranks it: a signature that does not verify, or a body with no
+     * power to issue the paper, is a finding whether or not a single line was
+     * compared, and calling that "only the signature was checked" would file a
+     * finding as an absence.
+     */
+    const compared = state.fields.some(
+      field => field.verdict === 'Match' || field.verdict === 'Mismatch',
+    );
 
     return new ArchiveQrCheck(
-      differs ? 'Differs' : 'Confirmed',
+      differs ? 'Differs' : compared ? 'Confirmed' : 'SignatureOnly',
       ArchiveQrCheck.referenceOf(state.qrReference),
       state.checkedAt,
       state.issuingAuthorityCompetent,
@@ -373,6 +410,10 @@ export class ArchiveQrCheck {
         );
       case 'Confirmed':
       case 'Differs':
+      // Restored through `found` like the other two, so the status is derived
+      // again rather than trusted: a row stored as `Confirmed` before ADR-0048
+      // with nothing compared comes back `SignatureOnly`.
+      case 'SignatureOnly':
         return ArchiveQrCheck.found({
           qrReference: state.qrReference ?? '',
           checkedAt: state.checkedAt,
@@ -395,16 +436,25 @@ export class ArchiveQrCheck {
     return this.status === 'Differs';
   }
 
-  // Not confirmed for want of an answer rather than because the answer
-  // disagreed: nothing under the reference, no code on the sheet, a code whose
-  // issuer this system cannot ask, or an issuer that was asked and did not
-  // answer (ADR-0037).
+  /*
+   * Not confirmed for want of an answer rather than because the answer
+   * disagreed: nothing under the reference, no code on the sheet, a code whose
+   * issuer this system cannot ask, or an issuer that was asked and did not
+   * answer (ADR-0037).
+   *
+   * `SignatureOnly` is the fifth, and the only one where an answer did arrive
+   * (ADR-0048): the sheet is vouched for and nothing it says was compared, so
+   * the paper stands unconfirmed exactly as it does under the other four. The
+   * inspector is told, and nothing is held against the package — a copy that
+   * could not be compared accuses nobody.
+   */
   get isUnanswered(): boolean {
     return (
       this.status === 'NotFound' ||
       this.status === 'NoQrCode' ||
       this.status === 'IssuerNotConnected' ||
-      this.status === 'IssuerUnreachable'
+      this.status === 'IssuerUnreachable' ||
+      this.status === 'SignatureOnly'
     );
   }
 
@@ -462,12 +512,17 @@ export class ArchiveQrCheck {
    * A check that reached a verdict without holding a single line against the
    * archive's copy.
    *
-   * Only ever true of `Confirmed` and `Differs` — every other status carries no
-   * lines at all and is an answer in its own right.
+   * Only ever true of the three statuses the archive's answer produces —
+   * `SignatureOnly` always, `Differs` where the finding is the signature or the
+   * issuing body, and `Confirmed` only on a row written before ADR-0048.
+   * Every other status carries no lines at all and is an answer in its own
+   * right.
    */
   get nothingWasCompared(): boolean {
     return (
-      (this.status === 'Confirmed' || this.status === 'Differs') &&
+      (this.status === 'Confirmed' ||
+        this.status === 'Differs' ||
+        this.status === 'SignatureOnly') &&
       !this.fields.some(
         field => field.verdict === 'Match' || field.verdict === 'Mismatch',
       )

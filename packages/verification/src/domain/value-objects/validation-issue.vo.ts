@@ -610,34 +610,43 @@ export class ValidationIssue {
     check: ArchiveQrCheck,
   ): ValidationIssue {
     /*
-     * Four absences and four sentences, because they send the inspector to
-     * four different places: nothing on the sheet to ask by, nobody here to
-     * ask, somebody who was asked and did not answer, and an archive that
-     * looked and holds nothing (ADR-0034, ADR-0037).
+     * Five absences and five sentences, because they send the inspector to
+     * five different places: nothing on the sheet to ask by, nobody here to
+     * ask, somebody who was asked and did not answer, an archive that answered
+     * and served a copy nothing was compared against, and an archive that
+     * looked and holds nothing (ADR-0034, ADR-0037, ADR-0048).
      *
-     * Only the last is the archive stating something. Saying "the National
+     * Only the last two are the archive stating anything. Saying "the National
      * Archive Fund did not confirm this" of a code issued by the register
      * would be a claim about a search nobody made — and saying it of a service
-     * that never answered would be a claim about an answer nobody got.
+     * that never answered would be a claim about an answer nobody got. Saying
+     * it flatly of a `SignatureOnly` would be true and useless: the archive
+     * answered and signed its copy, and what is missing is the comparison, so
+     * the sentence says which of the two happened.
      */
     const message =
-      check.status === 'NoQrCode'
-        ? `The National Archive Fund did not confirm this "${type.value}": ` +
-          'no QR code was decoded off it, so the archive was not asked.'
-        : check.status === 'IssuerNotConnected'
-          ? `The QR code on this "${type.value}" was decoded and not ` +
-            `followed: it is issued by ` +
-            `${check.issuer ?? 'a service this system cannot ask'}, which is ` +
-            'not connected to this system.'
-          : check.status === 'IssuerUnreachable'
-            ? `The QR code on this "${type.value}" was followed and nobody ` +
-              `answered: ${check.issuer ?? 'the service that issued it'} ` +
-              'could not be reached, so the paper is unchecked rather than ' +
-              'unconfirmed. This is a fault of the integration and not of ' +
-              'the package.'
-            : `The National Archive Fund did not confirm this ` +
-              `"${type.value}": the archive holds nothing under its QR ` +
-              `reference ${check.qrReference}.`;
+      check.status === 'SignatureOnly'
+        ? `The National Archive Fund answered about this "${type.value}" and ` +
+          'signed the copy it served, and not one line of the paper was held ' +
+          'against that copy: what the paper says is unchecked, and the ' +
+          'signature speaks for the file and not for its contents.'
+        : check.status === 'NoQrCode'
+          ? `The National Archive Fund did not confirm this "${type.value}": ` +
+            'no QR code was decoded off it, so the archive was not asked.'
+          : check.status === 'IssuerNotConnected'
+            ? `The QR code on this "${type.value}" was decoded and not ` +
+              `followed: it is issued by ` +
+              `${check.issuer ?? 'a service this system cannot ask'}, which is ` +
+              'not connected to this system.'
+            : check.status === 'IssuerUnreachable'
+              ? `The QR code on this "${type.value}" was followed and nobody ` +
+                `answered: ${check.issuer ?? 'the service that issued it'} ` +
+                'could not be reached, so the paper is unchecked rather than ' +
+                'unconfirmed. This is a fault of the integration and not of ' +
+                'the package.'
+              : `The National Archive Fund did not confirm this ` +
+                `"${type.value}": the archive holds nothing under its QR ` +
+                `reference ${check.qrReference}.`;
 
     return ValidationIssue.of({
       kind: IssueKind.REGISTRY_UNCONFIRMED,

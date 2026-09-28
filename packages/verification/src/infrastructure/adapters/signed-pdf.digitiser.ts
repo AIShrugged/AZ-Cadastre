@@ -46,6 +46,18 @@ export type DigitisedPdf = {
   readonly sheets: readonly DigitisedSheet[];
   readonly how: Digitisation;
   readonly pages: number;
+  /*
+   * The file the sheets were read off, kept so it can be read a second way
+   * (ADR-0048).
+   *
+   * A text layer that answered nothing is asked again through the renderer and
+   * the OCR provider, and the bytes are what that second reading needs. Kept
+   * here rather than fetched again because the link is presigned and expires:
+   * asking the archive twice for the same file inside one stage would be one
+   * more thing to fail, and the file is a few hundred kilobytes that go out of
+   * scope with the answer.
+   */
+  readonly file: Uint8Array;
 };
 
 /*
@@ -177,7 +189,7 @@ export class SignedPdfDigitiser {
 
     try {
       digitised = layer
-        ? SignedPdfDigitiser.parsed(layer)
+        ? SignedPdfDigitiser.parsed(layer, pdf)
         : await this.recognise(key, pdf);
     } catch (error) {
       /*
@@ -266,7 +278,60 @@ export class SignedPdfDigitiser {
     return new Uint8Array(await response.arrayBuffer());
   }
 
-  private static parsed(pages: readonly string[]): DigitisedPdf {
+  /*
+   * The same file read again, this time by rendering its pages and asking the
+   * OCR provider (ADR-0048).
+   *
+   * For the file whose text layer is there and answers nothing. A searchable
+   * scan carries a layer some other tool's OCR left in it, and where that layer
+   * is shredded — spaces inside words, diacritics dropped, numbers broken — the
+   * reader comes back with none of the eight lines while the picture of the page
+   * is perfectly legible. `textLayerOf` cannot tell the two apart by length,
+   * which is all it has: the honest test of a layer is whether anything was read
+   * off it, and that is known only after the reading.
+   *
+   * So this is never the first reading and never replaces a good one. The caller
+   * asks for it only when the layer produced nothing, and keeps the second
+   * answer only if it produced something — a reading that failed twice leaves
+   * the first result standing, and the check reports what it always did.
+   */
+  async readAgainByOcr(
+    contentUrl: string,
+    copy: DigitisedPdf,
+  ): Promise<DigitisedCopy> {
+    const startedAt = Date.now();
+    // The same key the first reading used, so the pages of one copy stay in one
+    // folder: nothing was written under it then, because a text layer renders no
+    // pages.
+    const key = SignedPdfDigitiser.keyOf(contentUrl);
+
+    try {
+      const digitised = await this.recognise(key, copy.file);
+
+      if (digitised.text.trim().length === 0) {
+        return this.unread('NothingPrinted', key, startedAt, undefined, {
+          how: digitised.how,
+          pages: digitised.pages,
+        });
+      }
+
+      this.logger.debug("The archive's signed copy was read again by OCR", {
+        key: key.value,
+        pages: digitised.pages,
+        characters: digitised.text.length,
+        durationMs: Date.now() - startedAt,
+      });
+
+      return { read: digitised };
+    } catch (error) {
+      return this.unread(becauseOfTheReading(error), key, startedAt, error);
+    }
+  }
+
+  private static parsed(
+    pages: readonly string[],
+    file: Uint8Array,
+  ): DigitisedPdf {
     const sheets = pages.map((text, index) => ({
       number: PageNumber.of(index + 1),
       image: null,
@@ -279,6 +344,7 @@ export class SignedPdfDigitiser {
       sheets,
       how: 'TextLayer',
       pages: sheets.length,
+      file,
     };
   }
 
@@ -315,6 +381,7 @@ export class SignedPdfDigitiser {
       sheets,
       how: 'Ocr',
       pages: sheets.length,
+      file: pdf,
     };
   }
 

@@ -672,10 +672,26 @@ describe('resolving a QR code that is not the archive holding a copy', () => {
     expect(check(empty).status).toBe('NotFound');
   });
 
-  it('confirms a sheet whose signature the issuer verified, and keeps who signed it', () => {
+  /*
+   * `SignatureOnly` and never `Confirmed` (ADR-0048, COMM-199).
+   *
+   * This asserted `Confirmed` until the customer read the report it produces:
+   * "the National Archive's copy bears this paper out — every line held against
+   * it agrees", over eight lines nobody held against anything. The signature is
+   * a fact about the file and not about what is written on it, and the two
+   * claims now have two words.
+   */
+  it('says only the signature was checked where no line was compared, and keeps who signed it', () => {
     const answer = check(aSignedSheet(true));
 
-    expect(answer.status).toBe('Confirmed');
+    expect(answer.status).toBe('SignatureOnly');
+    expect(answer.isConfirmed).toBe(false);
+    // Unconfirmed like the four absences, and held against nobody: what is
+    // missing is the comparison, and a later run makes it.
+    expect(answer.isUnanswered).toBe(true);
+    expect(answer.differs).toBe(false);
+    expect(answer.nothingWasCompared).toBe(true);
+    expect(answer.worthAskingAgain).toBe(true);
     expect(answer.signature?.signedBy).toBe('Məmmədov Anar');
     // Nothing was held against anything, and the issuing body is the one line
     // the service supplies no value of at all (ADR-0040).
@@ -788,6 +804,47 @@ describe('resolving a QR code that is not the archive holding a copy', () => {
     });
 
     expect(answer.issuingAuthorityCompetent).toBeNull();
-    expect(answer.status).toBe('Confirmed');
+    // And still not a confirmation, because this sheet compared nothing
+    // (ADR-0048): competence being unjudged is not what decides that.
+    expect(answer.status).toBe('SignatureOnly');
+  });
+
+  /*
+   * The one verdict this check must never produce, said as a rule and not as a
+   * case (ADR-0048, COMM-199).
+   *
+   * Whatever else comes back with the archive's answer — a verified signature, a
+   * competent issuing body, a copy this system failed to read, a copy that
+   * genuinely prints none of the eight — a check that held no line against the
+   * archive's copy has established nothing about what the paper says, and may
+   * not report that the copy bears the paper out.
+   */
+  it('never confirms a paper against a copy no line was compared with', () => {
+    const answers = [
+      // Signed, and the copy states none of the eight.
+      check(aSignedSheet(true)),
+      // Signed, and the copy was served and could not be read (ADR-0041).
+      check(unreadCopy()),
+      // Signed, and the body the archive files it under was competent: the one
+      // case where everything beside the comparison came back in the paper's
+      // favour, and still nothing about the paper was compared.
+      check({
+        ...aSignedSheet(true),
+        issuingAuthorityKind: 'LocalExecutiveAuthority',
+      }),
+    ];
+
+    for (const answer of answers) {
+      expect(answer.nothingWasCompared).toBe(true);
+      expect(answer.isConfirmed).toBe(false);
+      expect(answer.status).toBe('SignatureOnly');
+    }
+
+    // And where not even a signature came back there is nothing to publish at
+    // all, which the caller is told the way an empty shelf is (ADR-0034).
+    const silent = check({ ...aSignedSheet(true), signature: null });
+
+    expect(silent.isConfirmed).toBe(false);
+    expect(silent.status).toBe('NotFound');
   });
 });

@@ -26,8 +26,10 @@
  * absence of evidence — the reference was asked and the fonds hold no file
  * under it — `NoQrCode` is not even a question that was put, and
  * `IssuerNotConnected` is a question this system cannot put to anybody, and
- * `IssuerUnreachable` is a question that was put and never answered (ADR-0037).
- * None of the four is held against the submission (ADR-0031, ADR-0034), so none
+ * `IssuerUnreachable` is a question that was put and never answered (ADR-0037),
+ * and `SignatureOnly` is an answer that vouched for the file it served and
+ * compared nothing the paper says (ADR-0048).
+ * None of the five is held against the submission (ADR-0031, ADR-0034), so none
  * may borrow a fault's colour; `Differs` is the only status that reports one.
  */
 import type { OutcomeTone } from '@/shared/ui/outcome-mark';
@@ -65,6 +67,13 @@ export const QR_STATUS_TONE: Record<ArchiveQrCheckStatus, OutcomeTone> = {
    * drawing at all is the bug it was added for (COMM-144).
    */
   IssuerUnreachable: 'silent',
+  /*
+   * The fifth: the archive answered, signed the copy it served, and not one line
+   * of the paper was held against that copy (ADR-0048). Silent because it is an
+   * answer with nothing in it about the paper — the one status whose green mark
+   * was the whole of the misreading the customer caught (COMM-199).
+   */
+  SignatureOnly: 'silent',
 };
 
 /** The status itself, in the reader's language. */
@@ -75,6 +84,9 @@ export const QR_STATUS_KEY: Record<ArchiveQrCheckStatus, string> = {
   NoQrCode: 'detail.qr.no_code',
   IssuerNotConnected: 'detail.qr.issuer_not_connected',
   IssuerUnreachable: 'detail.qr.issuer_unreachable',
+  // The same words the surface has used for this state since COMM-150, now that
+  // the engine names it too (ADR-0048).
+  SignatureOnly: 'detail.qr.confirmed_no_line',
 };
 
 /** What the status means for this paper, said in a sentence — the whole of the
@@ -86,6 +98,7 @@ export const QR_STATUS_NOTE: Record<ArchiveQrCheckStatus, string> = {
   NoQrCode: 'detail.qr.no_code_note',
   IssuerNotConnected: 'detail.qr.issuer_not_connected_note',
   IssuerUnreachable: 'detail.qr.issuer_unreachable_note',
+  SignatureOnly: 'detail.qr.confirmed_no_line_note',
 };
 
 /**
@@ -362,7 +375,7 @@ export function qrDrawsTable(check: ArchiveQrCheckDto): boolean {
 }
 
 /**
- * Whether the check bore out no line of the paper at all (COMM-150).
+ * Whether the check bore out no line of the paper at all (COMM-150, ADR-0048).
  *
  * The bug this exists to close: the archive answered, its copy stated not one
  * of the eight lines, every comparison was therefore vacuous — and the block
@@ -370,16 +383,24 @@ export function qrDrawsTable(check: ArchiveQrCheckDto): boolean {
  * its own sentence that every compared line agreed. True over an empty set and
  * read by an inspector as a confirmed paper.
  *
- * Only `Confirmed`, because only `Confirmed` claims anything. `Differs` with
- * no compared line is a finding of some other kind — the signature did not
- * verify, or the issuing body had no such power — and its word and its tone
- * are already the right ones. The four silences never claimed to begin with.
+ * `SignatureOnly` is the engine's own word for it now, and the first thing this
+ * asks. The surface answered it alone for a release — a presentational patch
+ * over a domain that still said `Confirmed`, so everything that is not this
+ * screen went on reading a confirmation: the wire, the findings, the stored row
+ * (COMM-199).
  *
- * Purely presentational, and derived: the contract states no such status and
- * is not asked for one.
+ * The `Confirmed` half stays and is not redundant: a report written before the
+ * migration that renamed those rows still carries `Confirmed` over eight
+ * uncompared lines, and this is the last place that would tell a reader it
+ * passed. `Differs` is not here — with no compared line it is a finding of some
+ * other kind, a signature that did not verify or an issuing body with no such
+ * power, and its word and its tone are already the right ones.
  */
 export function qrConfirmsNoLine(check: ArchiveQrCheckDto): boolean {
-  return check.status === 'Confirmed' && qrComparedFields(check).length === 0;
+  return (
+    check.status === 'SignatureOnly' ||
+    (check.status === 'Confirmed' && qrComparedFields(check).length === 0)
+  );
 }
 
 /** The status word, with the empty confirmation told apart from a real one. */
@@ -389,10 +410,23 @@ export function qrStatusKey(check: ArchiveQrCheckDto): string {
     : QR_STATUS_KEY[check.status];
 }
 
-/** And its sentence, which is where the difference is actually explained. */
+/**
+ * And its sentence, which is where the difference is actually explained.
+ *
+ * Two of them are conditional on what the table below actually shows, because a
+ * heading that claims more than the table is the whole family of misreadings
+ * this block keeps producing (COMM-199). The empty confirmation is one. The
+ * other is competence: `confirmed_note` ends "and the body that issued the paper
+ * could issue one of this kind", and on every paper the archive's electronic
+ * document service answers about, that was never judged at all — the service
+ * states no issuing body, so the line beside the table reads "nothing to judge
+ * its power by" while the sentence above it said the power was there.
+ */
 export function qrStatusNote(check: ArchiveQrCheckDto): string {
-  return qrConfirmsNoLine(check)
-    ? 'detail.qr.confirmed_no_line_note'
+  if (qrConfirmsNoLine(check)) return 'detail.qr.confirmed_no_line_note';
+
+  return check.status === 'Confirmed' && competence(check) === 'unknown'
+    ? 'detail.qr.confirmed_note_competence_unknown'
     : QR_STATUS_NOTE[check.status];
 }
 

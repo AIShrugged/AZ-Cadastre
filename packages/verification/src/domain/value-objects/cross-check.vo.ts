@@ -111,7 +111,7 @@ export class CrossCheck {
     return new CrossCheck(
       state.key,
       state.verdict,
-      state.confidence,
+      CrossCheck.noSurerThanWhatItWeighed(state.confidence, state.values),
       state.note.trim(),
       state.values,
     );
@@ -155,6 +155,35 @@ export class CrossCheck {
       this.#values,
       true,
     );
+  }
+
+  /*
+   * PRD §4: a verdict is never surer than the least confident value it weighed.
+   *
+   * The checker answers about values, not about paper, so its certainty is
+   * borrowed: a name read at 0.40 off a faint card cannot produce a mismatch
+   * anyone should act on at 0.95. The ceiling lives here rather than in the
+   * caller that happens to build the check, because it is a property of what a
+   * cross-check means — every way of making one owes it.
+   *
+   * It is a ceiling and not a floor: a checker that is unsure of a verdict over
+   * values read perfectly stays unsure, and says so.
+   */
+  private static noSurerThanWhatItWeighed(
+    confidence: Confidence,
+    values: readonly CheckedValue[],
+  ): Confidence {
+    const ceiling = values.reduce<Confidence | null>(
+      (lowest, value) =>
+        lowest === null || value.confidence.value < lowest.value
+          ? value.confidence
+          : lowest,
+      null,
+    );
+
+    if (ceiling === null) return confidence;
+
+    return confidence.value <= ceiling.value ? confidence : ceiling;
   }
 
   private static documentsIn(values: readonly CheckedValue[]): number {

@@ -2593,6 +2593,31 @@ describe('VerificationPackage', () => {
       expect(verification.report?.status.value).not.toBe('OK');
     });
 
+    /*
+     * COMM-187: two values both read well and a verdict of mismatch is a firm
+     * disagreement between the papers, and the finding must carry a confidence
+     * that says so. It used to arrive around 0.50 — the cross-checker's
+     * certainty about the sentence it wrote, not about the decision — which is
+     * the same figure a badly read field wears, and the inspector could not
+     * tell the two apart.
+     */
+    it('files a disagreement over well-read values as a firm one', () => {
+      const { verification } = aSubmission('Məmmədov Elçin');
+      verification.recordCrossCheck(
+        aVerdict(verification, CrossCheckVerdict.MISMATCH, 0.93),
+      );
+
+      verification.complete();
+
+      const found = verification.report?.issues.find(
+        issue => issue.kind.value === 'FieldMismatch',
+      );
+      // 0.9 and not 0.93: the values were read at 0.9, and a verdict is never
+      // surer than what it weighed.
+      expect(found?.confidence?.value).toBe(0.9);
+      expect(found?.confidence?.meets(Confidence.FLOOR)).toBe(true);
+    });
+
     it('files the finding on the document the profile named first', () => {
       const { verification, card } = aSubmission('Məmmədov Elçin');
       verification.recordCrossCheck(

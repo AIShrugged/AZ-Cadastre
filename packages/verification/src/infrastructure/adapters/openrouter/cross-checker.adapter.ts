@@ -22,7 +22,7 @@ import {
 import { MissingOpenRouterApiKeyException } from '../../exceptions/index.js';
 
 import { answerOf } from './answered.js';
-import { confidenceFromLogprobs } from './logprob-confidence.js';
+import { confidenceOfJsonField } from './logprob-confidence.js';
 import { telemetryOf } from './telemetry.js';
 
 const AnswerSchema = z.object({
@@ -105,7 +105,12 @@ export class OpenRouterCrossCheckerAdapter extends CrossChecker {
     // lower of the two is what an inspector is told, and where neither is on
     // offer the check is recorded as unscored rather than as a number invented
     // here — which puts it below the floor and in front of them.
-    const scored = confidenceFromLogprobs(completion);
+    //
+    // Only the `verdict` tokens are scored. The `reason` beside them names
+    // Azerbaijani places and house numbers, and averaging the two hands the
+    // inspector the model's certainty about its own phrasing in place of its
+    // certainty about the decision.
+    const scored = confidenceOfJsonField(completion, 'verdict');
     const stated = answer?.confidence ?? null;
     const confidence = leastOf(scored, stated);
     const note = (answer?.reason ?? '').trim().slice(0, NOTE_MAX);

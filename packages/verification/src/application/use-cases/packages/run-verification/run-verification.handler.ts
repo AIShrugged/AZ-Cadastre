@@ -875,9 +875,9 @@ export class RunVerificationHandler implements ICommandHandler<
   }
 
   // A value is only as good as the reading it came from, and a check is only as
-  // good as the values it weighed: the reader's own certainty is capped by the
-  // least confident value on the table. A name read at 0.4 off a faint card
-  // cannot produce a mismatch anyone should act on at 0.95.
+  // good as the values it weighed. `CrossCheck.of` is what holds the reader's
+  // certainty to the least confident value on the table (PRD §4); here the two
+  // numbers are only logged side by side, so a surprising verdict can be read.
   private async crossCheck(
     packageId: PackageId,
     spec: CrossCheckSpec,
@@ -906,15 +906,15 @@ export class RunVerificationHandler implements ICommandHandler<
     const answer = await this.crossChecker.check({ spec, values });
     const read = Math.min(...values.map(value => value.confidence.value));
 
-    verification.recordCrossCheck(
-      CrossCheck.of({
-        key: spec.key,
-        verdict: answer.verdict,
-        confidence: Confidence.of(Math.min(read, answer.confidence.value)),
-        note: answer.note,
-        values,
-      }),
-    );
+    const check = CrossCheck.of({
+      key: spec.key,
+      verdict: answer.verdict,
+      confidence: answer.confidence,
+      note: answer.note,
+      values,
+    });
+
+    verification.recordCrossCheck(check);
     await this.packages.save(verification);
 
     this.logger.log('Cross-check made', {
@@ -926,7 +926,7 @@ export class RunVerificationHandler implements ICommandHandler<
       // were read, and what the inspector is therefore told.
       stated: round(answer.confidence.value),
       readAt: round(read),
-      confidence: round(Math.min(read, answer.confidence.value)),
+      confidence: round(check.confidence.value),
       note: answer.note,
       values: values.map(value => ({
         of: `${value.documentType.value}.${value.fieldKey.value}`,

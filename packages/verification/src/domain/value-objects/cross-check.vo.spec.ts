@@ -144,3 +144,64 @@ describe('CrossCheck', () => {
     expect(restored.agrees).toBe(true);
   });
 });
+
+// PRD §4: a verdict is never surer than the least confident value it weighed.
+describe('CrossCheck, held to the values it weighed', () => {
+  function madeAt(
+    confidence: number,
+    values: readonly CheckedValue[],
+  ): CrossCheck {
+    return CrossCheck.of({
+      key: CrossCheckKey.create('property_address'),
+      verdict: CrossCheckVerdict.MISMATCH,
+      confidence: Confidence.of(confidence),
+      note: 'the districts differ',
+      values,
+    });
+  }
+
+  const FAINT_CARD = aValue(CARD, 'identity_card', 'address', 'Bakı', 1, 0.4);
+  const CLEAR_FORM = aValue(
+    APPLICATION,
+    'application',
+    'address',
+    'Sumqayıt',
+    1,
+    0.97,
+  );
+
+  it('is never surer than the least confident value it weighed', () => {
+    expect(madeAt(0.95, [FAINT_CARD, CLEAR_FORM]).confidence.value).toBe(0.4);
+  });
+
+  it('keeps a certainty the values can carry', () => {
+    const archive = aValue(CARD, 'archive_reference', 'address', 'X', 1, 0.96);
+    const object = aValue(APPLICATION, 'application', 'address', 'Y', 1, 0.99);
+
+    // The disagreement of b905fe60: two addresses both read well, and a verdict
+    // that has no reason to be doubted. The ceiling is 0.96 and must not bite.
+    expect(madeAt(0.93, [archive, object]).confidence.value).toBe(0.93);
+  });
+
+  it('is a ceiling and not a floor: an unsure verdict stays unsure', () => {
+    expect(madeAt(0.2, [CLEAR_FORM, FAINT_CARD]).confidence.value).toBe(0.2);
+  });
+
+  it('leaves a stored check alone, because history is not re-judged', () => {
+    const restored = CrossCheck.restore({
+      key: CrossCheckKey.create('property_address'),
+      verdict: CrossCheckVerdict.MISMATCH,
+      confidence: Confidence.of(0.95),
+      note: '',
+      values: [FAINT_CARD, CLEAR_FORM],
+    });
+
+    expect(restored.confidence.value).toBe(0.95);
+  });
+
+  it('carries the ceiling through to the finding the inspector reads', () => {
+    expect(
+      madeAt(0.95, [FAINT_CARD, CLEAR_FORM]).outrun().confidence.value,
+    ).toBe(0.4);
+  });
+});

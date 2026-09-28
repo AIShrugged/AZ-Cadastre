@@ -227,11 +227,35 @@ export class Requirement {
   }
 }
 
+/*
+ * What a rule asks of one figure, as the rule declares it — the policy the
+ * client would otherwise have to re-read out of the description prose.
+ *
+ * A range for the four measured figures, with the bounds' inclusivity as the
+ * profile writes them: years are inclusive at the bottom and exclusive at the
+ * top, "≤ 12 m" is inclusive and "> 12 m" exclusive. Null is an open end. A
+ * set of words for the two the contract classes rather than measures.
+ */
+export type ConditionExpectation =
+  | {
+      readonly kind: 'Range';
+      readonly min: number | null;
+      readonly minInclusive: boolean;
+      readonly max: number | null;
+      readonly maxInclusive: boolean;
+    }
+  | {
+      readonly kind: 'OneOf';
+      // `LandRight` or `LandPurpose` words, as the rule declares them.
+      readonly values: readonly string[];
+    };
+
 // How one condition of a rule came out: it holds, it does not, or the figure it
-// turns on could not be stated.
+// turns on could not be stated — and what the rule asked of it either way.
 export type ConditionOutcome = {
   readonly parameter: CaseParameterKey;
   readonly holds: boolean | null;
+  readonly expected: ConditionExpectation;
 };
 
 export type RuleEvaluation = {
@@ -293,20 +317,52 @@ export class ProvisionRule {
   evaluate(parameters: CaseParameters): RuleEvaluation {
     const d = this.declaration;
     const conditions: ConditionOutcome[] = [];
+
+    /*
+     * The bounds a rule declares, or null where it declares neither and so does
+     * not turn on the figure at all. Whether the rule asks and what it asks are
+     * the same fact, stated once: a condition cannot be built without its
+     * expectation.
+     */
+    const range = (
+      min: number | undefined,
+      minInclusive: boolean,
+      max: number | undefined,
+      maxInclusive: boolean,
+    ): ConditionExpectation | null =>
+      min === undefined && max === undefined
+        ? null
+        : {
+            kind: 'Range',
+            min: min ?? null,
+            minInclusive,
+            max: max ?? null,
+            maxInclusive,
+          };
+
+    const oneOf = (
+      values: readonly string[] | null,
+    ): ConditionExpectation | null =>
+      values === null ? null : { kind: 'OneOf', values: [...values] };
+
     const judge = (
       parameter: CaseParameterKey,
-      asks: boolean,
+      expected: ConditionExpectation | null,
       measure: number | string | null,
       holds: () => boolean,
     ): void => {
-      if (!asks) return;
-      conditions.push({ parameter, holds: measure === null ? null : holds() });
+      if (expected === null) return;
+      conditions.push({
+        parameter,
+        holds: measure === null ? null : holds(),
+        expected,
+      });
     };
 
     const year = parameters.builtYear;
     judge(
       'builtYear',
-      d.builtFrom !== undefined || d.builtBefore !== undefined,
+      range(d.builtFrom, true, d.builtBefore, false),
       year,
       () =>
         (d.builtFrom === undefined || year! >= d.builtFrom) &&
@@ -314,13 +370,13 @@ export class ProvisionRule {
     );
     judge(
       'storeys',
-      d.storeysAtMost !== undefined,
+      range(undefined, true, d.storeysAtMost, true),
       parameters.storeys,
       () => parameters.storeys! <= d.storeysAtMost!,
     );
     judge(
       'height',
-      d.heightAtMost !== undefined || d.heightAbove !== undefined,
+      range(d.heightAbove, false, d.heightAtMost, true),
       parameters.height,
       () =>
         (d.heightAtMost === undefined ||
@@ -329,14 +385,14 @@ export class ProvisionRule {
     );
     judge(
       'span',
-      d.spanAtMost !== undefined,
+      range(undefined, true, d.spanAtMost, true),
       parameters.span,
       () => parameters.span! <= d.spanAtMost!,
     );
-    judge('landRight', this.#landRights !== null, parameters.landRight, () =>
+    judge('landRight', oneOf(this.#landRights), parameters.landRight, () =>
       this.#landRights!.includes(parameters.landRight!),
     );
-    judge('purpose', this.#purposes !== null, parameters.purpose, () =>
+    judge('purpose', oneOf(this.#purposes), parameters.purpose, () =>
       this.#purposes!.includes(parameters.purpose!),
     );
 

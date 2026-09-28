@@ -733,6 +733,13 @@ export class PackageQueriesAdapter extends PackageQueries {
         conditions: evaluation.conditions.map(condition => ({
           parameter: condition.parameter,
           holds: condition.holds,
+          expected:
+            condition.expected.kind === 'OneOf'
+              ? {
+                  kind: condition.expected.kind,
+                  values: [...condition.expected.values],
+                }
+              : { ...condition.expected },
         })),
         excluded: evaluation.excluded,
         holds: evaluation.holds,

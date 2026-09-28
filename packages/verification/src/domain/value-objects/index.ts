@@ -71,6 +71,8 @@ export {
   TitleDocumentEntry,
   type CaseParameterKey,
   type CaseParameters,
+  type ConditionExpectation,
+  type ConditionOutcome,
   type DateSpan,
   type FigureAt,
   type LandPurpose,

@@ -85,7 +85,19 @@ const provision = (
       {
         provision: '8.0.10.1',
         description: 'From 2013, permit',
-        conditions: [{ parameter: 'builtYear', holds: false }],
+        conditions: [
+          {
+            parameter: 'builtYear',
+            holds: false,
+            expected: {
+              kind: 'Range',
+              min: 2013,
+              minInclusive: true,
+              max: null,
+              maxInclusive: false,
+            },
+          },
+        ],
         excluded: false,
         holds: false,
       },

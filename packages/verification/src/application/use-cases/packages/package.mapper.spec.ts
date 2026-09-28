@@ -337,7 +337,19 @@ function aProvisionView(): NonNullable<PackageDetailView['provision']> {
       {
         provision: '8.0.10.2',
         description: 'the notification procedure',
-        conditions: [{ parameter: 'builtYear', holds: true }],
+        conditions: [
+          {
+            parameter: 'builtYear',
+            holds: true,
+            expected: {
+              kind: 'Range',
+              min: 2013,
+              minInclusive: true,
+              max: null,
+              maxInclusive: false,
+            },
+          },
+        ],
         excluded: false,
         holds: true,
       },
@@ -617,6 +629,26 @@ describe('toDetailDto', () => {
         .filter(one => one.parameter !== 'span')
         .map(one => one.calculation),
     ).toEqual([null, null]);
+  });
+
+  // What the row asked of the figure, so a client can say why a provision was
+  // ruled out without re-reading the description prose (COMM-191).
+  it('carries what each rule requires of the figure its condition turns on', () => {
+    const dto = PackageDetailDtoSchema.parse(toDetailDto(aDetailView()));
+
+    expect(dto.provision?.rules[0]?.conditions).toEqual([
+      {
+        parameter: 'builtYear',
+        holds: true,
+        expected: {
+          kind: 'Range',
+          min: 2013,
+          minInclusive: true,
+          max: null,
+          maxInclusive: false,
+        },
+      },
+    ]);
   });
 
   // The mapper casts the read model's strings to the contract's enums; this is

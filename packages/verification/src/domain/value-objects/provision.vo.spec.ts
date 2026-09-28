@@ -197,6 +197,132 @@ describe('ProvisionsSpec — the Article 8 decision table', () => {
     });
   });
 
+  /*
+   * What the row asks of each figure, stated on the condition itself: the
+   * client is told a provision was ruled out on the land right *and* that
+   * ownership was what it wanted, without re-reading the description prose
+   * (COMM-191).
+   */
+  describe('what each condition requires of its figure', () => {
+    const expectationsOf = (
+      provision: string,
+      parameters: Partial<CaseParameters> = {},
+    ) =>
+      Object.fromEntries(
+        TABLE.ruleFor(provision)!
+          .evaluate({ ...BASE, ...parameters })
+          .conditions.map(condition => [
+            condition.parameter,
+            condition.expected,
+          ]),
+      );
+
+    it('names the right 8.0.9.1.2 turns on, beside the condition that ruled it out', () => {
+      const [landRight] = TABLE.ruleFor('8.0.9.1.2')!
+        .evaluate({ ...BASE, builtYear: 2010, landRight: 'LeaseOrUse' })
+        .conditions.filter(condition => condition.parameter === 'landRight');
+
+      expect(landRight).toEqual({
+        parameter: 'landRight',
+        holds: false,
+        expected: { kind: 'OneOf', values: ['Ownership'] },
+      });
+    });
+
+    it('states the purpose as the words the rule declares', () => {
+      expect(expectationsOf('8.0.10.2').purpose).toEqual({
+        kind: 'OneOf',
+        values: ['Residential'],
+      });
+    });
+
+    it('reads a year range inclusive at the bottom and exclusive at the top', () => {
+      expect(expectationsOf('8.0.9.1.2').builtYear).toEqual({
+        kind: 'Range',
+        min: null,
+        minInclusive: true,
+        max: 2013,
+        maxInclusive: false,
+      });
+    });
+
+    // Every bound the rule leaves out is an open end, and the four measured
+    // figures always answer with a range: 8.0.10.1 takes anything from 2013.
+    it('leaves a bound the rule does not declare open', () => {
+      expect(expectationsOf('8.0.10.1').builtYear).toEqual({
+        kind: 'Range',
+        min: 2013,
+        minInclusive: true,
+        max: null,
+        maxInclusive: false,
+      });
+    });
+
+    it('reads "≤ 3 storeys" and "≤ 6 m spans" as inclusive tops with an open bottom', () => {
+      const expected = expectationsOf('8.0.10.2');
+
+      expect(expected.storeys).toEqual({
+        kind: 'Range',
+        min: null,
+        minInclusive: true,
+        max: 3,
+        maxInclusive: true,
+      });
+      expect(expected.span).toEqual({
+        kind: 'Range',
+        min: null,
+        minInclusive: true,
+        max: 6,
+        maxInclusive: true,
+      });
+    });
+
+    // The flags are the figure's own bounds, not the declared ones: height is
+    // inclusive at the top and exclusive at the bottom whichever end is open.
+    it('reads "≤ 12 m" as an inclusive top over an open bottom', () => {
+      expect(expectationsOf('8.0.9.1.1').height).toEqual({
+        kind: 'Range',
+        min: null,
+        minInclusive: false,
+        max: 12,
+        maxInclusive: true,
+      });
+    });
+
+    it('reads "> 12 m" as an exclusive bottom, the other side of the same line', () => {
+      expect(expectationsOf('8.0.9.2').height).toEqual({
+        kind: 'Range',
+        min: 12,
+        minInclusive: false,
+        max: null,
+        maxInclusive: true,
+      });
+    });
+
+    // A figure the rule does not turn on gets no condition, and so nothing to
+    // state: 8.0.10.1 says nothing about the height.
+    it('states nothing for a figure the rule does not turn on', () => {
+      expect(Object.keys(expectationsOf('8.0.10.1'))).toEqual(['builtYear']);
+    });
+
+    // An unread figure leaves the condition undecided, but what the rule asked
+    // of it is policy and is known either way.
+    it('states what the rule asked even where the figure could not be read', () => {
+      const [height] = TABLE.ruleFor('8.0.9.1.2')!
+        .evaluate({ ...BASE, height: null })
+        .conditions.filter(condition => condition.parameter === 'height');
+
+      expect(height?.holds).toBeNull();
+      expect(height?.expected).toEqual({
+        kind: 'Range',
+        min: null,
+        minInclusive: false,
+        max: 12,
+        maxInclusive: true,
+      });
+    });
+  });
+
   describe('what each provision asks for', () => {
     it('asks nothing beyond the title of a pre-2013 owned house', () => {
       expect(TABLE.ruleFor('8.0.9.1.2')?.requirements).toEqual([]);

@@ -404,10 +404,31 @@ export type SpanCalculationView = {
   refusedFor: string | null;
 };
 
+/*
+ * What a row asks of one figure, as the rule declares it. A range for the four
+ * measured figures — null is an open end, and the inclusivity flags are the
+ * profile's own bounds — and a set of words for the two the contract classes.
+ */
+export type ConditionExpectationView =
+  | {
+      kind: 'Range';
+      min: number | null;
+      minInclusive: boolean;
+      max: number | null;
+      maxInclusive: boolean;
+    }
+  | { kind: 'OneOf'; values: readonly string[] };
+
 export type RuleEvaluationView = {
   provision: string;
   description: string;
-  conditions: readonly { parameter: string; holds: boolean | null }[];
+  // `expected` is never null: a condition only exists for a figure the row
+  // turns on, so every one of them has something to state.
+  conditions: readonly {
+    parameter: string;
+    holds: boolean | null;
+    expected: ConditionExpectationView;
+  }[];
   excluded: boolean;
   holds: boolean;
 };

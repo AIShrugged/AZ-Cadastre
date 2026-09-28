@@ -783,13 +783,46 @@ export const CaseParameterDtoSchema = z.object({
 });
 export type CaseParameterDto = z.infer<typeof CaseParameterDtoSchema>;
 
+/*
+ * What the row asks of one figure, as the rule declares it — so a reader is
+ * told why a provision was ruled out without re-reading it out of the
+ * description prose.
+ *
+ * The inclusivity flags are the policy's own bounds: years are inclusive at the
+ * bottom and exclusive at the top, "≤ 12 m" is inclusive and "> 12 m"
+ * exclusive.
+ */
+export const ConditionExpectationDtoSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('Range'),
+    // Bounds as the rule declares them; null is an open end.
+    min: z.number().nullable(),
+    minInclusive: z.boolean(),
+    max: z.number().nullable(),
+    maxInclusive: z.boolean(),
+  }),
+  z.object({
+    kind: z.literal('OneOf'),
+    // LandRight or LandPurpose values, verbatim as the rule declares them.
+    values: z.array(z.string()).min(1),
+  }),
+]);
+export type ConditionExpectationDto = z.infer<
+  typeof ConditionExpectationDtoSchema
+>;
+
 export const ProvisionRuleEvaluationDtoSchema = z.object({
   provision: z.string(),
   description: z.string(),
   // One entry per figure the row turns on. `holds` is null where the figure
-  // could not be established.
+  // could not be established; `expected` is always set — a condition only
+  // exists for a figure the row turns on, so it always has something to state.
   conditions: z.array(
-    z.object({ parameter: CaseParameterSchema, holds: z.boolean().nullable() }),
+    z.object({
+      parameter: CaseParameterSchema,
+      holds: z.boolean().nullable(),
+      expected: ConditionExpectationDtoSchema,
+    }),
   ),
   excluded: z.boolean(),
   holds: z.boolean(),

@@ -56,9 +56,16 @@ export function fieldBehind(
 /**
  * Whether this figure was read too poorly to decide a case on unchallenged.
  *
- * A figure nothing on a paper stated — declared at intake, or decided by the
- * kind of the title document — carries no reading to doubt and no line to open,
- * so it is never marked: the mark has to mean something.
+ * A figure the office declared at intake carries no reading of a paper at all,
+ * so there is nothing to doubt and it is never marked: the mark has to mean
+ * something.
+ *
+ * A figure decided by the *kind* of a title document is marked all the same.
+ * Nothing was read off a line of it, but the paper was placed under that kind
+ * with a confidence of its own, and the case rests on that placement exactly as
+ * it rests on a figure read off a sheet. It has no field line to settle it on,
+ * so its mark opens the document instead — the same place the source link
+ * beneath it already goes.
  */
 export function isDoubtful(
   parameter: CaseParameterDto,

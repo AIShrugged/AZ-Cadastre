@@ -136,6 +136,25 @@ describe('isDoubtful', () => {
     expect(isDoubtful(declared, [doc()])).toBe(false);
   });
 
+  it('marks a figure decided by the kind of a title document', () => {
+    // No line of the paper stated it — the paper's own placement did, with a
+    // confidence of its own — and the case rests on that placement all the
+    // same. There is no field to settle it on, so the mark opens the document.
+    const byKind = parameter('landRight', 0.5, {
+      value: 'Ownership',
+      source: 'TitleDocumentType',
+      from: {
+        documentId: 'doc-1',
+        documentType: 'state_act',
+        fieldName: null,
+        pageNumber: null,
+        confidence: 0.5,
+      },
+    });
+
+    expect(isDoubtful(byKind, [doc()])).toBe(true);
+  });
+
   it('still marks a figure whose document this read no longer carries', () => {
     expect(isDoubtful(parameter('storeys', 0.5), [])).toBe(true);
   });
